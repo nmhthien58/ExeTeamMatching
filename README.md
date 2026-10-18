@@ -25,6 +25,5 @@ Sinh viên và giảng viên dùng **Mobile App (Flutter)**; Bộ môn EXE dùng
 |---|---|
 | [docs/lab2-slide/](docs/lab2-slide/) | Slide trình bày Lab 2 và hướng dẫn chấm |
 | [docs/c4-architecture/](docs/c4-architecture/) | Sơ đồ kiến trúc C4 (C0, C1) |
-| [figma-bridge/](figma-bridge/) | Plugin Figma cục bộ để AI chạy script đọc / sửa file Figma (dùng cho các vòng tinh chỉnh) |
 
 Figma file gồm 6 page: `01 User Flow`, `02 Wireframe`, `03 Final UI`, `04 Design System`, `05 Components`, `06 Prototype`.
