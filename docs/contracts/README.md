@@ -1,12 +1,13 @@
-# Hợp đồng giữa các service (BE-02)
+# Hợp đồng giữa các service (BE-02, BE-61)
 
-Bản nháp chốt ở tuần 1 để 5 người làm song song. Mọi thay đổi phải qua PR do Thiên duyệt (AGENTS.md mục 3.4).
+Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/2026) cập nhật theo bản 4 của `docs/ux/PROJECT_CONTEXT.md` (mentor, đề tài xuyên kỳ, quan tâm đề tài, workspace). Mọi thay đổi phải qua PR do Thiên duyệt (AGENTS.md mục 3.4).
 
 | File | Nội dung |
 |---|---|
-| [openapi/identity.yaml](openapi/identity.yaml) | Đăng nhập Google → JWT, refresh, logout |
-| [openapi/academic.yaml](openapi/academic.yaml) | Học kỳ, đợt đăng ký, import, sinh viên, giảng viên, danh mục, cấu hình, endpoint nội bộ |
-| [openapi/team.yaml](openapi/team.yaml) | Nhóm, thành viên, lời mời, yêu cầu, bài đăng, gợi ý, đổi nhóm, giảng viên, chốt nhóm, ghép tự động, thống kê, endpoint nội bộ |
+| [openapi/identity.yaml](openapi/identity.yaml) | Đăng nhập Google → JWT (claim `roles` là danh sách), refresh, logout |
+| [openapi/academic.yaml](openapi/academic.yaml) | Học kỳ, giai đoạn môn, đợt đăng ký, import, sinh viên (5 kỹ năng), giảng viên (domain chuyên môn), mentor, danh mục, cấu hình, endpoint nội bộ |
+| [openapi/team.yaml](openapi/team.yaml) | Đề tài xuyên kỳ, nhóm, thành viên, lời mời, yêu cầu tham gia (kèm ý tưởng), bài đăng, gợi ý, đổi nhóm (cả đổi đề tài), quan tâm đề tài, giảng viên, mentor, chốt nhóm, ghép tự động, thống kê, endpoint nội bộ |
+| [openapi/collab.yaml](openapi/collab.yaml) | Workspace nhóm: tin nhắn (+ SignalR hub), việc và bài nộp, file dự án (MinIO), lịch họp, endpoint nội bộ cho Job |
 | [openapi/notification.yaml](openapi/notification.yaml) | Thông báo trong ứng dụng, cài đặt email, thông báo chung |
 | [events.md](events.md) | Envelope, topic, payload sự kiện Kafka |
 | [../../src/Protos/matching.proto](../../src/Protos/matching.proto) | gRPC Matching Service |
@@ -14,7 +15,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song. Mọi thay đ�
 ## Quy ước chung
 
 - **Gateway:** client chỉ gọi `http://localhost:8080`. Route `/api/*` đi qua Gateway; route `/internal/*` chỉ gọi trong mạng Docker (Job → Team, Team → Academic), không mở ra ngoài.
-- **Xác thực:** header `Authorization: Bearer <accessToken>`. JWT có claim `sub` (id tài khoản), `email`, `name`, `role` (`Student` | `Lecturer` | `Admin`), `student_id` hoặc `lecturer_id`. Leader không phải role: Team Service kiểm tra theo dữ liệu nhóm.
+- **Xác thực:** header `Authorization: Bearer <accessToken>`. JWT có claim `sub` (id tài khoản), `email`, `name`, `roles` (danh sách: `Student` | `Lecturer` | `Mentor` | `Admin` – một tài khoản có thể vừa Lecturer vừa Mentor), `student_id`, `lecturer_id`, `mentor_id` (có khi có vai trò tương ứng). Leader không phải role: Team Service kiểm tra theo dữ liệu nhóm. Hub SignalR nhận token qua query `access_token`.
 - **Gọi nội bộ:** Job dùng token dịch vụ (client credentials, claim `role=Service`).
 - **JSON:** camelCase; thời gian ISO 8601 UTC (`2026-10-19T03:15:00Z`); id là uuid dạng chuỗi.
 - **Phân trang:** query `page` (từ 1), `pageSize` (mặc định 20, tối đa 100); kết quả `{ items, page, pageSize, totalCount, totalPages }`.
@@ -32,6 +33,15 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song. Mọi thay đ�
 | `change-request-not-allowed` | Đổi nhóm với nhóm EXE101 hoặc nhóm không kế thừa (rule 7) |
 | `lecturer-full` | Giảng viên đã đủ sức chứa (rule 9) |
 | `not-in-list` | Email không có trong danh sách học kỳ (rule 5) |
+| `ideas-required` | Yêu cầu tham gia thiếu ý tưởng và không tích "Chưa có ý tưởng" (rule 17) |
+| `interest-limit` | Giảng viên đã đạt giới hạn quan tâm đề tài (rule 19) |
+| `team-has-mentor`, `mentor-full` | Nhóm đã có mentor / mentor đã đủ số nhóm tối đa (rule 20) |
+| `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
+| `skills-incomplete` | Hồ sơ chưa đánh giá đủ 5 kỹ năng (rule 16) |
+| `not-workspace-member` (403) | Không thuộc workspace của nhóm (rule 21) |
+| `archive-read-only` | Ghi vào thư mục / việc EXE101 kỳ trước (rule 26) |
+| `instructor-only` (403) | Chỉ giảng viên hướng dẫn tạo / duyệt bài nộp (rule 23) |
+| `file-too-large` (413), `file-type-not-allowed` (415) | File quá 25 MB / sai định dạng (rule 24) |
 
 ## Dùng dữ liệu giả khi API chưa xong
 

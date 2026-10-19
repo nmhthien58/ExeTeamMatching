@@ -135,7 +135,7 @@ Diagram source: `docs/c4-architecture/c1.mmd` (Mermaid flowchart, rendered to `c
 - Google login: receives Google ID token, looks up the email in its own `UserAccount` table, then **issues the system's own JWT** (access token ~15 min) + refresh token (~7 days). Refresh, logout/revoke. An email with no active account is rejected (mobile screen A04).
 - **Login allow-list (rule 5).** Identity never calls Academic at login. It consumes `StudentImported`, `LecturerRegistered` and `MentorRegistered` (topic `exe.student`) and pre-creates a `UserAccount` (role `Student` / `Lecturer` / `Mentor`, status `PENDING`, becomes `ACTIVE` at the first Google login) for each email; the event is processed idempotently (same email → update, not duplicate). The first Admin account is seeded.
 - Roles: `Student`, `Lecturer`, `Mentor`, `Admin`. An account can hold `Lecturer` and `Mentor` together (JWT claim `roles` is a list). Leader is checked as a policy at the Services layer, not a role.
-- DB (`Identity DB`): `UserAccount` (email, role, status, semester), `Role`, `RefreshToken` (token, expiry, revoked), `ProcessedEvent` (idempotency).
+- DB (`Identity DB`): `UserAccount` (email, status, semester), `UserAccountRole` (account, role, external ref – one account can hold several roles), `Role`, `RefreshToken` (token, expiry, revoked), `ProcessedEvent` (idempotency).
 - No Redis (JWT is validated by signature; caching login data risks keeping locked accounts active).
 
 ### 5.3 Academic Service – REST API
@@ -212,7 +212,7 @@ service MatchingService {
 - Lecturer / mentor overview endpoints across their teams: needs-reply questions, overdue deliverables, upcoming meetings.
 - Internal endpoints for Job Service: `GET /internal/meetings/upcoming`, `GET /internal/tasks/due`.
 - Publishes through Outbox to `exe.collab` (section 6).
-- DB (`Collab DB`): `Workspace`, `WorkspaceMember`, `Channel`, `Message`, `MessageRead`, `AdvisorQuestion`, `TaskItem`, `TaskAssignee`, `TaskComment`, `Deliverable`, `DeliverableSubmission`, `Folder`, `ProjectFile`, `FileVersion`, `FileComment`, `Meeting`, `MeetingSlot`, `MeetingResponse`, `MeetingMinutes`, `OutboxMessage`, `ProcessedEvent`.
+- DB (`Collab DB`, script `deploy/db/06_collab_db.sql`): `Workspace`, `WorkspaceMember`, `Channel`, `Message`, `MessageAttachment`, `MessageRead`, `AdvisorQuestion`, `TaskItem` (kind `Task` / `Deliverable`), `TaskAssignee`, `TaskComment`, `DeliverableSubmission`, `Folder`, `ProjectFile`, `FileVersion`, `FileComment`, `Meeting`, `MeetingSlot`, `MeetingResponse`, `MeetingMinutes`, `MeetingReminder`, `OutboxMessage`, `ProcessedEvent`.
 
 ## 6. Kafka topics and events
 
@@ -294,7 +294,7 @@ deploy/
 
 The Flutter mobile app is not part of Compose; it points at the gateway URL. `depends_on` with `condition: service_healthy`. EF migrations auto-run in Development. Demo seed data comes from an **anonymized** Group List (no phone numbers, fake emails).
 
-> `collab_db`, its SQL script and the `collab-api` / `minio` containers are **not created yet** (tasks BE-60, BE-61). `EXE_Database_Design.pdf` and `deploy/db/` still describe the five original databases.
+> DB scripts and contracts for version 4 are done (BE-60, BE-61 – `deploy/db/`, `docs/contracts/`). The `collab-api` and `minio` containers are **not in Compose yet** (task BE-63), and `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists the differences.
 
 ## 10. PRN232 requirement mapping
 

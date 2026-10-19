@@ -1,6 +1,6 @@
-// BE-02 – Hợp đồng gRPC của Matching Service (PROJECT_CONTEXT §5.5).
+// BE-02, BE-61 (bản 4) – Hợp đồng gRPC của Matching Service (PROJECT_CONTEXT §5.5).
 // Matching chỉ tính gợi ý / phương án, không ghi dữ liệu nghiệp vụ.
-// Gọi bởi: Team Service (SuggestMembers, SuggestTeams, ValidateComposition, PlanAutoAssignment)
+// Gọi bởi: Team Service (SuggestMembers, SuggestTeams, SuggestTopicsForLecturer, ValidateComposition, PlanAutoAssignment)
 //          Job Service  (PlanAutoAssignment).
 syntax = "proto3";
 
@@ -9,10 +9,13 @@ package exe.matching.v1;
 option csharp_namespace = "ExeTeamMatching.Protos.Matching.V1";
 
 service MatchingService {
-  // Sinh viên chưa có nhóm bổ sung chuyên ngành còn thiếu cho một nhóm (S18).
+  // Sinh viên chưa có nhóm bổ sung chuyên ngành còn thiếu và kỹ năng yếu của nhóm (S18, rule 16).
   rpc SuggestMembers (SuggestMembersRequest) returns (SuggestMembersResponse);
   // Nhóm đang tuyển cần chuyên ngành của sinh viên (S07, khu "Gợi ý cho bạn" ở S05).
   rpc SuggestTeams (SuggestTeamsRequest) returns (SuggestTeamsResponse);
+  // Đề tài (nhóm) hợp chuyên môn của giảng viên, chưa có giảng viên được nhận / phân công (L07, rule 19).
+  // Xếp: đề tài giảng viên đã hướng dẫn ở EXE101 trước (rule 26), rồi độ trùng domain, rồi ít người quan tâm.
+  rpc SuggestTopicsForLecturer (SuggestTopicsForLecturerRequest) returns (SuggestTopicsForLecturerResponse);
   // Kiểm tra 4–6 thành viên và >= 2 chuyên ngành (rule 1, 2).
   rpc ValidateComposition (ValidateCompositionRequest) returns (ValidateCompositionResponse);
   // Sau hạn chót: lấp sinh viên lẻ vào nhóm NEEDS_REVIEW, rồi chia phần còn lại thành nhóm mới (rule 14).
@@ -23,6 +26,21 @@ enum Course {
   COURSE_UNSPECIFIED = 0;
   COURSE_EXE101 = 1;
   COURSE_EXE201 = 2;
+}
+
+// 5 kỹ năng cố định, tự đánh giá 1–5 (rule 16).
+enum Skill {
+  SKILL_UNSPECIFIED = 0;
+  SKILL_TECHNOLOGY = 1;
+  SKILL_UI_UX_DESIGN = 2;
+  SKILL_MANAGEMENT = 3;
+  SKILL_MARKETING = 4;
+  SKILL_COMMUNICATION_PLANNING = 5;
+}
+
+message SkillRating {
+  Skill skill = 1;
+  int32 level = 2;                // 1..5
 }
 
 message MemberInfo {
@@ -40,14 +58,17 @@ message SuggestMembersRequest {
 message MemberSuggestion {
   string student_id = 1;
   int32 specialization_id = 2;
-  repeated string skills = 3;
-  double score = 4;               // 0..1, chỉ để sắp xếp và hiển thị mức phù hợp
-  repeated string reasons = 5;    // ví dụ "Nhóm đang thiếu chuyên ngành Marketing"
+  reserved 3;                     // bản 1: repeated string skills (chữ tự do) – bỏ ở bản 4
+  reserved "skills";
+  double score = 4;               // 0..1, chỉ để sắp xếp; client hiện nhãn mức phù hợp, không hiện số %
+  repeated string reasons = 5;    // ví dụ "Nhóm đang thiếu chuyên ngành Marketing", "Mạnh Thiết kế UI/UX (4/5)"
+  repeated SkillRating skill_ratings = 6;
 }
 
 message SuggestMembersResponse {
   repeated int32 missing_specialization_ids = 1;
   repeated MemberSuggestion suggestions = 2;
+  repeated Skill weak_skills = 3;     // kỹ năng nhóm yếu nhất (max level trong nhóm <= 2)
 }
 
 message SuggestTeamsRequest {
@@ -67,6 +88,29 @@ message TeamSuggestion {
 
 message SuggestTeamsResponse {
   repeated TeamSuggestion suggestions = 1;
+}
+
+message SuggestTopicsForLecturerRequest {
+  string semester_id = 1;
+  Course course = 2;              // COURSE_UNSPECIFIED = cả hai môn
+  string lecturer_id = 3;
+  int32 limit = 4;                // mặc định 20
+  int32 offset = 5;
+}
+
+message TopicSuggestion {
+  string team_id = 1;
+  string project_id = 2;
+  repeated int32 matched_domain_ids = 3;
+  int32 interested_lecturer_count = 4;   // số giảng viên khác đang quan tâm (không trả tên)
+  bool was_lecturer_exe101_team = 5;      // đề tài giảng viên này hướng dẫn ở EXE101
+  double score = 6;
+  repeated string reasons = 7;           // ví dụ "Trùng domain D04 Education"
+}
+
+message SuggestTopicsForLecturerResponse {
+  repeated TopicSuggestion suggestions = 1;
+  int32 total = 2;
 }
 
 message ValidateCompositionRequest {

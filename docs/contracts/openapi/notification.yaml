@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: EXE Team Matching – Notification Service (read API)
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   description: |
     BE-02 – bản nháp. Thông báo trong ứng dụng, lọc theo người gọi (JWT). Ứng dụng tải khi mở tab
     hoặc kéo để làm mới (polling), không có push realtime.
@@ -74,7 +74,7 @@ paths:
               type: object
               required: [audience, title, content]
               properties:
-                audience: { type: string, enum: [ALL_STUDENTS, STUDENTS_WITHOUT_TEAM, ALL_LECTURERS, EVERYONE] }
+                audience: { type: string, enum: [ALL_STUDENTS, STUDENTS_WITHOUT_TEAM, ALL_LECTURERS, ALL_MENTORS, TEAMS_WITHOUT_MENTOR, EVERYONE] }
                 courseCode: { type: string, enum: [EXE101, EXE201], nullable: true }
                 title: { type: string, maxLength: 200 }
                 content: { type: string, maxLength: 2000 }

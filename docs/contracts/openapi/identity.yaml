@@ -1,10 +1,11 @@
 openapi: 3.0.3
 info:
   title: EXE Team Matching – Identity Service
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   description: |
-    BE-02 – bản nháp hợp đồng. Đăng nhập Google, cấp JWT của hệ thống (access ~15 phút, refresh ~7 ngày).
-    Chỉ email đã có tài khoản (tạo sẵn từ danh sách import) mới đăng nhập được (rule 5).
+    BE-02, BE-61 (bản 4, 19/10/2026) – bản nháp hợp đồng. Đăng nhập Google, cấp JWT của hệ thống (access ~15 phút, refresh ~7 ngày).
+    Chỉ email đã có tài khoản (tạo sẵn từ danh sách import hoặc mentor do Bộ môn tạo) mới đăng nhập được (rule 5).
+    Một tài khoản có thể giữ nhiều vai trò (giảng viên vừa là mentor – rule 20): claim `roles` là danh sách.
 servers:
   - url: http://localhost:8080
     description: API Gateway
@@ -25,7 +26,7 @@ paths:
               required: [idToken, client]
               properties:
                 idToken: { type: string, description: ID token lấy từ Google Sign-In / Firebase Auth }
-                client: { type: string, enum: [web, mobile], description: "web chỉ cho role Admin; mobile cho Student, Lecturer" }
+                client: { type: string, enum: [web, mobile], description: "web cho mọi vai trò (Admin, Student, Lecturer, Mentor); mobile cho Student, Lecturer, Mentor" }
       responses:
         '200': { description: Đăng nhập thành công, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
         '400': { $ref: '#/components/responses/Problem' }
@@ -33,7 +34,7 @@ paths:
         '403':
           description: |
             `type` = `.../errors/not-in-list` (email không có trong danh sách học kỳ → mobile hiện A04),
-            `.../errors/account-locked`, `.../errors/wrong-client` (sinh viên đăng nhập web quản trị).
+            `.../errors/account-locked`, `.../errors/wrong-client` (tài khoản chỉ có role Admin đăng nhập mobile).
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
   /api/auth/refresh:
     post:
@@ -97,12 +98,20 @@ components:
     UserInfo:
       type: object
       description: |
-        JWT mang các claim tương ứng: sub (=id), email, name, role, student_id hoặc lecturer_id.
+        JWT mang các claim tương ứng: sub (=id), email, name, roles (danh sách), student_id, lecturer_id, mentor_id.
+        Client chọn khung giao diện theo vai trò: Admin → web quản trị; Student; Lecturer (kèm nhóm mentor nếu có Mentor);
+        chỉ Mentor → khung Mentor (user-flow.md mục 0).
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         fullName: { type: string }
-        role: { type: string, enum: [Student, Lecturer, Admin] }
+        roles:
+          type: array
+          minItems: 1
+          items: { type: string, enum: [Student, Lecturer, Mentor, Admin] }
+          example: [Lecturer, Mentor]
         studentId: { type: string, format: uuid, nullable: true }
         lecturerId: { type: string, format: uuid, nullable: true }
-        isFirstLogin: { type: boolean, description: "true ở lần đăng nhập đầu → sinh viên vào A05 hoàn thiện hồ sơ" }
+        mentorId: { type: string, format: uuid, nullable: true }
+        isFirstLogin: { type: boolean, description: "true ở lần đăng nhập đầu" }
+        profileCompleted: { type: boolean, description: "Sinh viên chưa đánh giá đủ 5 kỹ năng → vào A05 (rule 16)" }

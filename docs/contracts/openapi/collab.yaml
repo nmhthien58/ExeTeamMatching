@@ -1,0 +1,585 @@
+openapi: 3.0.3
+info:
+  title: EXE Team Matching – Collaboration Service
+  version: 0.2.0-draft
+  description: |
+    BE-61 (bản 4) – bản nháp. Workspace nhóm (rule 21–25): tin nhắn, việc và bài nộp, file dự án, lịch họp.
+    Người phụ trách module (AGENTS.md mục 2): khung + hub + MinIO – Thiên; Messages – Cường; Files, Tasks – Nguyên; Meetings – Nam.
+    Quy ước chung: docs/contracts/README.md.
+
+    **Quyền:** chỉ thành viên workspace (đọc từ `workspace_members`, dựng từ Kafka) – thành viên nhóm, giảng viên hướng dẫn
+    chính thức, mentor được gán; Admin chỉ đọc. Không phải thành viên → 403 `.../errors/not-workspace-member`.
+    Người dùng định danh bằng `personType` (STUDENT | LECTURER | MENTOR) + `personId` (claim student_id / lecturer_id / mentor_id).
+
+    **Realtime (SignalR):** hub `/hubs/collab` qua Gateway (WebSocket, dự phòng long polling); JWT qua query `access_token`.
+    Client gọi `JoinChannel(channelId)` / `LeaveChannel(channelId)`; server đẩy `messageCreated`, `messageUpdated`, `messageDeleted`,
+    `readUpdated`, `questionStatusChanged`, `typing`. Gửi tin luôn qua REST (`POST /api/channels/{id}/messages`), hub chỉ đẩy.
+
+    **Lỗi riêng:** `not-workspace-member` (403), `archive-read-only` (409 – thư mục EXE101 kỳ trước), `instructor-only` (403 – bài nộp,
+    duyệt bài), `not-organizer` (403), `meeting-not-open` (409), `file-too-large` (413), `file-type-not-allowed` (415).
+servers:
+  - url: http://localhost:8080
+    description: API Gateway
+security:
+  - bearer: []
+tags:
+  - { name: Workspaces, description: "C01, L01, M01" }
+  - { name: Messages, description: "Cường – C02, C03 (rule 22)" }
+  - { name: Tasks, description: "Nguyên – C04, C05 (rule 23)" }
+  - { name: Files, description: "Nguyên – C06 (rule 24)" }
+  - { name: Meetings, description: "Nam – C07, C08 (rule 25)" }
+  - { name: Internal, description: "Job Service gọi, có service token, không qua Gateway" }
+paths:
+  # ---------------- Workspaces ----------------
+  /api/workspaces/me:
+    get:
+      tags: [Workspaces]
+      summary: Workspace của tôi – sinh viên có một; giảng viên, mentor có nhiều (C02 danh sách, M01, L04)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/WorkspaceSummary' } } } } } }
+  /api/workspaces/{workspaceId}:
+    get:
+      tags: [Workspaces]
+      summary: Tổng quan dự án (C01). Mentor nhận thêm mentorBrief
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/WorkspaceOverview' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+  /api/advisor/overview:
+    get:
+      tags: [Workspaces]
+      summary: Việc cần cố vấn xử lý, gom mọi nhóm (L01, M01) – Cần trả lời, Trễ hạn nộp, Họp sắp tới, Chờ chốt lịch
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorOverview' } } } } }
+
+  # ---------------- Messages (rule 22) ----------------
+  /api/workspaces/{workspaceId}/channels:
+    get:
+      tags: [Messages]
+      summary: Kênh của workspace – Nhóm (chỉ thành viên) và Cố vấn – kèm số chưa đọc
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Channel' } } } } } }
+  /api/channels/{channelId}/messages:
+    get:
+      tags: [Messages]
+      summary: Lịch sử tin nhắn gốc (không gồm trả lời trong luồng), phân trang cursor, mới nhất trước
+      parameters:
+        - { $ref: '#/components/parameters/ChannelId' }
+        - { name: before, in: query, schema: { type: string }, description: Cursor (nextCursor của trang trước) }
+        - { name: limit, in: query, schema: { type: integer, default: 30, maximum: 100 } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MessagePage' } } } } }
+    post:
+      tags: [Messages]
+      summary: Gửi tin (C03). clientMessageId để client cập nhật lạc quan và chống gửi trùng khi Thử lại
+      parameters: [ { $ref: '#/components/parameters/ChannelId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body, clientMessageId]
+              properties:
+                clientMessageId: { type: string, format: uuid }
+                body: { type: string, minLength: 1, maxLength: 2000 }
+                parentMessageId: { type: string, format: uuid, nullable: true, description: Trả lời trong luồng }
+                isAdvisorQuestion: { type: boolean, default: false, description: "Chỉ ở kênh Cố vấn, chỉ thành viên nhóm, chỉ tin gốc" }
+                attachmentFileIds: { type: array, maxItems: 5, items: { type: string, format: uuid } }
+                mentionPersonIds: { type: array, items: { type: string, format: uuid } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }, '200': { description: Trùng clientMessageId – trả tin đã có, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }, '400': { $ref: '#/components/responses/Problem' }, '403': { $ref: '#/components/responses/Problem' } }
+  /api/messages/{messageId}/thread:
+    get:
+      tags: [Messages]
+      summary: Luồng trả lời của một tin
+      parameters: [ { $ref: '#/components/parameters/MessageId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { root: { $ref: '#/components/schemas/Message' }, replies: { type: array, items: { $ref: '#/components/schemas/Message' } } } } } } } }
+  /api/messages/{messageId}:
+    patch:
+      tags: [Messages]
+      summary: Sửa tin của mình trong 15 phút
+      parameters: [ { $ref: '#/components/parameters/MessageId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 2000 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } } }
+    delete:
+      tags: [Messages]
+      summary: Xóa mềm tin của mình (client hiện Hoàn tác 5 giây trước khi gọi)
+      parameters: [ { $ref: '#/components/parameters/MessageId' } ]
+      responses: { '204': { description: OK } }
+  /api/channels/{channelId}/read:
+    post:
+      tags: [Messages]
+      summary: Đánh dấu đã đọc tới tin nào (gọi khi tin hiện trên màn hình)
+      parameters: [ { $ref: '#/components/parameters/ChannelId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [lastReadMessageId], properties: { lastReadMessageId: { type: string, format: uuid } } } } } }
+      responses: { '204': { description: OK } }
+  /api/advisor/questions:
+    get:
+      tags: [Messages]
+      summary: Câu hỏi cho cố vấn của mọi nhóm mình phụ trách (C02 lọc "Cần trả lời")
+      parameters: [ { name: status, in: query, schema: { type: string, enum: [OPEN, ANSWERED], default: OPEN } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/AdvisorQuestion' } } } } ] } } } } }
+
+  # ---------------- Tasks (rule 23) ----------------
+  /api/workspaces/{workspaceId}/tasks:
+    get:
+      tags: [Tasks]
+      summary: Bảng việc (C04). Lọc nhanh Của tôi / Bài nộp / Trễ hạn
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/TaskStatus' } }
+        - { name: kind, in: query, schema: { type: string, enum: [TASK, DELIVERABLE] } }
+        - { name: mine, in: query, schema: { type: boolean } }
+        - { name: overdue, in: query, schema: { type: boolean } }
+        - { name: includeArchive, in: query, schema: { type: boolean, default: false }, description: Thêm việc đã xong của workspace EXE101 cùng đề tài (chỉ đọc) }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TaskCard' } } } } } }
+    post:
+      tags: [Tasks]
+      summary: Tạo việc (thành viên) hoặc bài nộp (giảng viên hướng dẫn – kind = DELIVERABLE, bắt buộc dueAt). Mentor không tạo trực tiếp (chỉ qua biên bản họp)
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaskInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TaskDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+  /api/tasks/{taskId}:
+    get:
+      tags: [Tasks]
+      summary: Chi tiết việc / bài nộp (C05)
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TaskDetail' } } } } }
+    patch:
+      tags: [Tasks]
+      summary: Sửa tên, mô tả, người làm, hạn
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TaskInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TaskDetail' } } } } }
+    delete:
+      tags: [Tasks]
+      summary: Xóa việc (người tạo, trưởng nhóm); bài nộp chỉ giảng viên xóa khi chưa có bản nộp
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      responses: { '204': { description: OK } }
+  /api/tasks/{taskId}/move:
+    post:
+      tags: [Tasks]
+      summary: Đổi trạng thái / vị trí (kéo thả trên web; menu "Chuyển sang…" trên mobile). Client cập nhật lạc quan
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { $ref: '#/components/schemas/TaskStatus' }, position: { type: integer, minimum: 0 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TaskCard' } } } } }
+  /api/tasks/{taskId}/comments:
+    get:
+      tags: [Tasks]
+      summary: Bình luận của việc
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Comment' } } } } } }
+    post:
+      tags: [Tasks]
+      summary: Bình luận (thành viên, giảng viên, mentor)
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 2000 } } } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Comment' } } } } }
+  /api/tasks/{taskId}/submissions:
+    post:
+      tags: [Tasks]
+      summary: Nhóm nộp bài – một phiên bản file đã có trong C06 (rule 23). Nộp sau hạn vẫn được, chip Trễ hạn giữ lại
+      parameters: [ { $ref: '#/components/parameters/TaskId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [fileVersionId], properties: { fileVersionId: { type: string, format: uuid } } } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Submission' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/submissions/{submissionId}/review:
+    post:
+      tags: [Tasks]
+      summary: Giảng viên hướng dẫn duyệt – ACCEPTED hoặc NEEDS_REVISION (bắt buộc bình luận)
+      parameters: [ { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: string, enum: [ACCEPTED, NEEDS_REVISION] }, comment: { type: string, maxLength: 2000 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Submission' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+
+  # ---------------- Files (rule 24) ----------------
+  /api/workspaces/{workspaceId}/files:
+    get:
+      tags: [Files]
+      summary: Nội dung một thư mục (C06) – thư mục con và file (chỉ bản mới nhất). Thư mục "EXE101 (kỳ trước)" ghim ở đầu
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' }, { name: folderId, in: query, schema: { type: string, format: uuid }, description: Bỏ trống = thư mục gốc } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/FolderContent' } } } } }
+    post:
+      tags: [Files]
+      summary: Tải lên (thành viên). Trùng tên trong thư mục → phiên bản mới (createdNewVersion = true). ≤ 25 MB; pdf, docx, pptx, xlsx, png, jpg, zip
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary }, folderId: { type: string, format: uuid, nullable: true } } }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { type: object, properties: { file: { $ref: '#/components/schemas/ProjectFile' }, createdNewVersion: { type: boolean } } } } } }
+        '409': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /api/workspaces/{workspaceId}/folders:
+    post:
+      tags: [Files]
+      summary: Tạo thư mục (thành viên)
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name], properties: { name: { type: string, maxLength: 100 }, parentId: { type: string, format: uuid, nullable: true } } } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Folder' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/files/{fileId}:
+    get:
+      tags: [Files]
+      summary: Chi tiết file – các phiên bản và bình luận
+      parameters: [ { $ref: '#/components/parameters/FileId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectFileDetail' } } } } }
+    delete:
+      tags: [Files]
+      summary: Xóa mềm (người tải lên, trưởng nhóm) – có dialog xác nhận vì ảnh hưởng cả nhóm
+      parameters: [ { $ref: '#/components/parameters/FileId' } ]
+      responses: { '204': { description: OK }, '403': { $ref: '#/components/responses/Problem' } }
+  /api/files/{fileId}/download-url:
+    get:
+      tags: [Files]
+      summary: URL ký sẵn của MinIO để tải / xem (hết hạn sau 10 phút)
+      parameters: [ { $ref: '#/components/parameters/FileId' }, { name: version, in: query, schema: { type: integer }, description: Bỏ trống = bản mới nhất } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { url: { type: string, format: uri }, expiresAt: { type: string, format: date-time } } } } } } }
+  /api/files/{fileId}/comments:
+    post:
+      tags: [Files]
+      summary: Bình luận file (thành viên, giảng viên, mentor)
+      parameters: [ { $ref: '#/components/parameters/FileId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 2000 }, version: { type: integer, nullable: true } } } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Comment' } } } } }
+
+  # ---------------- Meetings (rule 25) ----------------
+  /api/workspaces/{workspaceId}/meetings:
+    get:
+      tags: [Meetings]
+      summary: Lịch họp (C07) – Chờ chốt, Sắp tới, Đã họp; kèm số buổi mentor
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' }, { name: status, in: query, schema: { $ref: '#/components/schemas/MeetingStatus' } } ]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, properties: { mentorSessionsDone: { type: integer }, expectedMentorSessions: { type: integer }, items: { type: array, items: { $ref: '#/components/schemas/MeetingCard' } } } } } }
+    post:
+      tags: [Meetings]
+      summary: Đề xuất họp 1–3 khung giờ (trưởng nhóm, giảng viên hướng dẫn, mentor). Một khung = họp đã chốt luôn
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+  /api/meetings/{meetingId}:
+    get:
+      tags: [Meetings]
+      summary: Chi tiết cuộc họp (C08) – khung giờ, câu trả lời, biên bản
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } } }
+  /api/meetings/{meetingId}/responses:
+    put:
+      tags: [Meetings]
+      summary: Trả lời Có / Không cho từng khung (cập nhật lạc quan)
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [answers], properties: { answers: { type: array, items: { type: object, required: [slotId, answer], properties: { slotId: { type: string, format: uuid }, answer: { type: string, enum: [YES, NO] } } } } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/meetings/{meetingId}/slots:
+    post:
+      tags: [Meetings]
+      summary: Người tổ chức thêm khung giờ khi không khung nào đủ người (câu trả lời cũ giữ nguyên, tối đa 3 khung đang mở)
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SlotInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/meetings/{meetingId}/confirm:
+    post:
+      tags: [Meetings]
+      summary: Người tổ chức chốt một khung (phát MeetingScheduled)
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [slotId], properties: { slotId: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+  /api/meetings/{meetingId}/cancel:
+    post:
+      tags: [Meetings]
+      summary: Người tổ chức hủy kèm lý do
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, maxLength: 500 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } } }
+  /api/meetings/{meetingId}/minutes:
+    put:
+      tags: [Meetings]
+      summary: Ghi / sửa biên bản (người tổ chức); họp chuyển DONE
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [content], properties: { content: { type: string, maxLength: 8000 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } } }
+  /api/meetings/{meetingId}/minutes/tasks:
+    post:
+      tags: [Meetings]
+      summary: Chuyển các dòng biên bản thành việc trong một bước (sourceMeetingId được gắn)
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/TaskInput' } } } } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TaskCard' } } } } } }
+
+  # ---------------- Internal (Job Service) ----------------
+  /internal/meetings/upcoming:
+    get:
+      tags: [Internal]
+      summary: Họp đã chốt bắt đầu trong khoảng (MeetingReminderJob) – chỉ trả mốc chưa gửi
+      parameters: [ { name: offsetMinutes, in: query, required: true, schema: { type: integer, enum: [60, 1440] } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/MeetingDetail' } } } } } }
+  /internal/meetings/{meetingId}/reminders:
+    post:
+      tags: [Internal]
+      summary: Đánh dấu đã gửi một mốc nhắc (idempotent)
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [offsetMinutes], properties: { offsetMinutes: { type: integer, enum: [60, 1440] } } } } } }
+      responses: { '204': { description: OK } }
+  /internal/tasks/due:
+    get:
+      tags: [Internal]
+      summary: Việc / bài nộp hạn trong 24 giờ và đã trễ hạn (TaskDueReminderJob)
+      parameters: [ { name: withinHours, in: query, schema: { type: integer, default: 24 } }, { name: includeOverdue, in: query, schema: { type: boolean, default: true } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TaskCard' } } } } } }
+
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, schema: { type: string, format: uuid } }
+    ChannelId: { name: channelId, in: path, required: true, schema: { type: string, format: uuid } }
+    MessageId: { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+    TaskId: { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
+    FileId: { name: fileId, in: path, required: true, schema: { type: string, format: uuid } }
+    MeetingId: { name: meetingId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
+    PageSize: { name: pageSize, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+  responses:
+    Problem:
+      description: Lỗi theo RFC 7807
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    Problem:
+      type: object
+      properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string }, traceId: { type: string }, errors: { type: object, additionalProperties: { type: array, items: { type: string } } } }
+    PagedMeta:
+      type: object
+      properties: { page: { type: integer }, pageSize: { type: integer }, totalCount: { type: integer }, totalPages: { type: integer } }
+    PersonRef:
+      type: object
+      properties:
+        personType: { type: string, enum: [STUDENT, LECTURER, MENTOR] }
+        personId: { type: string, format: uuid }
+        displayName: { type: string }
+        role: { type: string, enum: [LEADER, MEMBER, INSTRUCTOR, MENTOR], description: Vai trò trong workspace – RoleChip }
+    WorkspaceSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string, format: uuid }
+        teamName: { type: string }
+        projectName: { type: string, nullable: true }
+        courseCode: { type: string, enum: [EXE101, EXE201] }
+        myRole: { type: string, enum: [LEADER, MEMBER, INSTRUCTOR, MENTOR] }
+        unreadCount: { type: integer }
+        openQuestionCount: { type: integer }
+        nextMeetingAt: { type: string, format: date-time, nullable: true }
+        mentorSessionsDone: { type: integer }
+        expectedMentorSessions: { type: integer }
+        taskProgress: { $ref: '#/components/schemas/TaskProgress' }
+    TaskProgress:
+      type: object
+      properties: { todo: { type: integer }, doing: { type: integer }, done: { type: integer }, overdue: { type: integer } }
+    WorkspaceOverview:
+      allOf:
+        - $ref: '#/components/schemas/WorkspaceSummary'
+        - type: object
+          properties:
+            people: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
+            myTaskCount: { type: integer }
+            dueSoonCount: { type: integer }
+            upcomingMeetings: { type: array, items: { $ref: '#/components/schemas/MeetingCard' } }
+            recentFiles: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/ProjectFile' } }
+            recentActivity: { type: array, maxItems: 5, items: { type: object, properties: { kind: { type: string, enum: [TASK, FILE, MEETING, QUESTION] }, title: { type: string }, at: { type: string, format: date-time } } } }
+            previousWorkspaceId: { type: string, format: uuid, nullable: true, description: Workspace EXE101 cùng đề tài (chỉ đọc – rule 26) }
+            mentorBrief:
+              type: object
+              nullable: true
+              description: Chỉ trả cho mentor (MentorBriefCard)
+              properties:
+                projectName: { type: string }
+                projectHistoryCount: { type: integer }
+                lastMinutesExcerpt: { type: string, nullable: true }
+    AdvisorOverview:
+      type: object
+      properties:
+        needsReplyCount: { type: integer }
+        overdueDeliverableCount: { type: integer, description: Chỉ giảng viên hướng dẫn }
+        upcomingMeetingCount: { type: integer }
+        pendingScheduleCount: { type: integer, description: Họp mình tổ chức đang chờ chốt }
+        needsReply: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/AdvisorQuestion' } }
+        overdueDeliverables: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/TaskCard' } }
+        upcomingMeetings: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/MeetingCard' } }
+    Channel:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        workspaceId: { type: string, format: uuid }
+        kind: { type: string, enum: [TEAM, ADVISORS], description: "Nhóm / Cố vấn" }
+        unreadCount: { type: integer }
+        lastMessage: { allOf: [ { $ref: '#/components/schemas/Message' } ], type: object, nullable: true }
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        clientMessageId: { type: string, format: uuid, nullable: true }
+        channelId: { type: string, format: uuid }
+        parentMessageId: { type: string, format: uuid, nullable: true }
+        author: { $ref: '#/components/schemas/PersonRef' }
+        body: { type: string, description: Rỗng khi đã xóa }
+        isDeleted: { type: boolean }
+        isAdvisorQuestion: { type: boolean }
+        questionStatus: { type: string, enum: [OPEN, ANSWERED], nullable: true }
+        replyCount: { type: integer }
+        attachments: { type: array, items: { $ref: '#/components/schemas/ProjectFile' } }
+        createdAt: { type: string, format: date-time }
+        editedAt: { type: string, format: date-time, nullable: true }
+    MessagePage:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Message' } }
+        nextCursor: { type: string, nullable: true }
+    AdvisorQuestion:
+      type: object
+      properties:
+        message: { $ref: '#/components/schemas/Message' }
+        workspaceId: { type: string, format: uuid }
+        teamName: { type: string }
+        status: { type: string, enum: [OPEN, ANSWERED] }
+        waitingHours: { type: integer }
+    TaskStatus: { type: string, enum: [TODO, DOING, DONE] }
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 4000, nullable: true }
+        kind: { type: string, enum: [TASK, DELIVERABLE], default: TASK }
+        assigneeStudentIds: { type: array, items: { type: string, format: uuid } }
+        dueAt: { type: string, format: date-time, nullable: true }
+    TaskCard:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        workspaceId: { type: string, format: uuid }
+        teamName: { type: string }
+        kind: { type: string, enum: [TASK, DELIVERABLE] }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        position: { type: integer }
+        assignees: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
+        dueAt: { type: string, format: date-time, nullable: true }
+        isOverdue: { type: boolean }
+        submissionStatus: { type: string, enum: [NOT_SUBMITTED, PENDING, ACCEPTED, NEEDS_REVISION], nullable: true, description: Chỉ bài nộp }
+        commentCount: { type: integer }
+        isArchive: { type: boolean, description: Việc của workspace EXE101 (chỉ đọc) }
+    TaskDetail:
+      allOf:
+        - $ref: '#/components/schemas/TaskCard'
+        - type: object
+          properties:
+            description: { type: string, nullable: true }
+            createdBy: { $ref: '#/components/schemas/PersonRef' }
+            sourceMeetingId: { type: string, format: uuid, nullable: true }
+            submissions: { type: array, items: { $ref: '#/components/schemas/Submission' } }
+            comments: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+            completedAt: { type: string, format: date-time, nullable: true }
+    Submission:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        file: { $ref: '#/components/schemas/ProjectFile' }
+        version: { type: integer }
+        submittedBy: { $ref: '#/components/schemas/PersonRef' }
+        submittedAt: { type: string, format: date-time }
+        isLate: { type: boolean }
+        reviewStatus: { type: string, enum: [PENDING, ACCEPTED, NEEDS_REVISION] }
+        reviewComment: { type: string, nullable: true }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+    Comment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        author: { $ref: '#/components/schemas/PersonRef' }
+        body: { type: string }
+        version: { type: integer, nullable: true, description: File comment – phiên bản được bình luận }
+        createdAt: { type: string, format: date-time }
+    Folder:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        parentId: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        isArchive: { type: boolean, description: '"EXE101 (kỳ trước)" – chỉ đọc' }
+        itemCount: { type: integer }
+    ProjectFile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        folderId: { type: string, format: uuid, nullable: true }
+        name: { type: string }
+        currentVersion: { type: integer }
+        sizeBytes: { type: integer, format: int64 }
+        contentType: { type: string }
+        updatedByName: { type: string }
+        updatedAt: { type: string, format: date-time }
+        isArchive: { type: boolean }
+    ProjectFileDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProjectFile'
+        - type: object
+          properties:
+            versions: { type: array, items: { type: object, properties: { version: { type: integer }, sizeBytes: { type: integer, format: int64 }, uploadedByName: { type: string }, createdAt: { type: string, format: date-time } } } }
+            comments: { type: array, items: { $ref: '#/components/schemas/Comment' } }
+    FolderContent:
+      type: object
+      properties:
+        folder: { allOf: [ { $ref: '#/components/schemas/Folder' } ], type: object, nullable: true, description: null = thư mục gốc }
+        breadcrumb: { type: array, items: { $ref: '#/components/schemas/Folder' } }
+        folders: { type: array, items: { $ref: '#/components/schemas/Folder' } }
+        files: { type: array, items: { $ref: '#/components/schemas/ProjectFile' } }
+        canUpload: { type: boolean, description: "false với giảng viên, mentor, thư mục lưu trữ" }
+    MeetingStatus: { type: string, enum: [PROPOSED, SCHEDULED, CANCELLED, DONE] }
+    SlotInput:
+      type: object
+      required: [startsAt]
+      properties:
+        startsAt: { type: string, format: date-time }
+        durationMinutes: { type: integer, minimum: 15, maximum: 240, default: 60 }
+    MeetingInput:
+      type: object
+      required: [title, slots]
+      properties:
+        title: { type: string, maxLength: 200 }
+        agenda: { type: string, maxLength: 2000, nullable: true }
+        location: { type: string, maxLength: 500, nullable: true, description: Phòng hoặc link họp nhập tay }
+        slots: { type: array, minItems: 1, maxItems: 3, items: { $ref: '#/components/schemas/SlotInput' } }
+    MeetingCard:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        workspaceId: { type: string, format: uuid }
+        teamName: { type: string }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/MeetingStatus' }
+        organizer: { $ref: '#/components/schemas/PersonRef' }
+        isMentorSession: { type: boolean }
+        startsAt: { type: string, format: date-time, nullable: true, description: Khung đã chốt }
+        slotCount: { type: integer }
+        location: { type: string, nullable: true }
+        myAnswerPending: { type: boolean, description: Tôi chưa trả lời khung nào }
+    MeetingDetail:
+      allOf:
+        - $ref: '#/components/schemas/MeetingCard'
+        - type: object
+          properties:
+            agenda: { type: string, nullable: true }
+            slots:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  startsAt: { type: string, format: date-time }
+                  durationMinutes: { type: integer }
+                  yesCount: { type: integer }
+                  inviteeCount: { type: integer }
+                  myAnswer: { type: string, enum: [YES, NO], nullable: true }
+                  yesPeople: { type: array, items: { $ref: '#/components/schemas/PersonRef' } }
+            suggestedSlotId: { type: string, format: uuid, nullable: true, description: "Khung nhiều người chọn nhất – nút \"Chốt khung này\"" }
+            cancelReason: { type: string, nullable: true }
+            minutes: { type: object, nullable: true, properties: { content: { type: string }, recordedByName: { type: string }, recordedAt: { type: string, format: date-time } } }
+            createdTasks: { type: array, items: { $ref: '#/components/schemas/TaskCard' } }

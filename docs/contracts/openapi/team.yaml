@@ -1,13 +1,16 @@
 openapi: 3.0.3
 info:
   title: EXE Team Matching – Team Service
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   description: |
-    BE-02 – bản nháp. Nhóm, thành viên, lời mời, yêu cầu tham gia, bài đăng, gợi ý (gọi Matching gRPC),
-    đổi nhóm EXE201, giảng viên, chốt nhóm, ghép tự động, thống kê.
+    BE-02, BE-61 (bản 4) – bản nháp. Đề tài xuyên kỳ, nhóm, thành viên, lời mời, yêu cầu tham gia (kèm ý tưởng),
+    bài đăng, gợi ý (gọi Matching gRPC), đổi nhóm EXE201 (cả đổi đề tài), quan tâm đề tài, giảng viên, mentor,
+    chốt nhóm, ghép tự động, thống kê.
     Người phụ trách module: xem AGENTS.md mục 2. Quy ước chung: docs/contracts/README.md.
     Lỗi nghiệp vụ trả 409 với `type` theo tên ràng buộc, ví dụ `.../errors/round-closed`, `.../errors/team-full`,
     `.../errors/already-in-team`, `.../errors/not-leader`, `.../errors/lecturer-full`.
+    Bản 4 thêm: `ideas-required` (rule 17), `interest-limit` (rule 19), `team-has-mentor`, `mentor-full` (rule 20),
+    `project-change-pending` (rule 26). Khám phá ngoài giai đoạn lập nhóm trả `round-closed` (rule 18).
 servers:
   - url: http://localhost:8080
     description: API Gateway
@@ -24,6 +27,9 @@ tags:
   - { name: ChangeRequests, description: "Thành – S26–S29, W17, W18" }
   - { name: Baseline, description: "Thành – W06 (file nhóm EXE101)" }
   - { name: Lecturers, description: "Thành – S23–S25, L01–L05, W19" }
+  - { name: TopicInterests, description: "Thành – L07, S23, S25, W19 (rule 19)" }
+  - { name: Mentors, description: "Thành – S15, M01, W16, W28 (rule 20)" }
+  - { name: Projects, description: "Thành – S15, S27, S28, W06, W29 (rule 26)" }
   - { name: Admin, description: "Nguyên – W02, W16, W20–W22" }
   - { name: Internal, description: "Job Service gọi, có service token, không qua Gateway" }
 paths:
@@ -31,7 +37,7 @@ paths:
   /api/teams:
     get:
       tags: [Teams]
-      summary: Tìm kiếm, lọc, sắp xếp, phân trang nhóm (S05, W15). Sinh viên không thấy nhóm 6/6
+      summary: Tìm kiếm, lọc, sắp xếp, phân trang nhóm (S05, W15). Sinh viên không thấy nhóm 6/6; sinh viên gọi ngoài giai đoạn lập nhóm → 409 round-closed (rule 18)
       parameters:
         - { name: semesterId, in: query, schema: { type: string, format: uuid } }
         - { $ref: '#/components/parameters/CourseCode' }
@@ -72,17 +78,19 @@ paths:
                   isLeader: { type: boolean }
                   pendingInvitationCount: { type: integer }
                   pendingJoinRequestCount: { type: integer, description: Chỉ với trưởng nhóm }
-                  nextAction: { type: string, enum: [CREATE_OR_JOIN, INVITE_MEMBERS, ADD_SPECIALIZATION, CHOOSE_LECTURER, SUBMIT_CHANGE_REQUEST, WAIT_REVIEW, NONE] }
+                  nextAction: { type: string, enum: [CREATE_OR_JOIN, INVITE_MEMBERS, ADD_SPECIALIZATION, CHOOSE_LECTURER, SUBMIT_CHANGE_REQUEST, WAIT_REVIEW, OPEN_WORKSPACE, NONE] }
+                  phase: { type: string, enum: [TEAM_FORMATION, SEMESTER_RUNNING], description: Rule 18 – client đổi tab Khám phá ↔ Dự án }
+                  interestedLecturerCount: { type: integer, description: Số giảng viên quan tâm đề tài của nhóm (rule 19) }
                   isAutoAssigned: { type: boolean }
   /api/teams/{teamId}:
     get:
       tags: [Teams]
-      summary: Chi tiết nhóm (S08 người ngoài xem, S15, L05, W16). SĐT thành viên chỉ trả cho đồng đội, GV phụ trách, Admin
+      summary: Chi tiết nhóm (S08 người ngoài xem, S15, L05, W16). SĐT, email thành viên chỉ trả cho đồng đội, giảng viên hướng dẫn, mentor, Admin
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TeamDetail' } } } }, '404': { $ref: '#/components/responses/Problem' } }
     put:
       tags: [Teams]
-      summary: Sửa tên nhóm, dự án, ý tưởng, domain (S16 – trưởng nhóm; W16 – Admin)
+      summary: Sửa tên nhóm, đề tài, domain (S16 – trưởng nhóm; W16 – Admin). Nhóm EXE201 kế thừa chỉ sửa nhỏ mô tả đề tài; đổi đề tài phải qua yêu cầu đổi nhóm (rule 26)
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TeamInput' } } } }
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TeamDetail' } } } }, '403': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
@@ -143,9 +151,18 @@ paths:
       responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/JoinRequest' } } } } } }
     post:
       tags: [JoinRequests]
-      summary: Sinh viên xin tham gia (S09). Hết hạn sau 72 giờ
+      summary: Sinh viên xin tham gia (S09) kèm 1–3 ý tưởng hoặc hasNoIdea = true (rule 17, lỗi 400 ideas-required). Hết hạn sau 72 giờ
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { message: { type: string, maxLength: 500 } } } } } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string, maxLength: 500 }
+                ideas: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/Idea' } }
+                hasNoIdea: { type: boolean, default: false, description: "Tích \"Chưa có ý tưởng\" – khi true thì ideas phải rỗng" }
       responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/JoinRequest' } } } }, '409': { $ref: '#/components/responses/Problem' } }
   /api/join-requests/me:
     get:
@@ -247,7 +264,7 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { type: object, properties: { teamCount: { type: integer }, studentCount: { type: integer }, errors: { type: array, items: { type: object, properties: { row: { type: integer }, message: { type: string } } } } } }
+              schema: { type: object, properties: { teamCount: { type: integer }, studentCount: { type: integer }, linkedProjectCount: { type: integer, description: Nhóm gắn được với đề tài EXE101 theo mã nhóm (rule 26) }, unlinkedTeamCount: { type: integer, description: Còn lại → W29 gắn tay }, errors: { type: array, items: { type: object, properties: { row: { type: integer }, message: { type: string } } } } } }
   /api/teams/{teamId}/pending-changes:
     get:
       tags: [ChangeRequests]
@@ -263,8 +280,21 @@ paths:
                 properties:
                   baselineMembers: { type: array, items: { $ref: '#/components/schemas/Member' } }
                   pendingItems: { type: array, items: { $ref: '#/components/schemas/ChangeItem' } }
+                  currentProject: { $ref: '#/components/schemas/ProjectSummary' }
                   wouldHaveMemberCount: { type: integer }
                   wouldHaveSpecializationCount: { type: integer }
+  /api/teams/{teamId}/pending-changes/project:
+    put:
+      tags: [ChangeRequests, Projects]
+      summary: Trưởng nhóm EXE201 thêm / sửa thay đổi "Đổi đề tài" đang chờ (S27). Gửi cùng yêu cầu đổi nhóm (rule 26)
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [name], properties: { name: { type: string, minLength: 2, maxLength: 200 }, description: { type: string, maxLength: 4000 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ChangeItem' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+    delete:
+      tags: [ChangeRequests, Projects]
+      summary: Bỏ thay đổi đề tài đang chờ
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '204': { description: OK } }
   /api/teams/{teamId}/change-requests:
     get:
       tags: [ChangeRequests]
@@ -289,6 +319,120 @@ paths:
     post: { tags: [ChangeRequests], summary: "Admin duyệt – áp dụng thay đổi, ghi audit log", requestBody: { content: { application/json: { schema: { type: object, properties: { note: { type: string, maxLength: 1000 } } } } } }, parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ChangeRequest' } } } } } }
   /api/change-requests/{id}/reject:
     post: { tags: [ChangeRequests], summary: "Admin từ chối – ghi chú bắt buộc, nhóm giữ nguyên", requestBody: { required: true, content: { application/json: { schema: { type: object, required: [note], properties: { note: { type: string, maxLength: 1000 } } } } } }, parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ChangeRequest' } } } } } }
+
+  # ---------------- Projects (rule 26) ----------------
+  /api/teams/{teamId}/project:
+    get:
+      tags: [Projects]
+      summary: Đề tài của nhóm và lịch sử qua các kỳ (S15 thẻ đề tài, bottom sheet lịch sử)
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectDetail' } } } }, '404': { $ref: '#/components/responses/Problem' } }
+  /api/projects:
+    get:
+      tags: [Projects]
+      summary: Đề tài qua các kỳ (W29 – Admin)
+      parameters:
+        - { name: semesterId, in: query, schema: { type: string, format: uuid } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: domain, in: query, schema: { type: string, example: D04 } }
+        - { name: pivotedOnly, in: query, schema: { type: boolean }, description: Chỉ đề tài đã đổi ở EXE201 }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/ProjectDetail' } } } } ] } } } } }
+  /api/projects/unlinked-teams:
+    get:
+      tags: [Projects]
+      summary: Nhóm EXE201 kế thừa chưa gắn được đề tài sau import mốc (W29 mục "Chưa gắn đề tài")
+      parameters: [ { name: semesterId, in: query, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TeamCard' } } } } } }
+  /api/projects/{id}/link-team:
+    post:
+      tags: [Projects]
+      summary: Admin gắn tay một nhóm EXE201 với đề tài EXE101 (phát TeamLinkedToProject)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [teamId], properties: { teamId: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectDetail' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+
+  # ---------------- Topic interests (rule 19) ----------------
+  /api/topic-recommendations/me:
+    get:
+      tags: [TopicInterests]
+      summary: Đề tài phù hợp cho giảng viên (L07) – Matching SuggestTopicsForLecturer. Đề tài nhóm mình hướng dẫn ở EXE101 đứng đầu
+      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  openInterestCount: { type: integer }
+                  interestLimit: { type: integer, description: Sức chứa còn lại + interestExtraSlots }
+                  remainingCapacity: { type: integer }
+                  items: { type: array, items: { $ref: '#/components/schemas/TopicRecommendation' } }
+  /api/teams/{teamId}/topic-interests:
+    get:
+      tags: [TopicInterests]
+      summary: Giảng viên đang quan tâm đề tài của nhóm (S23, S25 – thành viên nhóm thấy tên; Admin W19)
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TopicInterest' } } } } } }
+    post:
+      tags: [TopicInterests]
+      summary: Giảng viên quan tâm đề tài (L07). Không giữ chỗ, không tốn sức chứa. 409 interest-limit khi đạt giới hạn
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TopicInterest' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/topic-interests/{id}:
+    delete:
+      tags: [TopicInterests]
+      summary: Giảng viên rút quan tâm (client hiện Hoàn tác 5 giây, gọi lại POST để khôi phục)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '204': { description: OK } }
+
+  # ---------------- Mentors (rule 20) ----------------
+  /api/teams/{teamId}/mentor:
+    get:
+      tags: [Mentors]
+      summary: Mentor của nhóm (S15 mục Cố vấn). null nếu chưa gán – client hiện "Mentor sẽ được gán từ tuần n"
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/MentorAssignment' } ], type: object, nullable: true } } } } }
+  /api/mentor-assignments:
+    get:
+      tags: [Mentors]
+      summary: Bảng gán mentor (W28 – Admin)
+      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { name: withoutMentor, in: query, schema: { type: boolean } }, { name: mentorId, in: query, schema: { type: string, format: uuid } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object, properties: { team: { $ref: '#/components/schemas/TeamCard' }, assignment: { allOf: [ { $ref: '#/components/schemas/MentorAssignment' } ], type: object, nullable: true } } } }
+                  mentorLoads: { type: array, items: { type: object, properties: { mentorId: { type: string, format: uuid }, fullName: { type: string }, assignedCount: { type: integer }, preferredTeams: { type: integer, nullable: true }, maxTeams: { type: integer } } } }
+                  teamsWithoutMentor: { type: integer }
+    post:
+      tags: [Mentors]
+      summary: Admin gán mentor (một hoặc nhiều nhóm). Một mentor mỗi nhóm; replaceExisting = true để thay mentor cũ. Vượt số mong muốn → cảnh báo trong warnings; vượt tối đa → 409 mentor-full
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { type: object, required: [teamId, mentorId], properties: { teamId: { type: string, format: uuid }, mentorId: { type: string, format: uuid }, replaceExisting: { type: boolean, default: false } } } } } } } } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, properties: { assignments: { type: array, items: { $ref: '#/components/schemas/MentorAssignment' } }, warnings: { type: array, items: { type: object, properties: { mentorId: { type: string, format: uuid }, code: { type: string, enum: [ABOVE_PREFERRED] }, message: { type: string } } } } } } } }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/mentor-assignments/{id}:
+    delete:
+      tags: [Mentors]
+      summary: Admin kết thúc gán mentor (mentor mất quyền vào workspace, lịch sử giữ lại)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 500 } } } } } }
+      responses: { '204': { description: OK } }
+  /api/mentor-teams/me:
+    get:
+      tags: [Mentors]
+      summary: Nhóm tôi đang mentor (M01; cũng dùng cho giảng viên làm mentor ở L04)
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TeamCard' } } } } } }
 
   # ---------------- Lecturers ----------------
   /api/teams/{teamId}/lecturer:
@@ -325,7 +469,7 @@ paths:
       responses:
         '200':
           description: OK
-          content: { application/json: { schema: { type: object, properties: { pendingRequestCount: { type: integer }, acceptedCount: { type: integer }, maxTeams: { type: integer }, accepted: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }, assigned: { type: array, items: { $ref: '#/components/schemas/TeamCard' } } } } } }
+          content: { application/json: { schema: { type: object, properties: { pendingRequestCount: { type: integer }, acceptedCount: { type: integer }, maxTeams: { type: integer }, accepted: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }, assigned: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }, mentoring: { type: array, items: { $ref: '#/components/schemas/TeamCard' }, description: "Nhóm giảng viên làm mentor (nhãn \"Mentor\" ở L04)" } } } } }
   /api/lecturer-assignments:
     get:
       tags: [Lecturers]
@@ -339,7 +483,7 @@ paths:
               schema:
                 type: object
                 properties:
-                  items: { type: array, items: { type: object, properties: { team: { $ref: '#/components/schemas/TeamCard' }, preference: { allOf: [ { $ref: '#/components/schemas/LecturerPreference' } ], type: object, nullable: true }, assignment: { allOf: [ { $ref: '#/components/schemas/LecturerAssignment' } ], type: object, nullable: true } } } }
+                  items: { type: array, items: { type: object, properties: { team: { $ref: '#/components/schemas/TeamCard' }, preference: { allOf: [ { $ref: '#/components/schemas/LecturerPreference' } ], type: object, nullable: true }, assignment: { allOf: [ { $ref: '#/components/schemas/LecturerAssignment' } ], type: object, nullable: true }, interests: { type: array, items: { $ref: '#/components/schemas/TopicInterest' }, description: Giảng viên đang quan tâm (rule 19) } } } }
                   lecturerLoads: { type: array, items: { type: object, properties: { lecturerId: { type: string, format: uuid }, fullName: { type: string }, assignedCount: { type: integer }, maxTeams: { type: integer } } } }
     post:
       tags: [Lecturers]
@@ -473,7 +617,7 @@ components:
         - type: object
           properties:
             role: { type: string, enum: [LEADER, MEMBER] }
-            phone: { type: string, nullable: true, description: "Chỉ trả cho đồng đội, GV phụ trách, Admin" }
+            phone: { type: string, nullable: true, description: "Từ file import; chỉ trả cho đồng đội, giảng viên hướng dẫn, mentor, Admin (rule 11)" }
             email: { type: string, nullable: true }
             joinedAt: { type: string, format: date-time }
             pendingChange: { type: string, enum: [LEAVING, NEW_MEMBER], nullable: true, description: Nhóm EXE201 kế thừa }
@@ -486,7 +630,9 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
+        projectId: { type: string, format: uuid, nullable: true }
         projectName: { type: string, nullable: true }
+        isProjectContinued: { type: boolean, description: "Đề tài tiếp tục từ EXE101 (\"Tiếp tục từ EXE101\")" }
         courseCode: { type: string, enum: [EXE101, EXE201] }
         status: { $ref: '#/components/schemas/TeamStatus' }
         domains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' } }
@@ -494,13 +640,16 @@ components:
         openSlots: { type: integer }
         leader: { $ref: '#/components/schemas/StudentRef' }
         lecturerName: { type: string, nullable: true }
+        mentorName: { type: string, nullable: true }
         requirement: { $ref: '#/components/schemas/TeamRequirement' }
     TeamDetail:
       allOf:
         - $ref: '#/components/schemas/TeamCard'
         - type: object
           properties:
-            ideaDescription: { type: string, nullable: true }
+            ideaDescription: { type: string, nullable: true, description: Mô tả đề tài hiện tại (projects.description) }
+            project: { $ref: '#/components/schemas/ProjectSummary' }
+            mentor: { allOf: [ { $ref: '#/components/schemas/MentorAssignment' } ], type: object, nullable: true }
             members: { type: array, items: { $ref: '#/components/schemas/Member' } }
             isInherited: { type: boolean }
             isAutoAssigned: { type: boolean }
@@ -513,7 +662,7 @@ components:
       required: [name, domainIds]
       properties:
         name: { type: string, minLength: 2, maxLength: 100 }
-        projectName: { type: string, maxLength: 200 }
+        projectName: { type: string, maxLength: 200, description: Tên đề tài – tạo / sửa projects (rule 26) }
         ideaDescription: { type: string, maxLength: 4000 }
         domainIds: { type: array, minItems: 1, items: { type: integer } }
         primaryDomainId: { type: integer }
@@ -527,7 +676,7 @@ components:
       properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, invitee: { $ref: '#/components/schemas/StudentRef' }, message: { type: string, nullable: true }, status: { type: string }, createdAt: { type: string, format: date-time }, expiresAt: { type: string, format: date-time } }
     JoinRequest:
       type: object
-      properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, student: { $ref: '#/components/schemas/StudentRef' }, message: { type: string, nullable: true }, status: { type: string }, createdAt: { type: string, format: date-time }, expiresAt: { type: string, format: date-time } }
+      properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, student: { $ref: '#/components/schemas/StudentRef' }, studentSkills: { type: array, items: { $ref: '#/components/schemas/SkillRating' }, description: "S20: SkillBars, client đánh dấu kỹ năng nhóm đang thiếu" }, studentDescription: { type: string, nullable: true }, message: { type: string, nullable: true }, ideas: { type: array, items: { $ref: '#/components/schemas/Idea' } }, hasNoIdea: { type: boolean }, status: { type: string }, createdAt: { type: string, format: date-time }, expiresAt: { type: string, format: date-time } }
     RecruitmentPostInput:
       type: object
       required: [title]
@@ -545,13 +694,13 @@ components:
       allOf:
         - $ref: '#/components/schemas/SeekingPostInput'
         - type: object
-          properties: { id: { type: string, format: uuid }, student: { $ref: '#/components/schemas/StudentRef' }, skills: { type: array, items: { type: string } }, status: { type: string, enum: [OPEN, CLOSED] }, updatedAt: { type: string, format: date-time } }
+          properties: { id: { type: string, format: uuid }, student: { $ref: '#/components/schemas/StudentRef' }, skills: { type: array, items: { $ref: '#/components/schemas/SkillRating' } }, status: { type: string, enum: [OPEN, CLOSED] }, updatedAt: { type: string, format: date-time } }
     AuditLog:
       type: object
       properties: { id: { type: integer }, teamId: { type: string, format: uuid, nullable: true }, action: { type: string, example: MemberJoined }, actorName: { type: string }, actorRole: { type: string }, summary: { type: string }, reason: { type: string, nullable: true }, occurredAt: { type: string, format: date-time } }
     ChangeItem:
       type: object
-      properties: { id: { type: string, format: uuid }, action: { type: string, enum: [ADD, REMOVE, SET_LEADER] }, source: { type: string }, student: { $ref: '#/components/schemas/StudentRef' }, createdAt: { type: string, format: date-time } }
+      properties: { id: { type: string, format: uuid }, action: { type: string, enum: [ADD, REMOVE, SET_LEADER, PROJECT_CHANGE] }, source: { type: string }, student: { allOf: [ { $ref: '#/components/schemas/StudentRef' } ], type: object, nullable: true, description: null khi PROJECT_CHANGE }, newProjectName: { type: string, nullable: true }, newProjectDescription: { type: string, nullable: true }, createdAt: { type: string, format: date-time } }
     ChangeRequest:
       type: object
       properties:
@@ -575,6 +724,8 @@ components:
             baselineMembers: { type: array, items: { $ref: '#/components/schemas/Member' } }
             membersAfterChange: { type: array, items: { $ref: '#/components/schemas/Member' } }
             items: { type: array, items: { $ref: '#/components/schemas/ChangeItem' } }
+            projectBefore: { $ref: '#/components/schemas/ProjectSummary' }
+            projectAfter: { allOf: [ { $ref: '#/components/schemas/ProjectSummary' } ], type: object, nullable: true, description: Có khi yêu cầu chứa đổi đề tài }
     LecturerPreference:
       type: object
       properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, lecturerId: { type: string, format: uuid }, lecturerName: { type: string }, message: { type: string, nullable: true }, status: { type: string, enum: [PENDING, ACCEPTED, DECLINED, CANCELLED] }, responseNote: { type: string, nullable: true }, createdAt: { type: string, format: date-time }, respondedAt: { type: string, format: date-time, nullable: true } }
@@ -588,3 +739,84 @@ components:
         filledTeams: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }
         newTeams: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }
         unassignedStudents: { type: array, items: { $ref: '#/components/schemas/StudentRef' } }
+    SkillRating:
+      type: object
+      properties:
+        skill: { type: string, enum: [TECHNOLOGY, UI_UX_DESIGN, MANAGEMENT, MARKETING, COMMUNICATION_PLANNING] }
+        level: { type: integer, minimum: 1, maximum: 5 }
+    Idea:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, maxLength: 300, nullable: true }
+    ProjectSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        currentVersion: { type: integer }
+        originCourseCode: { type: string, enum: [EXE101, EXE201] }
+        originSemesterCode: { type: string, example: SP26 }
+    ProjectVersion:
+      type: object
+      properties:
+        version: { type: integer }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        changeType: { type: string, enum: [CREATED, EDITED, PIVOT] }
+        reason: { type: string, nullable: true }
+        semesterCode: { type: string }
+        courseCode: { type: string, enum: [EXE101, EXE201] }
+        changedByName: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    ProjectDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProjectSummary'
+        - type: object
+          properties:
+            versions: { type: array, items: { $ref: '#/components/schemas/ProjectVersion' }, description: Mới nhất trước – ProjectTimeline }
+            teams:
+              type: array
+              description: Các nhóm đi qua đề tài, theo thứ tự kỳ (EXE101 → EXE201)
+              items:
+                type: object
+                properties:
+                  team: { $ref: '#/components/schemas/TeamCard' }
+                  semesterCode: { type: string }
+                  keptMemberPercent: { type: number, nullable: true, description: "% thành viên giữ lại so với nhóm kỳ trước (W29)" }
+                  instructorName: { type: string, nullable: true }
+                  mentorName: { type: string, nullable: true }
+    TopicRecommendation:
+      type: object
+      properties:
+        team: { $ref: '#/components/schemas/TeamCard' }
+        matchedDomains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' } }
+        otherInterestedCount: { type: integer, description: "Chỉ số lượng, không trả tên giảng viên khác (rule 19)" }
+        myInterest: { allOf: [ { $ref: '#/components/schemas/TopicInterest' } ], type: object, nullable: true }
+        wasMyEXE101Team: { type: boolean, description: Đề tài mình hướng dẫn ở EXE101 – đứng đầu danh sách (rule 26) }
+        hasLecturer: { type: boolean, description: "true → thẻ \"Đã có giảng viên\", ẩn nút" }
+    TopicInterest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string, format: uuid }
+        lecturerId: { type: string, format: uuid }
+        lecturerName: { type: string, description: Chỉ trả cho thành viên nhóm và Admin }
+        wasPreviousInstructor: { type: boolean, description: Giảng viên hướng dẫn đề tài này ở EXE101 }
+        status: { type: string, enum: [OPEN, WITHDRAWN, CLOSED] }
+        closedReason: { type: string, nullable: true, enum: [OTHER_LECTURER_ACCEPTED, LECTURER_ASSIGNED, THIS_LECTURER_ACCEPTED, TEAM_DISBANDED] }
+        createdAt: { type: string, format: date-time }
+    MentorAssignment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string, format: uuid }
+        mentorId: { type: string, format: uuid }
+        mentorName: { type: string }
+        mentorOrganization: { type: string, nullable: true }
+        isInternal: { type: boolean }
+        status: { type: string, enum: [ASSIGNED, ENDED] }
+        assignedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
