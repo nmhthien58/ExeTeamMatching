@@ -1,11 +1,16 @@
+using BuildingBlocks.Web;
+
+// Identity Service – cấu hình chung ở BuildingBlocks (BE-05): Serilog + CorrelationId, ProblemDetails, JWT, FluentValidation.
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.AddServiceDefaults("identity");
+builder.Services.AddApiControllers(typeof(Program).Assembly);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+app.UseServiceDefaults();
 
 if (app.Environment.IsDevelopment())
 {
@@ -14,6 +19,5 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
-app.MapHealthChecks("/health");
 
 app.Run();

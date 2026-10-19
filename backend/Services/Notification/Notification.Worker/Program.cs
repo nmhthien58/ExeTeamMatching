@@ -1,10 +1,14 @@
-// Notification Service – khung ban đầu (BE-04). API đọc thông báo + BackgroundService consume Kafka (BE-40..42).
+using BuildingBlocks.Web;
+
+// Notification Service – khung (BE-04, BE-05). API đọc thông báo + consumer Kafka (BE-40..42).
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHealthChecks();
+builder.AddServiceDefaults("notification");
+builder.Services.AddApiControllers(typeof(Program).Assembly);
 
 var app = builder.Build();
 
-app.MapHealthChecks("/health");
+app.UseServiceDefaults();
+app.MapControllers();
 
 app.Run();

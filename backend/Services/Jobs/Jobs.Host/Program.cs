@@ -1,10 +1,12 @@
-// Job Service – khung ban đầu (BE-04). Hangfire + dashboard /hangfire (BE-51).
+using BuildingBlocks.Web;
+
+// Job Service – khung (BE-04, BE-05). Hangfire + dashboard /hangfire (BE-51).
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHealthChecks();
+builder.AddServiceDefaults("jobs", useAuth: false);
 
 var app = builder.Build();
 
-app.MapHealthChecks("/health");
+app.UseServiceDefaults(useAuth: false);
 
 app.Run();
