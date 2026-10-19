@@ -16,7 +16,7 @@ Nhóm: Thiên (trưởng nhóm), Nam, Cường, Nguyên, Thành.
 |---|---|---|---|
 | 1 | [docs/ux/PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) | Luôn đọc | Nghiệp vụ, 15 quy tắc bắt buộc, kiến trúc, service, sự kiện Kafka, công nghệ, quy ước code, cổng Docker |
 | 2 | [docs/EXE_Database_Design.pdf](docs/EXE_Database_Design.pdf) | Đụng tới DB, entity, DbContext | Mỗi service 1 database; bảng, cột, ràng buộc, index, trigger; tham chiếu chéo service |
-| 3 | [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành |
+| 3 | [Google Sheet phân công task](https://docs.google.com/spreadsheets/d/17i2s3hWEHvSUk5tS-TCRMvDZ9nsaShP44PwQjivsZ7I/edit?usp=sharing) (**bản chính**) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành, trạng thái. File [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) chỉ là bản chụp ban đầu, có thể đã cũ |
 | 4 | [docs/c4-architecture/PRN232 - Final Assignment.pdf](docs/c4-architecture/PRN232%20-%20Final%20Assignment.pdf) | Luôn đọc | Đề bài, yêu cầu kỹ thuật, tiêu chí chấm |
 | 5 | [docs/c4-architecture/c1.mmd](docs/c4-architecture/c1.mmd) (ảnh `c1.png`), [EXE_Team_Matching_Kien_truc_C4.docx](docs/c4-architecture/EXE_Team_Matching_Kien_truc_C4.docx) | Làm backend, giao tiếp giữa service | Sơ đồ container, ma trận giao tiếp, proto gRPC, sự kiện, background job |
 | 6 | [docs/ux/DESIGN.md](docs/ux/DESIGN.md) | Làm web hoặc mobile | Design token, component, quy ước giao diện |
@@ -87,7 +87,7 @@ Không commit trực tiếp lên `main` hoặc `develop`. Không `push --force` 
   ```
 - Tên nhánh: `<loại>/<mã-task>-<mô-tả-ngắn>`, chữ thường, gạch ngang, không dấu.
   - `<loại>`: `feat` (tính năng), `fix` (sửa lỗi), `refactor`, `test`, `docs`, `chore` (cấu hình, build).
-  - `<mã-task>`: mã trong file Excel task (`BE-29`, `FE-21`, `MB-14`). Một nhánh làm nhiều task thì ghi mã chính.
+  - `<mã-task>`: mã trong Google Sheet phân công task (`BE-29`, `FE-21`, `MB-14`). Một nhánh làm nhiều task thì ghi mã chính.
   - Ví dụ: `feat/BE-01-db-script`, `feat/MB-14-discover-teams`, `fix/FE-24-reject-dialog`.
 - Một nhánh cho một task hoặc một nhóm task liền nhau; không gom việc của nhiều mảng vào một nhánh.
 - Cập nhật nhánh mỗi ngày để tránh conflict lớn:
@@ -115,7 +115,12 @@ Theo Conventional Commits, kèm mã task:
   - Code trong vùng của người khác → người đó duyệt.
   - Sửa contract (OpenAPI, `.proto`, sự kiện Kafka), DB script, BuildingBlocks, Docker Compose → **Thiên** duyệt.
 - Merge kiểu **Squash and merge**. Người mở PR tự merge sau khi được duyệt và CI (nếu có) xanh.
-- Sau khi merge: cập nhật cột Trạng thái của task trong file Excel thành `Xong`.
+- Sau khi merge: cập nhật cột Trạng thái của task trong Google Sheet thành `Xong`.
+
+### 3.5 Đổi task giữa các thành viên
+- Chỉ sửa cột **Thành viên** của task trong Google Sheet (chọn từ danh sách) và ghi vào cột Ghi chú, ví dụ `Đổi từ Nam sang Cường, 25/10`. Sheet Phân công tự tính lại số task.
+- Cột "Chờ người khác" và bảng "Điểm bàn giao" tính theo phân công ban đầu, không tự cập nhật; người đổi task tự sửa nếu cần.
+- Nhận task thuộc mảng của người khác thì vẫn làm trong thư mục của mảng đó và để chủ mảng duyệt PR (mục 2). Chỉ khi chuyển hẳn cả một mảng mới sửa bảng phụ trách ở mục 2.
 
 ---
 
@@ -134,7 +139,7 @@ Theo Conventional Commits, kèm mã task:
 
 ## 5. Quy tắc riêng cho AI agent
 
-1. Đọc mục 1 trước. Nếu được giao một task, tìm task đó trong file Excel và làm đúng phần "Mô tả / tiêu chí hoàn thành"; không làm thêm việc ngoài task.
+1. Đọc mục 1 trước. Nếu được giao một task, tìm task đó trong Google Sheet phân công (nếu không mở được thì dùng file xlsx trong `docs/` và nói rõ có thể đã cũ) và làm đúng phần "Mô tả / tiêu chí hoàn thành"; không làm thêm việc ngoài task.
 2. Hỏi người dùng tên mình và mã task trước khi bắt đầu nếu chưa rõ. Chỉ sửa file trong vùng của người đó (mục 2).
 3. Không tự đổi contract API, `.proto`, tên/payload sự kiện Kafka, DB script hay BuildingBlocks. Cần đổi thì dừng lại, ghi rõ đề xuất để người dùng mở PR cho Thiên duyệt.
 4. Tài liệu mâu thuẫn hoặc thiếu thông tin: nêu rõ chỗ mâu thuẫn, đề xuất cách xử lý và hỏi lại, không tự đoán.
