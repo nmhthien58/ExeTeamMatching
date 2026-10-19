@@ -3,7 +3,7 @@
 ```bash
 cd mobile
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080 --dart-define=GOOGLE_SERVER_CLIENT_ID=<web client id>
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080 
 flutter analyze
 flutter test
 flutter build apk --debug

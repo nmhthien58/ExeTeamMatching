@@ -41,6 +41,11 @@ Thêm SHA-1 xong, Google tự tạo OAuth client loại Android. Nếu thiếu S
 
 ## 4. Điền client ID vào từng phần
 
+> **Đã điền (20/10/2026)** – project Firebase của nhóm, Web client ID `221888974127-ho8c6t3rqct6f7r5o2e8gott7i8lrd7s.apps.googleusercontent.com`:
+> `web/.env.example` (sao chép thành `web/.env.local`), giá trị mặc định `GOOGLE_SERVER_CLIENT_ID` trong `mobile/lib/core/config/env.dart`,
+> `Google:ClientId` trong `backend/Services/Identity/Identity.Api/appsettings.json`. Thành viên khác chỉ cần nhờ Thiên thêm **SHA-1 máy mình** vào app Android trong Firebase.
+> Không cần `google-services.json` và không cần thêm plugin Gradle của Firebase (hệ thống không dùng Firebase SDK).
+
 Client ID không phải bí mật, nhưng vẫn để trong file môi trường để mỗi máy tự đặt.
 
 | Phần | Đặt ở đâu | Dùng để |
