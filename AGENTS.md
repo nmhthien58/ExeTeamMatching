@@ -14,14 +14,15 @@ Nhóm: Thiên (trưởng nhóm), Nam, Cường, Nguyên, Thành.
 
 | # | File | Đọc khi | Nội dung |
 |---|---|---|---|
-| 1 | [docs/ux/PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) | Luôn đọc | Nghiệp vụ, 15 quy tắc bắt buộc, kiến trúc, service, sự kiện Kafka, công nghệ, quy ước code, cổng Docker |
+| 1 | [docs/ux/PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) | Luôn đọc | Nghiệp vụ, 27 quy tắc bắt buộc, kiến trúc, service, sự kiện Kafka, công nghệ, quy ước code, cổng Docker |
 | 2 | [docs/EXE_Database_Design.pdf](docs/EXE_Database_Design.pdf) | Đụng tới DB, entity, DbContext | Mỗi service 1 database; bảng, cột, ràng buộc, index, trigger; tham chiếu chéo service |
-| 3 | [Google Sheet phân công task](https://docs.google.com/spreadsheets/d/17i2s3hWEHvSUk5tS-TCRMvDZ9nsaShP44PwQjivsZ7I/edit?usp=sharing) (**bản chính**) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành, trạng thái. File [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) chỉ là bản chụp, có thể đã cũ. Thay đổi ngày 19/10/2026 theo góp ý giảng viên (35 task mới, 37 task sửa): [docs/task-changes-2026-10-19.md](docs/task-changes-2026-10-19.md) |
+| 3 | [Google Sheet phân công task](https://docs.google.com/spreadsheets/d/17i2s3hWEHvSUk5tS-TCRMvDZ9nsaShP44PwQjivsZ7I/edit?usp=sharing) (**bản chính**) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành, trạng thái. File [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) chỉ là bản chụp, có thể đã cũ. Lịch sử thay đổi task (19/10 theo góp ý giảng viên, 20/10 đợt 2): [docs/task-changes-2026-10-19.md](docs/task-changes-2026-10-19.md) |
+| 3a | [docs/quy-trinh-he-thong.md](docs/quy-trinh-he-thong.md) | Luôn đọc | Quy trình hệ thống theo từng luồng (ai làm, khi nào, các bước, màn hình, service, sự kiện) |
 | 4 | [docs/c4-architecture/PRN232 - Final Assignment.pdf](docs/c4-architecture/PRN232%20-%20Final%20Assignment.pdf) | Luôn đọc | Đề bài, yêu cầu kỹ thuật, tiêu chí chấm |
 | 5 | [docs/c4-architecture/c1.mmd](docs/c4-architecture/c1.mmd) (ảnh `c1.png`), [EXE_Team_Matching_Kien_truc_C4.docx](docs/c4-architecture/EXE_Team_Matching_Kien_truc_C4.docx) | Làm backend, giao tiếp giữa service | Sơ đồ container, ma trận giao tiếp, proto gRPC, sự kiện, background job |
 | 6 | [docs/ux/DESIGN.md](docs/ux/DESIGN.md) | Làm web hoặc mobile | Design token, component, quy ước giao diện |
 | 7 | [docs/ux/flutter-handoff.md](docs/ux/flutter-handoff.md) | Làm mobile | Ánh xạ token/component sang Flutter, spec từng màn hình, checklist |
-| 8 | [docs/ux/EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx](docs/ux/EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx) | Làm web hoặc mobile | Nội dung và trạng thái cần có của mọi màn hình (A01–L06, W01–W26) |
+| 8 | [docs/ux/EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx](docs/ux/EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx) | Làm web hoặc mobile | Nội dung và trạng thái cần có của mọi màn hình (A01–L07, M01, C01–C09, S01–S31, W01–W29) |
 | 9 | [docs/ux/user-flow.md](docs/ux/user-flow.md), [docs/ux/design-decisions.md](docs/ux/design-decisions.md) | Làm web hoặc mobile | Luồng điều hướng, lý do các quyết định thiết kế, accessibility |
 | 10 | [docs/ux/persona.md](docs/ux/persona.md) | Khi cần hiểu người dùng | Persona, vấn đề, chỉ số thành công |
 
@@ -54,7 +55,7 @@ mobile/                      Flutter (Sinh viên, Giảng viên, Mentor)
   lib/features/<feature>     theo bảng bên dưới (tên thư mục snake_case)
 deploy/
   docker-compose*.yml        Thiên
-  db/                        Thiên   – DB script cho 5 database
+  db/                        Thiên   – DB script cho 6 database
 docs/                        Thiên   – mọi người được đề xuất sửa qua PR
 ```
 
@@ -133,7 +134,7 @@ Theo Conventional Commits, kèm mã task:
 
 - **Backend:** ASP.NET Core 8, kiến trúc 3 lớp API – Services – Repositories như các bài lab PRN232 (không có project Domain; entity đặt trong Repositories). Controller không chứa nghiệp vụ. EF Core (Npgsql) map đúng bảng trong DB script, không tự đổi tên bảng/cột. Lỗi trả ProblemDetails. Log bằng Serilog kèm CorrelationId. Route số nhiều, kebab-case (`/api/change-requests`). Giờ lưu UTC.
 - **Giao tiếp:** client chỉ gọi API Gateway. Giữa các service: REST nội bộ; gọi Matching bằng gRPC; báo sự kiện qua Kafka (ghi Outbox trong cùng transaction). Không service nào đọc database của service khác.
-- **Database:** mỗi service một database (`identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`, `collab_db` – `collab_db` chưa có script, task BE-60). Muốn thay đổi bảng thì sửa DB script trong `deploy/db/` và cập nhật `docs/EXE_Database_Design.pdf`, PR do Thiên duyệt.
+- **Database:** mỗi service một database (`identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`, `collab_db`; script ở `deploy/db/`). Muốn thay đổi bảng thì sửa DB script trong `deploy/db/` và cập nhật `docs/EXE_Database_Design.pdf`, PR do Thiên duyệt.
 - **Web (React):** dùng component và API client dùng chung trong `web/src/shared`, không gọi `fetch` trực tiếp trong màn hình. Màn hình có đủ trạng thái đang tải / trống / lỗi như trong danh sách màn hình.
 - **Mobile (Flutter):** lấy màu, chữ, khoảng cách qua `Theme.of(context)`, `AppSpacing`, `AppRadius`; không hardcode `Color(...)` hay `fontSize`. Làm đủ trạng thái và chạy checklist ở flutter-handoff.md §5.
 - **Ngôn ngữ:** tên biến, class, API, commit type bằng tiếng Anh; chữ hiển thị cho người dùng bằng tiếng Việt; tài liệu bằng tiếng Việt.
