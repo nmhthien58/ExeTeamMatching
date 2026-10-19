@@ -62,6 +62,24 @@ Vì web và mobile đều xin token cho cùng Web client ID, Identity Service ch
 - Mobile: chạy trên emulator có Google Play; chọn tài khoản thì nhận được `idToken` khác null.
 - Dán ID token vào https://jwt.io để xem: `aud` = Web client ID, `iss` = `https://accounts.google.com`, `email_verified` = `true`.
 
+## 6. Lấy JWT không cần Google (chỉ môi trường Development)
+
+Identity Service có `POST /api/dev/token` để cả nhóm thử API và giao diện mà không phải đăng nhập Google. Endpoint **chỉ được đăng ký khi `ASPNETCORE_ENVIRONMENT=Development`**; ở môi trường khác route không tồn tại (404, có test `DevTokenEndpointTests`). Gateway chỉ có route `/api/dev/*` trong `ApiGateway/appsettings.Development.json`.
+
+Chạy Identity (`dotnet run --project backend/Services/Identity/Identity.Api`, cổng 5001, cần Postgres có `identity_db`) và Gateway (`dotnet run --project backend/ApiGateway`, cổng 8080), rồi:
+
+```bash
+curl -s -X POST http://localhost:8080/api/dev/token -H "Content-Type: application/json" -d '{"role":"Student","email":"sv.demo@example.com"}'
+```
+
+Body: `role` (bắt buộc: `Student` | `Lecturer` | `Mentor` | `Admin`), `email` (mặc định `dev.<role>@example.com`), `studentId` / `lecturerId` / `mentorId` (id bên Academic; bỏ trống thì giữ id cũ hoặc sinh mới). Kết quả giống `TokenResponse` của `/api/auth/google`, dùng `accessToken` làm `Authorization: Bearer …`; `/api/auth/me`, `/api/auth/refresh`, `/api/auth/logout` dùng được như token thật.
+
+- Email chưa có tài khoản → tạo tài khoản ACTIVE; đã có (kể cả Admin seed) → dùng tài khoản đó và thêm vai trò nếu thiếu.
+- Muốn tài khoản vừa Lecturer vừa Mentor: gọi hai lần cùng `email`, một lần `role=Lecturer`, một lần `role=Mentor`; token lần sau có `roles: ["Lecturer","Mentor"]`.
+- Muốn token khớp dữ liệu bên Academic/Team thì truyền đúng `studentId` / `lecturerId` / `mentorId` của bản ghi đó.
+
+Swagger của Identity (Development): http://localhost:5001/swagger, nhóm **Dev**.
+
 ## Lỗi hay gặp
 
 | Lỗi | Nguyên nhân |
@@ -71,3 +89,6 @@ Vì web và mobile đều xin token cho cùng Web client ID, Identity Service ch
 | Web báo `origin_mismatch` | Chưa thêm `http://localhost:3000` vào Authorized JavaScript origins |
 | Màn hình Google ghi "app chưa được xác minh" / chỉ cho test user | Consent screen đang ở Testing → **Publish app** |
 | Identity trả 403 `not-in-list` | Email chưa có trong danh sách import (đúng quy tắc 5), hoặc chưa đặt `ADMIN_EMAIL` cho tài khoản Admin |
+| Identity trả 401 `invalid-token` | ID token sai, hết hạn, `aud` khác `Google:ClientId`, hoặc email Google chưa xác minh |
+| Identity trả 403 `wrong-client` | Tài khoản chỉ có vai trò Admin đăng nhập bằng mobile (Admin chỉ dùng web) |
+| `/api/auth/refresh` trả 401 `invalid-refresh-token` | Refresh token đã dùng (rotation), đã đăng xuất hoặc hết hạn. Dùng lại token cũ sẽ thu hồi mọi phiên của tài khoản → đăng nhập lại |

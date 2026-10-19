@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using BuildingBlocks.Web;
+using Identity.Api.Dev;
 using Identity.Services;
 
 // Identity Service – cấu hình chung ở BuildingBlocks (BE-05): Serilog + CorrelationId, ProblemDetails, JWT, FluentValidation.
@@ -8,6 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults("identity");
 builder.Services.AddApiControllers(typeof(Program).Assembly, typeof(ServiceCollectionExtensions).Assembly);
 builder.Services.AddIdentityServices(builder.Configuration);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDevTokenIssuer();
+    builder.Services.ConfigureHttpJsonOptions(options =>
+        options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull);
+}
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -22,6 +30,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+
+// Lấy JWT không cần Google – chỉ đăng ký ở Development (docs/setup/google-sign-in.md mục 6).
+if (app.Environment.IsDevelopment())
+{
+    app.MapDevTokenEndpoints();
+}
 
 app.Run();
 
