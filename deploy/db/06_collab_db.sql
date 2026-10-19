@@ -280,6 +280,110 @@ CREATE TABLE collab.meeting_reminders (
     CONSTRAINT fk_meeting_reminders_meeting FOREIGN KEY (meeting_id) REFERENCES collab.meetings (id) ON DELETE CASCADE
 );
 
+-- ---------- Lịch họp hằng tuần EXE201 (rule 25) ----------
+-- Giảng viên hướng dẫn đăng các khung giờ, hệ thống cắt thành slot (mặc định 15 phút); mỗi nhóm đặt một slot cố định
+-- cho cả kỳ, ai đặt trước được trước. Từ slot đã đặt, Collaboration sinh một cuộc họp mỗi tuần (meetings.schedule_booking_id).
+CREATE TABLE collab.meeting_schedules (
+    id               uuid         NOT NULL DEFAULT gen_random_uuid(),
+    lecturer_id      uuid         NOT NULL,                     -- academic.lecturers.id
+    lecturer_name    varchar(150) NOT NULL,                     -- snapshot
+    semester_id      uuid         NOT NULL,
+    course_code      varchar(6)   NOT NULL DEFAULT 'EXE201',
+    slot_minutes     smallint     NOT NULL DEFAULT 15,
+    location         varchar(500) NOT NULL,                     -- link họp online
+    booking_deadline timestamptz  NOT NULL,
+    status           varchar(10)  NOT NULL DEFAULT 'DRAFT',
+    published_at     timestamptz,
+    closed_at        timestamptz,
+    created_at       timestamptz  NOT NULL DEFAULT now(),
+    updated_at       timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_meeting_schedules PRIMARY KEY (id),
+    CONSTRAINT uq_meeting_schedules_lecturer UNIQUE (lecturer_id, semester_id, course_code),
+    CONSTRAINT ck_meeting_schedules_course CHECK (course_code = 'EXE201'),
+    CONSTRAINT ck_meeting_schedules_slot CHECK (slot_minutes BETWEEN 5 AND 60),
+    CONSTRAINT ck_meeting_schedules_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'CLOSED')),
+    CONSTRAINT ck_meeting_schedules_published CHECK ((status = 'DRAFT') = (published_at IS NULL)),
+    CONSTRAINT ck_meeting_schedules_closed CHECK ((status = 'CLOSED') = (closed_at IS NOT NULL))
+);
+
+-- Khung giờ trong tuần, ví dụ thứ Ba 09:00–11:00 (day_of_week: 1 = thứ Hai … 7 = Chủ nhật, giờ địa phương).
+CREATE TABLE collab.schedule_windows (
+    id          uuid     NOT NULL DEFAULT gen_random_uuid(),
+    schedule_id uuid     NOT NULL,
+    day_of_week smallint NOT NULL,
+    start_time  time     NOT NULL,
+    end_time    time     NOT NULL,
+    CONSTRAINT pk_schedule_windows PRIMARY KEY (id),
+    CONSTRAINT fk_schedule_windows_schedule FOREIGN KEY (schedule_id) REFERENCES collab.meeting_schedules (id) ON DELETE CASCADE,
+    CONSTRAINT ck_schedule_windows_day CHECK (day_of_week BETWEEN 1 AND 7),
+    CONSTRAINT ck_schedule_windows_time CHECK (end_time > start_time)
+);
+CREATE INDEX idx_schedule_windows_schedule ON collab.schedule_windows (schedule_id);
+
+CREATE TABLE collab.schedule_slots (
+    id          uuid     NOT NULL DEFAULT gen_random_uuid(),
+    schedule_id uuid     NOT NULL,
+    window_id   uuid     NOT NULL,
+    day_of_week smallint NOT NULL,
+    start_time  time     NOT NULL,
+    end_time    time     NOT NULL,
+    CONSTRAINT pk_schedule_slots PRIMARY KEY (id),
+    CONSTRAINT uq_schedule_slots_time UNIQUE (schedule_id, day_of_week, start_time),
+    CONSTRAINT fk_schedule_slots_schedule FOREIGN KEY (schedule_id) REFERENCES collab.meeting_schedules (id) ON DELETE CASCADE,
+    CONSTRAINT fk_schedule_slots_window FOREIGN KEY (window_id) REFERENCES collab.schedule_windows (id) ON DELETE CASCADE,
+    CONSTRAINT ck_schedule_slots_day CHECK (day_of_week BETWEEN 1 AND 7),
+    CONSTRAINT ck_schedule_slots_time CHECK (end_time > start_time)
+);
+
+-- Một slot một nhóm, một nhóm một slot đang hiệu lực. Đổi slot = hủy dòng cũ (cancelled_at) rồi tạo dòng mới.
+CREATE TABLE collab.slot_bookings (
+    id            uuid        NOT NULL DEFAULT gen_random_uuid(),
+    schedule_id   uuid        NOT NULL,
+    slot_id       uuid        NOT NULL,
+    workspace_id  uuid        NOT NULL,
+    source        varchar(10) NOT NULL,                         -- LEADER tự đặt, INSTRUCTOR đổi giúp, AUTO xếp lúc hết hạn
+    booked_by_id  uuid,                                         -- sinh viên / giảng viên; NULL khi AUTO
+    booked_at     timestamptz NOT NULL DEFAULT now(),
+    cancelled_at  timestamptz,
+    CONSTRAINT pk_slot_bookings PRIMARY KEY (id),
+    CONSTRAINT fk_slot_bookings_schedule FOREIGN KEY (schedule_id) REFERENCES collab.meeting_schedules (id) ON DELETE CASCADE,
+    CONSTRAINT fk_slot_bookings_slot FOREIGN KEY (slot_id) REFERENCES collab.schedule_slots (id) ON DELETE CASCADE,
+    CONSTRAINT fk_slot_bookings_workspace FOREIGN KEY (workspace_id) REFERENCES collab.workspaces (id) ON DELETE CASCADE,
+    CONSTRAINT ck_slot_bookings_source CHECK (source IN ('LEADER', 'INSTRUCTOR', 'AUTO')),
+    CONSTRAINT ck_slot_bookings_by CHECK ((source = 'AUTO') = (booked_by_id IS NULL))
+);
+CREATE UNIQUE INDEX uq_slot_bookings_slot_active ON collab.slot_bookings (slot_id) WHERE cancelled_at IS NULL;
+CREATE UNIQUE INDEX uq_slot_bookings_workspace_active ON collab.slot_bookings (schedule_id, workspace_id) WHERE cancelled_at IS NULL;
+
+-- Họp hằng tuần là một dòng meetings bình thường (organizer_role INSTRUCTOR, có confirmed slot) gắn với booking và số tuần.
+ALTER TABLE collab.meetings
+    ADD COLUMN schedule_booking_id uuid,
+    ADD COLUMN week_no smallint,
+    ADD CONSTRAINT fk_meetings_schedule_booking FOREIGN KEY (schedule_booking_id)
+        REFERENCES collab.slot_bookings (id) ON DELETE SET NULL,
+    ADD CONSTRAINT ck_meetings_weekly CHECK (
+        (schedule_booking_id IS NULL AND week_no IS NULL)
+        OR (week_no BETWEEN 1 AND 20 AND organizer_role = 'INSTRUCTOR'));
+CREATE UNIQUE INDEX uq_meetings_weekly ON collab.meetings (schedule_booking_id, week_no) WHERE schedule_booking_id IS NOT NULL;
+
+-- ---------- Checkpoint EXE101 (rule 27) ----------
+-- Giảng viên đánh dấu nhóm đã trình bày Checkpoint 1–4 trên lớp. Không lưu điểm (điểm ở FAP).
+-- Bỏ đánh dấu (trong ngày) = xóa dòng; Services kiểm tra giới hạn trong ngày.
+CREATE TABLE collab.checkpoint_reviews (
+    id                      uuid         NOT NULL DEFAULT gen_random_uuid(),
+    workspace_id            uuid         NOT NULL,
+    checkpoint_no           smallint     NOT NULL,
+    presented_on            date         NOT NULL,
+    comment                 varchar(500),
+    reviewed_by_lecturer_id uuid         NOT NULL,
+    reviewed_by_name        varchar(150) NOT NULL,              -- snapshot
+    created_at              timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_checkpoint_reviews PRIMARY KEY (id),
+    CONSTRAINT uq_checkpoint_reviews_workspace UNIQUE (workspace_id, checkpoint_no),
+    CONSTRAINT fk_checkpoint_reviews_workspace FOREIGN KEY (workspace_id) REFERENCES collab.workspaces (id) ON DELETE CASCADE,
+    CONSTRAINT ck_checkpoint_reviews_no CHECK (checkpoint_no BETWEEN 1 AND 4)
+);
+
 -- ---------- Việc và bài nộp (rule 23) ----------
 -- kind = DELIVERABLE: bài nộp do giảng viên hướng dẫn tạo, cần nộp file.
 CREATE TABLE collab.task_items (
@@ -398,5 +502,6 @@ CREATE TRIGGER trg_project_files_updated_at BEFORE UPDATE ON collab.project_file
 CREATE TRIGGER trg_meetings_updated_at      BEFORE UPDATE ON collab.meetings      FOR EACH ROW EXECUTE FUNCTION collab.set_updated_at();
 CREATE TRIGGER trg_meeting_minutes_updated_at BEFORE UPDATE ON collab.meeting_minutes FOR EACH ROW EXECUTE FUNCTION collab.set_updated_at();
 CREATE TRIGGER trg_task_items_updated_at    BEFORE UPDATE ON collab.task_items    FOR EACH ROW EXECUTE FUNCTION collab.set_updated_at();
+CREATE TRIGGER trg_meeting_schedules_updated_at BEFORE UPDATE ON collab.meeting_schedules FOR EACH ROW EXECUTE FUNCTION collab.set_updated_at();
 
 RESET ROLE;

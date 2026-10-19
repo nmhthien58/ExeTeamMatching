@@ -250,7 +250,7 @@ paths:
           content: { application/json: { schema: { type: object, properties: { mentorSessionsDone: { type: integer }, expectedMentorSessions: { type: integer }, items: { type: array, items: { $ref: '#/components/schemas/MeetingCard' } } } } } }
     post:
       tags: [Meetings]
-      summary: Đề xuất họp 1–3 khung giờ (trưởng nhóm, giảng viên hướng dẫn, mentor). Một khung = họp đã chốt luôn
+      summary: Đề xuất họp 1–3 khung giờ (trưởng nhóm, giảng viên hướng dẫn, mentor) – buổi mentor và họp phát sinh. Một khung = họp đã chốt luôn. Họp hằng tuần EXE201 sinh từ lịch họp hằng tuần, không tạo ở đây
       parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingInput' } } } }
       responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
@@ -284,7 +284,7 @@ paths:
   /api/meetings/{meetingId}/cancel:
     post:
       tags: [Meetings]
-      summary: Người tổ chức hủy kèm lý do
+      summary: Người tổ chức hủy kèm lý do. Với họp hằng tuần chỉ hủy tuần đó (giảng viên)
       parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, maxLength: 500 } } } } } }
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } } }
@@ -303,6 +303,77 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/TaskInput' } } } } } } }
       responses: { '201': { description: Created, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TaskCard' } } } } } }
 
+  /api/meetings/{meetingId}/reschedule:
+    post:
+      tags: [Meetings]
+      summary: Giảng viên dời một tuần của họp hằng tuần sang giờ khác kèm lý do (nhóm được báo)
+      parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [startsAt, reason], properties: { startsAt: { type: string, format: date-time }, reason: { type: string, maxLength: 500 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+
+  # ---------------- Lịch họp hằng tuần EXE201 (rule 25; C09) ----------------
+  /api/meeting-schedules/me:
+    get:
+      tags: [MeetingSchedules]
+      summary: Lịch họp hằng tuần của tôi (giảng viên, C09) – khung giờ, slot, nhóm đã đặt, nhóm chưa đặt. null khi chưa tạo
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/MeetingSchedule' } ], type: object, nullable: true } } } } }
+    put:
+      tags: [MeetingSchedules]
+      summary: Giảng viên tạo / sửa lịch (khung giờ, độ dài slot, link). Slot được cắt lại; slot đã có nhóm không bị xóa (409 slot-booked nếu khung mới bỏ slot đó)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingScheduleInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/meeting-schedules/me/publish:
+    post:
+      tags: [MeetingSchedules]
+      summary: Đăng lịch cho các nhóm (MeetingSlotsPublished). Ít slot hơn số nhóm vẫn đăng được, response có warning
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } } }
+  /api/workspaces/{workspaceId}/meeting-schedule:
+    get:
+      tags: [MeetingSchedules]
+      summary: Lịch họp hằng tuần của nhóm (C09 – trưởng nhóm, thành viên). Lưới slot với trạng thái FREE / TAKEN / MINE, không lộ tên nhóm khác
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/TeamMeetingSchedule' } ], type: object, nullable: true } } } } }
+  /api/workspaces/{workspaceId}/slot-booking:
+    put:
+      tags: [MeetingSchedules]
+      summary: Trưởng nhóm đặt / đổi slot tới hạn (MeetingSlotBooked). 409 slot-taken khi vừa có nhóm khác đặt, booking-closed sau hạn, not-leader
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [slotId], properties: { slotId: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TeamMeetingSchedule' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/meeting-schedules/me/bookings/{workspaceId}:
+    put:
+      tags: [MeetingSchedules]
+      summary: Giảng viên đổi slot cho một nhóm (kể cả sau hạn); các họp tuần chưa diễn ra dời theo
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [slotId], properties: { slotId: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+
+  # ---------------- Checkpoint EXE101 (rule 27) ----------------
+  /api/workspaces/{workspaceId}/checkpoints:
+    get:
+      tags: [Checkpoints]
+      summary: Tiến độ Checkpoint 1–4 của nhóm (S15, C01, L05) kèm nhận xét
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CheckpointProgress' } } } } }
+  /api/workspaces/{workspaceId}/checkpoints/{checkpointNo}:
+    put:
+      tags: [Checkpoints]
+      summary: Giảng viên hướng dẫn đánh dấu đã trình bày (CheckpointReviewed). Không có điểm. 403 instructor-only
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/CheckpointNo' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [presentedOn], properties: { presentedOn: { type: string, format: date }, comment: { type: string, maxLength: 500, nullable: true } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CheckpointProgress' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+    delete:
+      tags: [Checkpoints]
+      summary: Bỏ đánh dấu (chỉ trong ngày đã đánh dấu; client dùng cho Hoàn tác). 409 checkpoint-locked sau ngày đó
+      parameters: [ { $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/CheckpointNo' } ]
+      responses: { '204': { description: OK }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/checkpoints/me:
+    get:
+      tags: [Checkpoints]
+      summary: Giảng viên – tiến độ checkpoint của mọi nhóm EXE101 mình hướng dẫn (L01, L04 lọc "Chưa trình bày CP n")
+      parameters: [ { name: missing, in: query, schema: { type: integer, minimum: 1, maximum: 4 }, description: Chỉ nhóm chưa trình bày checkpoint này } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CheckpointProgress' } } } } } }
+
   # ---------------- Internal (Job Service) ----------------
   /internal/meetings/upcoming:
     get:
@@ -317,6 +388,11 @@ paths:
       parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [offsetMinutes], properties: { offsetMinutes: { type: integer, enum: [60, 1440] } } } } } }
       responses: { '204': { description: OK } }
+  /internal/meeting-schedules/close-booking:
+    post:
+      tags: [Internal]
+      summary: SlotBookingCloseJob – tới hạn chọn slot, xếp nhóm chưa đặt vào slot trống và sinh họp hằng tuần. Gọi lại không tạo trùng
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { autoBooked: { type: integer }, teamsWithoutSlot: { type: integer }, meetingsCreated: { type: integer } } } } } } }
   /internal/tasks/due:
     get:
       tags: [Internal]
@@ -334,6 +410,7 @@ components:
     TaskId: { name: taskId, in: path, required: true, schema: { type: string, format: uuid } }
     FileId: { name: fileId, in: path, required: true, schema: { type: string, format: uuid } }
     MeetingId: { name: meetingId, in: path, required: true, schema: { type: string, format: uuid } }
+    CheckpointNo: { name: checkpointNo, in: path, required: true, schema: { type: integer, minimum: 1, maximum: 4 } }
     Page: { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
     PageSize: { name: pageSize, in: query, schema: { type: integer, default: 20, maximum: 100 } }
   responses:
@@ -547,6 +624,71 @@ components:
         agenda: { type: string, maxLength: 2000, nullable: true }
         location: { type: string, maxLength: 500, nullable: true, description: Phòng hoặc link họp nhập tay }
         slots: { type: array, minItems: 1, maxItems: 3, items: { $ref: '#/components/schemas/SlotInput' } }
+    ScheduleWindow:
+      type: object
+      required: [dayOfWeek, startTime, endTime]
+      properties:
+        dayOfWeek: { type: integer, minimum: 1, maximum: 7, description: 1 = thứ Hai … 7 = Chủ nhật }
+        startTime: { type: string, example: '09:00' }
+        endTime: { type: string, example: '11:00' }
+    MeetingScheduleInput:
+      type: object
+      required: [windows, location]
+      properties:
+        windows: { type: array, minItems: 1, items: { $ref: '#/components/schemas/ScheduleWindow' } }
+        slotMinutes: { type: integer, minimum: 5, maximum: 60, default: 15 }
+        location: { type: string, maxLength: 500, description: Link họp online }
+    ScheduleSlot:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        dayOfWeek: { type: integer }
+        startTime: { type: string }
+        endTime: { type: string }
+        state: { type: string, enum: [FREE, TAKEN, MINE], description: Với giảng viên chỉ FREE / TAKEN }
+        workspaceId: { type: string, format: uuid, nullable: true, description: Chỉ trả cho giảng viên }
+        teamName: { type: string, nullable: true, description: Chỉ trả cho giảng viên }
+    MeetingSchedule:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [DRAFT, PUBLISHED, CLOSED] }
+        slotMinutes: { type: integer }
+        location: { type: string }
+        bookingDeadline: { type: string, format: date-time }
+        windows: { type: array, items: { $ref: '#/components/schemas/ScheduleWindow' } }
+        slots: { type: array, items: { $ref: '#/components/schemas/ScheduleSlot' } }
+        teamCount: { type: integer, description: Số nhóm EXE201 giảng viên hướng dẫn }
+        teamsWithoutSlot: { type: array, items: { type: object, properties: { workspaceId: { type: string, format: uuid }, teamName: { type: string } } } }
+        warnings: { type: array, items: { type: string, enum: [NOT_ENOUGH_SLOTS] } }
+    TeamMeetingSchedule:
+      type: object
+      properties:
+        lecturerName: { type: string }
+        status: { type: string, enum: [PUBLISHED, CLOSED] }
+        location: { type: string }
+        bookingDeadline: { type: string, format: date-time }
+        canBook: { type: boolean, description: Trưởng nhóm và còn trong hạn }
+        mySlot: { allOf: [ { $ref: '#/components/schemas/ScheduleSlot' } ], type: object, nullable: true }
+        slots: { type: array, items: { $ref: '#/components/schemas/ScheduleSlot' } }
+    CheckpointProgress:
+      type: object
+      properties:
+        workspaceId: { type: string, format: uuid }
+        teamName: { type: string }
+        doneCount: { type: integer, description: "\"Checkpoint n/4\"" }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              checkpointNo: { type: integer }
+              presented: { type: boolean }
+              presentedOn: { type: string, format: date, nullable: true }
+              comment: { type: string, nullable: true }
+              targetWeek: { type: integer, nullable: true }
+              overdue: { type: boolean, description: Quá tuần mục tiêu mà chưa trình bày }
+              canUndo: { type: boolean, description: Còn trong ngày đã đánh dấu }
     MeetingCard:
       type: object
       properties:
@@ -561,6 +703,8 @@ components:
         slotCount: { type: integer }
         location: { type: string, nullable: true }
         myAnswerPending: { type: boolean, description: Tôi chưa trả lời khung nào }
+        isWeekly: { type: boolean, description: "Họp hằng tuần EXE201 (chip \"Hằng tuần\")" }
+        weekNo: { type: integer, nullable: true }
     MeetingDetail:
       allOf:
         - $ref: '#/components/schemas/MeetingCard'

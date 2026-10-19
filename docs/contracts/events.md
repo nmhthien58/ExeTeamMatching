@@ -31,8 +31,8 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 | `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject | Team (outbox) | Matching, Notification, Collaboration |
 | `exe.invitation` | InvitationSent, InvitationAccepted, InvitationDeclined, InvitationExpired, JoinRequestSubmitted, JoinRequestAccepted, JoinRequestDeclined | Team (outbox) | Notification |
 | `exe.change-request` | ChangeRequestSubmitted, ChangeRequestApproved, ChangeRequestRejected | Team (outbox) | Notification |
-| `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerRequested, LecturerAccepted, LecturerDeclined, LecturerAssigned, MentorAssigned, MentorUnassigned | Team (outbox) | Notification, Matching (số quan tâm, nhóm đã có giảng viên), Collaboration (quyền workspace) |
-| `exe.collab` | AdvisorQuestionAsked, AdvisorQuestionAnswered, UserMentioned, TaskAssigned, DeliverableCreated, DeliverableSubmitted, DeliverableReviewed, FileUploaded, MeetingProposed, MeetingScheduled, MeetingCancelled | Collaboration (outbox) | Notification |
+| `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerPreferencesUpdated, LecturerAssigned, MentorAssigned, MentorUnassigned, AdvisorMatchingCompleted | Team (outbox) | Notification, Matching (số quan tâm, nhóm đã có giảng viên), Collaboration (quyền workspace) |
+| `exe.collab` | AdvisorQuestionAsked, AdvisorQuestionAnswered, UserMentioned, TaskAssigned, DeliverableCreated, DeliverableSubmitted, DeliverableReviewed, FileUploaded, MeetingProposed, MeetingScheduled, MeetingCancelled, MeetingSlotsPublished, MeetingSlotBooked, CheckpointReviewed | Collaboration (outbox) | Notification |
 | `exe.reminder` | MeetingReminder, TaskDueSoon, DeliverableOverdue | Job (publish trực tiếp) | Notification |
 
 Tin nhắn thường **không** có sự kiện Kafka: Collaboration đẩy qua SignalR hub `/hubs/collab` (`messageCreated`, `messageUpdated`, `readUpdated`, `typing`) và không tạo thông báo (PROJECT_CONTEXT §5.7).
@@ -141,21 +141,27 @@ Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt
 ### exe.assignment (key = teamId)
 
 ```jsonc
-// TopicInterestOpened – giảng viên quan tâm đề tài (rule 19); Notification báo nhóm, Matching tăng số quan tâm
-{ "interestId": "uuid", "teamId": "uuid", "projectId": "uuid", "lecturerId": "uuid", "lecturerName": "...",
-  "wasPreviousInstructor": false }
-// TopicInterestClosed – reason: WITHDRAWN | OTHER_LECTURER_ACCEPTED | LECTURER_ASSIGNED | THIS_LECTURER_ACCEPTED | TEAM_DISBANDED
-{ "interestId": "uuid", "teamId": "uuid", "lecturerId": "uuid", "reason": "OTHER_LECTURER_ACCEPTED" }
-// LecturerRequested
-{ "preferenceId": "uuid", "teamId": "uuid", "teamName": "Nhóm A", "lecturerId": "uuid" }
-// LecturerAccepted / LecturerDeclined
-{ "preferenceId": "uuid", "teamId": "uuid", "lecturerId": "uuid", "responseNote": "..." }
-// LecturerAssigned – Collaboration thêm giảng viên hướng dẫn vào workspace (rule 21)
-{ "assignmentId": "uuid", "teamId": "uuid", "lecturerId": "uuid", "lecturerName": "...", "memberStudentIds": ["uuid"],
+// TopicInterestOpened – giảng viên / mentor quan tâm nhóm (rule 19); Matching tăng số quan tâm.
+// Notification chỉ báo nhóm khi advisorKind = LECTURER (sinh viên không chọn mentor).
+{ "interestId": "uuid", "teamId": "uuid", "projectId": "uuid", "advisorKind": "LECTURER", "advisorId": "uuid",
+  "advisorName": "...", "wasPreviousInstructor": false }
+// TopicInterestClosed – reason: WITHDRAWN | THIS_ADVISOR_MATCHED | OTHER_ADVISOR_MATCHED | TEAM_DISBANDED
+{ "interestId": "uuid", "teamId": "uuid", "advisorKind": "LECTURER", "advisorId": "uuid", "reason": "OTHER_ADVISOR_MATCHED" }
+// LecturerPreferencesUpdated – trưởng nhóm đổi nguyện vọng 1–3 (rule 9); Matching cập nhật, Notification báo giảng viên mới được chọn
+{ "teamId": "uuid", "teamName": "Nhóm A", "lecturerIds": ["uuid", "uuid"], "addedLecturerIds": ["uuid"] }
+// LecturerAssigned – kết quả ghép hoặc Admin đổi tay (rule 9). Collaboration thêm giảng viên vào workspace (rule 21).
+// reason: MUTUAL | PREFERENCE | LECTURER_INTEREST | PREVIOUS_INSTRUCTOR | DOMAIN | MANUAL
+{ "assignmentId": "uuid", "teamId": "uuid", "lecturerId": "uuid", "lecturerName": "...", "reason": "MUTUAL",
+  "preferenceRank": 1, "source": "AUTO", "matchingRunId": "uuid|null", "memberStudentIds": ["uuid"],
   "previousLecturerId": "uuid|null" }
-// MentorAssigned – một mentor mỗi nhóm (rule 20); replacedMentorId != null khi thay mentor cũ
+// MentorAssigned – một mentor mỗi nhóm (rule 20); replacedMentorId != null khi thay mentor cũ.
+// reason: MENTOR_INTEREST | DOMAIN | MANUAL
 { "assignmentId": "uuid", "teamId": "uuid", "mentorId": "uuid", "mentorName": "...", "mentorLecturerId": "uuid|null",
+  "reason": "MENTOR_INTEREST", "source": "AUTO", "matchingRunId": "uuid|null",
   "replacedMentorId": "uuid|null", "memberStudentIds": ["uuid"] }
+// AdvisorMatchingCompleted – key = matchingRunId; Notification báo Admin (còn bao nhiêu nhóm chưa có cố vấn)
+{ "matchingRunId": "uuid", "advisorKind": "LECTURER", "courseCode": "EXE101", "trigger": "SCHEDULED",
+  "matchedCount": 210, "unmatchedCount": 3 }
 // MentorUnassigned
 { "assignmentId": "uuid", "teamId": "uuid", "mentorId": "uuid", "reason": "..." }
 ```
@@ -180,6 +186,15 @@ Người nhận trong `exe.collab` và `exe.reminder` là `{ "personType": "STUD
 { "workspaceId": "uuid", "taskId": "uuid", "title": "Báo cáo tuần 3", "dueAt": "...", "memberStudentIds": ["uuid"] }
 // DeliverableSubmitted
 { "workspaceId": "uuid", "taskId": "uuid", "submissionId": "uuid", "fileVersionId": "uuid", "lecturerId": "uuid" }
+// MeetingSlotsPublished – giảng viên đăng lịch họp hằng tuần EXE201 (rule 25); báo các nhóm của giảng viên
+{ "scheduleId": "uuid", "lecturerId": "uuid", "lecturerName": "...", "bookingDeadline": "...", "slotCount": 32,
+  "recipients": [ { "personType": "STUDENT", "personId": "uuid" } ] }
+// MeetingSlotBooked – key = workspaceId. source: LEADER | INSTRUCTOR | AUTO (giảng viên đổi / hệ thống xếp thì báo nhóm)
+{ "workspaceId": "uuid", "scheduleId": "uuid", "slotId": "uuid", "dayOfWeek": 2, "startTime": "09:15", "endTime": "09:30",
+  "source": "AUTO", "recipients": [ { "personType": "STUDENT", "personId": "uuid" } ] }
+// CheckpointReviewed – EXE101 (rule 27), không có điểm
+{ "workspaceId": "uuid", "teamId": "uuid", "checkpointNo": 2, "presentedOn": "2026-10-20", "comment": "...|null",
+  "memberStudentIds": ["uuid"] }
 // DeliverableReviewed – reviewStatus: ACCEPTED | NEEDS_REVISION
 { "workspaceId": "uuid", "taskId": "uuid", "submissionId": "uuid", "reviewStatus": "NEEDS_REVISION", "comment": "...",
   "memberStudentIds": ["uuid"] }

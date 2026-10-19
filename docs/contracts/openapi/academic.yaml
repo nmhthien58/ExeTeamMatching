@@ -219,9 +219,7 @@ paths:
             schema:
               type: object
               properties:
-                domainIds: { type: array, maxItems: 18, items: { type: integer }, description: "Domain chuyên môn – đầu vào gợi ý đề tài (L07, rule 19)" }
-                maxTeams: { type: integer, minimum: 1, maximum: 50 }
-                isAcceptingTeams: { type: boolean }
+                domainIds: { type: array, maxItems: 18, items: { type: integer }, description: "Domain chuyên môn – đầu vào gợi ý đề tài (L07, rule 19). Số nhóm tối đa do Admin đặt (W11), giảng viên không tự sửa" }
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
 
   # ---------------- Mentors (rule 20) ----------------
@@ -366,11 +364,11 @@ components:
       properties: { page: { type: integer }, pageSize: { type: integer }, totalCount: { type: integer }, totalPages: { type: integer } }
     Semester:
       type: object
-      properties: { id: { type: string, format: uuid }, code: { type: string, example: FA26 }, name: { type: string }, startDate: { type: string, format: date }, endDate: { type: string, format: date }, isCurrent: { type: boolean }, mentoringStartWeek: { type: integer, default: 6 }, expectedMentorSessions: { type: integer, default: 3 } }
+      properties: { id: { type: string, format: uuid }, code: { type: string, example: FA26 }, name: { type: string }, startDate: { type: string, format: date }, endDate: { type: string, format: date }, isCurrent: { type: boolean }, mentoringStartWeek: { type: integer, default: 6 }, expectedMentorSessions: { type: integer, default: 3 }, slotBookingDeadlineWeek: { type: integer, default: 2, description: Hạn chọn slot họp hằng tuần EXE201 (rule 25) }, meetingSlotMinutes: { type: integer, default: 15 }, checkpointTargetWeeks: { type: array, nullable: true, minItems: 4, maxItems: 4, items: { type: integer }, description: Tuần mục tiêu Checkpoint 1–4 EXE101 (rule 27) } }
     SemesterInput:
       type: object
       required: [code, name, startDate, endDate]
-      properties: { code: { type: string, pattern: '^(SP|SU|FA)[0-9]{2}$' }, name: { type: string }, startDate: { type: string, format: date }, endDate: { type: string, format: date }, isCurrent: { type: boolean }, mentoringStartWeek: { type: integer, minimum: 1, maximum: 20, default: 6 }, expectedMentorSessions: { type: integer, minimum: 1, maximum: 10, default: 3 } }
+      properties: { code: { type: string, pattern: '^(SP|SU|FA)[0-9]{2}$' }, name: { type: string }, startDate: { type: string, format: date }, endDate: { type: string, format: date }, isCurrent: { type: boolean }, mentoringStartWeek: { type: integer, minimum: 1, maximum: 20, default: 6 }, expectedMentorSessions: { type: integer, minimum: 1, maximum: 10, default: 3 }, slotBookingDeadlineWeek: { type: integer, minimum: 1, maximum: 10, default: 2 }, meetingSlotMinutes: { type: integer, minimum: 5, maximum: 60, default: 15 }, checkpointTargetWeeks: { type: array, nullable: true, minItems: 4, maxItems: 4, items: { type: integer, minimum: 1, maximum: 20 } } }
     CoursePhase:
       type: object
       description: Rule 18 – "học kỳ đã bắt đầu" = đợt lập nhóm của môn đã đóng
@@ -465,14 +463,13 @@ components:
         email: { type: string }
         phone: { type: string, nullable: true }
         domains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' }, description: Chuyên môn (rule 19) }
-        maxTeams: { type: integer }
-        acceptedTeamCount: { type: integer, description: Số nhóm đã nhận (từ Team Service) }
-        isAcceptingTeams: { type: boolean }
+        maxTeamsExe101: { type: integer, nullable: true, description: "Số nhóm tối đa do Admin đặt (rule 9); null = không giới hạn" }
+        maxTeamsExe201: { type: integer, nullable: true }
         isActive: { type: boolean }
     LecturerInput:
       type: object
       required: [fullName, email]
-      properties: { fullName: { type: string }, email: { type: string, format: email }, phone: { type: string, nullable: true }, domainIds: { type: array, items: { type: integer } }, maxTeams: { type: integer, default: 8 }, isActive: { type: boolean, default: true } }
+      properties: { fullName: { type: string }, email: { type: string, format: email }, phone: { type: string, nullable: true }, domainIds: { type: array, items: { type: integer } }, maxTeamsExe101: { type: integer, nullable: true, minimum: 0, maximum: 200 }, maxTeamsExe201: { type: integer, nullable: true, minimum: 0, maximum: 200 }, isActive: { type: boolean, default: true } }
     SkillRating:
       type: object
       required: [skill, level]
@@ -518,4 +515,4 @@ components:
       properties: { code: { type: string }, name: { type: string }, description: { type: string, nullable: true }, isActive: { type: boolean, default: true } }
     RuleSettings:
       type: object
-      properties: { minTeamSize: { type: integer, default: 4 }, maxTeamSize: { type: integer, default: 6 }, minSpecializations: { type: integer, default: 2 }, invitationExpiryHours: { type: integer, default: 72 }, reminderHours: { type: array, items: { type: integer }, example: [72, 24] }, maxIdeasPerJoinRequest: { type: integer, default: 3 }, interestExtraSlots: { type: integer, default: 2, description: Giới hạn quan tâm đề tài = sức chứa còn lại + giá trị này }, maxFileSizeMb: { type: integer, default: 25 } }
+      properties: { minTeamSize: { type: integer, default: 4 }, maxTeamSize: { type: integer, default: 6 }, minSpecializations: { type: integer, default: 2 }, invitationExpiryHours: { type: integer, default: 72 }, reminderHours: { type: array, items: { type: integer }, example: [72, 24] }, maxIdeasPerJoinRequest: { type: integer, default: 3 }, interestExtraSlots: { type: integer, default: 2, description: "Giới hạn quan tâm = số nhóm còn nhận + giá trị này (mentor: tối đa + giá trị này)" }, maxInterestsUnlimited: { type: integer, default: 10, description: Giới hạn quan tâm khi giảng viên không có số nhóm tối đa }, maxLecturerPreferences: { type: integer, default: 3, description: Số nguyện vọng giảng viên của nhóm (rule 9) }, maxFileSizeMb: { type: integer, default: 25 } }

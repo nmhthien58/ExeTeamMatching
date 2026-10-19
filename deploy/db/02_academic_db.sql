@@ -60,6 +60,9 @@ CREATE TABLE academic.semesters (
     is_current boolean     NOT NULL DEFAULT false,
     mentoring_start_week     smallint NOT NULL DEFAULT 6,   -- rule 20: mentor làm việc với nhóm từ tuần này
     expected_mentor_sessions smallint NOT NULL DEFAULT 3,   -- số buổi mentor dự kiến ("Buổi mentor n/3")
+    slot_booking_deadline_week smallint NOT NULL DEFAULT 2, -- rule 25: hạn chọn slot họp hằng tuần EXE201 (cuối tuần này)
+    meeting_slot_minutes     smallint NOT NULL DEFAULT 15,  -- rule 25: độ dài một slot họp hằng tuần
+    checkpoint_target_weeks  smallint[],                    -- rule 27: tuần mục tiêu Checkpoint 1–4 (EXE101), NULL = không nhắc
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_semesters PRIMARY KEY (id),
@@ -67,7 +70,10 @@ CREATE TABLE academic.semesters (
     CONSTRAINT ck_semesters_code CHECK (code ~ '^(SP|SU|FA)[0-9]{2}$'),
     CONSTRAINT ck_semesters_dates CHECK (end_date > start_date),
     CONSTRAINT ck_semesters_mentoring_week CHECK (mentoring_start_week BETWEEN 1 AND 20),
-    CONSTRAINT ck_semesters_mentor_sessions CHECK (expected_mentor_sessions BETWEEN 1 AND 10)
+    CONSTRAINT ck_semesters_mentor_sessions CHECK (expected_mentor_sessions BETWEEN 1 AND 10),
+    CONSTRAINT ck_semesters_slot_booking_week CHECK (slot_booking_deadline_week BETWEEN 1 AND 10),
+    CONSTRAINT ck_semesters_slot_minutes CHECK (meeting_slot_minutes BETWEEN 5 AND 60),
+    CONSTRAINT ck_semesters_checkpoint_weeks CHECK (checkpoint_target_weeks IS NULL OR cardinality(checkpoint_target_weeks) = 4)
 );
 CREATE UNIQUE INDEX uq_semesters_is_current ON academic.semesters (is_current) WHERE is_current;
 
@@ -146,8 +152,8 @@ CREATE TABLE academic.lecturers (
     full_name          varchar(150) NOT NULL,
     email              citext       NOT NULL,
     phone              varchar(15),
-    max_teams          smallint     NOT NULL DEFAULT 8,      -- sức chứa (PROJECT_CONTEXT §5.3)
-    is_accepting_teams boolean      NOT NULL DEFAULT true,   -- công tắc nhận nhóm mới (L06)
+    max_teams_exe101   smallint,                             -- rule 9: số nhóm tối đa do Admin đặt, NULL = không giới hạn
+    max_teams_exe201   smallint,
     is_active          boolean      NOT NULL DEFAULT true,
     created_at         timestamptz  NOT NULL DEFAULT now(),
     updated_at         timestamptz  NOT NULL DEFAULT now(),
@@ -155,7 +161,9 @@ CREATE TABLE academic.lecturers (
     CONSTRAINT uq_lecturers_email UNIQUE (email),
     CONSTRAINT ck_lecturers_email CHECK (email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
     CONSTRAINT ck_lecturers_phone CHECK (phone IS NULL OR phone ~ '^\+?[0-9]{9,14}$'),
-    CONSTRAINT ck_lecturers_max_teams CHECK (max_teams BETWEEN 1 AND 50)
+    CONSTRAINT ck_lecturers_max_teams CHECK (
+        (max_teams_exe101 IS NULL OR max_teams_exe101 BETWEEN 0 AND 200)
+        AND (max_teams_exe201 IS NULL OR max_teams_exe201 BETWEEN 0 AND 200))
 );
 
 -- Chuyên môn của giảng viên chọn từ danh mục domain (rule 12) – đầu vào gợi ý đề tài (rule 19, L07).
@@ -259,7 +267,9 @@ CREATE TABLE academic.rule_settings (
     invitation_expiry_hours smallint    NOT NULL DEFAULT 72,
     reminder_hours          smallint[]  NOT NULL DEFAULT '{72,24}',
     max_ideas_per_join_request smallint NOT NULL DEFAULT 3,   -- rule 17
-    interest_extra_slots    smallint    NOT NULL DEFAULT 2,  -- rule 19: giới hạn quan tâm = sức chứa còn lại + n
+    interest_extra_slots    smallint    NOT NULL DEFAULT 2,  -- rule 19: giới hạn quan tâm = số nhóm còn nhận + n (mentor: tối đa + n)
+    max_interests_unlimited smallint    NOT NULL DEFAULT 10, -- rule 19: giới hạn quan tâm khi giảng viên không có số nhóm tối đa
+    max_lecturer_preferences smallint   NOT NULL DEFAULT 3,  -- rule 9: số nguyện vọng giảng viên của nhóm
     max_file_size_mb        smallint    NOT NULL DEFAULT 25, -- rule 24
     updated_by              uuid,
     updated_at              timestamptz NOT NULL DEFAULT now(),
@@ -268,7 +278,8 @@ CREATE TABLE academic.rule_settings (
     CONSTRAINT ck_rule_settings_team_size CHECK (min_team_size >= 2 AND max_team_size >= min_team_size),
     CONSTRAINT ck_rule_settings_expiry CHECK (invitation_expiry_hours > 0),
     CONSTRAINT ck_rule_settings_ideas CHECK (max_ideas_per_join_request BETWEEN 1 AND 10),
-    CONSTRAINT ck_rule_settings_interest CHECK (interest_extra_slots BETWEEN 0 AND 10),
+    CONSTRAINT ck_rule_settings_interest CHECK (interest_extra_slots BETWEEN 0 AND 10 AND max_interests_unlimited BETWEEN 1 AND 100),
+    CONSTRAINT ck_rule_settings_preferences CHECK (max_lecturer_preferences BETWEEN 1 AND 10),
     CONSTRAINT ck_rule_settings_file_size CHECK (max_file_size_mb BETWEEN 1 AND 100)
 );
 

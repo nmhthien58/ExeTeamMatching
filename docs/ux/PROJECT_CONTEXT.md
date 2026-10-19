@@ -249,7 +249,7 @@ service MatchingService {
 - Lecturer / mentor overview endpoints across their teams: needs-reply questions, overdue deliverables, upcoming meetings.
 - Internal endpoints for Job Service: `GET /internal/meetings/upcoming`, `GET /internal/tasks/due`, `POST /internal/meeting-schedules/close-booking`.
 - Publishes through Outbox to `exe.collab` (section 6).
-- DB (`Collab DB`, script `deploy/db/06_collab_db.sql`): `Workspace`, `WorkspaceMember`, `Channel`, `Message`, `MessageAttachment`, `MessageRead`, `AdvisorQuestion`, `TaskItem` (kind `Task` / `Deliverable`), `TaskAssignee`, `TaskComment`, `DeliverableSubmission`, `Folder`, `ProjectFile`, `FileVersion`, `FileComment`, `Meeting`, `MeetingSlot`, `MeetingResponse`, `MeetingMinutes`, `MeetingReminder`, `MeetingSchedule`, `ScheduleWindow`, `ScheduleSlot`, `SlotBooking`, `CheckpointReview`, `OutboxMessage`, `ProcessedEvent`. *(The last five tables are not in the script yet – see the note in section 9.)*
+- DB (`Collab DB`, script `deploy/db/06_collab_db.sql`): `Workspace`, `WorkspaceMember`, `Channel`, `Message`, `MessageAttachment`, `MessageRead`, `AdvisorQuestion`, `TaskItem` (kind `Task` / `Deliverable`), `TaskAssignee`, `TaskComment`, `DeliverableSubmission`, `Folder`, `ProjectFile`, `FileVersion`, `FileComment`, `Meeting`, `MeetingSlot`, `MeetingResponse`, `MeetingMinutes`, `MeetingReminder`, `MeetingSchedule`, `ScheduleWindow`, `ScheduleSlot`, `SlotBooking`, `CheckpointReview`, `OutboxMessage`, `ProcessedEvent`.
 
 ## 6. Kafka topics and events
 
@@ -333,7 +333,7 @@ Three projects per REST service, the same layout as the PRN232 labs (no separate
 
 The Flutter mobile app is not part of Compose; it points at the gateway URL. `depends_on` with `condition: service_healthy`. EF migrations auto-run in Development. Demo seed data comes from an **anonymized** Group List (no phone numbers, fake emails).
 
-> DB scripts and contracts for version 4 are done (BE-60, BE-61 – `deploy/db/`, `docs/contracts/`), **but they still follow the 2026-10-19 lecturer flow** (mentoring request with accept/decline, no meeting schedules, no checkpoints). Changes needed for the 2026-10-20 rules 9, 19, 20, 25, 27 are listed in `docs/task-changes-2026-10-19.md` (part "Đợt 2"). The `collab-api` and `minio` containers are **not in Compose yet** (task BE-63), and `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists the differences.
+> DB scripts and contracts follow version 4 and the 2026-10-20 rules (BE-60, BE-61, BE-78 – `deploy/db/`, `docs/contracts/`). `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists every difference. The `collab-api` and `minio` containers come with BE-63.
 
 ## 10. PRN232 requirement mapping
 

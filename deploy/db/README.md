@@ -55,7 +55,11 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | `ex_registration_rounds_overlap` | Đợt đăng ký bị chồng thời gian |
 | `ck_audit_logs_append_only` | Audit log không được sửa / xóa |
 | `ck_join_requests_ideas`, `ck_join_request_ideas_position` | Yêu cầu tham gia cần 1–3 ý tưởng hoặc "Chưa có ý tưởng" (rule 17, kiểm tra lúc COMMIT) |
-| `uq_topic_interests_open` | Giảng viên đã quan tâm đề tài này (rule 19) |
+| `uq_topic_interests_open` | Cố vấn đã quan tâm nhóm này (rule 19) |
+| `uq_lecturer_preferences_lecturer`, `pk_lecturer_preferences` | Trùng giảng viên / trùng thứ hạng nguyện vọng (rule 9) |
+| `uq_slot_bookings_slot_active` | Slot vừa có nhóm khác đặt → `slot-taken` (rule 25) |
+| `uq_slot_bookings_workspace_active` | Nhóm đã có slot – Services hủy dòng cũ trước khi đổi |
+| `uq_checkpoint_reviews_workspace` | Checkpoint đã được đánh dấu (rule 27) |
 | `uq_mentor_assignments_active`, `uq_workspace_members_one_mentor` | Nhóm đã có mentor – mỗi nhóm một mentor (rule 20) |
 | `uq_teams_project_semester` | Đề tài đã có nhóm trong học kỳ (rule 26) |
 | `uq_change_request_items_project_pending` | Nhóm đã có thay đổi đề tài đang chờ |
@@ -70,9 +74,10 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | Mốc EXE101 | Chỉ có `teams.source_team_id` | Thêm bảng `team_baseline_members` và cột `teams.is_inherited` | §5.4: mốc EXE101 import từ Excel, không có sẵn trong hệ thống |
 | Thay đổi chờ duyệt | Item luôn thuộc một change request | `change_request_items.team_id`, `change_request_id` cho phép NULL, thêm `source` | Rule 7: thay đổi đã được hai bên đồng ý nằm chờ trước khi leader gửi yêu cầu |
 | Yêu cầu đổi nhóm | – | Thêm `round_id`, `changed_member_count`, `changed_percent` | W17 lọc theo đợt, hiển thị số lượng và % thay đổi |
-| Nguyện vọng giảng viên | ≤ 3 nguyện vọng có thứ tự, không có trạng thái | 1 nguyện vọng đang hiệu lực, có `status` PENDING / ACCEPTED / DECLINED / CANCELLED, lời nhắn, lý do từ chối | Rule 9: giảng viên chấp nhận / từ chối, bị từ chối thì chọn người khác |
-| Phân công giảng viên | ASSIGNED / CONFIRMED / DECLINED / REVOKED | ASSIGNED / REVOKED | Rule 9: phân công của Admin là quyết định cuối |
-| Giảng viên | Không có sức chứa | Thêm `expertise`, `max_teams`, `is_accepting_teams` | §5.3, màn S23, L01, L06 |
+| Nguyện vọng giảng viên (BE-78) | ≤ 3 nguyện vọng có thứ tự, không có trạng thái | Như PDF: khóa chính (team_id, rank), không có trạng thái | Rule 9 (20/10/2026): bỏ bước giảng viên chấp nhận / từ chối |
+| Phân công giảng viên (BE-78) | ASSIGNED / CONFIRMED / DECLINED / REVOKED | ASSIGNED / REVOKED, thêm `reason`, `preference_rank`, `source` (AUTO / MANUAL), `matching_run_id` | Rule 9: hệ thống ghép, Admin đổi tay |
+| Lần ghép cố vấn (BE-78) | – | Bảng `advisor_matching_runs` (PREVIEW / APPLIED / DISCARDED, plan jsonb) | Rule 9, 20: Ghép sớm xem trước rồi chốt |
+| Giảng viên | Không có sức chứa | Thêm `max_teams_exe101`, `max_teams_exe201` (NULL = không giới hạn) | Rule 9: Admin đặt, tùy chọn |
 | Sinh viên | – | Thêm `is_seeking_team` | Công tắc "Tôi đang tìm nhóm" (S03) |
 | Cấu hình | – | Thêm bảng `academic.rule_settings` | Màn W05 |
 | Danh bạ thông báo | – | Thêm `contacts.email_enabled` | Công tắc nhận email (A07) |
@@ -83,7 +88,11 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | Mentor (BE-60) | – | `mentors`, `mentor_domains`, `team.mentor_assignments`; `semesters.mentoring_start_week`, `expected_mentor_sessions` | Rule 20 |
 | Đề tài (BE-60) | `teams.idea_title`, `idea_description` | Bảng `projects`, `project_versions`; `teams.project_id`; `change_request_items` có `PROJECT_CHANGE` | Rule 26 |
 | Ý tưởng khi xin vào nhóm (BE-60) | – | `join_requests.has_no_idea`, bảng `join_request_ideas` | Rule 17 |
-| Quan tâm đề tài (BE-60) | – | Bảng `topic_interests` | Rule 19 |
+| Quan tâm đề tài (BE-60, BE-78) | – | Bảng `topic_interests` cho cả giảng viên và mentor (`advisor_kind`, `advisor_id`) | Rule 19 |
+| Mentor ghép tự động (BE-78) | – | `mentor_assignments` thêm `reason`, `source`, `matching_run_id`, `note` | Rule 20 |
+| Lịch họp hằng tuần (BE-78) | – | `meeting_schedules`, `schedule_windows`, `schedule_slots`, `slot_bookings`; `meetings.schedule_booking_id`, `week_no` | Rule 25 |
+| Checkpoint EXE101 (BE-78) | – | Bảng `checkpoint_reviews` (không có điểm) | Rule 27 |
+| Cài đặt kỳ (BE-78) | – | `semesters.slot_booking_deadline_week`, `meeting_slot_minutes`, `checkpoint_target_weeks`; `rule_settings.max_interests_unlimited`, `max_lecturer_preferences` | Rule 9, 19, 25, 27 |
 | Cấu hình (BE-60) | – | `rule_settings.max_ideas_per_join_request`, `interest_extra_slots`, `max_file_size_mb` | Rule 17, 19, 24 |
 | Collaboration (BE-60) | – | Database `collab_db` mới | §5.8 |
 

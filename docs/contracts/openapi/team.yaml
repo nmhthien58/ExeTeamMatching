@@ -353,12 +353,12 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [teamId], properties: { teamId: { type: string, format: uuid } } } } } }
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectDetail' } } } }, '409': { $ref: '#/components/responses/Problem' } }
 
-  # ---------------- Topic interests (rule 19) ----------------
+  # ---------------- Quan tâm của cố vấn (rule 19) ----------------
   /api/topic-recommendations/me:
     get:
       tags: [TopicInterests]
-      summary: Đề tài phù hợp cho giảng viên (L07) – Matching SuggestTopicsForLecturer. Đề tài nhóm mình hướng dẫn ở EXE101 đứng đầu
-      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      summary: Đề tài cho giảng viên hoặc mentor (L07 tab Gợi ý) – Matching SuggestTopicsForLecturer. Giảng viên – đề tài mình hướng dẫn ở EXE101 đứng đầu
+      parameters: [ { $ref: '#/components/parameters/AdvisorKind' }, { $ref: '#/components/parameters/CourseCode' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
       responses:
         '200':
           description: OK
@@ -368,113 +368,90 @@ paths:
                 type: object
                 properties:
                   openInterestCount: { type: integer }
-                  interestLimit: { type: integer, description: Sức chứa còn lại + interestExtraSlots }
-                  remainingCapacity: { type: integer }
+                  interestLimit: { type: integer, description: "Giảng viên: số nhóm còn nhận + interestExtraSlots (maxInterestsUnlimited nếu không đặt tối đa); mentor: tối đa + interestExtraSlots" }
+                  remainingCapacity: { type: integer, nullable: true, description: null khi không giới hạn }
+                  interestOpen: { type: boolean, description: "false ngoài giai đoạn quan tâm (giảng viên: sau đợt lập nhóm; mentor: từ tuần bắt đầu mentor)" }
+                  matchingAt: { type: string, format: date-time, nullable: true, description: Thời điểm hệ thống sẽ ghép }
                   items: { type: array, items: { $ref: '#/components/schemas/TopicRecommendation' } }
+  /api/topic-interests/me:
+    get:
+      tags: [TopicInterests]
+      summary: Đề tài tôi đang quan tâm (L07 tab Đã quan tâm)
+      parameters: [ { $ref: '#/components/parameters/AdvisorKind' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TopicInterest' } } } } } }
   /api/teams/{teamId}/topic-interests:
     get:
       tags: [TopicInterests]
-      summary: Giảng viên đang quan tâm đề tài của nhóm (S23, S25 – thành viên nhóm thấy tên; Admin W19)
-      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      summary: Cố vấn đang quan tâm nhóm (S23 – thành viên thấy tên giảng viên; Admin W19, W28 thấy tất cả)
+      parameters: [ { $ref: '#/components/parameters/TeamId' }, { $ref: '#/components/parameters/AdvisorKind' } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TopicInterest' } } } } } }
     post:
       tags: [TopicInterests]
-      summary: Giảng viên quan tâm đề tài (L07). Không giữ chỗ, không tốn sức chứa. 409 interest-limit khi đạt giới hạn
+      summary: Giảng viên / mentor quan tâm nhóm (L07). Không giữ chỗ. 409 interest-limit khi đạt giới hạn, interest-closed ngoài giai đoạn, team-has-advisor khi nhóm đã được ghép
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [advisorKind], properties: { advisorKind: { $ref: '#/components/schemas/AdvisorKind' } } } } } }
       responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/TopicInterest' } } } }, '409': { $ref: '#/components/responses/Problem' } }
   /api/topic-interests/{id}:
     delete:
       tags: [TopicInterests]
-      summary: Giảng viên rút quan tâm (client hiện Hoàn tác 5 giây, gọi lại POST để khôi phục)
+      summary: Rút quan tâm (client hiện Hoàn tác 5 giây, gọi lại POST để khôi phục)
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       responses: { '204': { description: OK } }
 
-  # ---------------- Mentors (rule 20) ----------------
-  /api/teams/{teamId}/mentor:
-    get:
-      tags: [Mentors]
-      summary: Mentor của nhóm (S15 mục Cố vấn). null nếu chưa gán – client hiện "Mentor sẽ được gán từ tuần n"
-      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
-      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/MentorAssignment' } ], type: object, nullable: true } } } } }
-  /api/mentor-assignments:
-    get:
-      tags: [Mentors]
-      summary: Bảng gán mentor (W28 – Admin)
-      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { name: withoutMentor, in: query, schema: { type: boolean } }, { name: mentorId, in: query, schema: { type: string, format: uuid } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  items: { type: array, items: { type: object, properties: { team: { $ref: '#/components/schemas/TeamCard' }, assignment: { allOf: [ { $ref: '#/components/schemas/MentorAssignment' } ], type: object, nullable: true } } } }
-                  mentorLoads: { type: array, items: { type: object, properties: { mentorId: { type: string, format: uuid }, fullName: { type: string }, assignedCount: { type: integer }, preferredTeams: { type: integer, nullable: true }, maxTeams: { type: integer } } } }
-                  teamsWithoutMentor: { type: integer }
-    post:
-      tags: [Mentors]
-      summary: Admin gán mentor (một hoặc nhiều nhóm). Một mentor mỗi nhóm; replaceExisting = true để thay mentor cũ. Vượt số mong muốn → cảnh báo trong warnings; vượt tối đa → 409 mentor-full
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { type: object, required: [teamId, mentorId], properties: { teamId: { type: string, format: uuid }, mentorId: { type: string, format: uuid }, replaceExisting: { type: boolean, default: false } } } } } } } } }
-      responses:
-        '200':
-          description: OK
-          content: { application/json: { schema: { type: object, properties: { assignments: { type: array, items: { $ref: '#/components/schemas/MentorAssignment' } }, warnings: { type: array, items: { type: object, properties: { mentorId: { type: string, format: uuid }, code: { type: string, enum: [ABOVE_PREFERRED] }, message: { type: string } } } } } } } }
-        '409': { $ref: '#/components/responses/Problem' }
-  /api/mentor-assignments/{id}:
-    delete:
-      tags: [Mentors]
-      summary: Admin kết thúc gán mentor (mentor mất quyền vào workspace, lịch sử giữ lại)
-      parameters: [ { $ref: '#/components/parameters/Id' } ]
-      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 500 } } } } } }
-      responses: { '204': { description: OK } }
-  /api/mentor-teams/me:
-    get:
-      tags: [Mentors]
-      summary: Nhóm tôi đang mentor (M01; cũng dùng cho giảng viên làm mentor ở L04)
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TeamCard' } } } } } }
-
-  # ---------------- Lecturers ----------------
-  /api/teams/{teamId}/lecturer:
-    get:
-      tags: [Lecturers]
-      summary: Trạng thái giảng viên của nhóm (S25) – nguyện vọng, giảng viên nhận, phân công chính thức
-      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
-      responses:
-        '200':
-          description: OK
-          content: { application/json: { schema: { type: object, properties: { preference: { allOf: [ { $ref: '#/components/schemas/LecturerPreference' } ], type: object, nullable: true }, assignment: { allOf: [ { $ref: '#/components/schemas/LecturerAssignment' } ], type: object, nullable: true } } } } }
+  # ---------------- Nguyện vọng giảng viên của nhóm (rule 9) ----------------
   /api/teams/{teamId}/lecturer-preferences:
-    post:
+    get:
       tags: [Lecturers]
-      summary: Trưởng nhóm gửi yêu cầu hướng dẫn (S24). Chỉ 1 yêu cầu đang hiệu lực
+      summary: Nguyện vọng 1–3 của nhóm (S23, S25) kèm giảng viên quan tâm nhóm và giảng viên EXE101 cùng đề tài
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [lecturerId], properties: { lecturerId: { type: string, format: uuid }, message: { type: string, maxLength: 500 } } } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerPreference' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerPreferenceList' } } } } }
+    put:
+      tags: [Lecturers]
+      summary: Trưởng nhóm thay cả danh sách nguyện vọng (thứ tự trong mảng = thứ hạng). 409 not-leader, preferences-locked khi nhóm đã được ghép, round-closed ngoài đợt lập nhóm
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [lecturerIds], properties: { lecturerIds: { type: array, maxItems: 3, uniqueItems: true, items: { type: string, format: uuid } } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerPreferenceList' } } } }, '409': { $ref: '#/components/responses/Problem' } }
   /api/lecturer-preferences/me:
     get:
       tags: [Lecturers]
-      summary: Yêu cầu hướng dẫn gửi tới tôi (L02 – giảng viên)
-      parameters: [ { name: status, in: query, schema: { type: string, enum: [PENDING, ACCEPTED, DECLINED] } } ]
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LecturerPreference' } } } } } }
-  /api/lecturer-preferences/{id}/accept:
-    post: { tags: [Lecturers], summary: Giảng viên chấp nhận (L03). 409 lecturer-full khi đủ sức chứa, parameters: [ { $ref: '#/components/parameters/Id' } ], responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerPreference' } } } }, '409': { $ref: '#/components/responses/Problem' } } }
-  /api/lecturer-preferences/{id}/decline:
-    post: { tags: [Lecturers], summary: Giảng viên từ chối kèm lý do (L03), parameters: [ { $ref: '#/components/parameters/Id' } ], requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 500 } } } } } }, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerPreference' } } } } } }
+      summary: Nhóm chọn tôi làm nguyện vọng (L07 tab "Nhóm chọn tôi", L01) – chỉ xem, không chấp nhận / từ chối
+      parameters: [ { $ref: '#/components/parameters/CourseCode' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { type: object, properties: { team: { $ref: '#/components/schemas/TeamCard' }, rank: { type: integer }, iAmInterested: { type: boolean } } } } } } } }
+
+  # ---------------- Cố vấn của nhóm (rule 9, 20) ----------------
+  /api/teams/{teamId}/lecturer:
+    get:
+      tags: [Lecturers]
+      summary: Giảng viên hướng dẫn của nhóm và lý do ghép (S15, S25). null khi chưa ghép – client hiện thời điểm ghép
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/LecturerAssignment' } ], type: object, nullable: true } } } } }
+  /api/teams/{teamId}/mentor:
+    get:
+      tags: [Mentors]
+      summary: Mentor của nhóm (S15 mục Cố vấn). null nếu chưa ghép – client hiện "Mentor ghép từ tuần n"
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/MentorAssignment' } ], type: object, nullable: true } } } } }
   /api/lecturer-teams/me:
     get:
       tags: [Lecturers]
-      summary: Nhóm tôi hướng dẫn (L01 số liệu, L04) – "đã nhận" và "Bộ môn phân công"
+      summary: Nhóm tôi hướng dẫn (L01 số liệu, L04) kèm lý do ghép; nhóm tôi làm mentor có nhãn "Mentor"
       parameters: [ { $ref: '#/components/parameters/CourseCode' }, { name: classCode, in: query, schema: { type: string } }, { name: search, in: query, schema: { type: string } } ]
       responses:
         '200':
           description: OK
-          content: { application/json: { schema: { type: object, properties: { pendingRequestCount: { type: integer }, acceptedCount: { type: integer }, maxTeams: { type: integer }, accepted: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }, assigned: { type: array, items: { $ref: '#/components/schemas/TeamCard' } }, mentoring: { type: array, items: { $ref: '#/components/schemas/TeamCard' }, description: "Nhóm giảng viên làm mentor (nhãn \"Mentor\" ở L04)" } } } } }
-  /api/lecturer-assignments:
+          content: { application/json: { schema: { type: object, properties: { maxTeams: { type: integer, nullable: true }, instructing: { type: array, items: { $ref: '#/components/schemas/AdvisedTeam' } }, mentoring: { type: array, items: { $ref: '#/components/schemas/AdvisedTeam' }, description: "Nhóm giảng viên làm mentor (nhãn \"Mentor\" ở L04)" } } } } }
+  /api/mentor-teams/me:
     get:
-      tags: [Lecturers]
-      summary: Bảng điều tiết giảng viên (W19 – Admin)
-      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { name: assigned, in: query, schema: { type: boolean } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      tags: [Mentors]
+      summary: Nhóm tôi đang mentor (M01) kèm lý do ghép
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AdvisedTeam' } } } } } }
+
+  # ---------------- Ghép cố vấn tự động – Admin (rule 9, 20; W19, W28) ----------------
+  /api/advisor-matching/{kind}/overview:
+    get:
+      tags: [AdvisorMatching]
+      summary: Bảng W19 (LECTURER) / W28 (MENTOR) – từng nhóm với cố vấn hiện tại, lý do, nguyện vọng, quan tâm; tải từng cố vấn
+      parameters: [ { $ref: '#/components/parameters/Kind' }, { $ref: '#/components/parameters/CourseCode' }, { name: withoutAdvisor, in: query, schema: { type: boolean } }, { name: search, in: query, schema: { type: string } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
       responses:
         '200':
           description: OK
@@ -483,13 +460,55 @@ paths:
               schema:
                 type: object
                 properties:
-                  items: { type: array, items: { type: object, properties: { team: { $ref: '#/components/schemas/TeamCard' }, preference: { allOf: [ { $ref: '#/components/schemas/LecturerPreference' } ], type: object, nullable: true }, assignment: { allOf: [ { $ref: '#/components/schemas/LecturerAssignment' } ], type: object, nullable: true }, interests: { type: array, items: { $ref: '#/components/schemas/TopicInterest' }, description: Giảng viên đang quan tâm (rule 19) } } } }
-                  lecturerLoads: { type: array, items: { type: object, properties: { lecturerId: { type: string, format: uuid }, fullName: { type: string }, assignedCount: { type: integer }, maxTeams: { type: integer } } } }
+                  matchingAt: { type: string, format: date-time, nullable: true, description: Lúc hệ thống tự ghép (hạn lập nhóm / tuần bắt đầu mentor) }
+                  lastRun: { allOf: [ { $ref: '#/components/schemas/AdvisorMatchingRun' } ], type: object, nullable: true }
+                  teamsWithPreferences: { type: integer }
+                  teamsWithoutAdvisor: { type: integer }
+                  items: { type: array, items: { $ref: '#/components/schemas/AdvisorMatchingRow' } }
+                  advisorLoads: { type: array, items: { $ref: '#/components/schemas/AdvisorLoad' } }
+  /api/advisor-matching/{kind}/preview:
     post:
-      tags: [Lecturers]
-      summary: Admin phân công (một hoặc nhiều nhóm). Quyết định cuối, phát LecturerAssigned
-      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { type: object, required: [teamId, lecturerId], properties: { teamId: { type: string, format: uuid }, lecturerId: { type: string, format: uuid }, note: { type: string } } } } } } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LecturerAssignment' } } } } } }
+      tags: [AdvisorMatching]
+      summary: Ghép sớm – bước 1. Tính kết quả cho các nhóm chưa có cố vấn, lưu lần chạy PREVIEW (không đổi dữ liệu)
+      parameters: [ { $ref: '#/components/parameters/Kind' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [courseCode], properties: { courseCode: { type: string, enum: [EXE101, EXE201] } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorMatchingRun' } } } } }
+  /api/advisor-matching/runs/{id}/confirm:
+    post:
+      tags: [AdvisorMatching]
+      summary: Ghép sớm – bước 2. Áp dụng kết quả xem trước (bỏ qua nhóm đã có cố vấn trong lúc chờ), phát LecturerAssigned / MentorAssigned và AdvisorMatchingCompleted
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorMatchingRun' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/advisor-matching/runs/{id}:
+    delete:
+      tags: [AdvisorMatching]
+      summary: Bỏ kết quả xem trước (DISCARDED)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '204': { description: OK } }
+  /api/teams/{teamId}/instructor:
+    put:
+      tags: [AdvisorMatching]
+      summary: Admin đổi giảng viên hướng dẫn của nhóm (reason MANUAL, bắt buộc ghi chú). 409 lecturer-full khi vượt tối đa
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [lecturerId, note], properties: { lecturerId: { type: string, format: uuid }, note: { type: string, minLength: 1, maxLength: 500 } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerAssignment' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/teams/{teamId}/mentor-assignment:
+    put:
+      tags: [AdvisorMatching]
+      summary: Admin đổi mentor của nhóm (MANUAL). Vượt số mong muốn → cảnh báo trong warnings; vượt tối đa → 409 mentor-full
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [mentorId, note], properties: { mentorId: { type: string, format: uuid }, note: { type: string, minLength: 1, maxLength: 500 } } } } } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, properties: { assignment: { $ref: '#/components/schemas/MentorAssignment' }, warnings: { type: array, items: { type: object, properties: { code: { type: string, enum: [ABOVE_PREFERRED] }, message: { type: string } } } } } } } }
+        '409': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [AdvisorMatching]
+      summary: Admin gỡ mentor khỏi nhóm (mentor mất quyền vào workspace, lịch sử giữ lại)
+      parameters: [ { $ref: '#/components/parameters/TeamId' } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 500 } } } } } }
+      responses: { '204': { description: OK } }
 
   # ---------------- Admin: chốt, ghép tự động, thống kê ----------------
   /api/teams/{teamId}/members:
@@ -558,6 +577,13 @@ paths:
                   byDomain: { type: array, items: { type: object, properties: { code: { type: string }, count: { type: integer } } } }
 
   # ---------------- Internal (Job Service) ----------------
+  /internal/advisor-matching/{kind}:
+    post:
+      tags: [Internal]
+      summary: Job gọi lúc hết hạn lập nhóm (LECTURER) / tuần bắt đầu mentor (MENTOR) – ghép và áp dụng ngay (trigger SCHEDULED). Gọi lại không tạo trùng
+      parameters: [ { $ref: '#/components/parameters/Kind' } ]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [semesterId, courseCode], properties: { semesterId: { type: string, format: uuid }, courseCode: { type: string, enum: [EXE101, EXE201] } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AdvisorMatchingRun' } } } } }
   /internal/teams/finalize-round:
     post:
       tags: [Internal]
@@ -590,6 +616,8 @@ components:
     TeamId: { name: teamId, in: path, required: true, schema: { type: string, format: uuid } }
     StudentId: { name: studentId, in: path, required: true, schema: { type: string, format: uuid } }
     CourseCode: { name: courseCode, in: query, schema: { type: string, enum: [EXE101, EXE201] } }
+    AdvisorKind: { name: advisorKind, in: query, schema: { $ref: '#/components/schemas/AdvisorKind' } }
+    Kind: { name: kind, in: path, required: true, schema: { $ref: '#/components/schemas/AdvisorKind' } }
     RequestStatus: { name: status, in: query, schema: { type: string, enum: [PENDING, ACCEPTED, DECLINED, EXPIRED, CANCELLED] } }
     Page: { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
     PageSize: { name: pageSize, in: query, schema: { type: integer, default: 20, maximum: 100 } }
@@ -726,12 +754,82 @@ components:
             items: { type: array, items: { $ref: '#/components/schemas/ChangeItem' } }
             projectBefore: { $ref: '#/components/schemas/ProjectSummary' }
             projectAfter: { allOf: [ { $ref: '#/components/schemas/ProjectSummary' } ], type: object, nullable: true, description: Có khi yêu cầu chứa đổi đề tài }
-    LecturerPreference:
+    AdvisorKind: { type: string, enum: [LECTURER, MENTOR] }
+    LecturerMatchReason: { type: string, enum: [MUTUAL, PREFERENCE, LECTURER_INTEREST, PREVIOUS_INSTRUCTOR, DOMAIN, MANUAL], description: "Nhãn: Hai bên cùng chọn · Nguyện vọng n · Giảng viên quan tâm · Đã hướng dẫn ở EXE101 · Theo chuyên môn · Bộ môn phân công" }
+    MentorMatchReason: { type: string, enum: [MENTOR_INTEREST, DOMAIN, MANUAL] }
+    LecturerRef:
       type: object
-      properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, lecturerId: { type: string, format: uuid }, lecturerName: { type: string }, message: { type: string, nullable: true }, status: { type: string, enum: [PENDING, ACCEPTED, DECLINED, CANCELLED] }, responseNote: { type: string, nullable: true }, createdAt: { type: string, format: date-time }, respondedAt: { type: string, format: date-time, nullable: true } }
+      properties: { lecturerId: { type: string, format: uuid }, fullName: { type: string }, domains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' } } }
+    LecturerPreferenceList:
+      type: object
+      properties:
+        maxPreferences: { type: integer, example: 3 }
+        locked: { type: boolean, description: true khi nhóm đã được ghép hoặc đợt đã đóng }
+        lockAt: { type: string, format: date-time, nullable: true, description: Hạn chốt (hạn lập nhóm) }
+        preferences: { type: array, items: { allOf: [ { $ref: '#/components/schemas/LecturerRef' } ], properties: { rank: { type: integer }, isInterested: { type: boolean } } } }
+        interestedLecturers: { type: array, items: { $ref: '#/components/schemas/LecturerRef' }, description: Giảng viên đang quan tâm nhóm ("Quan tâm nhóm bạn") }
+        previousInstructor: { allOf: [ { $ref: '#/components/schemas/LecturerRef' } ], type: object, nullable: true, description: "Giảng viên EXE101 cùng đề tài (\"Đã hướng dẫn ở EXE101\")" }
     LecturerAssignment:
       type: object
-      properties: { id: { type: string, format: uuid }, teamId: { type: string, format: uuid }, lecturerId: { type: string, format: uuid }, lecturerName: { type: string }, status: { type: string, enum: [ASSIGNED, REVOKED] }, assignedAt: { type: string, format: date-time }, note: { type: string, nullable: true } }
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string, format: uuid }
+        lecturerId: { type: string, format: uuid }
+        lecturerName: { type: string }
+        status: { type: string, enum: [ASSIGNED, REVOKED] }
+        reason: { $ref: '#/components/schemas/LecturerMatchReason' }
+        preferenceRank: { type: integer, nullable: true }
+        source: { type: string, enum: [AUTO, MANUAL] }
+        assignedAt: { type: string, format: date-time }
+        note: { type: string, nullable: true }
+    AdvisedTeam:
+      type: object
+      properties:
+        team: { $ref: '#/components/schemas/TeamCard' }
+        reason: { type: string, description: LecturerMatchReason hoặc MentorMatchReason }
+        preferenceRank: { type: integer, nullable: true }
+        assignedAt: { type: string, format: date-time }
+    AdvisorMatchingRun:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        advisorKind: { $ref: '#/components/schemas/AdvisorKind' }
+        courseCode: { type: string, enum: [EXE101, EXE201] }
+        trigger: { type: string, enum: [SCHEDULED, EARLY] }
+        status: { type: string, enum: [PREVIEW, APPLIED, DISCARDED] }
+        matchedCount: { type: integer }
+        unmatchedCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        appliedAt: { type: string, format: date-time, nullable: true }
+        plan:
+          type: array
+          items:
+            type: object
+            properties:
+              teamId: { type: string, format: uuid }
+              teamName: { type: string }
+              advisorId: { type: string, format: uuid, nullable: true, description: null = không ghép được (mọi cố vấn đã đầy) }
+              advisorName: { type: string, nullable: true }
+              reason: { type: string, nullable: true }
+              preferenceRank: { type: integer, nullable: true }
+    AdvisorMatchingRow:
+      type: object
+      properties:
+        team: { $ref: '#/components/schemas/TeamCard' }
+        advisorId: { type: string, format: uuid, nullable: true }
+        advisorName: { type: string, nullable: true }
+        reason: { type: string, nullable: true }
+        preferenceRank: { type: integer, nullable: true }
+        preferences: { type: array, items: { $ref: '#/components/schemas/LecturerRef' }, description: Chỉ với LECTURER }
+        interests: { type: array, items: { $ref: '#/components/schemas/TopicInterest' } }
+    AdvisorLoad:
+      type: object
+      properties:
+        advisorId: { type: string, format: uuid }
+        fullName: { type: string }
+        assignedCount: { type: integer }
+        preferredTeams: { type: integer, nullable: true, description: Chỉ mentor }
+        maxTeams: { type: integer, nullable: true, description: null = không giới hạn (giảng viên) }
     AutoAssignResult:
       type: object
       properties:
@@ -793,20 +891,22 @@ components:
       properties:
         team: { $ref: '#/components/schemas/TeamCard' }
         matchedDomains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' } }
-        otherInterestedCount: { type: integer, description: "Chỉ số lượng, không trả tên giảng viên khác (rule 19)" }
+        otherInterestedCount: { type: integer, description: "Chỉ số lượng, không trả tên người khác (rule 19)" }
+        myPreferenceRank: { type: integer, nullable: true, description: Nhóm xếp tôi ở nguyện vọng mấy (chỉ giảng viên) }
         myInterest: { allOf: [ { $ref: '#/components/schemas/TopicInterest' } ], type: object, nullable: true }
         wasMyEXE101Team: { type: boolean, description: Đề tài mình hướng dẫn ở EXE101 – đứng đầu danh sách (rule 26) }
-        hasLecturer: { type: boolean, description: "true → thẻ \"Đã có giảng viên\", ẩn nút" }
+        hasAdvisor: { type: boolean, description: "true → thẻ \"Đã có giảng viên\" / \"Đã có mentor\", ẩn nút" }
     TopicInterest:
       type: object
       properties:
         id: { type: string, format: uuid }
         teamId: { type: string, format: uuid }
-        lecturerId: { type: string, format: uuid }
-        lecturerName: { type: string, description: Chỉ trả cho thành viên nhóm và Admin }
+        advisorKind: { $ref: '#/components/schemas/AdvisorKind' }
+        advisorId: { type: string, format: uuid }
+        advisorName: { type: string, description: "Chỉ trả cho Admin, cho chính người đó, và cho thành viên nhóm khi là giảng viên" }
         wasPreviousInstructor: { type: boolean, description: Giảng viên hướng dẫn đề tài này ở EXE101 }
         status: { type: string, enum: [OPEN, WITHDRAWN, CLOSED] }
-        closedReason: { type: string, nullable: true, enum: [OTHER_LECTURER_ACCEPTED, LECTURER_ASSIGNED, THIS_LECTURER_ACCEPTED, TEAM_DISBANDED] }
+        closedReason: { type: string, nullable: true, enum: [THIS_ADVISOR_MATCHED, OTHER_ADVISOR_MATCHED, TEAM_DISBANDED] }
         createdAt: { type: string, format: date-time }
     MentorAssignment:
       type: object
@@ -818,5 +918,7 @@ components:
         mentorOrganization: { type: string, nullable: true }
         isInternal: { type: boolean }
         status: { type: string, enum: [ASSIGNED, ENDED] }
+        reason: { $ref: '#/components/schemas/MentorMatchReason' }
+        source: { type: string, enum: [AUTO, MANUAL] }
         assignedAt: { type: string, format: date-time }
         endedAt: { type: string, format: date-time, nullable: true }

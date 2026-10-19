@@ -317,85 +317,131 @@ CREATE INDEX idx_change_request_items_student_id ON team.change_request_items (s
 CREATE UNIQUE INDEX uq_change_request_items_project_pending ON team.change_request_items (team_id)
     WHERE action = 'PROJECT_CHANGE' AND change_request_id IS NULL;
 
--- ---------- Quan tâm đề tài của giảng viên (rule 19) ----------
--- Không giữ chỗ, không tốn sức chứa; giới hạn "sức chứa còn lại + n" kiểm tra ở Services.
--- CLOSED khi nhóm có giảng viên được nhận / phân công (closed_reason), WITHDRAWN khi giảng viên tự rút.
+-- ---------- Quan tâm của cố vấn (rule 19) ----------
+-- Giảng viên hoặc mentor bày tỏ muốn nhận nhóm. Không giữ chỗ; là một đầu vào của ghép tự động (rule 9, 20).
+-- Giới hạn số quan tâm kiểm tra ở Services. CLOSED khi nhóm đã được ghép cố vấn cùng loại, WITHDRAWN khi người đó tự rút.
 CREATE TABLE team.topic_interests (
     id            uuid         NOT NULL DEFAULT gen_random_uuid(),
     team_id       uuid         NOT NULL,
-    lecturer_id   uuid         NOT NULL,                      -- academic.lecturers.id
-    lecturer_name varchar(150) NOT NULL,                      -- snapshot
+    advisor_kind  varchar(10)  NOT NULL,                      -- LECTURER | MENTOR
+    advisor_id    uuid         NOT NULL,                      -- academic.lecturers.id hoặc academic.mentors.id
+    advisor_name  varchar(150) NOT NULL,                      -- snapshot
     status        varchar(10)  NOT NULL DEFAULT 'OPEN',
     closed_reason varchar(30),
     created_at    timestamptz  NOT NULL DEFAULT now(),
     closed_at     timestamptz,
     CONSTRAINT pk_topic_interests PRIMARY KEY (id),
     CONSTRAINT fk_topic_interests_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE CASCADE,
+    CONSTRAINT ck_topic_interests_kind CHECK (advisor_kind IN ('LECTURER', 'MENTOR')),
     CONSTRAINT ck_topic_interests_status CHECK (status IN ('OPEN', 'WITHDRAWN', 'CLOSED')),
     CONSTRAINT ck_topic_interests_closed CHECK ((status = 'OPEN') = (closed_at IS NULL)),
     CONSTRAINT ck_topic_interests_reason CHECK (
         (status = 'CLOSED') = (closed_reason IS NOT NULL)
-        AND (closed_reason IS NULL OR closed_reason IN ('OTHER_LECTURER_ACCEPTED', 'LECTURER_ASSIGNED', 'THIS_LECTURER_ACCEPTED', 'TEAM_DISBANDED')))
+        AND (closed_reason IS NULL OR closed_reason IN ('THIS_ADVISOR_MATCHED', 'OTHER_ADVISOR_MATCHED', 'TEAM_DISBANDED')))
 );
-CREATE UNIQUE INDEX uq_topic_interests_open ON team.topic_interests (team_id, lecturer_id) WHERE status = 'OPEN';
-CREATE INDEX idx_topic_interests_lecturer ON team.topic_interests (lecturer_id, status);
+CREATE UNIQUE INDEX uq_topic_interests_open ON team.topic_interests (team_id, advisor_kind, advisor_id) WHERE status = 'OPEN';
+CREATE INDEX idx_topic_interests_advisor ON team.topic_interests (advisor_kind, advisor_id, status);
 
--- ---------- Giảng viên (rule 9): nguyện vọng + giảng viên trả lời; Admin phân công cuối ----------
+-- ---------- Nguyện vọng giảng viên của nhóm (rule 9) ----------
+-- Tối đa 3 (rule_settings.max_lecturer_preferences, kiểm tra ở Services), có thứ tự. Không có trạng thái:
+-- trưởng nhóm sửa được tới khi nhóm được ghép giảng viên, sau đó khóa (Services kiểm tra). Không còn bước chấp nhận / từ chối.
 CREATE TABLE team.lecturer_preferences (
-    id             uuid         NOT NULL DEFAULT gen_random_uuid(),
-    team_id        uuid         NOT NULL,
-    lecturer_id    uuid         NOT NULL,                     -- academic.lecturers.id
-    lecturer_name  varchar(150) NOT NULL,                     -- snapshot
-    message        varchar(500),
-    status         varchar(10)  NOT NULL DEFAULT 'PENDING',
-    requested_by_student_id uuid NOT NULL,
-    created_at     timestamptz  NOT NULL DEFAULT now(),
-    responded_at   timestamptz,
-    response_note  varchar(500),                              -- lý do từ chối
-    CONSTRAINT pk_lecturer_preferences PRIMARY KEY (id),
+    team_id               uuid         NOT NULL,
+    rank                  smallint     NOT NULL,
+    lecturer_id           uuid         NOT NULL,              -- academic.lecturers.id
+    lecturer_name         varchar(150) NOT NULL,              -- snapshot
+    updated_by_student_id uuid         NOT NULL,
+    updated_at            timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_lecturer_preferences PRIMARY KEY (team_id, rank),
+    CONSTRAINT uq_lecturer_preferences_lecturer UNIQUE (team_id, lecturer_id),
     CONSTRAINT fk_lecturer_preferences_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE CASCADE,
-    CONSTRAINT ck_lecturer_preferences_status CHECK (status IN ('PENDING', 'ACCEPTED', 'DECLINED', 'CANCELLED')),
-    CONSTRAINT ck_lecturer_preferences_responded CHECK (
-        (status IN ('ACCEPTED', 'DECLINED')) = (responded_at IS NOT NULL))
+    CONSTRAINT ck_lecturer_preferences_rank CHECK (rank BETWEEN 1 AND 10)
 );
--- Mỗi nhóm có tối đa 1 nguyện vọng đang chờ hoặc đã được nhận; bị từ chối thì gửi giảng viên khác.
-CREATE UNIQUE INDEX uq_lecturer_preferences_active ON team.lecturer_preferences (team_id) WHERE status IN ('PENDING', 'ACCEPTED');
-CREATE INDEX idx_lecturer_preferences_lecturer ON team.lecturer_preferences (lecturer_id, status);
+CREATE INDEX idx_lecturer_preferences_lecturer ON team.lecturer_preferences (lecturer_id);
 
+-- ---------- Lần chạy ghép cố vấn (rule 9, 20) ----------
+-- Mỗi lần ghép (tự động lúc hết hạn / tuần mentor, hoặc Admin bấm "Ghép sớm") là một dòng.
+-- PREVIEW: kết quả xem trước nằm trong plan; APPLIED: đã ghi vào *_assignments; DISCARDED: Admin bỏ.
+CREATE TABLE team.advisor_matching_runs (
+    id                      uuid        NOT NULL DEFAULT gen_random_uuid(),
+    advisor_kind            varchar(10) NOT NULL,
+    semester_id             uuid        NOT NULL,
+    course_code             varchar(6)  NOT NULL,
+    trigger                 varchar(10) NOT NULL,
+    status                  varchar(10) NOT NULL DEFAULT 'PREVIEW',
+    requested_by_account_id uuid,                              -- Admin khi Ghép sớm; NULL khi Job chạy
+    plan                    jsonb       NOT NULL DEFAULT '[]', -- [{teamId, advisorId, reason, preferenceRank}]
+    matched_count           integer     NOT NULL DEFAULT 0,
+    unmatched_count         integer     NOT NULL DEFAULT 0,
+    created_at              timestamptz NOT NULL DEFAULT now(),
+    applied_at              timestamptz,
+    CONSTRAINT pk_advisor_matching_runs PRIMARY KEY (id),
+    CONSTRAINT ck_advisor_matching_runs_kind CHECK (advisor_kind IN ('LECTURER', 'MENTOR')),
+    CONSTRAINT ck_advisor_matching_runs_course CHECK (course_code IN ('EXE101', 'EXE201')),
+    CONSTRAINT ck_advisor_matching_runs_trigger CHECK (trigger IN ('SCHEDULED', 'EARLY')),
+    CONSTRAINT ck_advisor_matching_runs_status CHECK (status IN ('PREVIEW', 'APPLIED', 'DISCARDED')),
+    CONSTRAINT ck_advisor_matching_runs_applied CHECK ((status = 'APPLIED') = (applied_at IS NOT NULL)),
+    CONSTRAINT ck_advisor_matching_runs_requester CHECK (trigger = 'SCHEDULED' OR requested_by_account_id IS NOT NULL)
+);
+CREATE INDEX idx_advisor_matching_runs_semester ON team.advisor_matching_runs (semester_id, course_code, advisor_kind);
+
+-- ---------- Giảng viên hướng dẫn của nhóm (rule 9) ----------
+-- Một giảng viên hướng dẫn đang hiệu lực mỗi nhóm. reason là nhãn hiện cho nhóm, giảng viên và Admin.
 CREATE TABLE team.lecturer_assignments (
     id                     uuid         NOT NULL DEFAULT gen_random_uuid(),
     team_id                uuid         NOT NULL,
     lecturer_id            uuid         NOT NULL,
     lecturer_name          varchar(150) NOT NULL,             -- snapshot
     status                 varchar(10)  NOT NULL DEFAULT 'ASSIGNED',
-    assigned_by_account_id uuid         NOT NULL,             -- Admin (identity)
+    reason                 varchar(20)  NOT NULL,
+    preference_rank        smallint,                          -- với MUTUAL / PREFERENCE: nguyện vọng thứ mấy
+    source                 varchar(10)  NOT NULL DEFAULT 'AUTO',
+    matching_run_id        uuid,
+    assigned_by_account_id uuid,                              -- Admin khi MANUAL
     assigned_at            timestamptz  NOT NULL DEFAULT now(),
     revoked_at             timestamptz,
-    note                   varchar(500),
+    note                   varchar(500),                      -- lý do khi Admin đổi tay
     CONSTRAINT pk_lecturer_assignments PRIMARY KEY (id),
     CONSTRAINT fk_lecturer_assignments_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_lecturer_assignments_run FOREIGN KEY (matching_run_id) REFERENCES team.advisor_matching_runs (id) ON DELETE SET NULL,
     CONSTRAINT ck_lecturer_assignments_status CHECK (status IN ('ASSIGNED', 'REVOKED')),
-    CONSTRAINT ck_lecturer_assignments_revoked CHECK ((status = 'REVOKED') = (revoked_at IS NOT NULL))
+    CONSTRAINT ck_lecturer_assignments_revoked CHECK ((status = 'REVOKED') = (revoked_at IS NOT NULL)),
+    CONSTRAINT ck_lecturer_assignments_reason CHECK (reason IN
+        ('MUTUAL', 'PREFERENCE', 'LECTURER_INTEREST', 'PREVIOUS_INSTRUCTOR', 'DOMAIN', 'MANUAL')),
+    CONSTRAINT ck_lecturer_assignments_rank CHECK (
+        (reason IN ('MUTUAL', 'PREFERENCE')) = (preference_rank IS NOT NULL)),
+    CONSTRAINT ck_lecturer_assignments_source CHECK (
+        (source = 'AUTO' AND reason <> 'MANUAL')
+        OR (source = 'MANUAL' AND reason = 'MANUAL' AND assigned_by_account_id IS NOT NULL AND note IS NOT NULL))
 );
 CREATE UNIQUE INDEX uq_lecturer_assignments_active ON team.lecturer_assignments (team_id) WHERE status = 'ASSIGNED';
 CREATE INDEX idx_lecturer_assignments_lecturer ON team.lecturer_assignments (lecturer_id, status);
 
--- ---------- Mentor (rule 20): mỗi nhóm một mentor, Bộ môn gán ----------
--- Sức chứa (max_teams, preferred_teams) nằm ở academic.mentors, kiểm tra ở Services.
+-- ---------- Mentor của nhóm (rule 20) ----------
+-- Một mentor đang hiệu lực mỗi nhóm; ghép tự động ở tuần bắt đầu mentor theo quan tâm của mentor.
 CREATE TABLE team.mentor_assignments (
     id                     uuid         NOT NULL DEFAULT gen_random_uuid(),
     team_id                uuid         NOT NULL,
     mentor_id              uuid         NOT NULL,             -- academic.mentors.id
     mentor_name            varchar(150) NOT NULL,             -- snapshot
     status                 varchar(10)  NOT NULL DEFAULT 'ASSIGNED',
-    assigned_by_account_id uuid         NOT NULL,             -- Admin (identity)
+    reason                 varchar(20)  NOT NULL,
+    source                 varchar(10)  NOT NULL DEFAULT 'AUTO',
+    matching_run_id        uuid,
+    assigned_by_account_id uuid,                              -- Admin khi MANUAL
     assigned_at            timestamptz  NOT NULL DEFAULT now(),
     ended_at               timestamptz,
     end_reason             varchar(500),
+    note                   varchar(500),                      -- lý do khi Admin đổi tay
     CONSTRAINT pk_mentor_assignments PRIMARY KEY (id),
     CONSTRAINT fk_mentor_assignments_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_mentor_assignments_run FOREIGN KEY (matching_run_id) REFERENCES team.advisor_matching_runs (id) ON DELETE SET NULL,
     CONSTRAINT ck_mentor_assignments_status CHECK (status IN ('ASSIGNED', 'ENDED')),
-    CONSTRAINT ck_mentor_assignments_ended CHECK ((status = 'ENDED') = (ended_at IS NOT NULL))
+    CONSTRAINT ck_mentor_assignments_ended CHECK ((status = 'ENDED') = (ended_at IS NOT NULL)),
+    CONSTRAINT ck_mentor_assignments_reason CHECK (reason IN ('MENTOR_INTEREST', 'DOMAIN', 'MANUAL')),
+    CONSTRAINT ck_mentor_assignments_source CHECK (
+        (source = 'AUTO' AND reason <> 'MANUAL')
+        OR (source = 'MANUAL' AND reason = 'MANUAL' AND assigned_by_account_id IS NOT NULL AND note IS NOT NULL))
 );
 CREATE UNIQUE INDEX uq_mentor_assignments_active ON team.mentor_assignments (team_id) WHERE status = 'ASSIGNED';
 CREATE INDEX idx_mentor_assignments_mentor ON team.mentor_assignments (mentor_id, status);

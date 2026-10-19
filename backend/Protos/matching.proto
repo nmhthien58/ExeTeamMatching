@@ -1,6 +1,6 @@
 // BE-02, BE-61 (bản 4) – Hợp đồng gRPC của Matching Service (PROJECT_CONTEXT §5.5).
 // Matching chỉ tính gợi ý / phương án, không ghi dữ liệu nghiệp vụ.
-// Gọi bởi: Team Service (SuggestMembers, SuggestTeams, SuggestTopicsForLecturer, ValidateComposition, PlanAutoAssignment)
+// Gọi bởi: Team Service (SuggestMembers, SuggestTeams, SuggestTopicsForLecturer, ValidateComposition, PlanAutoAssignment, PlanAdvisorMatching)
 //          Job Service  (PlanAutoAssignment).
 syntax = "proto3";
 
@@ -13,13 +13,22 @@ service MatchingService {
   rpc SuggestMembers (SuggestMembersRequest) returns (SuggestMembersResponse);
   // Nhóm đang tuyển cần chuyên ngành của sinh viên (S07, khu "Gợi ý cho bạn" ở S05).
   rpc SuggestTeams (SuggestTeamsRequest) returns (SuggestTeamsResponse);
-  // Đề tài (nhóm) hợp chuyên môn của giảng viên, chưa có giảng viên được nhận / phân công (L07, rule 19).
+  // Đề tài (nhóm) hợp chuyên môn của giảng viên hoặc mentor, chưa có cố vấn cùng loại (L07, rule 19).
   // Xếp: đề tài giảng viên đã hướng dẫn ở EXE101 trước (rule 26), rồi độ trùng domain, rồi ít người quan tâm.
   rpc SuggestTopicsForLecturer (SuggestTopicsForLecturerRequest) returns (SuggestTopicsForLecturerResponse);
   // Kiểm tra 4–6 thành viên và >= 2 chuyên ngành (rule 1, 2).
   rpc ValidateComposition (ValidateCompositionRequest) returns (ValidateCompositionResponse);
   // Sau hạn chót: lấp sinh viên lẻ vào nhóm NEEDS_REVIEW, rồi chia phần còn lại thành nhóm mới (rule 14).
   rpc PlanAutoAssignment (PlanAutoAssignmentRequest) returns (PlanAutoAssignmentResponse);
+  // Ghép giảng viên hướng dẫn (rule 9) hoặc mentor (rule 20). Chỉ tính toán; Team Service áp dụng.
+  // Mọi dữ liệu nằm trong request nên không phụ thuộc read model.
+  rpc PlanAdvisorMatching (PlanAdvisorMatchingRequest) returns (PlanAdvisorMatchingResponse);
+}
+
+enum AdvisorKind {
+  ADVISOR_KIND_UNSPECIFIED = 0;
+  ADVISOR_KIND_LECTURER = 1;
+  ADVISOR_KIND_MENTOR = 2;
 }
 
 enum Course {
@@ -93,9 +102,10 @@ message SuggestTeamsResponse {
 message SuggestTopicsForLecturerRequest {
   string semester_id = 1;
   Course course = 2;              // COURSE_UNSPECIFIED = cả hai môn
-  string lecturer_id = 3;
+  string lecturer_id = 3;          // id giảng viên hoặc mentor (theo advisor_kind)
   int32 limit = 4;                // mặc định 20
   int32 offset = 5;
+  AdvisorKind advisor_kind = 6;   // UNSPECIFIED = LECTURER (tương thích bản cũ)
 }
 
 message TopicSuggestion {
@@ -155,4 +165,53 @@ message PlanAutoAssignmentResponse {
   repeated FillExistingTeam fills = 1;
   repeated NewTeamPlan new_teams = 2;
   repeated string unassigned_student_ids = 3;   // còn lại để Admin xử lý tay (W21)
+}
+
+// ---------- PlanAdvisorMatching (rule 9, 20) ----------
+
+enum MatchReason {
+  MATCH_REASON_UNSPECIFIED = 0;
+  MATCH_REASON_MUTUAL = 1;               // vừa trong nguyện vọng vừa quan tâm nhóm
+  MATCH_REASON_PREFERENCE = 2;           // nguyện vọng của nhóm (preference_rank)
+  MATCH_REASON_LECTURER_INTEREST = 3;    // giảng viên quan tâm nhóm
+  MATCH_REASON_PREVIOUS_INSTRUCTOR = 4;  // giảng viên EXE101 cùng đề tài
+  MATCH_REASON_DOMAIN = 5;               // trùng chuyên môn, ít nhóm nhất
+  MATCH_REASON_MENTOR_INTEREST = 6;      // mentor quan tâm nhóm
+}
+
+message MatchingTeam {
+  string team_id = 1;
+  repeated int32 domain_ids = 2;
+  repeated string preferred_advisor_ids = 3;  // theo thứ tự nguyện vọng 1..n (chỉ giảng viên)
+  repeated string interested_advisor_ids = 4;
+  string previous_instructor_id = 5;          // giảng viên EXE101 cùng đề tài, rỗng nếu không có
+}
+
+message MatchingAdvisor {
+  string advisor_id = 1;
+  repeated int32 domain_ids = 2;
+  int32 current_team_count = 3;    // số nhóm đang có (trong môn của lần ghép)
+  bool has_max_teams = 4;          // false = không giới hạn (giảng viên)
+  int32 max_teams = 5;
+  int32 preferred_teams = 6;       // chỉ mentor; 0 = không đặt
+}
+
+message PlanAdvisorMatchingRequest {
+  AdvisorKind advisor_kind = 1;
+  Course course = 2;
+  repeated MatchingTeam teams = 3;        // chỉ nhóm chưa có cố vấn cùng loại
+  repeated MatchingAdvisor advisors = 4;  // cố vấn đang hoạt động
+}
+
+message AdvisorMatch {
+  string team_id = 1;
+  string advisor_id = 2;          // rỗng = không ghép được
+  MatchReason reason = 3;
+  int32 preference_rank = 4;      // 1..n khi MUTUAL / PREFERENCE, 0 nếu không có
+}
+
+message PlanAdvisorMatchingResponse {
+  repeated AdvisorMatch matches = 1;
+  int32 matched_count = 2;
+  int32 unmatched_count = 3;
 }
