@@ -47,7 +47,7 @@
 |---|---|---|---|---|---|---|
 | P1 | **Minh** – trưởng nhóm chạy deadline, xử lý mọi việc trên điện thoại | **Primary** | Thay thành viên và gửi yêu cầu đổi nhóm; (bổ sung) điều phối việc, file, lịch họp của nhóm | Android 360 dp, 4G yếu, vài phút giữa tiết | Trạng thái yêu cầu luôn thấy; lỗi mạng không mất dữ liệu | F2 |
 | P2 | **Vy** – người mới ngoài ngành, ngại chủ động nhắn người lạ | Secondary | Tìm và vào một nhóm còn chỗ, (bổ sung) kèm ý tưởng của mình | iPhone cũ, buổi tối, ít quen người IT | Biết nhóm nào còn chỗ và cần mình; xin vào không cần nhắn tin | F1 |
-| P3 | **Thầy Khoa** – người duyệt nhanh giữa các tiết | Supporting | Nhận / từ chối yêu cầu hướng dẫn; (bổ sung) tìm đề tài hợp chuyên môn, theo dõi bài nộp và câu hỏi của 6–8 nhóm | Điện thoại 412 dp, bị gián đoạn liên tục | Hành động ngay từ thông báo; không nhận quá sức chứa | F3 |
+| P3 | **Thầy Khoa** – người duyệt nhanh giữa các tiết | Supporting | Nhận / từ chối yêu cầu hướng dẫn (Lab 2; từ 20/10 thay bằng Quan tâm + hệ thống ghép); (bổ sung) tìm đề tài hợp chuyên môn, theo dõi bài nộp, câu hỏi, checkpoint (EXE101) và lịch họp hằng tuần (EXE201) của các nhóm | Điện thoại 412 dp, bị gián đoạn liên tục | Hành động ngay từ thông báo; không nhận quá sức chứa | F3 |
 | P4 | **Cô Hạnh** – người vận hành dữ liệu lớn | Supporting (web, ngoài phạm vi Lab 2) | Duyệt đổi nhóm, gom SV lẻ, điều tiết GV, (bổ sung) tạo và gán mentor | Laptop, bảng hàng nghìn dòng | Bảng lọc/so sánh, thao tác hàng loạt, lưu vết | Web |
 | P5 | **Anh Tuấn** – mentor doanh nghiệp, hỗ trợ ngoài giờ làm (bổ sung) | Supporting | Từ tuần 6, họp 2–3 buổi với mỗi nhóm; xem tài liệu mới nhất, trả lời câu hỏi | Laptop buổi tối + điện thoại; không phải người của trường | Gom việc cần mình vào một danh sách; chốt lịch họp ít lượt; chỉ xem, không duyệt | F4 |
 
@@ -116,13 +116,13 @@
 | 01 | Identity & Archetype | Thầy Khoa – *người duyệt nhanh giữa các tiết* | A |
 | 02 | Priority | **Supporting.** Quyết định F3 và màn L01–L04 | – |
 | 03 | Usage Context | Mở app từ thông báo, giữa hai tiết dạy, vài chục giây | A |
-| 04 | Goals | 1) Trả lời yêu cầu hướng dẫn mà không nhận quá số nhóm cho phép. 2) Biết nhóm nào chính thức là của mình. 3) **(bổ sung)** Tìm được đề tài hợp chuyên môn mà không phải tranh với đồng nghiệp. 4) **(bổ sung)** Theo dõi câu hỏi, bài nộp, lịch họp của 6–8 nhóm ở một chỗ | R / I; 3–4) A (E03) |
+| 04 | Goals | 1) Trả lời yêu cầu hướng dẫn mà không nhận quá số nhóm cho phép. 2) Biết nhóm nào chính thức là của mình. 3) **(bổ sung)** Tìm được đề tài hợp chuyên môn mà không phải tranh với đồng nghiệp. 4) **(bổ sung)** Theo dõi câu hỏi, bài nộp, lịch họp của các nhóm ở một chỗ. 5) **(bổ sung 20/10)** Không phải xử lý từng yêu cầu: bày tỏ quan tâm một lần, hệ thống ghép; nắm được nhóm nào chưa trình bày checkpoint (EXE101) và lịch họp 15 phút của ~40 nhóm (EXE201) | R / I; 3–4) A (E03); 5) R |
 | 05 | Job to Be Done | *Khi có nhóm nhờ hướng dẫn, tôi muốn xem nhanh nhóm đó rồi nhận hoặc từ chối, để không phải theo dõi nhiều kênh.* **(bổ sung)** *Khi mở ứng dụng giữa hai tiết, tôi muốn thấy ngay nhóm nào đang chờ tôi trả lời hoặc trễ hạn nộp, để xử lý việc gấp trước.* | I / A |
-| 06 | Current Behaviors | Lọc cột "Điều tiết GV của bộ môn (Final)" trong sheet 1.250 dòng **(O)**; nhận lời nhờ qua Zalo, email, gặp trực tiếp **(A)**. **(bổ sung)** Đầu kỳ chờ nhóm tự tìm tới; trong kỳ nhận báo cáo qua email và nhóm Zalo của từng nhóm **(A)** | O / A |
+| 06 | Current Behaviors | Lọc cột "Điều tiết GV của bộ môn (Final)" trong sheet 1.250 dòng **(O)**; nhận lời nhờ qua Zalo, email, gặp trực tiếp **(A)**. **(bổ sung)** Đầu kỳ chờ nhóm tự tìm tới; trong kỳ nhận báo cáo qua email và nhóm Zalo của từng nhóm **(A)**. **(bổ sung 20/10, R)** EXE101: nhóm lên trình bày Checkpoint 1–4 trên lớp bất kỳ buổi nào thầy dạy (T2–T6), điểm nhập trên FAP. EXE201: sinh viên không lên lớp, thầy chốt lịch họp online 15 phút mỗi tuần với từng nhóm trong khoảng 2 tuần đầu; một thầy có thể hướng dẫn 38–40 nhóm EXE201, EXE101 còn nhiều hơn | O / A / R |
 | 07 | Pain Points | 1) 55 nhóm (~25%) được điều tiết khác nguyện vọng **(O)** → đã đồng ý với nhóm nhưng bị phân nhóm khác mà không ai báo **(I)**. 2) Thành viên nhóm đổi giữa chừng không được thông báo **(A)**. 3) **(bổ sung)** Hai giảng viên cùng muốn một đề tài: ai liên hệ trước thì được, người kia mất công **(A, E03)**. 4) **(bổ sung)** Câu hỏi và file của 8 nhóm rải ở nhiều kênh, khó biết nhóm nào đang chờ mình **(A)** | O / I / A |
 | 08 | Motivations | Ít thao tác, không phải nhớ đã hứa với nhóm nào | A |
-| 09 | Constraints | Có sức chứa tối đa; quyết định cuối thuộc Bộ môn **(R, quy tắc 9)** | R |
-| 10 | Key Scenarios | **Chính:** nhận thông báo → xem chi tiết nhóm → chấp nhận. **Lỗi:** đã đủ sức chứa → nút Chấp nhận bị khóa kèm lý do, chỉ có thể từ chối. **(bổ sung)** Mở *Đề tài phù hợp* → đánh dấu quan tâm 2 đề tài → nhóm chọn thầy và gửi yêu cầu → chấp nhận; trong kỳ tạo bài nộp "Báo cáo tuần 3" và duyệt bản nộp | R / A |
+| 09 | Constraints | Số nhóm do Bộ môn quyết (có thể đặt tối đa, có thể không); quyết định cuối thuộc Bộ môn **(R, quy tắc 9)**. Từ 20/10: không còn bước chấp nhận/từ chối, giảng viên chỉ bấm Quan tâm | R |
+| 10 | Key Scenarios | **Chính:** nhận thông báo → xem chi tiết nhóm → chấp nhận. **Lỗi:** đã đủ sức chứa → nút Chấp nhận bị khóa kèm lý do, chỉ có thể từ chối. **(bổ sung, sửa 20/10)** Mở *Đề tài* → quan tâm vài đề tài, xem tab "Nhóm chọn tôi" → hết hạn lập nhóm, hệ thống ghép, thầy thấy nhóm mới kèm lý do "Hai bên cùng chọn"; EXE201: đăng khung họp, các nhóm tự chọn slot; EXE101: trong giờ dạy lọc "Chưa trình bày CP2" và đánh dấu từng nhóm; trong kỳ tạo bài nộp "Báo cáo tuần 3" và duyệt bản nộp | R / A |
 | 11 | Success Criteria | Phản hồi một yêu cầu trong ≤ 4 lần chạm từ thông báo; người thử phân biệt đúng "Tôi đã nhận" và "Bộ môn đã phân công" ở L04. **(bổ sung)** Từ trang chủ, chỉ ra nhóm đang chờ mình trả lời hoặc trễ hạn trong ≤ 10 giây | – |
 | 12 | Evidence & Status | Proto-persona; E01 (55 nhóm điều tiết khác). Chưa phỏng vấn | – |
 
@@ -144,7 +144,7 @@
 | 07 | Pain Points | Không có trạng thái, không có lịch sử; SV sửa nhầm dòng nhóm khác; không cảnh báo nhóm thiếu chuyên ngành **(O / I)** | O / I |
 | 08 | Motivations | Chính xác, có căn cứ khi bị hỏi lại | A |
 | 09 | Constraints | Gộp vai trò Bộ môn và Phòng Đào tạo **(R)** | R |
-| 10 | Key Scenarios | Import danh sách → mở đợt → duyệt change request → rà soát `NeedsReview` → phân công GV | R |
+| 10 | Key Scenarios | Import danh sách → mở đợt → duyệt change request → rà soát `NeedsReview` → soát kết quả ghép giảng viên (W19, có thể "Ghép sớm") và mentor (W28), sửa ngoại lệ | R |
 | 11 | Success Criteria | Trung vị xử lý một change request ≤ 24 giờ; 100% có trạng thái và người duyệt | – |
 | 12 | Evidence & Status | Proto-persona; E01. Chưa phỏng vấn | – |
 
@@ -162,13 +162,13 @@
 | 06 | Current Behaviors | Được thêm vào nhóm Zalo của từng nhóm, nhận link Drive, hẹn giờ bằng tin nhắn qua lại | A |
 | 07 | Pain Points | 1) Hẹn một buổi họp mất nhiều tin nhắn qua lại giữa 6–7 người. 2) Link Drive hết quyền xem hoặc không rõ bản nào mới. 3) Nhóm chat ồn ào, câu hỏi thực sự dành cho mình bị trôi. 4) Được gán từ tuần 6 nên thiếu bối cảnh: không biết nhóm đã làm gì từ đầu kỳ (và từ EXE101 nếu là EXE201) | A |
 | 08 | Motivations | Đóng góp cho sinh viên mà không tốn thời gian hành chính | A |
-| 09 | Constraints | Có thể là người ngoài trường hoặc giảng viên của trường; không có trong danh sách import → Bộ môn tạo hồ sơ và gán nhóm; **mỗi nhóm một mentor**; số nhóm tối đa do Bộ môn đặt riêng cho từng mentor, mentor tự chọn số nhóm mong muốn **(R – quy tắc 20)**. Chỉ xem và góp ý, không duyệt **(R)** | R |
-| 10 | Key Scenarios | Tuần 6 Bộ môn gán → email mời đăng nhập Google → M01 thấy 3 nhóm, mỗi nhóm "Buổi mentor 0/3" → mở tóm tắt nhóm (đề tài, tiến độ, file mới nhất) → đề xuất 2 khung giờ → nhóm chọn → chốt → nhắc 1 giờ trước → ghi biên bản, chuyển 2 việc thành task → "1/3" | R / A |
+| 09 | Constraints | Có thể là người ngoài trường hoặc giảng viên của trường; không có trong danh sách import → Bộ môn tạo hồ sơ; mentor bấm quan tâm đề tài trước tuần 6, hệ thống ghép, sinh viên không chọn mentor **(R, 20/10)**; **mỗi nhóm một mentor**; số nhóm tối đa do Bộ môn đặt riêng cho từng mentor, mentor tự chọn số nhóm mong muốn **(R – quy tắc 20)**. Chỉ xem và góp ý, không duyệt **(R)** | R |
+| 10 | Key Scenarios | Bộ môn tạo hồ sơ → email mời đăng nhập Google → tuần 4–5 xem *Đề tài*, quan tâm 4 đề tài hợp chuyên môn → tuần 6 hệ thống ghép → M01 thấy 3 nhóm, mỗi nhóm "Buổi mentor 0/3" → mở tóm tắt nhóm (đề tài, tiến độ, file mới nhất) → đề xuất 2 khung giờ → nhóm chọn → chốt → nhắc 1 giờ trước → ghi biên bản, chuyển 2 việc thành task → "1/3" | R / A |
 | 11 | Success Criteria | Hiểu được nhóm đang ở đâu trong ≤ 2 phút từ lúc được gán; chốt lịch họp trong ≤ 2 lượt tương tác; mở bản file mới nhất trong ≤ 3 chạm; mọi câu hỏi dành cho mentor nằm trong "Cần trả lời" | – |
 | 12 | Evidence & Status | Proto-persona dựng từ góp ý E03; **chưa có dữ liệu thật** về mentor. Kiểm chứng A5 | – |
 
 **Optional:** 32 tuổi, product manager ở một startup, mentor tình nguyện 2–3 nhóm EXE · laptop + điện thoại · Accessibility: đọc trên cả laptop và điện thoại; ít thông báo, gom thành email tóm tắt; không cần học thuật ngữ nội bộ của trường.
-**Khác P3:** cùng màn hình workspace nhưng không có yêu cầu hướng dẫn, sức chứa hay bài nộp; trang chủ chỉ có việc cần mình và lịch họp.
+**Khác P3:** cùng màn hình workspace nhưng không có nguyện vọng của nhóm, checkpoint, lịch họp hằng tuần hay bài nộp; trang chủ chỉ có việc cần mình và lịch họp.
 
 ---
 
@@ -206,13 +206,15 @@
 | 5 | Sinh viên chưa có nhóm khi đóng đợt | ~7 nhóm phải ghép tay (Team 214–220) | Giảm ≥ 50%, phần còn lại ghép tự động | Số SV qua `AutoAssignUnmatchedJob` |
 | 6 | Nhóm vi phạm quy định khi chốt (4–6 người, ≥ 2 chuyên ngành) | ~9 nhóm thiếu chuyên ngành thứ hai | 0 nhóm `Finalized` vi phạm | Kết quả `ValidateComposition` |
 | 7 | Thời gian xử lý một change request | Không đo được (ghi chú tự do) | Trung vị ≤ 24 giờ, 100% có trạng thái và người duyệt | `ChangeRequest` submitted → approved/rejected |
-| 8 | Thời gian giảng viên phản hồi yêu cầu hướng dẫn | Không đo được | Trung vị ≤ 48 giờ | `LecturerRequested` → Accepted/Declined |
+| 8 | ~~Thời gian giảng viên phản hồi yêu cầu hướng dẫn~~ – bỏ từ 20/10/2026 vì không còn bước chấp nhận/từ chối; thay bằng chỉ số 15 | Không đo được | – | – |
 | 9 | Dữ liệu sai định dạng (email, MSSV, SĐT) | Có email thiếu `@`, SĐT mất số 0 | 0 bản ghi sai | Validation khi nhập/import |
 | 10 | SĐT hiển thị cho người ngoài nhóm | Công khai toàn bộ | 0 | Kiểm tra phân quyền theo màn hình |
 | 11 | Thời gian hoàn tất onboarding (bổ sung) | Hai bước, có SĐT/Zalo | ≤ 1 phút, một màn hình | Đo trên prototype A05 mới |
 | 12 | Lượt tương tác để chốt một buổi họp (bổ sung) | Nhiều tin nhắn qua lại (A5) | ≤ 2 lượt của người tổ chức | `MeetingProposed` → `MeetingScheduled` |
 | 13 | Thời gian cố vấn trả lời câu hỏi (bổ sung) | Không đo được | Trung vị ≤ 24 giờ | `AdvisorQuestionAsked` → `AdvisorQuestionAnswered` |
-| 14 | Đề tài có nhiều giảng viên quan tâm phải xử lý tay (bổ sung) | Không đo được | 0 trường hợp Bộ môn phải can thiệp vì tranh chấp | `TopicInterestOpened` ≥ 2 trên cùng nhóm → nhóm chọn → các quan tâm khác tự đóng |
+| 14 | Đề tài có nhiều giảng viên quan tâm phải xử lý tay (bổ sung) | Không đo được | 0 trường hợp Bộ môn phải can thiệp vì tranh chấp | `TopicInterestOpened` ≥ 2 trên cùng nhóm → ghép theo nguyện vọng → các quan tâm khác tự đóng |
+| 15 | Nhóm được ghép đúng một nguyện vọng hoặc giảng viên quan tâm (bổ sung 20/10) | ~75% được đúng nguyện vọng (55 nhóm điều tiết khác, E01) | ≥ 90%; nhóm Bộ môn sửa tay ≤ 5% | Lý do ghép trong `LecturerAssigned` (`Mutual`, `Preference1–3`, `LecturerInterest` so với `Domain`, `Manual`) |
+| 16 | Nhóm EXE201 có lịch họp hằng tuần trước hạn chọn slot (bổ sung 20/10) | Chốt qua tin nhắn, không đo được | ≥ 90% tự chọn, còn lại xếp tự động; 0 nhóm không có lịch sau tuần 2 | `MeetingSlotBooked` trước `SlotBookingCloseJob` |
 
 *Chỉ số 1–4 đo được ngay trong Lab 2 bằng prototype; chưa có kết quả test. Các chỉ số còn lại đo khi hệ thống chạy thật.*
 
@@ -235,7 +237,10 @@
 | P2 | (bổ sung) Nói được mình có ý tưởng gì, hoặc chưa có | Form xin tham gia: thêm ý tưởng 1, 2, 3 hoặc tích "Chưa có ý tưởng" | S09 | Tỷ lệ gửi thành công không giảm so với form cũ |
 | P2 | (bổ sung) Hồ sơ nhanh, không lộ liên lạc | Onboarding một màn: 5 thanh kéo 1–5 + mô tả; không có ô SĐT | A05, S03 | Hoàn tất ≤ 1 phút |
 | P1, P2 | (bổ sung) Không bị dẫn vào chức năng đã hết hạn | Khi đợt lập nhóm đóng, tab Khám phá đổi thành tab Dự án; link cũ hiện hộp nhắc | Tab bar, S05 | Không người thử nào vào được màn Khám phá sau hạn |
-| P3 | (bổ sung) Tìm đề tài hợp chuyên môn, không tranh với đồng nghiệp | Danh sách đề tài gợi ý; nút "Quan tâm" không giữ chỗ; hiện số giảng viên khác cùng quan tâm; nhóm chọn | L07, S23 | Người thử giải thích đúng điều gì xảy ra khi nhóm chọn người khác |
+| P3 | (bổ sung) Tìm đề tài hợp chuyên môn, không tranh với đồng nghiệp | Danh sách đề tài gợi ý; nút "Quan tâm" không giữ chỗ; hiện số giảng viên khác cùng quan tâm; nhóm xếp nguyện vọng, hệ thống ghép "hai bên cùng chọn" trước | L07, S23 | Người thử giải thích đúng điều gì xảy ra khi nhóm xếp người khác lên trước |
+| P1, P3, P4 | (bổ sung 20/10) Hiểu vì sao được ghép với người này | Mỗi kết quả ghép có nhãn lý do ("Hai bên cùng chọn", "Nguyện vọng 2", "Theo chuyên môn", "Bộ môn phân công") | S25, L04, W19 | 5/5 người thử đọc đúng lý do |
+| P3 | (bổ sung 20/10) Xếp lịch họp 15 phút cho ~40 nhóm EXE201 mà không tạo từng cuộc họp | Đăng khung giờ → hệ thống cắt slot → nhóm tự chọn → sinh họp hằng tuần | C09, C07 | Giảng viên đăng lịch trong ≤ 3 phút; 0 slot trùng |
+| P3 | (bổ sung 20/10) Biết nhóm nào chưa trình bày checkpoint ngay trong giờ dạy | L04 lọc "Chưa trình bày CP n"; bottom sheet đánh dấu 3 chạm, không nhập điểm | L04, L05 | Đánh dấu một nhóm trong ≤ 15 giây |
 | P3, P5 | (bổ sung) Biết nhóm nào đang chờ mình | Trang chủ có "Cần trả lời", "Trễ hạn nộp", "Họp sắp tới" gom từ mọi nhóm | L01, M01 | Chỉ ra đúng trong ≤ 10 giây |
 | P1, P3, P5 | (bổ sung) Chốt lịch họp nhanh | Đề xuất 1–3 khung giờ, mọi người chọn Có/Không, người tổ chức chốt | C07, C08 | ≤ 2 lượt tương tác của người tổ chức |
 | P5 | (bổ sung) Vào cuộc nhanh khi được gán giữa kỳ | C01 có thẻ "Tóm tắt cho mentor": đề tài và lịch sử đề tài, tiến độ việc, 3 file mới nhất, biên bản gần nhất, "Buổi mentor n/3" | C01, M01 | Mentor mô tả đúng tình trạng nhóm sau ≤ 2 phút |

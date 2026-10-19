@@ -140,3 +140,46 @@ Sau khi nhóm chốt: một mentor mỗi nhóm, sức chứa riêng cho từng m
 | FE-43 | Bổ sung lần 2: một mentor mỗi nhóm, cảnh báo / chặn theo sức chứa từng mentor. |
 | FE-34 | Bổ sung lần 2: số nhóm tối đa riêng cho từng mentor; cài đặt tuần bắt đầu mentor và số buổi dự kiến. |
 | FE-24 | Bổ sung lần 2: W18 hiện cả thay đổi đề tài. |
+
+---
+
+## Đợt 2 – ngày 20/10/2026: ghép giảng viên / mentor tự động, Checkpoint EXE101, lịch họp hằng tuần EXE201
+
+> Nghiệp vụ: `docs/ux/PROJECT_CONTEXT.md` quy tắc 9, 19, 20, 25, 27 (cập nhật 20/10); lý do: `docs/ux/design-decisions.md` E12–E15; màn hình: `docs/ux/user-flow.md` mục 1.1a, F5, F8, F9; quy trình từng luồng: `docs/quy-trinh-he-thong.md`.
+> **Đã cập nhật vào `EXE_Team_Matching_Phan_chia_task.xlsx`** (cột Ghi chú ghi "Sửa / Thêm 20/10/2026 – đợt 2"); file này cũng đã gộp trạng thái mới nhất từ Google Sheet, nên có thể import đè lên Sheet. BE-60, BE-61 đã merge theo luồng cũ; phần chênh lệch gom vào BE-78.
+
+**Cách chia:** mỗi mảng mới giao trọn cho một người để ít phải chờ nhau. Thiên nhận trọn **ghép cố vấn tự động** (DB và contract, thuật toán, áp dụng, job, W19, W28). Nam nhận backend lịch họp hằng tuần. Cường (đang ít task nhất, sẵn có client realtime) làm giao diện C09. Thành nhận trọn **Checkpoint** (backend + L04, L05 vốn là màn hình của Thành).
+
+**Số task sau đợt 2:** Thiên 40 · Nam 35 · Cường 34 · Nguyên 33 · Thành 32 (tổng 174).
+
+### Task mới (8)
+
+| Mã | Sheet | Module | Task | Ưu tiên | Thành viên | Phụ thuộc | Chờ người khác |
+|---|---|---|---|---|---|---|---|
+| BE-78 | Backend | Thiết kế | DB script và contract đợt 2 | P0 | Thiên | BE-60, BE-61 | – |
+| BE-79 | Backend | Matching | Thuật toán ghép giảng viên và mentor | P0 | Thiên | BE-34, BE-78 | BE-34 (Nguyên) – chỉ cần khung gRPC |
+| BE-80 | Backend | Team | Áp dụng kết quả ghép, Ghép sớm, đổi tay | P0 | Thiên | BE-78, BE-79 | – |
+| BE-81 | Backend | Job Service | Job ghép giảng viên và mentor | P1 | Thiên | BE-51, BE-80 | BE-51 (Nguyên) – chỉ cần Jobs.Host |
+| BE-82 | Backend | Collaboration – Meetings | Lịch họp hằng tuần EXE201 | P0 | Nam | BE-68, BE-78 | BE-78 (Thiên) |
+| BE-83 | Backend | Collaboration – Checkpoints | Checkpoint EXE101 | P1 | Thành | BE-62, BE-78 | BE-62, BE-78 (Thiên) |
+| FE-45 | Frontend Web | Workspace | Web C09 lịch họp hằng tuần | P0 | Cường | FE-33, BE-82 | BE-82 (Nam) |
+| MB-46 | Mobile | Workspace | C09 Lịch họp hằng tuần | P0 | Cường | MB-38, BE-82 | BE-82 (Nam) |
+
+Mô tả / tiêu chí hoàn thành đầy đủ nằm trong file xlsx.
+
+### Task cũ thay đổi
+
+| Mã | Thay đổi |
+|---|---|
+| MB-33 | **Thay nội dung:** L02, L03 bỏ (không còn chấp nhận / từ chối) → "Checkpoint EXE101 ở L04, L05" (Thành) |
+| FE-25 | **Chuyển Thành → Thiên**, viết lại thành "W19 – Ghép giảng viên hướng dẫn" |
+| FE-43 | **Chuyển Thành → Thiên**, viết lại thành "W28 – Ghép mentor" |
+| BE-46 | **Viết lại:** nguyện vọng 1–3 có thứ tự, không còn gửi yêu cầu / chấp nhận / từ chối; sự kiện LecturerPreferencesUpdated |
+| BE-47 | **Viết lại:** "Cố vấn của nhóm và nhóm của giảng viên" – API đọc kết quả ghép cho S15, S25, L04 |
+| BE-74 | **Viết lại:** "Mentor của nhóm" – API cho nhóm và mentor, gỡ khi khóa mentor; ghép / đổi tay ở BE-80 |
+| MB-27, MB-28 | **Viết lại:** S23 nguyện vọng, S24 chi tiết giảng viên, S25 giảng viên của nhóm + lý do ghép |
+| BE-20, BE-23, BE-68, BE-71, BE-73, BE-75 | Bổ sung mô tả đợt 2 (số nhóm tối đa tùy chọn, cấu hình mới, họp đề xuất chỉ cho mentor, gợi ý cho cả mentor, quan tâm của mentor, thông báo mới) |
+| FE-11, FE-17, FE-31, FE-39, FE-41, FE-42 | Bổ sung mô tả đợt 2 |
+| MB-05, MB-32, MB-34, MB-36, MB-40, MB-43, MB-44 | Bổ sung mô tả đợt 2; MB-34 bỏ phụ thuộc MB-33; MB-40 thêm phụ thuộc BE-82, BE-83 |
+
+Bảng "Điểm bàn giao" ở sheet Phân công thêm 6 dòng (BE-79 ← BE-34, BE-81 ← BE-51, FE-45 / MB-46 ← BE-82, MB-40 ← BE-82 / BE-83). Bảng phụ trách ở `AGENTS.md` mục 2 đã đổi theo.

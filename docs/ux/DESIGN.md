@@ -273,7 +273,11 @@ Mỗi component trong thư viện Figma phải có đủ các biến thể sau.
 | Thẻ việc | Tiêu đề (Subtitle, tối đa 2 dòng), avatar người làm xếp chồng, chip hạn ("Hôm nay", "Còn 2 ngày", "Trễ 1 ngày" – màu theo mục 7). Bài nộp có thêm icon `assignment` và chip trạng thái nộp. Kéo thả giữa cột trên web; trên mobile đổi trạng thái bằng menu của thẻ. |
 | Dòng file | Icon theo loại file (40), tên (Body Large, tối đa 2 dòng), dòng phụ "v3 · Minh · 2 giờ trước", nút tải xuống. Chỉ hiện **bản mới nhất**; lịch sử phiên bản ở chi tiết file. |
 | Chọn khung giờ họp | Mỗi khung là một hàng: ngày giờ (Subtitle), số người đã chọn "4/7 có thể", avatar xếp chồng, hai nút chọn "Có" / "Không" (segmented button). Người tổ chức thấy nút "Chốt khung này" ở khung nhiều người chọn nhất. |
-| Chỉ báo quan tâm đề tài | Trên thẻ đề tài của giảng viên: nút phụ "Quan tâm" (icon `star`), sau khi bấm thành "Đã quan tâm" (icon tô đặc, Secondary) và dòng "1 giảng viên khác cũng quan tâm" (Body, Text Secondary). Ở phía nhóm: hàng avatar giảng viên quan tâm, mỗi người một nút "Gửi yêu cầu". |
+| Chỉ báo quan tâm đề tài | Trên thẻ đề tài của giảng viên: nút phụ "Quan tâm" (icon `star`), sau khi bấm thành "Đã quan tâm" (icon tô đặc, Secondary) và dòng "1 giảng viên khác cũng quan tâm" (Body, Text Secondary). Ở phía nhóm: hàng avatar giảng viên quan tâm, mỗi người một nút "Thêm vào nguyện vọng" (sửa 20/10/2026 – không còn "Gửi yêu cầu"). |
+| Nguyện vọng giảng viên (20/10) | Ba ô đánh số 1–3 xếp dọc, mỗi ô: avatar, tên, chip "Quan tâm nhóm bạn" nếu có; tay nắm kéo bên phải **và** hai nút lên/xuống (không bắt buộc kéo). Ô trống ghi "Thêm nguyện vọng". Dưới cùng một dòng hạn "Chốt lúc 18:00 · 17/09". |
+| Lý do ghép (20/10) | Chip Secondary Container ngay dưới tên giảng viên / mentor: "Hai bên cùng chọn", "Nguyện vọng 2", "Giảng viên quan tâm", "Theo chuyên môn", "Bộ môn phân công". Một chip, không câu giải thích; icon `info` mở cách ghép. |
+| Tiến độ checkpoint (20/10, EXE101) | Bốn chấm nối bằng đường mảnh, chấm đã trình bày tô Primary kèm icon `check`, chấm tiếp theo viền Primary; nhãn "Checkpoint 2/4" (Label). Chạm mở nhận xét từng checkpoint. Trình đọc màn hình: "Đã trình bày 2 trên 4 checkpoint, tiếp theo Checkpoint 3". |
+| Lưới slot họp hằng tuần (20/10, EXE201) | Cột theo ngày, hàng theo giờ; mỗi slot 15 phút là một ô cao 48: trống (viền Border, chữ "09:15"), đã có nhóm (nền Neutral Container, tên nhóm rút gọn), của nhóm bạn (nền Primary Container, icon `check`). Trạng thái luôn có chữ, không chỉ màu. Thanh trên lưới: "32 slot · 40 nhóm · còn 3 nhóm chưa chọn". |
 | Nhãn vai trò | Chip nhỏ cạnh tên: "Trưởng nhóm", "Giảng viên", "Mentor" – nền Neutral Container, chữ Text Secondary; dùng thống nhất trong tin nhắn, việc, file, họp. |
 | Thẻ đề tài | Tên đề tài (Subtitle), chip domain, dòng "Tiếp tục từ EXE101 · SP26" (icon `history`, Secondary) nếu kế thừa. Nút chữ "Lịch sử" mở **dòng thời gian đề tài**: mỗi mốc là một chấm + kỳ / môn + thay đổi một dòng ("Đổi đề tài: EduSpark → EduSpark AI · lý do…"), mới nhất ở trên. |
 | Tóm tắt cho mentor | Thẻ đầu C01 khi người xem là mentor: đề tài một dòng, thanh tiến độ việc, "Buổi mentor 1/3", 3 file mới nhất (dòng file rút gọn), biên bản gần nhất (2 dòng). Một nút chính "Đề xuất họp" nếu chưa có họp sắp tới. |
@@ -300,14 +304,14 @@ Mỗi trạng thái nghiệp vụ luôn dùng cùng một nhóm màu **và cùng
 | Nhóm màu | Icon (Material Symbols) | Các trạng thái | Chip mẫu |
 |---|---|---|---|
 | Warning | `schedule` | Đang chờ · Chờ duyệt · Chờ xác nhận · Sắp mở · Chưa đủ điều kiện · Chờ trả lời · Chờ chốt lịch · Cần sửa | Đang chờ |
-| Success | `check_circle` | Đã chấp nhận · Đã duyệt · Giảng viên đã nhận · Đủ điều kiện · Hoạt động · Đã trả lời · Đạt · Xong | Đã chấp nhận |
+| Success | `check_circle` | Đã chấp nhận · Đã duyệt · Giảng viên đã nhận · Đủ điều kiện · Hoạt động · Đã trả lời · Đạt · Xong · Đã trình bày (checkpoint) | Đã chấp nhận |
 | Error | `cancel` | Đã từ chối · Giảng viên từ chối · Trễ hạn (icon `alarm`) · Đã hủy | Đã từ chối |
-| Secondary (xanh) | `verified` | Đang mở · Đã chốt · Giảng viên chính thức · Đã lên lịch | Đang mở |
+| Secondary (xanh) | `verified` | Đang mở · Đã chốt · Giảng viên chính thức · Đã ghép · Đã lên lịch · Hằng tuần | Đang mở |
 | Neutral | `remove_circle` | Nháp · Hết hạn · Đã thu hồi · Đã khóa · Đã đủ · Quan tâm đã đóng | Nháp |
 
 "Chưa đủ điều kiện" dùng icon `error` (dấu chấm than) thay cho `schedule`, vì đây là việc người dùng phải xử lý chứ không phải chờ.
 
-"Đã khóa" dùng cho đợt đăng ký; "Đã đủ" dùng cho giảng viên đã nhận đủ số nhóm. Danh sách chia theo tab chỉ đặt vào tab "chờ" những mục còn việc phải làm; mục đã thu hồi, hết hạn hoặc bị từ chối nằm ở tab "Đã đóng".
+"Đã khóa" dùng cho đợt đăng ký; "Đã đủ" dùng cho giảng viên đã nhận đủ số nhóm. Từ 20/10/2026 "Giảng viên đã nhận" và "Giảng viên từ chối" chỉ còn trong Figma Lab 2; sản phẩm dùng "Đã ghép" kèm chip lý do. Danh sách chia theo tab chỉ đặt vào tab "chờ" những mục còn việc phải làm; mục đã thu hồi, hết hạn hoặc bị từ chối nằm ở tab "Đã đóng".
 
 ---
 
@@ -403,7 +407,7 @@ Ngoại lệ: lý do bị khóa, lỗi và hậu quả của hành động khôn
 
 | Hạng mục | Quy ước |
 |---|---|
-| Bản 4 | **Chưa vẽ lại.** Figma giữ bảng màu và màn hình bản 3 của Lab 2; màn hình mới (C01–C08, L07, M01, W27, W28) và bảng màu bản 4 chỉ có trong tài liệu này và file Danh sách màn hình. |
+| Bản 4 | **Chưa vẽ lại.** Figma giữ bảng màu và màn hình bản 3 của Lab 2; màn hình mới (C01–C09, L07, M01, W27, W28) và bảng màu bản 4 chỉ có trong tài liệu này và file Danh sách màn hình. |
 | File nộp Lab (mobile) | Đúng 6 trang theo thứ tự: **01 User Flow · 02 Wireframe · 03 Final UI · 04 Design System · 05 Components · 06 Prototype**. Không thêm trang khác vào file này. |
 | Trang 03 Final UI | Chia thành các section: Chung · Sinh viên · Giảng viên · Kiểm tra 412. |
 | Trang 04 Design System | Bảng màu, kiểu chữ, khoảng cách, bo góc, độ nổi, icon – tất cả hiển thị từ variables và styles. |

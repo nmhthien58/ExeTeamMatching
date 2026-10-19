@@ -4,6 +4,7 @@
 > Course: PRN232 – Final Assignment, FPT University, semester FA26.
 > Rename to `CLAUDE.md` (Claude Code) or `AGENTS.md` / `.cursorrules` (Cursor) if your tool expects that name.
 > **Updated 2026-10-19 after lecturer feedback** (section 13; second pass the same day: one mentor per team with per-mentor capacity, mentoring window from week 6, projects tracked across EXE101 → EXE201): web app for every role, Mentor actor, team workspace (messages, tasks, files, meetings), topic recommendation for lecturers, simplified profile with 5 skill ratings, ideas in join requests, Discover locked after team formation. Figma still shows the earlier palette and screens; code follows this file and `DESIGN.md`.
+> **Updated 2026-10-20 (advisor matching and course rhythm):** instructors and mentors are **matched automatically** – instructors at the team-formation deadline from the team's ranked preferences (1–3) and lecturers' interest, mentors at the mentoring start week from mentors' interest; Admin can run the matching early and edit the result. Lecturers no longer accept or decline requests. EXE101 instructors review **Checkpoints 1–4** in class (no grades in the system); EXE201 instructors publish **weekly 15-minute meeting slots** and each team books one fixed slot. Rules 9, 19, 20, 25, 27.
 
 ---
 
@@ -13,7 +14,8 @@ FPT University manages team formation for the courses **EXE101** and **EXE201** 
 
 - **EXE101**: students form new teams. There is **no change request** in EXE101.
 - **EXE201**: teams are inherited from EXE101 (baseline imported by the EXE Department); changing members of an inherited team requires a **change request** approved by the EXE Department.
-- **Both courses**: lecturers get topic recommendations and can show interest; the team chooses a preferred lecturer, the lecturer confirms or declines, and the EXE Department makes the final assignment. The EXE Department attaches **one mentor** (external expert or university lecturer) to each team, usually from week 6.
+- **Both courses**: lecturers get topic recommendations and mark interest; teams rank up to 3 preferred lecturers; when the team-formation round closes the system **matches one instructor per team** from both sides (Admin can run it earlier and edit the result). From the mentoring start week (usually week 6) the system matches **one mentor** (external expert or university lecturer) per team from mentors' interest, the same way.
+- **Course rhythm**: in EXE101 students present to their instructor in class and the instructor marks **Checkpoints 1–4** as reviewed; in EXE201 students do not come to class – the instructor holds a **fixed weekly 15-minute online meeting** with each team.
 - **Across courses**: a team's **project** (đề tài) is the stable thing that continues from EXE101 to EXE201, even when members change (rule 26).
 - **During the semester**: the team, its lecturer and its mentor message each other, track tasks and deliverables, share project files and schedule meetings in the team workspace.
 - Scale reference (FA26 data): ~220 teams, ~1,250 students per semester.
@@ -28,16 +30,18 @@ The client UI follows the phase of the student's course, not a fixed menu.
 |---|---|---|
 | **Team formation** | A team-formation round is open | Discover (teams, students looking for teams), invitations, join requests, team creation |
 | **Semester running** | After the team-formation round closes (its deadline is set by Admin when the round opens) | Discover is hidden (rule 18); the team workspace takes its place. EXE201 change-request rounds still work through *My team* |
-| **Mentoring window** | From the mentoring start week of the semester (default week 6, set by Admin) | Mentor appears in the workspace; meetings with the mentor are counted (rule 25) |
+| **Instructor matching** | When the team-formation round closes (or earlier if Admin runs it) | The team sees its instructor and the reason of the match; preferences are locked |
+| **Meeting slot booking** (EXE201) | First 2 weeks after instructor matching (deadline set by Admin) | Leader books one weekly 15-minute slot published by the instructor (rule 25) |
+| **Mentoring window** | From the mentoring start week of the semester (default week 6, set by Admin) | Mentor matched and shown in the workspace; meetings with the mentor are counted (rule 25) |
 
 ## 2. Actors (roles)
 
 | Role | Code | What they do |
 |---|---|---|
-| Student | `Student` | Completes a short profile (5 skill ratings + description), creates/joins teams, accepts invitations, works in the team workspace. A **Leader** (one per team) invites members, reviews join requests and the ideas attached to them, registers the idea/domain, submits change requests, chooses the preferred lecturer among interested lecturers. |
-| Lecturer (instructor) | `Lecturer` | The team's **instructor** (giảng viên hướng dẫn). Receives topic recommendations and marks interest, accepts/declines mentoring requests, and – once officially assigned – messages the team, creates deliverables, reviews files and schedules meetings. A lecturer can also be the mentor of other teams (rule 20). The lecturer of the FAP class is **not** modelled: students follow that lecturer on FAP. |
-| Mentor | `Mentor` | A separate actor: an external expert or a university lecturer who works with a team for a short window – usually **from week 6, for 2–3 meetings**. **Created and assigned only by the EXE Department**; one mentor per team. Sees the same workspace screens as the lecturer: reads project files, comments on tasks, messages the team, schedules meetings. Cannot change membership, approve requests or create deliverables. |
-| EXE Department | `Admin` | Imports the student list of the semester, opens/closes registration rounds, approves/rejects change requests, assigns lecturers (final decision), creates mentors and assigns them to teams. EXE Department and Academic Affairs are treated as **one** role. |
+| Student | `Student` | Completes a short profile (5 skill ratings + description), creates/joins teams, accepts invitations, works in the team workspace. A **Leader** (one per team) invites members, reviews join requests and the ideas attached to them, registers the idea/domain, submits change requests, ranks up to 3 preferred lecturers (seeing who is interested in the team), books the weekly meeting slot in EXE201. |
+| Lecturer (instructor) | `Lecturer` | The team's **instructor** (giảng viên hướng dẫn). Receives topic recommendations and marks interest during team formation (no accept/decline – the system matches). Once matched: EXE101 – marks Checkpoints 1–4 as reviewed; EXE201 – publishes weekly meeting slots; both – messages the team, creates deliverables, reviews files. A lecturer can also be the mentor of other teams (rule 20). The lecturer of the FAP class is **not** modelled: students follow that lecturer on FAP. |
+| Mentor | `Mentor` | A separate actor: an external expert or a university lecturer who works with a team for a short window – usually **from week 6, for 2–3 meetings**. **Created only by the EXE Department**; marks interest in projects before the mentoring window and is **matched by the system** (Admin can edit); one mentor per team; students do not choose their mentor. Sees the same workspace screens as the lecturer: reads project files, comments on tasks, messages the team, schedules meetings. Cannot change membership, approve requests or create deliverables. |
+| EXE Department | `Admin` | Imports the student list of the semester, opens/closes registration rounds, approves/rejects change requests, sets each lecturer's maximum number of teams (optional), runs instructor and mentor matching early when needed and edits the result (final say), creates mentors. EXE Department and Academic Affairs are treated as **one** role. |
 
 Clients (both call the same API Gateway):
 - **Web App (React)** – one app with four role shells: Admin (W screens), Student, Lecturer and Mentor. The Student / Lecturer / Mentor shells use the **same screen IDs as mobile** with a desktop layout (`DESIGN.md` §8.2).
@@ -55,7 +59,18 @@ Clients (both call the same API Gateway):
    - In an inherited team, invitations, join requests, leaving and removing members do **not** change membership immediately: once agreed by both sides they become **pending changes**, are bundled into the change request, and take effect only when Admin approves it. If the request is rejected, the team stays as it was.
    - EXE201 students without an EXE101 team (and all EXE101 students) form teams freely; membership changes immediately on acceptance.
 8. Invitations / join requests **expire after 72 hours** (configurable – assumption).
-9. Lecturer assignment (**EXE101 and EXE201**): (a) the Leader sends a mentoring request to a preferred lecturer – usually one who showed interest (rule 19); (b) the lecturer **accepts or declines** (a declined team may request another lecturer; a lecturer at full capacity cannot accept); (c) Admin makes the **final assignment**. The team's preference and the lecturer's acceptance are advisory; Admin decides and may assign a different lecturer.
+9. **Instructor matching** (**EXE101 and EXE201**, decided 2026-10-20). Each team gets exactly **one instructor**, matched by the system:
+   - **Inputs, while the team-formation round is open.** Lecturers mark interest in teams (rule 19). The Leader keeps a list of **up to 3 ranked preferred lecturers** (*nguyện vọng 1–3*) and can change it at any time until the team is matched; interested lecturers are shown first so the team can add them. There is **no request to the lecturer and no accept/decline** step.
+   - **Capacity.** Admin may set a **maximum number of teams per lecturer and course** (e.g. 40 EXE201 teams). It is optional: empty means no limit. Lecturers do not set it themselves.
+   - **When.** Automatically right after the round is finalized and auto-assignment has run (rules 13–14), for every team without an instructor. Admin can also press **"Ghép sớm"** at any time: the system shows a preview, Admin confirms, only the teams that exist at that moment are matched, and the rest are matched at the deadline.
+   - **Order of preference for a team** (first candidate with free capacity wins):
+     1. A lecturer who is **both** in the team's preferences **and** interested in the team – higher preference rank first.
+     2. The team's preferences in rank order (1 → 3).
+     3. Lecturers interested in the team – fewest current teams first.
+     4. No signal: for EXE201, the EXE101 instructor of the same project (rule 26); otherwise the lecturer whose expertise domains overlap the project most, then the fewest current teams (load balancing – what Admin used to do by hand).
+   - **Conflicts.** Matching goes tier by tier over all teams. When a lecturer would exceed the maximum inside a tier, the lecturer keeps the teams that ranked them highest, then those with most domain overlap; the other teams move to their next candidate.
+   - **Result.** Each match stores its **reason** (`Mutual`, `Preference1–3`, `LecturerInterest`, `PreviousInstructor`, `Domain`, `Manual`) shown to the team, the lecturer and Admin. Teams left without an instructor (every lecturer full) are listed for Admin.
+   - **Admin has the final say:** can change the instructor of any team at any time with a reason (`Manual`, audit-logged). Once matched, the team's preferences are locked and the other open interests in the team close (rule 19).
 10. Every team change is written to an **audit log** (who, when, what).
 11. Student ID format: 2 letters + 6 digits (e.g. `SE184118`). Phone numbers (when present in the import) are stored as **string**. Contact data (email, phone) comes **only from the imported list** and is visible only to teammates, the assigned lecturer, assigned mentors and Admin.
 12. Specialization and domain are chosen from **catalogs**, never free text.
@@ -65,31 +80,47 @@ Clients (both call the same API Gateway):
 16. **Profile = skills + description only.** Five fixed skill categories, each self-rated with an integer **1–5**: `Technology`, `UiUxDesign`, `Management`, `Marketing`, `CommunicationPlanning`. Plus a free description (≤ 500 characters). The profile has **no contact fields** (no phone, no Zalo): contact data comes from the import (rule 11) and day-to-day contact happens in workspace messages. First-time onboarding is one screen: confirm the imported data (read-only) + skills + description.
 17. **Ideas in a join request.** When asking to join a team, the student either adds **1–3 ideas** (title ≤ 80, description ≤ 300 characters each) or ticks **"I have no idea yet"** – one of the two is required. Ideas are visible only to the team's members while reviewing the request and are kept with the request.
 18. **Discover is locked after team formation.** "The semester has started" means the team-formation round of the course has closed (confirmed 2026-10-19; Admin sets the deadline when opening the round). Team lists, seeking posts, join requests and team creation are available only while a team-formation round is open for the student's course. After it closes, clients hide the Discover entry point and the API returns `409 round-closed`; deep links show a reminder dialog instead of the screen. Replacements in an EXE201 change-request round go through *My team* (suggestions, search by student ID), not Discover.
-19. **Topic recommendation and lecturer interest.**
-    - Matching recommends to each lecturer the teams whose domains match the lecturer's expertise domains and that have no accepted or assigned lecturer yet.
-    - A lecturer may mark **interest** in a team's topic. Interest is **non-binding** and does **not** use capacity; only accepting a mentoring request does.
-    - Several lecturers may be interested in the same topic. Each lecturer sees **how many** other lecturers are interested (not who). The team sees **who** is interested and chooses whom to send the mentoring request to. There is no first-come-first-served race.
-    - When a lecturer of a team is accepted or officially assigned, the other open interests in that team **close automatically** and those lecturers are notified ("the team chose another lecturer").
-    - A lecturer can hold at most **remaining capacity + 2** open interests (configurable) to avoid hoarding topics.
-    - Admin sees all interests when assigning (W19).
+19. **Topic recommendation and advisor interest** (lecturers and mentors).
+    - Matching recommends to each lecturer the teams whose project domains match the lecturer's expertise domains and that have no instructor yet; it does the same for mentors and teams without a mentor. Lecturers also see the teams that put them in their preferences, with the rank.
+    - A lecturer or mentor may mark **interest** in a team's project. Interest does **not** reserve the team: it is one input of the matching (rules 9, 20). Interest can be withdrawn until the team is matched.
+    - Several advisors may be interested in the same team. Each advisor sees **how many** others are interested (not who). For instructors, the team sees **who** is interested and decides through its preferences – a lecturer that is both preferred and interested is matched first. There is no first-come-first-served race.
+    - When a team is matched, the other open interests of the same kind **close automatically** and those advisors are notified ("nhóm đã có giảng viên" / "đã có mentor").
+    - Limits against hoarding: a lecturer can hold at most **remaining capacity + 2** open interests, or **10** when no maximum is set; a mentor at most **maximum teams + 2** (all configurable).
+    - Lecturer interest is open only during the team-formation round; mentor interest is open from the end of team formation until the mentoring start week.
+    - Admin sees all preferences and interests next to the matching result (W19, W28).
 20. **Mentors.**
     - Admin creates mentor profiles: name, organization, email, expertise domains, internal (university lecturer) or external, and **maximum number of teams set by Admin per mentor** (it differs between mentors).
-    - The mentor states a **preferred number of teams** (≤ the maximum) in their profile. When assigning, the system warns above the preferred number and blocks above the maximum.
-    - **A team has at most one mentor.** Assigning a new mentor replaces the old one (with confirmation); the old mentor loses workspace access immediately, history stays.
-    - Mentoring has a **window**: the semester's mentoring start week (default week 6) and an expected number of sessions (default 3, configurable). Before the window the team sees "Mentor sẽ được gán từ tuần 6"; Admin sees how many teams still have no mentor.
+    - The mentor states a **preferred number of teams** (≤ the maximum) in their profile.
+    - **Students do not choose their mentor.** Mentors mark interest in projects (rule 19) before the mentoring window; teams have no mentor preferences.
+    - **Mentor matching** runs automatically at the semester's **mentoring start week** (default week 6) for every team without a mentor; Admin can run it earlier ("Ghép sớm", preview → confirm) and edit the result in W28. Order for a team: (1) mentors interested in the team, (2) mentors whose domains overlap the project most; inside each tier the mentor with the lowest load relative to their preferred number first. Mentors are filled up to their **preferred** number first and go above it (up to the **maximum**) only when teams would otherwise stay without a mentor. Each match stores its reason (`MentorInterest`, `Domain`, `Manual`).
+    - **A team has at most one mentor.** Admin can replace the mentor (with confirmation; warns above the preferred number, blocks above the maximum); the old mentor loses workspace access immediately, history stays.
+    - Mentoring has a **window**: the mentoring start week and an expected number of sessions (default 3, configurable). Before the window the team sees "Mentor sẽ được ghép từ tuần 6"; Admin sees how many teams still have no mentor.
     - A university lecturer can be both the instructor of some teams and the mentor of others. They keep **one account with two roles** (`Lecturer`, `Mentor`); their mentor teams appear inside the lecturer shell with a "Mentor" label, so there is no role switching. External mentors use the Mentor shell.
-21. **Workspace access.** Every team has one workspace, created with the team. Members get access while they are members; the instructor when **officially assigned** (not on acceptance alone); the mentor while assigned; Admin read-only. An EXE201 workspace also shows the EXE101 workspace of the same project as a read-only archive (rule 26). Membership changes are synchronized from Team events.
+21. **Workspace access.** Every team has one workspace, created with the team. Members get access while they are members; the instructor once **matched** (rule 9); the mentor while assigned; Admin read-only. An EXE201 workspace also shows the EXE101 workspace of the same project as a read-only archive (rule 26). Membership changes are synchronized from Team events.
 22. **Messages.** Each workspace has two channels: **Team** (members only) and **Advisors** (members + instructor + mentor). Messages ≤ 2,000 characters; attachments are links to workspace files. A member can mark a message in Advisors as **a question for advisors**; it stays in the lecturer's/mentor's *Needs reply* list until an advisor replies in its thread. Unread counts per channel.
 23. **Tasks and deliverables.** Tasks have a title, assignees (members), due date and status `ToDo` → `Doing` → `Done`. Members create and edit team tasks. The instructor creates **deliverables** (a task with a required file and due date) for the team; the team submits a file version; the lecturer marks it `Accepted` or `NeedsRevision` with a comment. The mentor can comment but not create deliverables.
 24. **Files.** Folders and files per workspace; max **25 MB** per file; allowed types pdf, docx, pptx, xlsx, png, jpg, zip. Uploading a file with an existing name in the same folder creates a **new version**; earlier versions stay downloadable. Members upload and delete (soft delete, uploader or leader); the instructor and the mentor read and comment only.
-25. **Meetings.** The leader, the instructor or the mentor proposes a meeting with **1–3 time slots** (or one fixed slot), place (room or online link) and agenda. Invitees answer each slot (`Yes` / `No`); the organizer confirms one slot → the meeting is scheduled. Reminders 24 h and 1 h before. After the meeting the organizer records minutes; action items can be turned into tasks in one step. Meetings organized by the mentor are **mentoring sessions**: the workspace shows "Buổi mentor 2/3" against the expected number (rule 20).
+25. **Meetings.** Two kinds, both listed in the workspace calendar (C07):
+    - **Weekly instructor meetings (EXE201 only).** EXE201 students do not attend class; the instructor meets each team online every week.
+      - After instructor matching, the instructor publishes a **weekly schedule**: one or more time windows (e.g. Tue 09:00–11:00), cut into **15-minute slots** (length configurable), with one online link.
+      - The Leader **books one slot** for the whole semester; one team per slot; first come, first served. Booking is open until the **booking deadline** (default end of week 2, set by Admin). The instructor can move a team to another free slot at any time.
+      - At the booking deadline, teams that did not book are placed in the remaining free slots automatically; if there are not enough slots the instructor is asked to add a window.
+      - The system then creates one meeting per week for each team (until the last teaching week). The instructor can cancel or move a single week (holiday, exam) with a reason; the team is notified.
+      - EXE101 has **no** scheduled instructor meetings: students present in class (rule 27).
+    - **Proposed meetings** (mentor sessions and ad-hoc meetings): the leader, the instructor or the mentor proposes **1–3 time slots** (or one fixed slot), place (room or online link) and agenda. Invitees answer each slot (`Yes` / `No`); the organizer confirms one slot → the meeting is scheduled. Meetings organized by the mentor are **mentoring sessions**: the workspace shows "Buổi mentor 2/3" against the expected number (rule 20).
+    - For both kinds: reminders 24 h and 1 h before; after the meeting the organizer can record minutes, and action items can be turned into tasks in one step.
 26. **Projects across courses (đề tài).** The system tracks work by **project**, not only by team:
     - A `Project` is created when an EXE101 team registers its idea (name, description, domains). It keeps a history of versions (`ProjectVersion`: what changed, why, who, when).
     - A team belongs to one course; its `ProjectId` links it to the project. The **EXE101 baseline import** for EXE201 links each inherited team to the project of its EXE101 team (matched by team code; unmatched rows are listed for Admin to link by hand). EXE201 teams without an EXE101 team create a new project.
     - **Changing the project in EXE201** (pivot or new idea) is an item of the change request (`ProjectChange`, with reason) approved by Admin together with member changes; on approval a new `ProjectVersion` is written. Small edits (description typo) do not need approval.
     - The EXE201 team sees "Tiếp tục từ EXE101 · SP26" with the project timeline; its workspace shows the EXE101 files, finished tasks and minutes read-only.
-    - For EXE201 topic recommendations, the **instructor of the same project in EXE101** is shown first to the team ("Đã hướng dẫn ở EXE101"), and the project shows up first in that lecturer's L07.
+    - For EXE201, the **instructor of the same project in EXE101** is shown first in the team's lecturer list ("Đã hướng dẫn ở EXE101"), the project shows up first in that lecturer's L07, and that lecturer is the fallback candidate of instructor matching (rule 9, tier 4).
     - Admin manages projects across semesters (W29): lineage EXE101 team → EXE201 team, percentage of members kept, project changes, instructor and mentor per semester.
+27. **Checkpoints (EXE101 only).** EXE101 has **4 checkpoints** (Checkpoint 1–4). Students present to their instructor in class whenever they are ready during the instructor's teaching days – there is no booking.
+    - The instructor marks a checkpoint of a team as **reviewed**, with the date and an optional comment (≤ 500 characters). Marking can be undone within the same day (Undo pattern, `DESIGN.md` §6.4).
+    - **No grade is stored**: grades live in FAP. The system only tracks progress so the team and the instructor know what is left.
+    - Admin may set a **target week** for each checkpoint in the semester settings; teams past the target week without that checkpoint show as "Chưa trình bày CP2" in the instructor's list.
+    - The team sees "Checkpoint 2/4" with the comments in its overview (S15, C01); the instructor sees, for each checkpoint, which teams are still missing it (L01, L04).
 
 ## 4. Architecture overview
 
@@ -142,7 +173,7 @@ Diagram source: `docs/c4-architecture/c1.mmd` (Mermaid flowchart, rendered to `c
 - Semesters and registration rounds (course: EXE101 / EXE201; type: team formation / change request; open time, deadline, status). Change-request rounds exist only for EXE201. Exposes the **current phase** of each course (section 1.1) for the clients.
 - **Import student list** of the semester from Excel (ClosedXML) – name, student ID, email, specialization, class, phone (optional).
 - Catalogs: class codes, specializations, research domains (D01–D18).
-- Student profile: 5 skill ratings + description (rule 16). Lecturer profile: **capacity**, accepting-new-teams flag, **expertise domains** (used by topic recommendation). **Mentor profiles** created by Admin: max teams (Admin), preferred teams (mentor), internal / external, domains (rule 20). Semester settings include the **mentoring start week** and expected mentoring sessions.
+- Student profile: 5 skill ratings + description (rule 16). Lecturer profile: **maximum teams per course** (optional, set by Admin – rule 9), **expertise domains** (used by recommendation and matching). **Mentor profiles** created by Admin: max teams (Admin), preferred teams (mentor), internal / external, domains (rule 20). Semester settings include the **mentoring start week**, expected mentoring sessions, the **meeting-slot booking deadline** and slot length (rule 25), and the **target week of each EXE101 checkpoint** (rule 27).
 - Answers Team Service (HTTP): "is the round open?", "does this student exist / is in this semester?".
 - Redis: caches catalogs and active round status; invalidate on change.
 - Publishes: `StudentImported`, `StudentProfileUpdated`, `LecturerRegistered`, `LecturerProfileUpdated`, `MentorRegistered`, `RoundOpened`, `RoundClosed`.
@@ -156,20 +187,20 @@ Diagram source: `docs/c4-architecture/c1.mmd` (Mermaid flowchart, rendered to `c
 - Recruitment posts (team looking for members) and seeking posts (student looking for team). Discover endpoints check the phase (rule 18).
 - **Projects** (rule 26): `Project`, `ProjectVersion`; baseline import links inherited teams to their EXE101 project; project lineage and history APIs for students, lecturers and Admin.
 - Change requests (EXE201 only) + Admin approval. Pending changes of an inherited team are stored as `ChangeRequestItem` (add / remove a student, or change the project) and applied only on approval (rules 7, 26).
-- Lecturer flow for both courses (rules 9, 19): `TopicInterest` holds lecturers' interest in a team (`Open`, `Closed`); `LecturerPreference` holds the team's request and its status (`Pending`, `Accepted`, `Declined`); `LecturerAssignment` holds Admin's final decision.
-- Mentor assignment (rule 20): `MentorAssignment` (team – unique while active, mentor, assigned by, time, ended at); checks the mentor's max and preferred number of teams.
+- Advisor matching for both courses (rules 9, 19, 20): `TopicInterest` holds lecturers' and mentors' interest in a team (`Open`, `Withdrawn`, `Closed`); `LecturerPreference` holds the team's ranked preferences (rank 1–3, no status); `LecturerAssignment` and `MentorAssignment` hold the match (team – unique while active, advisor, **reason**, source `Auto` / `Manual`, by, time, ended at). Matching runs: `POST /internal/advisor-matching/lecturers` and `/mentors` (called by Job), `POST /api/advisor-matching/{kind}/preview` and `/confirm` (Admin "Ghép sớm"), `PUT /api/teams/{id}/instructor` and `/mentor` (manual change). Team Service gets the plan from Matching (gRPC) and applies it in one transaction.
 - Search / filter / sort / paginate teams (e.g. `GET /api/teams?domain=D04&page=1&pageSize=20&sort=name`).
 - Writes events through a **Transactional Outbox** (event row saved in the same transaction, background dispatcher publishes to Kafka).
-- DB (`Team DB`): `Project`, `ProjectVersion`, `Team` (with `ProjectId`, `PreviousTeamId`), `TeamMember`, `TeamDomain`, `Invitation`, `JoinRequest`, `JoinRequestIdea`, `RecruitmentPost`, `SeekingPost`, `TeamBaselineMember`, `ChangeRequest`, `ChangeRequestItem`, `TopicInterest`, `LecturerPreference`, `LecturerAssignment`, `MentorAssignment`, `AuditLog`, `OutboxMessage`.
+- DB (`Team DB`): `Project`, `ProjectVersion`, `Team` (with `ProjectId`), `TeamMember`, `TeamDomain`, `Invitation`, `JoinRequest`, `JoinRequestIdea`, `RecruitmentPost`, `SeekingPost`, `TeamBaselineMember`, `ChangeRequest`, `ChangeRequestItem`, `TopicInterest`, `LecturerPreference`, `LecturerAssignment`, `MentorAssignment`, `AuditLog`, `OutboxMessage`.
 
 ### 5.5 Matching Service – gRPC only ("matchmaker")
 Only computes suggestions; never creates teams or writes business data.
 - `SuggestMembers` – students without a team who fill missing specializations **and the weakest skill categories** of a team (team skill profile = max rating per category across members).
 - `SuggestTeams` – recruiting teams that need the student's specialization or strongest skills.
-- `SuggestTopicsForLecturer` – teams whose domains match the lecturer's expertise domains and that have no accepted/assigned lecturer, ranked by domain overlap, then by fewest interested lecturers (spreads interest across topics).
+- `SuggestTopicsForLecturer` – teams whose domains match the advisor's expertise domains and that have no instructor (or, for a mentor, no mentor) yet, ranked by domain overlap, then by fewest interested advisors (spreads interest across topics). Serves lecturers and mentors (`advisor_kind`).
+- `PlanAdvisorMatching` – computes instructor matching (rule 9) or mentor matching (rule 20) from preferences, interests, domains, current load and maximums; returns one proposed advisor and reason per team plus the teams left unmatched. Pure computation: Team Service applies it.
 - `ValidateComposition` – checks 4–6 members and ≥ 2 specializations.
 - `PlanAutoAssignment` – after the deadline, first proposes unmatched students to fill `NeedsReview` teams, then splits the remaining students into new valid teams (rule 14).
-- Keeps a **read model in Redis** (student specialization, skill ratings, has-team flag, team gaps and domains, lecturer expertise, interest counts), updated by consuming Kafka events (`StudentImported`, `StudentProfileUpdated`, `LecturerRegistered`, `LecturerProfileUpdated`, `TeamCreated`, `MemberJoined`, `MemberLeft`, `TopicInterestOpened`, `TopicInterestClosed`, `LecturerAccepted`, `LecturerAssigned`). No SQL database.
+- Keeps a **read model in Redis** (student specialization, skill ratings, has-team flag, team gaps and domains, advisor expertise and maximums, preferences, interest counts, current load), updated by consuming Kafka events (`StudentImported`, `StudentProfileUpdated`, `LecturerRegistered`, `LecturerProfileUpdated`, `MentorRegistered`, `TeamCreated`, `MemberJoined`, `MemberLeft`, `TopicInterestOpened`, `TopicInterestClosed`, `LecturerPreferencesUpdated`, `LecturerAssigned`, `MentorAssigned`, `MentorUnassigned`). No SQL database.
 
 ```proto
 syntax = "proto3";
@@ -181,6 +212,7 @@ service MatchingService {
   rpc SuggestTopicsForLecturer (SuggestTopicsForLecturerRequest) returns (SuggestTopicsForLecturerResponse);
   rpc ValidateComposition (ValidateCompositionRequest) returns (ValidateCompositionResponse);
   rpc PlanAutoAssignment (PlanAutoAssignmentRequest) returns (PlanAutoAssignmentResponse);
+  rpc PlanAdvisorMatching (PlanAdvisorMatchingRequest) returns (PlanAdvisorMatchingResponse);
 }
 ```
 
@@ -190,6 +222,9 @@ service MatchingService {
 | `DeadlineReminderJob` | Daily 08:00 while a round is open | 72h and 24h before deadline publish `DeadlineApproaching` (students without team, teams < 4) |
 | `RoundAutoCloseJob` | Delayed job at deadline | Close round, publish `RoundClosed`, then call Team Service `finalize-round` (internal HTTP) |
 | `AutoAssignUnmatchedJob` | After finalization of the round | gRPC `PlanAutoAssignment`, then call Team Service (internal HTTP, service token) to add students to incomplete teams and create new teams. Admin reviews and adjusts the result on the web app. |
+| `LecturerMatchingJob` | After `AutoAssignUnmatchedJob` | Call Team Service `advisor-matching/lecturers` (internal HTTP) to match an instructor to every team without one (rule 9); Admin is notified to review W19 |
+| `MentorMatchingJob` | Delayed job at the mentoring start week | Call Team Service `advisor-matching/mentors` (rule 20); Admin is notified to review W28 |
+| `SlotBookingCloseJob` | Delayed job at the meeting-slot booking deadline | Call Collaboration to place teams without a slot into free slots and generate the weekly meetings (rule 25) |
 | `InvitationExpiryJob` | Hourly | Mark invitations/join requests > 72h as expired, publish `InvitationExpired` |
 | `MeetingReminderJob` | Every 15 min | Ask Collaboration (internal HTTP) for meetings starting in 24 h / 1 h, publish `MeetingReminder` once per meeting and offset |
 | `TaskDueReminderJob` | Daily 08:00 | Ask Collaboration for tasks/deliverables due in 24 h or overdue, publish `TaskDueSoon` / `DeliverableOverdue` |
@@ -200,7 +235,8 @@ service MatchingService {
 - Consumes Kafka events, sends email via SMTP (MailKit), stores in-app notifications.
 - Idempotent: stores processed event IDs to avoid duplicate emails.
 - Small read API for the in-app notification list, exposed through the Gateway and scoped to the caller's JWT: `GET /api/notifications?page=&pageSize=&unreadOnly=`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/{id}/read`, `PATCH /api/notifications/read-all`. Clients poll (pull to refresh); chat messages are **not** notifications – they arrive through the Collaboration hub.
-- Notifies on collaboration events only when they need attention: advisor question, task assigned, deliverable created / reviewed / overdue, meeting proposed / scheduled / reminder / cancelled, mention. Plain messages do not create notifications or emails.
+- Notifies on assignment events: instructor or mentor matched (team and advisor, with the reason), interest closed, matching finished (Admin).
+- Notifies on collaboration events only when they need attention: advisor question, task assigned, deliverable created / reviewed / overdue, meeting slots published / slot booked or moved, meeting proposed / scheduled / reminder / cancelled, checkpoint reviewed, mention. Plain messages do not create notifications or emails.
 - DB (`Notification DB`): `Notification` (recipient, content, type, read flag, time), `EmailLog`, `ProcessedEvent`.
 
 ### 5.8 Collaboration Service – REST API + SignalR hub (team workspace)
@@ -208,11 +244,12 @@ service MatchingService {
 - **Messages** (rule 22): channels `Team` and `Advisors`, threads (reply to a message), advisor questions with `Open` / `Answered`, read markers. SignalR hub `/hubs/collab`: groups per channel; events `messageCreated`, `messageUpdated`, `readUpdated`, `typing`. REST for history (cursor pagination) and sending (the hub only pushes).
 - **Tasks and deliverables** (rule 23): board per workspace, assignees, due dates, comments; deliverables with submissions (file version) and review status.
 - **Files** (rule 24): folders, files, versions; binary content in MinIO bucket `exe-files` (key `workspace/{id}/{fileId}/{version}`); downloads through short-lived pre-signed URLs; comments.
-- **Meetings** (rule 25): proposals with slots, responses, confirmation, cancellation, minutes, action items → tasks.
+- **Meetings** (rule 25): weekly instructor schedules for EXE201 (`MeetingSchedule` with time windows, `ScheduleSlot` of 15 minutes, `SlotBooking` one per team; weekly meetings generated from the booking; single-week cancel / move); proposals with slots, responses, confirmation, cancellation; minutes, action items → tasks.
+- **Checkpoints** (rule 27, EXE101): `CheckpointReview` (workspace, checkpoint 1–4, reviewed by, reviewed at, comment); progress per team and "missing checkpoint" lists for the instructor. Part of the Tasks module.
 - Lecturer / mentor overview endpoints across their teams: needs-reply questions, overdue deliverables, upcoming meetings.
-- Internal endpoints for Job Service: `GET /internal/meetings/upcoming`, `GET /internal/tasks/due`.
+- Internal endpoints for Job Service: `GET /internal/meetings/upcoming`, `GET /internal/tasks/due`, `POST /internal/meeting-schedules/close-booking`.
 - Publishes through Outbox to `exe.collab` (section 6).
-- DB (`Collab DB`, script `deploy/db/06_collab_db.sql`): `Workspace`, `WorkspaceMember`, `Channel`, `Message`, `MessageAttachment`, `MessageRead`, `AdvisorQuestion`, `TaskItem` (kind `Task` / `Deliverable`), `TaskAssignee`, `TaskComment`, `DeliverableSubmission`, `Folder`, `ProjectFile`, `FileVersion`, `FileComment`, `Meeting`, `MeetingSlot`, `MeetingResponse`, `MeetingMinutes`, `MeetingReminder`, `OutboxMessage`, `ProcessedEvent`.
+- DB (`Collab DB`, script `deploy/db/06_collab_db.sql`): `Workspace`, `WorkspaceMember`, `Channel`, `Message`, `MessageAttachment`, `MessageRead`, `AdvisorQuestion`, `TaskItem` (kind `Task` / `Deliverable`), `TaskAssignee`, `TaskComment`, `DeliverableSubmission`, `Folder`, `ProjectFile`, `FileVersion`, `FileComment`, `Meeting`, `MeetingSlot`, `MeetingResponse`, `MeetingMinutes`, `MeetingReminder`, `MeetingSchedule`, `ScheduleWindow`, `ScheduleSlot`, `SlotBooking`, `CheckpointReview`, `OutboxMessage`, `ProcessedEvent`. *(The last five tables are not in the script yet – see the note in section 9.)*
 
 ## 6. Kafka topics and events
 
@@ -223,8 +260,8 @@ service MatchingService {
 | `exe.change-request` | ChangeRequestSubmitted, ChangeRequestApproved, ChangeRequestRejected | Team | Notification |
 | `exe.registration` | RoundOpened, DeadlineApproaching, RoundClosed | Academic, Job | Notification (Job listens to RoundClosed internally via schedule) |
 | `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic | Matching (read model), Identity (pre-created accounts), Notification (recipient contacts) |
-| `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerRequested, LecturerAccepted, LecturerDeclined, LecturerAssigned, MentorAssigned, MentorUnassigned | Team | Notification, Matching, Collaboration |
-| `exe.collab` | AdvisorQuestionAsked, AdvisorQuestionAnswered, UserMentioned, TaskAssigned, DeliverableCreated, DeliverableSubmitted, DeliverableReviewed, FileUploaded, MeetingProposed, MeetingScheduled, MeetingCancelled | Collaboration | Notification |
+| `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerPreferencesUpdated, LecturerAssigned, MentorAssigned, MentorUnassigned, AdvisorMatchingCompleted | Team | Notification, Matching, Collaboration |
+| `exe.collab` | AdvisorQuestionAsked, AdvisorQuestionAnswered, UserMentioned, TaskAssigned, DeliverableCreated, DeliverableSubmitted, DeliverableReviewed, FileUploaded, MeetingProposed, MeetingScheduled, MeetingCancelled, MeetingSlotsPublished, MeetingSlotBooked, CheckpointReviewed | Collaboration | Notification |
 | `exe.reminder` | MeetingReminder, TaskDueSoon, DeliverableOverdue | Job | Notification |
 
 Event envelope: `eventId` (GUID, for idempotency), `eventType`, `occurredAt` (UTC), `correlationId`, `payload`.
@@ -294,7 +331,7 @@ deploy/
 
 The Flutter mobile app is not part of Compose; it points at the gateway URL. `depends_on` with `condition: service_healthy`. EF migrations auto-run in Development. Demo seed data comes from an **anonymized** Group List (no phone numbers, fake emails).
 
-> DB scripts and contracts for version 4 are done (BE-60, BE-61 – `deploy/db/`, `docs/contracts/`). The `collab-api` and `minio` containers are **not in Compose yet** (task BE-63), and `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists the differences.
+> DB scripts and contracts for version 4 are done (BE-60, BE-61 – `deploy/db/`, `docs/contracts/`), **but they still follow the 2026-10-19 lecturer flow** (mentoring request with accept/decline, no meeting schedules, no checkpoints). Changes needed for the 2026-10-20 rules 9, 19, 20, 25, 27 are listed in `docs/task-changes-2026-10-19.md` (part "Đợt 2"). The `collab-api` and `minio` containers are **not in Compose yet** (task BE-63), and `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists the differences.
 
 ## 10. PRN232 requirement mapping
 
@@ -315,11 +352,13 @@ The Flutter mobile app is not part of Compose; it points at the gateway URL. `de
 2. **Join request with ideas**: student sends a join request with two ideas → `JoinRequestSubmitted` → leader reviews the ideas on the request screen → accepts → `MemberJoined`.
 3. **Change request (EXE201 only)**: Admin imports the EXE101 baseline → inherited team exists → Leader invites a new student / marks a member as leaving (pending changes) → Leader submits the change request with a reason → `ChangeRequestSubmitted` → Admin approves → pending changes applied to members, AuditLog written, `ChangeRequestApproved` → email to members and lecturer. On rejection nothing changes and `ChangeRequestRejected` is sent.
 4. **Deadline, finalization & auto-assign**: reminders at 72h/24h → round auto-closes → Discover disappears from the clients → Job calls Team `finalize-round` (valid teams `Finalized`, others `NeedsReview`) → Job calls Matching `PlanAutoAssignment` → Job calls Team to fill incomplete teams and create new ones → `MemberJoined` / `TeamCreated` → emails → Admin reviews what is still `NeedsReview` and finalizes.
-5. **Topic interest → lecturer**: lecturer A and lecturer B open *Recommended topics* (Matching `SuggestTopicsForLecturer`) and both mark interest in team T (`TopicInterestOpened` ×2; each sees "1 other lecturer interested") → team T sees both, sends the mentoring request to A → A accepts (`LecturerAccepted`) → B's interest closes (`TopicInterestClosed`, B is notified) → Admin assigns A (`LecturerAssigned`) → A joins the workspace.
-6. **Workspace with mentor**: Admin creates mentor M and assigns M to team T (`MentorRegistered`, `MentorAssigned`) → M logs in with Google → M proposes a meeting with 2 slots → members answer → M confirms (`MeetingScheduled`) → `MeetingReminder` 1 h before → M records minutes and turns 2 action items into tasks (`TaskAssigned`).
+5. **Interest + preferences → instructor matching**: lecturers A and B open *Recommended topics* (Matching `SuggestTopicsForLecturer`) and both mark interest in team T (`TopicInterestOpened` ×2; each sees "1 other lecturer interested") → T sees both and ranks A as preference 1, C as preference 2 (`LecturerPreferencesUpdated`) → the round closes → `LecturerMatchingJob` → Matching `PlanAdvisorMatching` → Team applies it: T gets A with reason `Mutual` (`LecturerAssigned`), B's interest closes (`TopicInterestClosed`, B is notified) → A joins the workspace → Admin reviews the result in W19 and moves one team by hand (`Manual`).
+6. **Workspace with mentor**: Admin creates mentor M (`MentorRegistered`) → M logs in with Google and marks interest in team T → week 6 `MentorMatchingJob` matches M to T (`MentorAssigned`, reason `MentorInterest`) → M proposes a meeting with 2 slots → members answer → M confirms (`MeetingScheduled`) → `MeetingReminder` 1 h before → M records minutes and turns 2 action items into tasks (`TaskAssigned`).
 7. **Deliverable**: lecturer creates deliverable "Báo cáo tuần 3" → team uploads a file version and submits (`DeliverableSubmitted`) → lecturer marks `NeedsRevision` with a comment → team uploads version 2 → `Accepted`.
 8. **Project continues into EXE201**: Admin imports the EXE101 baseline → inherited team T2 is linked to project P of EXE101 team T1 (`TeamLinkedToProject`) → T2's workspace shows T1's files read-only → the EXE101 instructor sees P first in L07 → T2 includes a `ProjectChange` (pivot) in its change request → Admin approves → `ProjectChanged`, new project version.
 9. **In-app notifications**: any event above → Notification Service stores a `Notification` row and sends the email → clients read `GET /api/notifications` through the Gateway.
+10. **EXE201 weekly meeting**: instructor A publishes Tue 09:00–11:00 → 8 slots of 15 minutes (`MeetingSlotsPublished`) → leader of T books 09:15 (`MeetingSlotBooked`) → booking deadline → `SlotBookingCloseJob` places the two teams that did not book and creates the weekly meetings → `MeetingReminder` 1 h before each week.
+11. **EXE101 checkpoint**: team T presents Checkpoint 2 in class → instructor opens T (L05) and marks "Checkpoint 2 – đã trình bày" with a comment (`CheckpointReviewed`) → T sees "Checkpoint 2/4" and the comment.
 
 ## 12. Open decisions / assumptions
 
@@ -331,6 +370,8 @@ The Flutter mobile app is not part of Compose; it points at the gateway URL. `de
   - Member changes of an inherited EXE201 team are **pending until Admin approves** the change request (rule 7).
   - Teams are **finalized automatically at the deadline**; invalid teams become `NeedsReview` and are handled by auto-assign, then by Admin (rules 13–14).
   - In-app notifications are fetched by **polling** the Notification read API.
+- **Decided 2026-10-20 (team lead):** instructors and mentors are matched automatically (rules 9, 20); lecturers no longer accept/decline; 3 ranked preferences per team; lecturer maximum set by Admin and optional; students do not choose mentors; EXE101 checkpoints without grades (rule 27); EXE201 weekly 15-minute slots booked first come, first served, the instructor can move teams (rule 25).
+- **Assumptions added on 2026-10-20 – confirm with the lecturer:** matching tiers and tie-breaks of rule 9; booking deadline end of week 2; weekly meetings run until the last teaching week; checkpoint marks can be undone the same day only.
 - **Assumptions added on 2026-10-19 – confirm with the lecturer:**
   - A lecturer who is also a mentor has one account with roles `Lecturer` and `Mentor` (rule 20).
   - Limits: 25 MB per file, 3 ideas per join request, interest cap = remaining capacity + 2 – all configurable. (Mentor limits are decided: one mentor per team; max teams per mentor set by Admin.)
@@ -357,3 +398,4 @@ The Flutter mobile app is not part of Compose; it points at the gateway URL. `de
 | 10 | Mentor actor with lecturer-like screens (files, meetings, messages) | §2, rules 20–25 |
 | 11 | Manage projects and teams from EXE101 to EXE201 | Rule 26; §5.4 Projects; demo flow 8 |
 | – | Clarified 2026-10-19: semester start = team-formation round closed; 1 mentor per team; mentor capacity per mentor + preferred number; mentoring from week 6, 2–3 sessions; FAP lecturer not modelled | §1.1, §2, rules 18, 20, 25 |
+| – | Clarified 2026-10-20: instructor matched at the formation deadline from team preferences + lecturer interest (Admin can run early); mentor matched at week 6 from mentor interest only; lecturer maximum optional, set by Admin (instructors may have ~40 teams); EXE101 checkpoints 1–4 in class, no grades; EXE201 weekly 15-minute online slots | §1, §1.1, rules 9, 19, 20, 25, 27; demo flows 5, 6, 10, 11 |

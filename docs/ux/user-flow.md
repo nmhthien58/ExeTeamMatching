@@ -6,6 +6,7 @@
 > Phạm vi chấm Lab 2 là **Mobile App (Flutter)** cho Sinh viên và Giảng viên. Web App của Bộ môn EXE được liệt kê ở mục 6 để tham khảo.
 > Cập nhật: 19/10/2026 – đổi sang mã màn hình theo file Excel, khớp Figma `01 User Flow`.
 > **Cập nhật lần 2 (19/10/2026, sau góp ý của giảng viên):** thêm mục 0 (điều hướng theo giai đoạn học kỳ, web cho mọi vai trò, Mentor), màn hình mới C01–C08, L07, M01, W27–W28 (mục 1.4) và flow F4–F6 (mục 4a). **F1–F3 và Figma giữ nguyên như Lab 2**; chỗ nào F1 thay đổi khi code được ghi chú ngay trong flow.
+> **Cập nhật lần 3 (20/10/2026, chốt nghiệp vụ giảng viên và mentor):** hệ thống **tự ghép** giảng viên hướng dẫn (lúc đóng đợt lập nhóm, theo nguyện vọng 1–3 của nhóm + quan tâm của giảng viên) và mentor (tuần 6, theo quan tâm của mentor); **bỏ bước giảng viên chấp nhận/từ chối** nên F3 chỉ còn là flow của Lab 2. Thêm **Checkpoint 1–4** cho EXE101, **lịch họp cố định hằng tuần** cho EXE201 (màn hình mới C09), flow F5 viết lại, thêm F8–F9.
 
 ![Figma 01 User Flow](user-flow-figma-01.png)
 
@@ -20,13 +21,15 @@
 | Vai trò | Giai đoạn lập nhóm | Giai đoạn học kỳ (sau khi đợt lập nhóm đóng) |
 |---|---|---|
 | Sinh viên | Trang chủ (S01) · **Khám phá (S05)** · Nhóm (S15) · Thông báo (A06) · Hồ sơ (S02) | Trang chủ (S01) · **Dự án (C01)** · Nhóm (S15) · Thông báo (A06) · Hồ sơ (S02) |
-| Giảng viên | Trang chủ (L01) · Đề tài & yêu cầu (L07 / L02) · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) | Như bên trái; trang chủ ưu tiên "Cần trả lời", "Trễ hạn nộp", "Họp sắp tới" |
-| Mentor | – (mentor được gán từ tuần 6) | Trang chủ (M01) · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) |
+| Giảng viên | Trang chủ (L01) · **Đề tài (L07)** · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) | Trang chủ (L01) · Nhóm (L04) · Lịch (C07) · Tin nhắn (C02) · Thông báo (A06); trang chủ ưu tiên "Cần trả lời", "Trễ hạn nộp", "Họp hôm nay" (EXE201) hoặc "Chưa trình bày CP" (EXE101) |
+| Mentor | – (chưa có nhóm) | Trước tuần 6: Trang chủ (M01) · **Đề tài (L07)** · Thông báo (A06). Từ tuần 6: Trang chủ (M01) · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) |
 
 - **Khám phá biến mất khi đợt lập nhóm đóng** và được thay bằng **Dự án**. Mọi đường dẫn cũ tới S05, S08, S10 (thông báo, link chia sẻ) mở hộp nhắc *"Đợt lập nhóm đã đóng lúc 18:00 · 17/09. Bạn đang ở nhóm GreenBite."* với nút "Mở dự án" hoặc, nếu chưa có nhóm, "Xem thông tin ghép tự động" (S31).
 - Trong đợt đổi nhóm EXE201, trưởng nhóm tìm người thay thế từ *Nhóm* (S18 gợi ý, S19 tìm MSSV), không cần Khám phá.
 - Giảng viên của trường làm mentor cho nhóm khác có một tài khoản hai vai trò; vẫn dùng tab bar giảng viên, nhóm mình mentor hiện trong L04 với nhãn "Mentor" – không phải chuyển vai trò.
 - **Mỗi nhóm chỉ có một mentor và một giảng viên hướng dẫn.** Giảng viên lớp trên FAP không hiển thị trong hệ thống.
+- **Không có bước "xin – chấp nhận".** Trong đợt lập nhóm, giảng viên bấm *Quan tâm* ở L07, nhóm xếp *nguyện vọng 1–3* ở S23–S25; hết hạn (hoặc Bộ môn bấm "Ghép sớm" ở W19) hệ thống ghép và báo cho cả hai bên kèm lý do ("Hai bên cùng chọn", "Nguyện vọng 2"…). Mentor bấm *Quan tâm* ở L07 trước tuần 6; sinh viên không chọn mentor (`PROJECT_CONTEXT.md` quy tắc 9, 19, 20).
+- **Nhịp làm việc khác nhau theo môn:** EXE101 – sinh viên trình bày trên lớp, giảng viên đánh dấu **Checkpoint 1–4** ở L05 (quy tắc 27); EXE201 – sinh viên không lên lớp, giảng viên đăng **khung họp 15 phút hằng tuần** ở C09 và mỗi nhóm chọn một slot cố định (quy tắc 25).
 
 
 
@@ -143,12 +146,13 @@ Danh sách đầy đủ (nội dung, trạng thái cần vẽ) nằm trong file 
 | | C04 | Bảng việc (Cần làm · Đang làm · Xong) và bài nộp | Thành viên, GV, Mentor | F6 |
 | | C05 | Chi tiết việc / bài nộp (người làm, hạn, bình luận, nộp file, duyệt) | Thành viên, GV, Mentor | F6 |
 | | C06 | File dự án (thư mục, bản mới nhất, lịch sử phiên bản, bình luận) | Thành viên, GV, Mentor | F6 |
-| | C07 | Lịch họp (sắp tới, chờ chốt, đã họp) | Thành viên, GV, Mentor | F4 |
-| | C08 | Đề xuất / chi tiết cuộc họp (khung giờ, trả lời, chốt, biên bản → việc) | Thành viên, GV, Mentor | F4 |
-| L. Giảng viên | L07 | Đề tài phù hợp (gợi ý theo chuyên môn, quan tâm, số GV khác cùng quan tâm) | Giảng viên | F5 |
-| M. Mentor | M01 | Trang chủ mentor (cần trả lời, họp sắp tới, nhóm đang mentor) | Mentor | F4 |
+| | C07 | Lịch họp (sắp tới, chờ chốt, đã họp; họp hằng tuần EXE201 có nhãn "Hằng tuần"). GV xem lịch của mọi nhóm | Thành viên, GV, Mentor | F4, F8 |
+| | C08 | Đề xuất / chi tiết cuộc họp (khung giờ, trả lời, chốt, biên bản → việc; với họp hằng tuần: hủy / dời một tuần) | Thành viên, GV, Mentor | F4, F8 |
+| | C09 | Lịch họp hằng tuần (EXE201). GV: tạo khung giờ, cắt slot 15 phút, link họp, xem nhóm nào ở slot nào, đổi slot cho nhóm. Trưởng nhóm: lưới slot trống, chọn một slot, hạn chọn | GV, Trưởng nhóm (thành viên chỉ xem) | F8 |
+| L. Giảng viên | L07 | Đề tài (gợi ý theo chuyên môn, **"Nhóm chọn tôi"** kèm thứ hạng nguyện vọng, đã quan tâm; số người khác cùng quan tâm). Mentor dùng cùng màn hình trước tuần 6 | Giảng viên, Mentor | F5 |
+| M. Mentor | M01 | Trang chủ mentor (trước tuần 6: "Đang quan tâm n đề tài · Ghép vào tuần 6"; sau đó: cần trả lời, họp sắp tới, nhóm đang mentor) | Mentor | F4 |
 | W. Bộ môn | W27 | Mentor – danh sách và tạo mới | Bộ môn | – |
-| | W28 | Gán mentor cho nhóm (một mentor mỗi nhóm; cảnh báo vượt số mong muốn, chặn vượt tối đa) | Bộ môn | – |
+| | W28 | Ghép mentor (kết quả ghép kèm lý do, "Ghép sớm" → xem trước → chốt, đổi mentor tay; cảnh báo vượt số mong muốn, chặn vượt tối đa) | Bộ môn | – |
 | | W29 | Đề tài qua các kỳ (nhóm EXE101 → EXE201, % thành viên giữ lại, lịch sử đề tài) | Bộ môn | F7 |
 
 **Màn hình cũ thay đổi khi code** (Figma chưa cập nhật):
@@ -160,13 +164,19 @@ Danh sách đầy đủ (nội dung, trạng thái cần vẽ) nằm trong file 
 | S05, S08, S10 | Chỉ có trong giai đoạn lập nhóm; ngoài giai đoạn → hộp nhắc | 18 |
 | S09 | Thêm "Ý tưởng của bạn": nút "+ Thêm ý tưởng" (tối đa 3) hoặc ô tích "Chưa có ý tưởng" | 17 |
 | S20 | Yêu cầu tham gia hiện 5 thanh kỹ năng so với chỗ trống của nhóm và các ý tưởng | 16, 17 |
-| S23, S25 | Mục "Giảng viên quan tâm đề tài của nhóm" ở đầu danh sách; gửi yêu cầu một chạm | 19 |
-| S15 | Thêm thẻ **Đề tài** (tên, "Tiếp tục từ EXE101 · SP26", lịch sử đề tài), mục Cố vấn (giảng viên hướng dẫn + mentor), lối tắt sang Dự án | 20, 21, 26 |
+| S23 | Đổi thành **"Nguyện vọng giảng viên"**: đầu trang là 3 ô nguyện vọng (kéo để đổi thứ tự, có nút lên/xuống thay cho kéo); mục "Quan tâm nhóm bạn" (avatar + nút "Thêm vào nguyện vọng") và "Đã hướng dẫn ở EXE101" ở đầu danh sách; dòng hạn "Chốt lúc 18:00 · 17/09". Không còn nút "Gửi yêu cầu" | 9, 19 |
+| S24 | Chi tiết giảng viên: chuyên môn, "Đang quan tâm nhóm bạn" (nếu có); nút "Thêm vào nguyện vọng" / "Bỏ khỏi nguyện vọng". Không hiện số nhóm tối đa | 9 |
+| S25 | Trước khi ghép: nguyện vọng 1–3 kèm chip "Quan tâm nhóm bạn". Sau khi ghép: giảng viên hướng dẫn + lý do ghép ("Hai bên cùng chọn", "Nguyện vọng 2", "Giảng viên quan tâm", "Theo chuyên môn", "Bộ môn phân công"), nguyện vọng bị khóa | 9 |
+| S15 | Thêm thẻ **Đề tài** (tên, "Tiếp tục từ EXE101 · SP26", lịch sử đề tài), mục Cố vấn (giảng viên hướng dẫn + mentor, hoặc "Chốt giảng viên lúc 18:00 · 17/09" / "Mentor ghép từ tuần 6"), lối tắt sang Dự án. EXE101: thanh **Checkpoint 2/4**; EXE201: "Họp hằng tuần Thứ Ba 09:15" hoặc nút "Chọn lịch họp" → C09 | 9, 20, 21, 25, 26, 27 |
+| C01 | EXE101: thẻ Checkpoint (4 chấm, nhận xét gần nhất); EXE201: thẻ "Họp tuần này" | 25, 27 |
 | S27, S28 | Thêm loại thay đổi "Đổi đề tài" (nhập đề tài mới và lý do) trong yêu cầu đổi nhóm EXE201 | 26 |
 | C06 | Nhóm EXE201 có thư mục "EXE101 (kỳ trước)" chỉ đọc | 26 |
-| L01 | Thêm "Cần trả lời", "Trễ hạn nộp", "Họp sắp tới" gom từ mọi nhóm | 22, 23, 25 |
-| L04, L05 | Thêm tiến độ việc và bài nộp của từng nhóm; nhãn "Mentor" cho nhóm mình làm mentor | 20, 23 |
-| W16, W19 | W16 thêm mục Mentor; W19 hiện danh sách giảng viên quan tâm từng nhóm | 19, 20 |
+| L01 | Giai đoạn lập nhóm: "n nhóm chọn tôi làm nguyện vọng", "Đang quan tâm 5/12", hạn ghép. Giai đoạn học kỳ: "Cần trả lời", "Trễ hạn nộp" gom từ mọi nhóm, cộng "Họp hôm nay" (EXE201) hoặc "Chưa trình bày CP2: 7 nhóm" (EXE101) | 9, 22, 23, 25, 27 |
+| L02, L03 | **Bỏ khi code** (không còn yêu cầu hướng dẫn để chấp nhận/từ chối). Danh sách nhóm chọn giảng viên chuyển thành tab "Nhóm chọn tôi" của L07; chi tiết đề tài mở từ L07 | 9 |
+| L04, L05 | Thêm tiến độ việc và bài nộp của từng nhóm; nhãn "Mentor" cho nhóm mình làm mentor; lý do ghép. EXE101: cột / bộ lọc Checkpoint, L05 có nút "Đánh dấu Checkpoint" (bottom sheet). EXE201: slot họp hằng tuần của nhóm | 9, 20, 23, 25, 27 |
+| W05 | Thêm cấu hình: số nguyện vọng (3), giới hạn quan tâm, tuần bắt đầu mentor, hạn chọn slot họp, thời lượng slot (15 phút), tuần mục tiêu của Checkpoint 1–4 | 9, 19, 20, 25, 27 |
+| W11 | Thêm "Số nhóm tối đa" theo môn (EXE101, EXE201), để trống = không giới hạn | 9 |
+| W16, W19 | W16 thêm mục Mentor và lý do ghép. W19 đổi thành **"Ghép giảng viên hướng dẫn"**: trước hạn – tiến độ (nhóm đã có nguyện vọng, giảng viên đang quan tâm), nút "Ghép sớm" → xem trước → chốt; sau khi ghép – bảng nhóm · giảng viên · lý do · nguyện vọng · quan tâm, lọc "Chưa có giảng viên", thanh tải từng giảng viên so với tối đa, đổi giảng viên tay kèm lý do | 9, 19, 20 |
 
 ### 1.2 Overlay và trạng thái (không tính là màn hình)
 
@@ -177,8 +187,11 @@ Danh sách đầy đủ (nội dung, trạng thái cần vẽ) nằm trong file 
 | Dialog | S12 | Xác nhận vào nhóm (mỗi SV chỉ thuộc 1 nhóm) |
 | Dialog | S17 | Xóa thành viên / rời nhóm / chuyển quyền trưởng nhóm |
 | Dialog | S28 | Xác nhận gửi yêu cầu đổi nhóm |
-| Dialog | L03 | Xác nhận chấp nhận hướng dẫn |
-| Bottom sheet | L03 | Từ chối kèm lý do |
+| Dialog | L03 | Xác nhận chấp nhận hướng dẫn *(chỉ trong Figma Lab 2; bỏ khi code)* |
+| Bottom sheet | L03 | Từ chối kèm lý do *(chỉ trong Figma Lab 2; bỏ khi code)* |
+| Bottom sheet | L05 | Đánh dấu Checkpoint (chọn CP1–4, ngày, nhận xét) – bổ sung 20/10/2026 |
+| Bottom sheet | C09 | Đổi slot cho nhóm (GV) / xác nhận chọn slot (trưởng nhóm) – bổ sung 20/10/2026 |
+| Dialog | W19, W28 | Xem trước kết quả "Ghép sớm" rồi chốt – bổ sung 20/10/2026 |
 | Dialog | A07 | Xác nhận đăng xuất |
 | Trạng thái | A08 và từng màn | Đang tải (skeleton), trống, lỗi tải, mất mạng, không có quyền |
 
@@ -307,6 +320,8 @@ flowchart LR
     L04 -->|Bộ môn phân công| L04F[L04 mục Bộ môn đã phân công]
 ```
 
+> **Khi code (quy tắc 9, chốt 20/10/2026):** flow này **không còn** trong sản phẩm. Giảng viên không nhận yêu cầu để chấp nhận/từ chối; thay vào đó bấm *Quan tâm* và hệ thống tự ghép lúc đóng đợt lập nhóm (xem F5). F3 giữ nguyên ở đây vì là flow đã nộp của Lab 2 và có prototype trong Figma.
+
 **Happy path (Figma 06 Prototype):** L01 Có yêu cầu chờ → L03 Mặc định → L03 Dialog xác nhận chấp nhận → L03 Đang gửi → L04 Có dữ liệu.
 
 **Nhánh thay thế**
@@ -347,26 +362,31 @@ flowchart LR
 - **Thay thế:** trưởng nhóm hoặc giảng viên tổ chức thay mentor; đặt một khung cố định (bỏ bước chọn).
 - **Lỗi / phục hồi:** không khung nào đủ người → thêm khung mới, câu trả lời cũ giữ nguyên; người tổ chức hủy họp → mọi người được báo, họp chuyển sang "Đã hủy" kèm lý do; mất mạng khi lưu biên bản → giữ nội dung, Thử lại.
 
-### F5 – Hai giảng viên cùng quan tâm một đề tài
+### F5 – Quan tâm và nguyện vọng → hệ thống ghép giảng viên hướng dẫn (viết lại 20/10/2026)
 
 | | |
 |---|---|
-| **Persona** | P3 – Thầy Khoa, một giảng viên khác; P1 – Minh |
-| **Bắt đầu** | L07 Đề tài phù hợp |
-| **Kết thúc** | L04 Nhóm tôi hướng dẫn (thầy được chọn); L07 "Đã đóng" (thầy còn lại) |
+| **Persona** | P3 – Thầy Khoa, một giảng viên khác; P1 – Minh; P4 – Cô Hạnh |
+| **Bắt đầu** | L07 Đề tài (giai đoạn lập nhóm) |
+| **Kết thúc** | S25 nhóm thấy "Thầy Khoa · Hai bên cùng chọn"; L04 của thầy Khoa có nhóm; W19 kết quả ghép |
 
 ```mermaid
 flowchart LR
     L07[L07 Đề tài phù hợp] -->|Quan tâm| I1[L07: Đã quan tâm · 1 GV khác cũng quan tâm]
-    I1 --> S23[S23 Nhóm thấy 2 GV quan tâm đề tài]
-    S23 -->|Chọn thầy Khoa, gửi yêu cầu| L03[L03 Thầy Khoa chấp nhận]
-    L03 --> L04([L04 Nhóm tôi hướng dẫn])
-    L03 --> X[Quan tâm của GV còn lại tự đóng] --> N[A06 GV còn lại: nhóm đã chọn giảng viên khác]
+    I1 --> S23[S23 Nhóm thấy 2 GV quan tâm nhóm]
+    S23 -->|Thêm thầy Khoa vào NV1, giữ cô Lan ở NV2| S25a[S25 Nguyện vọng 1–3 · Chốt lúc 18:00 17/09]
+    S25a --> D{Hết hạn lập nhóm<br/>hoặc Bộ môn bấm Ghép sớm}
+    D --> G[Hệ thống ghép theo thứ tự: hai bên cùng chọn → nguyện vọng → GV quan tâm → chuyên môn, ít nhóm]
+    G --> S25b([S25 Thầy Khoa · Hai bên cùng chọn])
+    G --> L04([L04 Thầy Khoa có nhóm mới])
+    G --> X[Quan tâm của GV còn lại tự đóng] --> N[A06 GV còn lại: nhóm đã có giảng viên]
+    G --> W19[W19 Bộ môn xem kết quả, đổi tay nếu cần]
 ```
 
-- **Quy tắc then chốt (quy tắc 19):** "Quan tâm" không giữ chỗ và không tốn sức chứa, nên không có cuộc đua bấm trước. Giảng viên chỉ thấy **số** người cùng quan tâm (giảm áp lực, không lộ đồng nghiệp); nhóm thấy **tên** và tự chọn; Bộ môn thấy toàn bộ ở W19 khi phân công.
-- **Thay thế:** nhóm không chọn ai trong số người quan tâm mà gửi cho giảng viên khác (S23 vẫn đủ danh sách); giảng viên rút quan tâm trước khi nhóm chọn.
-- **Lỗi / phục hồi:** đã đạt giới hạn quan tâm (sức chứa còn lại + 2) → nút "Quan tâm" khóa kèm lý do và gợi ý rút bớt; đề tài vừa có giảng viên được chấp nhận khi đang xem → thẻ chuyển "Đã có giảng viên", nút ẩn.
+- **Quy tắc then chốt (quy tắc 9, 19):** "Quan tâm" không giữ chỗ nên không có cuộc đua bấm trước; giảng viên chỉ thấy **số** người cùng quan tâm, nhóm thấy **tên** và tự xếp nguyện vọng. Không có bước chấp nhận/từ chối: giảng viên đã "đồng ý" bằng nút Quan tâm, nhóm "chọn" bằng nguyện vọng; giảng viên được cả hai phía chọn được ghép trước.
+- **Vì sao tốt hơn cách cũ:** trước đây Bộ môn chỉ dựa vào nguyện vọng, nguyện vọng không đáp ứng được thì ghép tay giảng viên còn trống. Giờ có thêm tín hiệu từ phía giảng viên, và bước "ghép tay" thành bước 4 tự động (cùng chuyên môn, ít nhóm nhất) – Bộ môn chỉ còn soát và sửa ngoại lệ.
+- **Thay thế:** nhóm không chọn ai trong số người quan tâm mà xếp giảng viên khác (S23 vẫn đủ danh sách); giảng viên rút quan tâm trước hạn (Hoàn tác 5 giây); nhóm không đặt nguyện vọng nào → vẫn được ghép theo quan tâm hoặc chuyên môn; Bộ môn bấm "Ghép sớm" → chỉ các nhóm đã có lúc đó được ghép, nhóm tạo sau được ghép lúc hết hạn.
+- **Lỗi / phục hồi:** đạt giới hạn quan tâm → nút "Quan tâm" khóa kèm lý do và gợi ý rút bớt; giảng viên trong nguyện vọng đã đủ số nhóm tối đa → nhóm chuyển sang nguyện vọng tiếp theo, S25 ghi rõ "Nguyện vọng 1 đã đủ nhóm"; không giảng viên nào còn chỗ → nhóm vào danh sách "Chưa có giảng viên" ở W19 để Bộ môn gán tay; nhóm đã được ghép khi giảng viên đang xem → thẻ chuyển "Đã có giảng viên", nút ẩn.
 
 ### F6 – Giảng viên giao bài nộp và duyệt
 
@@ -409,6 +429,53 @@ flowchart LR
 - **Vì sao quản lý theo đề tài:** thành viên thay đổi giữa EXE101 và EXE201 (kỳ FA26 có 84 yêu cầu đổi nhóm), nhưng đề tài, file và nhận xét của giảng viên thì tiếp tục. Gắn mọi thứ vào **đề tài** giữ được mạch dự án; **nhóm** vẫn là đơn vị theo từng môn để áp quy tắc 4–6 người, 2 chuyên ngành.
 - **Thay thế:** nhóm EXE201 không kế thừa tạo đề tài mới như EXE101.
 - **Lỗi / phục hồi:** dòng import không khớp mã nhóm → nằm trong danh sách "Chưa gắn đề tài" ở W29, Bộ môn chọn đề tài cũ hoặc tạo mới; yêu cầu đổi đề tài bị từ chối → đề tài giữ nguyên, lý do hiện ở S29.
+
+### F8 – EXE201: giảng viên đăng lịch họp hằng tuần, nhóm chọn slot (bổ sung 20/10/2026)
+
+| | |
+|---|---|
+| **Persona** | P3 – Thầy Khoa (hướng dẫn ~40 nhóm EXE201), P1 – Minh |
+| **Bắt đầu** | L01 thẻ "Chưa đăng lịch họp hằng tuần" (ngay sau khi được ghép) |
+| **Kết thúc** | C07 của nhóm có "Họp hằng tuần · Thứ Ba 09:15–09:30" lặp tới tuần cuối |
+
+```mermaid
+flowchart LR
+    L01[L01 Chưa đăng lịch họp] --> C09a[C09 Thêm khung: Thứ Ba 09:00–11:00, Thứ Năm 14:00–16:00]
+    C09a --> C09b[C09 Xem trước: 16 slot 15 phút · 40 nhóm cần ít nhất 40 slot]
+    C09b -->|Thêm khung đến đủ slot, dán link Meet, Đăng| N1[A06 các nhóm: đã có lịch, chọn trước 23:59 CN tuần 2]
+    N1 --> C09c[C09 Trưởng nhóm: lưới slot trống]
+    C09c -->|Chọn Thứ Ba 09:15| C09d[C09 Đã chọn · đổi được tới hạn]
+    C09d --> H{Hết hạn chọn slot}
+    H --> AUTO[Nhóm chưa chọn được xếp vào slot trống]
+    AUTO --> C07([C07 Họp hằng tuần, nhắc 24 giờ và 1 giờ])
+```
+
+- **Then chốt (quy tắc 25):** mỗi nhóm một slot cố định cả kỳ, ai chọn trước được trước, một slot một nhóm. Giảng viên không phải tạo 40 cuộc họp: hệ thống sinh họp hằng tuần từ slot đã chọn.
+- **Ít chữ, ít thao tác:** C09 hiện lưới theo ngày, mỗi ô là một slot (trống / đã có nhóm / của nhóm bạn); giảng viên thấy ngay "Còn 3 nhóm chưa chọn" và bộ đếm slot so với số nhóm.
+- **Thay thế:** giảng viên đổi slot cho một nhóm (bottom sheet, nhóm được báo); hủy hoặc dời một tuần (nghỉ lễ, thi) kèm lý do; trưởng nhóm đổi slot trước hạn.
+- **Lỗi / phục hồi:** hai nhóm chọn cùng một slot cùng lúc → nhóm thứ hai thấy "Slot vừa có nhóm khác chọn" và lưới tự cập nhật; tổng slot ít hơn số nhóm → nút Đăng vẫn bấm được nhưng có cảnh báo, và lúc hết hạn giảng viên được nhắc thêm khung cho các nhóm còn thiếu.
+
+### F9 – EXE101: giảng viên đánh dấu Checkpoint trên lớp (bổ sung 20/10/2026)
+
+| | |
+|---|---|
+| **Persona** | P3 – Thầy Khoa, P1 – Minh |
+| **Bắt đầu** | L04 lọc "Chưa trình bày CP2" (ngay trong giờ dạy) |
+| **Kết thúc** | S15 / C01 của nhóm hiện "Checkpoint 2/4" và nhận xét |
+
+```mermaid
+flowchart LR
+    L04[L04 Lọc: Chưa trình bày CP2] --> L05[L05 Nhóm GreenBite]
+    L05 -->|Đánh dấu Checkpoint| BS[[Bottom sheet: CP2 · hôm nay · nhận xét ngắn]]
+    BS -->|Lưu| L05b[L05 CP2 Đã trình bày · Hoàn tác 5 giây]
+    L05b --> N[A06 nhóm: Checkpoint 2 đã được ghi nhận]
+    N --> S15([S15 / C01 Checkpoint 2/4])
+```
+
+- **Then chốt (quy tắc 27):** sinh viên trình bày lúc nào trong giờ dạy cũng được, không đặt lịch; hệ thống **không lưu điểm** (điểm ở FAP), chỉ ghi đã trình bày, ngày và nhận xét để nhóm và giảng viên biết còn gì.
+- **Nhanh giữa lớp:** từ L04 tới khi lưu là 3 chạm; nhận xét không bắt buộc.
+- **Thay thế:** đánh dấu nhầm → Hoàn tác ngay hoặc bỏ đánh dấu trong ngày; chấm nhiều nhóm liên tiếp → sau khi lưu, nút "Nhóm tiếp theo chưa có CP2".
+- **Lỗi / phục hồi:** mất mạng khi lưu → giữ nội dung bottom sheet, Thử lại; CP2 đã được đánh dấu từ thiết bị khác (ví dụ trên web) → bottom sheet hiện giờ đã đánh dấu thay vì tạo bản ghi trùng.
 
 ## 5. Ánh xạ flow – màn hình
 
@@ -456,6 +523,7 @@ flowchart LR
 ## 6. Web App của Bộ môn EXE (ngoài phạm vi chấm Lab 2)
 
 > **Bổ sung 19/10/2026:** Web App giờ có thêm khung Sinh viên, Giảng viên, Mentor (mục 0). Bộ môn có thêm W27 Mentor và W28 Gán mentor; W16 và W19 thay đổi như mục 1.1a.
+> **Bổ sung 20/10/2026:** W19 thành "Ghép giảng viên hướng dẫn", W28 thành "Ghép mentor" (cả hai có "Ghép sớm" và sửa tay); W05 và W11 thêm cấu hình (mục 1.1a). C09 trên web dùng bố cục lưới tuần rộng – phù hợp giảng viên xếp lịch cho ~40 nhóm.
 
 Dành cho P4 – Cô Hạnh. 26 mã W01–W26 theo sheet Web của file Excel v2; điều hướng bằng sidebar.
 
@@ -473,6 +541,7 @@ Dành cho P4 – Cô Hạnh. 26 mã W01–W26 theo sheet Web của file Excel v2
 - **Hai vai trò dùng chung một ứng dụng**, tab bar đổi theo vai trò sau khi đăng nhập.
 - **Tab Thông báo của giảng viên giữ nguyên**, hồ sơ mở từ icon tài khoản (quyết định B10 trong [design-decisions.md](design-decisions.md)); dựa trên giả định A4 trong persona.md. Từ 19/10/2026 tab bar giảng viên có thêm Tin nhắn (5 mục, mục 0).
 - **"Học kỳ đã bắt đầu"** = đợt lập nhóm của môn đã đóng; Bộ môn đặt hạn chót khi mở đợt (quy tắc 18, đã chốt 19/10/2026).
-- **Sức chứa giảng viên "8 nhóm"** là số minh họa; giá trị thật do Bộ môn cấu hình.
+- **Sức chứa giảng viên "8 nhóm"** là số minh họa của Lab 2. Thực tế một giảng viên hướng dẫn có thể có ~40 nhóm EXE201; từ 20/10/2026 số nhóm tối đa do Bộ môn đặt theo môn và có thể để trống (quy tắc 9).
+- **Thứ tự ưu tiên khi ghép giảng viên** (hai bên cùng chọn → nguyện vọng → giảng viên quan tâm → chuyên môn, ít nhóm nhất) và **hạn chọn slot họp cuối tuần 2** là đề xuất của nhóm, cần xác nhận với giảng viên.
 - **Kiểm tra cơ cấu nhóm khi gửi yêu cầu đổi nhóm:** chặn khi nhóm còn dưới 4 người, chỉ *cảnh báo* khi thiếu chuyên ngành thứ hai (S27), vì quy tắc ≥ 2 chuyên ngành là chặn cứng lúc chốt nhóm.
 - **Trong prototype**, phản hồi của bên thứ hai (trưởng nhóm chấp nhận, Bộ môn duyệt) được mô phỏng bằng cách chạm vào thông báo ở A06.

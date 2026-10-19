@@ -62,6 +62,8 @@
 | Tin nhắn (bản 4) | `MessageBubble`, `MessageComposer`, danh sách `ListView.builder(reverse: true)`; kết nối hub `/hubs/collab` bằng gói `signalr_netcore` |
 | Bảng việc, dòng file, khung giờ họp (bản 4) | `TaskCard` (Card), `FileTile` (ListTile), `SlotVoteTile` với `SegmentedButton` Có / Không |
 | Chỉ báo quan tâm, nhãn vai trò (bản 4) | `InterestButton` (OutlinedButton.icon ↔ FilledButton.tonal), `RoleChip` (Chip) |
+| Nguyện vọng, lý do ghép (bổ sung 20/10) | `PreferenceList` (`ReorderableListView` 3 ô + nút lên/xuống cho người không kéo được), `MatchReasonChip` (Chip Secondary Container: "Hai bên cùng chọn", "Nguyện vọng 2"…) |
+| Checkpoint, lịch họp hằng tuần (bổ sung 20/10) | `CheckpointProgress` (4 chấm + "Checkpoint 2/4", `Semantics` đọc đủ câu), `WeeklySlotGrid` (lưới ô slot, mỗi ô là nút có nhãn), `TimeRangeField` |
 
 ## 3. Quy ước chung cho mọi màn hình
 
@@ -252,6 +254,8 @@
 
 ### F3 – Giảng viên phản hồi yêu cầu hướng dẫn
 
+> **Chỉ còn trong Figma Lab 2.** Từ 20/10/2026 không có bước chấp nhận / từ chối (quy tắc 9): L02, L03 không làm; L01 làm theo mục 4a. Giữ spec dưới đây để đối chiếu prototype.
+
 #### L01 · Trang chủ giảng viên
 
 | Mục | Nội dung |
@@ -298,13 +302,16 @@ Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mụ
 | S02, S03 | Hồ sơ = `SkillBars` + giới thiệu; S03 sửa bằng `SkillSlider`. Không còn mục liên lạc | 16 |
 | S04 | Hồ sơ người khác: `SkillBars` + giới thiệu. Email chỉ hiện nếu người xem là đồng đội, giảng viên, mentor của nhóm | 11, 16 |
 | S05, S08, S10 | Chỉ mở được trong giai đoạn lập nhóm; ngoài giai đoạn → `showPhaseClosedDialog` | 18 |
-| S15 | Thêm `ProjectCard` ("Tiếp tục từ EXE101 · SP26", nút "Lịch sử" mở `ProjectTimeline` trong bottom sheet), mục "Cố vấn" (giảng viên hướng dẫn + một mentor, `RoleChip`; chưa có mentor → "Mentor sẽ được gán từ tuần 6") và lối tắt "Mở dự án" | 20, 21, 26 |
+| S15 | Thêm `ProjectCard` ("Tiếp tục từ EXE101 · SP26", nút "Lịch sử" mở `ProjectTimeline` trong bottom sheet), mục "Cố vấn" (giảng viên hướng dẫn + một mentor, `RoleChip`, dòng lý do ghép; chưa ghép → "Chốt giảng viên lúc 18:00 · 17/09" / "Mentor ghép từ tuần 6") và lối tắt "Mở dự án". EXE101: `CheckpointProgress` ("Checkpoint 2/4"). EXE201: dòng "Họp hằng tuần · Thứ Ba 09:15" hoặc nút "Chọn lịch họp" → C09 | 9, 20, 21, 25, 26, 27 |
 | S27, S28 | Loại thay đổi mới "Đổi đề tài": ô tên đề tài mới, mô tả, lý do bắt buộc; hiện cạnh thay đổi thành viên trong cùng yêu cầu | 26 |
 | C06 | Nhóm EXE201 có thư mục ghim "EXE101 (kỳ trước)" (icon `history`), mọi file trong đó chỉ đọc | 26 |
 | S20 | Mỗi yêu cầu tham gia: `SkillBars(highlight: kỹ năng nhóm đang thiếu)`, danh sách ý tưởng hoặc nhãn "Chưa có ý tưởng", hai nút Nhận / Từ chối | 16, 17 |
-| S23, S25 | Đầu danh sách: "Quan tâm đề tài của nhóm" – avatar giảng viên quan tâm, mỗi người một nút "Gửi yêu cầu" | 19 |
-| L01 | Ba thẻ số liệu bấm được: "Cần trả lời n", "Trễ hạn nộp n", "Họp sắp tới n" (gom mọi nhóm); dưới là yêu cầu mới và đề tài gợi ý mới | 22, 23, 25 |
-| L04, L05 | Mỗi nhóm có tiến độ việc (thanh) và số bài nộp chờ duyệt; nhóm mình làm mentor có `RoleChip` "Mentor" | 20, 23 |
+| S23 | "Nguyện vọng giảng viên": `PreferenceList` 3 ô có thứ tự (kéo để đổi, có nút lên/xuống thay cho kéo – WCAG 2.5.7), dòng hạn chốt; dưới là mục "Quan tâm nhóm bạn" và "Đã hướng dẫn ở EXE101" (avatar + nút "Thêm vào nguyện vọng"), rồi danh sách mọi giảng viên có tìm kiếm. Không còn "Gửi yêu cầu" | 9, 19 |
+| S24 | Chi tiết giảng viên: chuyên môn, chip "Quan tâm nhóm bạn"; nút "Thêm vào nguyện vọng" / "Bỏ khỏi nguyện vọng" (snackbar Hoàn tác) | 9 |
+| S25 | Trước khi ghép: nguyện vọng 1–3 (chỉnh tới hạn). Sau khi ghép: thẻ giảng viên + `MatchReasonChip` ("Hai bên cùng chọn", "Nguyện vọng 2", "Giảng viên quan tâm", "Theo chuyên môn", "Bộ môn phân công"); nguyện vọng khóa. Nguyện vọng đã đủ nhóm → dòng giải thích | 9 |
+| L01 | Giai đoạn lập nhóm: "Nhóm chọn tôi n", "Đang quan tâm 5/12", dòng hạn ghép; đề tài gợi ý mới. Giai đoạn học kỳ: ba thẻ số liệu bấm được "Cần trả lời n", "Trễ hạn nộp n", và "Họp hôm nay n" (EXE201) hoặc "Chưa trình bày CP2 n" (EXE101); EXE201 chưa đăng lịch → thẻ "Đăng lịch họp hằng tuần" → C09 | 9, 22, 23, 25, 27 |
+| L02, L03 | **Không làm** (không còn yêu cầu hướng dẫn). Thay bằng tab "Nhóm chọn tôi" của L07 | 9 |
+| L04, L05 | Mỗi nhóm có tiến độ việc (thanh), số bài nộp chờ duyệt, `MatchReasonChip`; nhóm mình làm mentor có `RoleChip` "Mentor". EXE101: `CheckpointProgress` trên thẻ, `FilterChip` "Chưa trình bày CP n"; L05 có nút "Đánh dấu Checkpoint" → bottom sheet (chọn CP, ngày mặc định hôm nay, nhận xét ≤ 500) → snackbar Hoàn tác. EXE201: slot họp hằng tuần trên thẻ | 9, 20, 23, 25, 27 |
 
 #### S09 · Gửi yêu cầu tham gia (bản 4)
 
@@ -317,13 +324,13 @@ Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mụ
 | Navigation | Overlay trên S08; thành công → S08 "đã gửi yêu cầu" + `SnackBar` |
 | UI constraints | Quy tắc 17: 1–3 ý tưởng hoặc "Chưa có ý tưởng"; tiêu đề ≤ 80, mô tả ≤ 300 ký tự. Ý tưởng chỉ thành viên nhóm nhận được thấy |
 
-### Workspace nhóm (C01–C08)
+### Workspace nhóm (C01–C09)
 
 #### C01 · Dự án – tổng quan
 
 | Mục | Nội dung |
 |---|---|
-| Layout | Người xem là mentor: `MentorBriefCard` ở trên cùng (đề tài, tiến độ, "Buổi mentor n/3", 3 file mới nhất, biên bản gần nhất). Đầu trang: tên nhóm, hàng avatar thành viên + cố vấn. Bốn thẻ số liệu bấm được: "Việc của tôi", "Sắp đến hạn", "Họp sắp tới", "Câu hỏi chờ". Hàng lối tắt: Tin nhắn · Việc · File · Lịch họp. Danh sách "Mới cập nhật" (tối đa 5 dòng) |
+| Layout | Người xem là mentor: `MentorBriefCard` ở trên cùng (đề tài, tiến độ, "Buổi mentor n/3", 3 file mới nhất, biên bản gần nhất). Đầu trang: tên nhóm, hàng avatar thành viên + cố vấn. Bốn thẻ số liệu bấm được: "Việc của tôi", "Sắp đến hạn", "Họp sắp tới", "Câu hỏi chờ". Hàng lối tắt: Tin nhắn · Việc · File · Lịch họp. EXE101: thẻ `CheckpointProgress` (4 chấm, nhận xét gần nhất). EXE201: thẻ "Họp tuần này" (giờ, link, nút "Vào họp" khi còn ≤ 10 phút). Danh sách "Mới cập nhật" (tối đa 5 dòng) |
 | Components | `Card` số liệu, `ListTile`, `Badge` số chưa đọc, avatar xếp chồng, `RoleChip` |
 | States | Có dữ liệu · nhóm mới (mỗi thẻ số liệu = 0, một `EmptyState` gợi ý "Tạo việc đầu tiên") · đang tải · lỗi tải |
 | Interactions | Chạm thẻ số liệu → C04 lọc sẵn / C07 / C02; kéo để làm mới |
@@ -389,12 +396,12 @@ Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mụ
 
 | Mục | Nội dung |
 |---|---|
-| Layout | Ba nhóm: "Chờ chốt", "Sắp tới", "Đã họp". Mỗi dòng: tiêu đề, ngày giờ (hoặc "3 khung giờ"), nơi họp, chip trạng thái. Nút "Đề xuất họp" |
+| Layout | Ba nhóm: "Chờ chốt", "Sắp tới", "Đã họp". Mỗi dòng: tiêu đề, ngày giờ (hoặc "3 khung giờ"), nơi họp, chip trạng thái; họp hằng tuần EXE201 có chip "Hằng tuần". Nút "Đề xuất họp". Giảng viên: xem lịch mọi nhóm theo ngày, lối tắt "Lịch họp hằng tuần" → C09 |
 | Components | `ListTile`, `Chip`, `FilledButton` |
 | States | Có dữ liệu · trống · đang tải |
 | Interactions | Chạm → C08; "Đề xuất họp" → C08 ở chế độ tạo |
 | Navigation | Từ C01, M01, L01, thông báo |
-| UI constraints | Quy tắc 25: người tổ chức là trưởng nhóm, giảng viên chính thức hoặc mentor |
+| UI constraints | Quy tắc 25: người tổ chức là trưởng nhóm, giảng viên hướng dẫn hoặc mentor. Họp hằng tuần không bỏ phiếu; chỉ giảng viên hủy / dời một tuần (lý do bắt buộc) |
 
 #### C08 · Đề xuất / chi tiết cuộc họp
 
@@ -407,18 +414,29 @@ Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mụ
 | Navigation | Từ C07, thông báo; chốt xong → C07 "Sắp tới" |
 | UI constraints | Mục tiêu ≤ 2 lượt tương tác của người tổ chức để chốt (persona.md chỉ số 12). Nhắc 24 giờ và 1 giờ do Job Service gửi |
 
-### Giảng viên và Mentor
-
-#### L07 · Đề tài phù hợp
+#### C09 · Lịch họp hằng tuần (EXE201, bổ sung 20/10/2026)
 
 | Mục | Nội dung |
 |---|---|
-| Layout | Hàng giới hạn "Đang quan tâm 3/5 · Còn nhận 2 nhóm". Danh sách thẻ đề tài: tên nhóm, tên dự án, chip domain trùng chuyên môn (Secondary), "4/6 thành viên", `InterestButton`, dòng "n giảng viên khác cũng quan tâm". Tab thứ hai "Yêu cầu" = L02 |
+| Layout | **Giảng viên:** danh sách khung giờ (thứ, giờ bắt đầu – kết thúc), thời lượng slot (mặc định 15 phút), link họp; lưới tuần các slot (trống / tên nhóm); bộ đếm "32 slot · 40 nhóm · còn 3 nhóm chưa chọn"; nút "Đăng lịch". **Trưởng nhóm:** lưới slot (trống / đã có nhóm / của nhóm bạn), dòng hạn "Chọn trước 23:59 · CN tuần 2". Thành viên chỉ xem slot của nhóm. Web ≥ 1024 px: lưới theo cột ngày |
+| Components | `WeeklySlotGrid` (ô slot là nút có nhãn đọc được "Thứ Ba 09:15, còn trống"), `TimeRangeField`, `TextField` link, `FilledButton`, bottom sheet đổi slot |
+| States | GV: chưa có khung · đang soạn (xem trước số slot) · đã đăng · thiếu slot so với số nhóm (banner cảnh báo, vẫn đăng được). Trưởng nhóm: chưa có lịch ("Giảng viên chưa đăng lịch") · đang chọn · đã chọn · hết hạn (chỉ xem) · slot vừa bị chọn (lỗi tại ô, lưới tự cập nhật) · đang tải · lỗi |
+| Interactions | GV thêm / sửa khung → lưới cập nhật ngay; chạm ô có nhóm → bottom sheet "Đổi slot" chọn ô trống khác. Trưởng nhóm chạm ô trống → xác nhận trong bottom sheet → đã chọn (đổi được tới hạn) |
+| Navigation | GV: từ L01 (thẻ "Đăng lịch họp hằng tuần"), C07. Trưởng nhóm: từ S15, C01, thông báo "Đã có lịch họp" |
+| UI constraints | Quy tắc 25: một slot một nhóm, mỗi nhóm một slot cố định cả kỳ, ai chọn trước được trước; hết hạn hệ thống xếp nhóm chưa chọn; trạng thái ô không chỉ phân biệt bằng màu (kèm chữ / icon) |
+
+### Giảng viên và Mentor
+
+#### L07 · Đề tài (giảng viên và mentor)
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Hàng giới hạn "Đang quan tâm 5/12 · Ghép lúc 18:00 · 17/09" (mentor: "· Ghép tuần 6"). Ba tab: **"Gợi ý"** (thẻ đề tài: tên nhóm, tên dự án, chip domain trùng chuyên môn (Secondary), "4/6 thành viên", `InterestButton`, dòng "n người khác cũng quan tâm"), **"Nhóm chọn tôi"** (chỉ giảng viên: thẻ có chip "Nguyện vọng 1/2/3"), **"Đã quan tâm"** |
 | Components | `Card`, `Chip`, `InterestButton`, `SegmentedButton` / `TabBar`, icon `info` giải thích cách gợi ý |
-| States | Có gợi ý · chưa khai báo chuyên môn (`EmptyState` + "Cập nhật chuyên môn" → L06) · không có gợi ý · đã đạt giới hạn quan tâm (nút khóa + lý do) · đề tài vừa có giảng viên (thẻ chuyển "Đã có giảng viên") · đang tải |
-| Interactions | "Quan tâm" ↔ "Đã quan tâm" (bấm lại để rút, có xác nhận); chạm thẻ → chi tiết đề tài (ý tưởng, thành viên, kỹ năng nhóm) |
-| Navigation | Tab "Đề tài & yêu cầu" của giảng viên; → chi tiết, → L03 khi nhóm gửi yêu cầu |
-| UI constraints | Quy tắc 19: quan tâm không giữ chỗ, không tốn sức chứa; chỉ hiện **số** giảng viên khác, không hiện tên; giới hạn = sức chứa còn lại + 2 |
+| States | Có gợi ý · chưa khai báo chuyên môn (`EmptyState` + "Cập nhật chuyên môn" → L06) · không có gợi ý · đã đạt giới hạn quan tâm (nút khóa + lý do) · nhóm vừa được ghép (thẻ chuyển "Đã có giảng viên" / "Đã có mentor") · ngoài giai đoạn quan tâm (chỉ xem, dòng giải thích) · đang tải |
+| Interactions | "Quan tâm" ↔ "Đã quan tâm" (bấm lại để rút, snackbar Hoàn tác thay cho xác nhận – `DESIGN.md` 6.4); chạm thẻ → chi tiết đề tài (ý tưởng, thành viên, kỹ năng nhóm, nhóm xếp mình ở nguyện vọng mấy) |
+| Navigation | Tab "Đề tài" của giảng viên (giai đoạn lập nhóm) và mentor (trước tuần 6); → chi tiết đề tài |
+| UI constraints | Quy tắc 9, 19, 20: quan tâm không giữ chỗ, là một tiêu chí khi hệ thống ghép; chỉ hiện **số** người khác, không hiện tên; giới hạn = số nhóm còn nhận + 2 (10 nếu không đặt tối đa; mentor: tối đa + 2). Không có nút chấp nhận / từ chối |
 
 #### M01 · Trang chủ mentor
 
@@ -426,10 +444,10 @@ Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mụ
 |---|---|
 | Layout | Lời chào; ba thẻ số liệu bấm được: "Cần trả lời", "Họp sắp tới", "Chờ chốt lịch"; danh sách "Nhóm đang mentor" (tên nhóm, đề tài, `MentorSessionChip`, giảng viên hướng dẫn). Hàng "Đang nhận 3 nhóm · mong muốn 4" chạm để sửa số mong muốn |
 | Components | `Card` số liệu, `ListTile`, `LinearProgressIndicator`, `RoleChip` |
-| States | Có nhóm · chưa được gán nhóm (`EmptyState` "Bộ môn chưa gán nhóm cho bạn.") · đang tải |
+| States | Có nhóm · trước tuần 6 (thẻ "Đang quan tâm n đề tài · Ghép vào tuần 6" + nút "Xem đề tài" → L07) · đã tới tuần 6 nhưng chưa được ghép (`EmptyState` "Bộ môn đang hoàn tất ghép mentor.") · đang tải |
 | Interactions | Chạm số liệu → C02 lọc "Cần trả lời" / C07; chạm nhóm → C01 của nhóm |
 | Navigation | Tab Trang chủ của mentor; icon tài khoản → hồ sơ mentor |
-| UI constraints | Quy tắc 20: mỗi nhóm một mentor; số nhóm mong muốn ≤ tối đa do Bộ môn đặt; mentor không có yêu cầu hướng dẫn, bài nộp – không hiện các mục này. Ngoài cửa sổ mentor (trước tuần 6) hiện `EmptyState` "Bộ môn sẽ gán nhóm từ tuần 6." |
+| UI constraints | Quy tắc 20: mỗi nhóm một mentor; số nhóm mong muốn ≤ tối đa do Bộ môn đặt; mentor không có nguyện vọng của nhóm, checkpoint, lịch họp hằng tuần, bài nộp – không hiện các mục này. Ghép theo quan tâm của mentor ở tuần 6, sinh viên không chọn mentor |
 
 ## 5. Checklist khi hiện thực một màn hình
 
