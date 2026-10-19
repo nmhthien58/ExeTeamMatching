@@ -1,6 +1,6 @@
 # DB script (BE-01, BE-60)
 
-Script tạo 6 database (mỗi service 1 database) trên một instance PostgreSQL 16. BE-60 (19/10/2026) cập nhật theo bản 4 của `docs/ux/PROJECT_CONTEXT.md` (quy tắc 16–26). Thiết kế gốc: [docs/EXE_Database_Design.pdf](../../docs/EXE_Database_Design.pdf).
+Script tạo 6 database (mỗi service 1 database) trên một instance PostgreSQL 16. BE-60 (19/10/2026) cập nhật theo bản 4 của `docs/ux/PROJECT_CONTEXT.md` (quy tắc 16–26). Thiết kế: [docs/EXE_Database_Design.pdf](../../docs/EXE_Database_Design.pdf).
 
 | File | Nội dung |
 |---|---|
@@ -66,7 +66,7 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | `ck_file_versions_size`, `ck_project_files_type` | File quá 25 MB / sai định dạng (rule 24) |
 | `ck_task_items_deliverable_creator` | Chỉ giảng viên hướng dẫn tạo bài nộp (rule 23) |
 
-## Khác với PDF thiết kế (theo PROJECT_CONTEXT, tài liệu ưu tiên cao hơn)
+## Khác với PDF thiết kế bản 19/10/2026 (theo PROJECT_CONTEXT, tài liệu ưu tiên cao hơn)
 
 | Chỗ | PDF | Script | Lý do |
 |---|---|---|---|
@@ -96,4 +96,10 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | Cấu hình (BE-60) | – | `rule_settings.max_ideas_per_join_request`, `interest_extra_slots`, `max_file_size_mb` | Rule 17, 19, 24 |
 | Collaboration (BE-60) | – | Database `collab_db` mới | §5.8 |
 
-Các thay đổi này cần được cập nhật vào PDF thiết kế khi có file nguồn.
+Từ 20/10/2026 PDF thiết kế được **sinh tự động từ script này** (mục 11 của PDF tóm tắt các thay đổi trên). Sửa script xong thì chạy lại:
+
+```bash
+python docs/db-design/build.py
+```
+
+Cần Docker (dựng PostgreSQL tạm từ thư mục này) và Chrome hoặc Edge (in PDF). Mô tả bảng lấy từ comment `--` ngay trên `CREATE TABLE`, ghi chú cột lấy từ comment cuối dòng; phần giải thích viết tay ở `docs/db-design/content.py`.
