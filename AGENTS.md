@@ -34,7 +34,7 @@ Figma: https://www.figma.com/design/tX0K0MdkTKt5wJcvWnPbxr (page `03 Final UI` c
 Chia theo **nghiệp vụ**: mỗi người sở hữu trọn một mảng (backend + web + mobile). Chỉ sửa code trong vùng của mình. Muốn sửa vùng của người khác thì mở PR và để người đó review.
 
 ```
-src/
+backend/                     ASP.NET Core 8 (solution backend/ExeTeamMatching.sln)
   BuildingBlocks/            Thiên   – JWT, logging, exception, Kafka, Outbox, event contracts
   ApiGateway/                Thiên
   Protos/                    Thiên   – *.proto dùng chung

@@ -10,7 +10,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | [openapi/collab.yaml](openapi/collab.yaml) | Workspace nhóm: tin nhắn (+ SignalR hub), việc và bài nộp, file dự án (MinIO), lịch họp, endpoint nội bộ cho Job |
 | [openapi/notification.yaml](openapi/notification.yaml) | Thông báo trong ứng dụng, cài đặt email, thông báo chung |
 | [events.md](events.md) | Envelope, topic, payload sự kiện Kafka |
-| [../../src/Protos/matching.proto](../../src/Protos/matching.proto) | gRPC Matching Service |
+| [../../backend/Protos/matching.proto](../../backend/Protos/matching.proto) | gRPC Matching Service |
 
 ## Quy ước chung
 

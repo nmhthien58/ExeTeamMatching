@@ -246,7 +246,7 @@ Consumers retry, then send to a dead-letter topic `<topic>.dlq`.
 Every REST service uses the layered structure required by the assignment: **API – Services – Repository**.
 
 ```
-src/
+backend/                 # ExeTeamMatching.sln
   BuildingBlocks/        # shared: JWT, logging, exception middleware, Kafka, Outbox, event contracts
   ApiGateway/
   Services/
