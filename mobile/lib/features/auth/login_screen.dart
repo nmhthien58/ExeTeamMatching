@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
@@ -26,12 +28,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
+      // null = người dùng hủy chọn tài khoản: về trạng thái mặc định, không báo lỗi.
       await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    } on PlatformException catch (e) {
+      // Lỗi từ Google Sign-In (không phải từ Identity).
+      if (!mounted || e.code == GoogleSignIn.kSignInCanceledError) return;
+      setState(() => _error = e.code == GoogleSignIn.kNetworkError
+          ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
+          : 'Không đăng nhập được với Google. Thử lại sau.');
     } catch (e) {
       final error = e.apiError;
       if (!mounted) return;
       if (error.code == 'not-in-list') {
-        context.go('/tai-khoan-chua-co');
+        // A04 hiện email vừa dùng để người dùng nhận ra nhầm tài khoản.
+        context.go('/tai-khoan-chua-co', extra: ref.read(googleSignInProvider).currentUser?.email);
         return;
       }
       setState(() => _error = error.isNetwork ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.' : error.title);
@@ -78,25 +88,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-/// A04 – Tài khoản chưa có trong danh sách (nhánh lỗi E1). Nút đăng nhập bằng tài khoản khác → A03.
+/// A04 – Tài khoản chưa có trong danh sách (nhánh lỗi E1). Hiện email vừa dùng; nút "Dùng tài khoản khác" đăng xuất Google → A03.
 class NotInListScreen extends ConsumerWidget {
-  const NotInListScreen({super.key});
+  const NotInListScreen({super.key, this.email});
+
+  final String? email;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-        body: SafeArea(
-          child: EmptyState(
-            icon: Icons.person_off_outlined,
-            title: 'Tài khoản chưa có trong danh sách',
-            description: 'Email này không có trong danh sách học kỳ. Hãy dùng email trường đã đăng ký, hoặc liên hệ Bộ môn EXE.',
-            action: FilledButton(
-              onPressed: () async {
-                await ref.read(authControllerProvider.notifier).signOut();
-                if (context.mounted) context.go('/dang-nhap');
-              },
-              child: const Text('Dùng tài khoản khác'),
-            ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: EmptyState(
+          icon: Icons.person_off_outlined,
+          title: 'Tài khoản chưa có trong danh sách',
+          description: 'Email này không có trong danh sách học kỳ. Hãy dùng email đã đăng ký với bộ môn, hoặc liên hệ Bộ môn EXE.',
+          action: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (email != null) ...[
+                Chip(
+                  avatar: const Icon(Icons.mail_outline, size: 18),
+                  label: Text(email!, style: theme.textTheme.bodyMedium),
+                ),
+                const SizedBox(height: AppSpacing.s4),
+              ],
+              FilledButton(
+                onPressed: () async {
+                  await ref.read(authControllerProvider.notifier).signOut();
+                  if (context.mounted) context.go('/dang-nhap');
+                },
+                child: const Text('Dùng tài khoản khác'),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }

@@ -36,7 +36,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/', builder: (_, _) => const Scaffold(body: Center(child: CircularProgressIndicator()))),
       GoRoute(path: '/dang-nhap', builder: (_, _) => const LoginScreen()),
-      GoRoute(path: '/tai-khoan-chua-co', builder: (_, _) => const NotInListScreen()),
+      GoRoute(path: '/tai-khoan-chua-co', builder: (_, state) => NotInListScreen(email: state.extra as String?)),
       GoRoute(
         path: '/chi-dung-web',
         builder: (_, _) => const Scaffold(
