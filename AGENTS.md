@@ -50,7 +50,7 @@ web/                         React (Bộ môn)
   src/features/<feature>     theo bảng bên dưới
 mobile/                      Flutter (Sinh viên, Giảng viên)
   lib/core, lib/shared, lib/features/auth          Thiên
-  lib/features/<feature>     theo bảng bên dưới
+  lib/features/<feature>     theo bảng bên dưới (tên thư mục snake_case)
 deploy/
   docker-compose*.yml        Thiên
   db/                        Thiên   – DB script cho 5 database
@@ -60,10 +60,10 @@ docs/                        Thiên   – mọi người được đề xuất s
 | Người | Backend | Web (`web/src/features/…`) | Mobile (`mobile/lib/features/…`) |
 |---|---|---|---|
 | **Thiên** | BuildingBlocks, Gateway, Identity, Protos, `deploy/`, DB script | `auth`, khung trang, component dùng chung (W01, W25, W26) | `auth`, theme, widget dùng chung (A03, A04, A08) |
-| **Nam** | Academic Service | `semesters`, `rounds`, `imports`, `students`, `lecturers`, `catalogs`, `settings` (W03–W14) | `profile` (A05, S02–S04), `settings` (A07), `lecturer-profile` (L06) |
-| **Cường** | Team Service – module Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Outbox | `teams`, `audit-log` (W15, W16, W24) | `home` (S01), `discover` (S05, S06, S08–S11), `invitations` (S12), `my-team` (S13–S17, S20–S22) |
-| **Nguyên** | Matching, Jobs; Team Service – module Finalization, AutoAssign, Statistics, Export; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22) | `suggestions` (S07, S18, S19), `round-closed` (S30, S31); build APK demo |
-| **Thành** | Notification; Team Service – module ChangeRequests, BaselineImport, LecturerPreferences, LecturerAssignments | `change-requests`, `lecturer-assignment`, `announcements` (W17–W19, W23) | `onboarding` (A01, A02), `notifications` (A06), `lecturers` (S23–S25), `change-requests` (S26–S29), `lecturer` (L01–L05) |
+| **Nam** | Academic Service | `semesters`, `rounds`, `imports`, `students`, `lecturers`, `catalogs`, `settings` (W03–W14) | `profile` (A05, S02–S04), `settings` (A07), `lecturer_profile` (L06) |
+| **Cường** | Team Service – module Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Outbox | `teams`, `audit-log` (W15, W16, W24) | `home` (S01), `discover` (S05, S06, S08–S11), `invitations` (S12), `my_team` (S13–S17, S20–S22) |
+| **Nguyên** | Matching, Jobs; Team Service – module Finalization, AutoAssign, Statistics, Export; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22) | `suggestions` (S07, S18, S19), `round_closed` (S30, S31); build APK demo |
+| **Thành** | Notification; Team Service – module ChangeRequests, BaselineImport, LecturerPreferences, LecturerAssignments | `change-requests`, `lecturer-assignment`, `announcements` (W17–W19, W23) | `onboarding` (A01, A02), `notifications` (A06), `lecturers` (S23–S25), `change_requests` (S26–S29), `lecturer` (L01–L05) |
 
 Team Service do 3 người cùng làm, nên mỗi module nằm trong thư mục riêng ở cả 4 project (`Team.Api/Controllers/<Module>`, `Team.Services/<Module>`, `Team.Repositories/<Module>`, `Team.Domain/<Module>`). `TeamDbContext` và migration/DB script của Team chỉ Thiên và Cường được sửa.
 
