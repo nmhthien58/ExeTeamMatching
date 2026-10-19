@@ -1,0 +1,10 @@
+/* Token và theme đầy đủ theo docs/ux/DESIGN.md làm ở FE-02. */
+:root {
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  color: #1f2328;
+  background-color: #f6f8fa;
+}
+
+body {
+  margin: 0;
+}
