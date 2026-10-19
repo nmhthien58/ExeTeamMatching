@@ -154,7 +154,7 @@ public sealed class CreateThingValidator : AbstractValidator<CreateThing>
 public sealed class TestController : ControllerBase
 {
     [HttpGet("conflict")]
-    public IActionResult Conflict() => throw new ConflictException("round-closed", "Đợt đăng ký đã khóa");
+    public IActionResult ThrowConflict() => throw new ConflictException("round-closed", "Đợt đăng ký đã khóa");
 
     [HttpGet("not-found")]
     public IActionResult Missing() => throw new NotFoundException("nhóm", 42);

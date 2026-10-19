@@ -17,6 +17,9 @@ public sealed class KafkaOptions
     /// <summary>Số lần thử xử lý một message trước khi đẩy sang <c>&lt;topic&gt;.dlq</c>.</summary>
     public int MaxAttempts { get; set; } = 3;
 
-    /// <summary>Thời gian chờ giữa hai lần thử (nhân theo số lần).</summary>
+    /// <summary>Số lần thử với lỗi <see cref="IRetryableEventException"/> (chờ tăng dần, tối đa 10 giây mỗi lần ≈ 2 phút).</summary>
+    public int RetryableMaxAttempts { get; set; } = 15;
+
+    /// <summary>Thời gian chờ giữa hai lần thử (nhân theo bình phương số lần, tối đa 10 giây).</summary>
     public int RetryDelayMs { get; set; } = 500;
 }

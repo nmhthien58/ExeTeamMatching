@@ -26,6 +26,12 @@ public interface IProcessedEventStore
     Task MarkProcessedAsync(EventEnvelope envelope, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Lỗi tạm thời đáng chờ lâu hơn (ví dụ sự kiện tới trước dữ liệu nó cần). Consumer thử lại tới
+/// <see cref="KafkaOptions.RetryableMaxAttempts"/> lần với thời gian chờ tăng dần thay vì <see cref="KafkaOptions.MaxAttempts"/>.
+/// </summary>
+public interface IRetryableEventException;
+
 /// <summary>Không chống trùng – chỉ dùng khi handler tự idempotent.</summary>
 public sealed class NoOpProcessedEventStore : IProcessedEventStore
 {
@@ -35,8 +41,9 @@ public sealed class NoOpProcessedEventStore : IProcessedEventStore
 }
 
 /// <summary>
-/// Consumer chạy nền: đọc các topic có handler, bỏ qua message đã xử lý, thử tối đa
-/// <see cref="KafkaOptions.MaxAttempts"/> lần rồi đẩy sang <c>&lt;topic&gt;.dlq</c>. Commit offset sau khi xong từng message.
+/// Consumer chạy nền: mỗi topic có handler được đọc bởi một vòng lặp riêng (message đang thử lại ở topic này
+/// không chặn topic khác), bỏ qua message đã xử lý, thử tối đa <see cref="KafkaOptions.MaxAttempts"/> lần rồi đẩy
+/// sang <c>&lt;topic&gt;.dlq</c>. Commit offset sau khi xong từng message; trong một topic, thứ tự theo key được giữ.
 /// </summary>
 public sealed class KafkaConsumerService(
     IServiceScopeFactory scopeFactory,
@@ -56,13 +63,15 @@ public sealed class KafkaConsumerService(
             return Task.CompletedTask;
         }
 
-        // Consume() là lời gọi chặn nên chạy trên thread riêng.
-        return Task.Factory.StartNew(() => ConsumeLoop(topics, stoppingToken), stoppingToken,
-            TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+        // Consume() là lời gọi chặn nên mỗi topic chạy trên thread riêng.
+        var loops = topics.Select(topic => Task.Factory.StartNew(() => ConsumeLoop(topic, stoppingToken), stoppingToken,
+            TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap());
+        return Task.WhenAll(loops);
     }
 
-    private async Task ConsumeLoop(IReadOnlyCollection<string> topics, CancellationToken stoppingToken)
+    private async Task ConsumeLoop(string topic, CancellationToken stoppingToken)
     {
+        var topics = new[] { topic };
         using var consumer = new ConsumerBuilder<string, string>(new ConsumerConfig
         {
             BootstrapServers = _options.BootstrapServers,
@@ -86,6 +95,13 @@ public sealed class KafkaConsumerService(
             catch (OperationCanceledException)
             {
                 break;
+            }
+            catch (ConsumeException ex) when (ex.Error.Code == ErrorCode.UnknownTopicOrPart)
+            {
+                // Topic chưa có (chưa service nào phát) – chờ, không ghi stack trace.
+                logger.LogDebug("Chưa có topic: {Reason}", ex.Error.Reason);
+                await Task.Delay(5000, stoppingToken);
+                continue;
             }
             catch (ConsumeException ex)
             {
@@ -155,10 +171,10 @@ public sealed class KafkaConsumerService(
             {
                 throw;
             }
-            catch (Exception ex) when (attempt < _options.MaxAttempts)
+            catch (Exception ex) when (attempt < MaxAttemptsFor(ex))
             {
                 logger.LogWarning(ex, "Xử lý {EventType} {EventId} lỗi lần {Attempt}, thử lại", envelope.EventType, envelope.EventId, attempt);
-                await Task.Delay(_options.RetryDelayMs * attempt, stoppingToken);
+                await Task.Delay(Math.Min(_options.RetryDelayMs * attempt * attempt, 10_000), stoppingToken);
             }
             catch (Exception ex)
             {
@@ -168,6 +184,9 @@ public sealed class KafkaConsumerService(
             }
         }
     }
+
+    private int MaxAttemptsFor(Exception ex) =>
+        ex is IRetryableEventException ? _options.RetryableMaxAttempts : _options.MaxAttempts;
 
     private async Task SendToDeadLetterAsync(ConsumeResult<string, string> result, Exception error, CancellationToken cancellationToken)
     {
