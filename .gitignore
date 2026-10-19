@@ -7,3 +7,29 @@ Thumbs.db
 
 # Local Figma bridge tool (not part of the submission)
 figma-bridge/
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+
+# Bí mật / cấu hình máy
+.env
+!.env.example
+appsettings.*.local.json
+
+# Web (React)
+web/node_modules/
+web/dist/
+
+# Mobile (Flutter)
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/android/local.properties
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
