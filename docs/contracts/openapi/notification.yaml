@@ -1,0 +1,112 @@
+openapi: 3.0.3
+info:
+  title: EXE Team Matching – Notification Service (read API)
+  version: 0.1.0-draft
+  description: |
+    BE-02 – bản nháp. Thông báo trong ứng dụng, lọc theo người gọi (JWT). Ứng dụng tải khi mở tab
+    hoặc kéo để làm mới (polling), không có push realtime.
+servers:
+  - url: http://localhost:8080
+    description: API Gateway
+security:
+  - bearer: []
+paths:
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Danh sách thông báo của tôi (A06)
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+        - { name: unreadOnly, in: query, schema: { type: boolean, default: false } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PagedMeta'
+                  - type: object
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+  /api/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Số thông báo chưa đọc (badge trên tab)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { count: { type: integer } } } } } }
+  /api/notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Đánh dấu đã đọc
+      parameters: [ { name: id, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses:
+        '204': { description: OK }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/notifications/read-all:
+    patch:
+      tags: [Notifications]
+      summary: Đánh dấu đã đọc tất cả
+      responses:
+        '204': { description: OK }
+  /api/notifications/preferences:
+    get:
+      tags: [Notifications]
+      summary: Cài đặt nhận email (A07)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Preferences' } } } }
+    put:
+      tags: [Notifications]
+      summary: Bật / tắt nhận email thông báo (A07)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Preferences' } } } }
+      responses:
+        '204': { description: OK }
+  /api/announcements:
+    post:
+      tags: [Announcements]
+      summary: Bộ môn gửi thông báo chung (W23) – chỉ Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [audience, title, content]
+              properties:
+                audience: { type: string, enum: [ALL_STUDENTS, STUDENTS_WITHOUT_TEAM, ALL_LECTURERS, EVERYONE] }
+                courseCode: { type: string, enum: [EXE101, EXE201], nullable: true }
+                title: { type: string, maxLength: 200 }
+                content: { type: string, maxLength: 2000 }
+                sendEmail: { type: boolean, default: true }
+      responses:
+        '202': { description: "Đã nhận, gửi nền", content: { application/json: { schema: { type: object, properties: { recipientCount: { type: integer } } } } } }
+        '403': { $ref: '#/components/responses/Problem' }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  responses:
+    Problem:
+      description: Lỗi theo RFC 7807
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    Problem:
+      type: object
+      properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string }, traceId: { type: string } }
+    PagedMeta:
+      type: object
+      properties: { page: { type: integer }, pageSize: { type: integer }, totalCount: { type: integer }, totalPages: { type: integer } }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, example: InvitationSent, description: "= eventType, dùng chọn icon" }
+        title: { type: string }
+        content: { type: string }
+        linkUrl: { type: string, nullable: true, example: 'app://teams/3f.../invitations', description: Màn hình mở khi chạm }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Preferences:
+      type: object
+      properties:
+        emailEnabled: { type: boolean }

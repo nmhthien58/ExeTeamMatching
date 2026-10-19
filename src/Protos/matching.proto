@@ -1,0 +1,114 @@
+// BE-02 – Hợp đồng gRPC của Matching Service (PROJECT_CONTEXT §5.5).
+// Matching chỉ tính gợi ý / phương án, không ghi dữ liệu nghiệp vụ.
+// Gọi bởi: Team Service (SuggestMembers, SuggestTeams, ValidateComposition, PlanAutoAssignment)
+//          Job Service  (PlanAutoAssignment).
+syntax = "proto3";
+
+package exe.matching.v1;
+
+option csharp_namespace = "ExeTeamMatching.Protos.Matching.V1";
+
+service MatchingService {
+  // Sinh viên chưa có nhóm bổ sung chuyên ngành còn thiếu cho một nhóm (S18).
+  rpc SuggestMembers (SuggestMembersRequest) returns (SuggestMembersResponse);
+  // Nhóm đang tuyển cần chuyên ngành của sinh viên (S07, khu "Gợi ý cho bạn" ở S05).
+  rpc SuggestTeams (SuggestTeamsRequest) returns (SuggestTeamsResponse);
+  // Kiểm tra 4–6 thành viên và >= 2 chuyên ngành (rule 1, 2).
+  rpc ValidateComposition (ValidateCompositionRequest) returns (ValidateCompositionResponse);
+  // Sau hạn chót: lấp sinh viên lẻ vào nhóm NEEDS_REVIEW, rồi chia phần còn lại thành nhóm mới (rule 14).
+  rpc PlanAutoAssignment (PlanAutoAssignmentRequest) returns (PlanAutoAssignmentResponse);
+}
+
+enum Course {
+  COURSE_UNSPECIFIED = 0;
+  COURSE_EXE101 = 1;
+  COURSE_EXE201 = 2;
+}
+
+message MemberInfo {
+  string student_id = 1;          // academic students.id (uuid)
+  int32 specialization_id = 2;
+}
+
+message SuggestMembersRequest {
+  string semester_id = 1;
+  Course course = 2;
+  string team_id = 3;
+  int32 limit = 4;                // mặc định 10
+}
+
+message MemberSuggestion {
+  string student_id = 1;
+  int32 specialization_id = 2;
+  repeated string skills = 3;
+  double score = 4;               // 0..1, chỉ để sắp xếp và hiển thị mức phù hợp
+  repeated string reasons = 5;    // ví dụ "Nhóm đang thiếu chuyên ngành Marketing"
+}
+
+message SuggestMembersResponse {
+  repeated int32 missing_specialization_ids = 1;
+  repeated MemberSuggestion suggestions = 2;
+}
+
+message SuggestTeamsRequest {
+  string semester_id = 1;
+  Course course = 2;
+  string student_id = 3;
+  int32 limit = 4;
+}
+
+message TeamSuggestion {
+  string team_id = 1;
+  int32 member_count = 2;
+  repeated int32 missing_specialization_ids = 3;
+  double score = 4;
+  repeated string reasons = 5;
+}
+
+message SuggestTeamsResponse {
+  repeated TeamSuggestion suggestions = 1;
+}
+
+message ValidateCompositionRequest {
+  repeated MemberInfo members = 1;
+  int32 min_size = 2;             // 0 = dùng mặc định 4
+  int32 max_size = 3;             // 0 = dùng mặc định 6
+  int32 min_specializations = 4;  // 0 = dùng mặc định 2
+}
+
+message CompositionViolation {
+  string code = 1;                // TOO_FEW_MEMBERS | TOO_MANY_MEMBERS | NOT_ENOUGH_SPECIALIZATIONS
+  string message = 2;
+}
+
+message ValidateCompositionResponse {
+  bool is_valid = 1;
+  int32 member_count = 2;
+  int32 specialization_count = 3;
+  repeated CompositionViolation violations = 4;
+}
+
+message PlanAutoAssignmentRequest {
+  string semester_id = 1;
+  Course course = 2;
+  int32 min_size = 3;
+  int32 max_size = 4;
+  int32 min_specializations = 5;
+}
+
+message FillExistingTeam {
+  string team_id = 1;             // nhóm NEEDS_REVIEW được bổ sung
+  repeated string student_ids = 2;
+}
+
+message NewTeamPlan {
+  string suggested_name = 1;      // ví dụ "Auto-FA26-01"
+  repeated MemberInfo members = 2;
+  string leader_student_id = 3;
+}
+
+message PlanAutoAssignmentResponse {
+  repeated FillExistingTeam fills = 1;
+  repeated NewTeamPlan new_teams = 2;
+  repeated string unassigned_student_ids = 3;   // còn lại để Admin xử lý tay (W21)
+}

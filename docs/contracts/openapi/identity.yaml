@@ -1,0 +1,108 @@
+openapi: 3.0.3
+info:
+  title: EXE Team Matching – Identity Service
+  version: 0.1.0-draft
+  description: |
+    BE-02 – bản nháp hợp đồng. Đăng nhập Google, cấp JWT của hệ thống (access ~15 phút, refresh ~7 ngày).
+    Chỉ email đã có tài khoản (tạo sẵn từ danh sách import) mới đăng nhập được (rule 5).
+servers:
+  - url: http://localhost:8080
+    description: API Gateway
+tags:
+  - name: Auth
+paths:
+  /api/auth/google:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập bằng Google ID token (A03, W01)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken, client]
+              properties:
+                idToken: { type: string, description: ID token lấy từ Google Sign-In / Firebase Auth }
+                client: { type: string, enum: [web, mobile], description: "web chỉ cho role Admin; mobile cho Student, Lecturer" }
+      responses:
+        '200': { description: Đăng nhập thành công, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { description: ID token không hợp lệ hoặc hết hạn, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '403':
+          description: |
+            `type` = `.../errors/not-in-list` (email không có trong danh sách học kỳ → mobile hiện A04),
+            `.../errors/account-locked`, `.../errors/wrong-client` (sinh viên đăng nhập web quản trị).
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Đổi refresh token lấy cặp token mới (rotation)
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RefreshRequest' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Đăng xuất, thu hồi refresh token (A07)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RefreshRequest' } } }
+      responses:
+        '204': { description: Đã thu hồi }
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Thông tin tài khoản đang đăng nhập
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserInfo' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+security:
+  - bearer: []
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  responses:
+    Problem:
+      description: Lỗi theo RFC 7807
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string, example: 'https://exe-team-matching/errors/not-in-list' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        traceId: { type: string }
+        errors: { type: object, additionalProperties: { type: array, items: { type: string } }, description: Lỗi validate theo field }
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    TokenResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        accessTokenExpiresAt: { type: string, format: date-time }
+        refreshToken: { type: string }
+        refreshTokenExpiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/UserInfo' }
+    UserInfo:
+      type: object
+      description: |
+        JWT mang các claim tương ứng: sub (=id), email, name, role, student_id hoặc lecturer_id.
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        role: { type: string, enum: [Student, Lecturer, Admin] }
+        studentId: { type: string, format: uuid, nullable: true }
+        lecturerId: { type: string, format: uuid, nullable: true }
+        isFirstLogin: { type: boolean, description: "true ở lần đăng nhập đầu → sinh viên vào A05 hoàn thiện hồ sơ" }

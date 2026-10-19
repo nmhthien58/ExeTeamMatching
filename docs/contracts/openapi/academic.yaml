@@ -1,0 +1,408 @@
+openapi: 3.0.3
+info:
+  title: EXE Team Matching – Academic Service
+  version: 0.1.0-draft
+  description: |
+    BE-02 – bản nháp. Học kỳ, đợt đăng ký, import sinh viên, danh mục, hồ sơ sinh viên và giảng viên.
+    Quy ước chung: docs/contracts/README.md. Endpoint `/internal/*` chỉ gọi trong mạng Docker (Team Service), không qua Gateway.
+servers:
+  - url: http://localhost:8080
+    description: API Gateway
+security:
+  - bearer: []
+tags:
+  - { name: Semesters, description: W03 }
+  - { name: Rounds, description: W04 }
+  - { name: Imports, description: W06–W08 }
+  - { name: Students, description: "W09, W10, A05, S02–S04, S19" }
+  - { name: Lecturers, description: "W11, S23, S24, L06" }
+  - { name: Catalogs, description: "W12–W14, S14" }
+  - { name: Settings, description: W05 }
+  - { name: Internal }
+paths:
+  # ---------------- Semesters ----------------
+  /api/semesters:
+    get:
+      tags: [Semesters]
+      summary: Danh sách học kỳ
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Semester' } } } } } }
+    post:
+      tags: [Semesters]
+      summary: Tạo học kỳ (Admin)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SemesterInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Semester' } } } }, '400': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/semesters/current:
+    get:
+      tags: [Semesters]
+      summary: Học kỳ hiện hành
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Semester' } } } }, '404': { $ref: '#/components/responses/Problem' } }
+  /api/semesters/{id}:
+    put:
+      tags: [Semesters]
+      summary: Sửa học kỳ (Admin)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SemesterInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Semester' } } } }, '404': { $ref: '#/components/responses/Problem' } }
+
+  # ---------------- Registration rounds ----------------
+  /api/registration-rounds:
+    get:
+      tags: [Rounds]
+      summary: Danh sách đợt đăng ký
+      parameters:
+        - { name: semesterId, in: query, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CourseCode' }
+        - { name: status, in: query, schema: { type: string, enum: [SCHEDULED, OPEN, CLOSED] } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Round' } } } } } }
+    post:
+      tags: [Rounds]
+      summary: Tạo đợt (Admin). Đợt CHANGE_REQUEST chỉ cho EXE201; không được chồng thời gian
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoundInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Round' } } } }, '400': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/registration-rounds/active:
+    get:
+      tags: [Rounds]
+      summary: Đợt đang mở của môn (banner hạn chót S01, L01)
+      parameters: [ { $ref: '#/components/parameters/CourseCode' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Round' } } } } } }
+  /api/registration-rounds/{id}:
+    put:
+      tags: [Rounds]
+      summary: Sửa đợt (Admin)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoundInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Round' } } } } }
+  /api/registration-rounds/{id}/open:
+    post:
+      tags: [Rounds]
+      summary: Mở đợt thủ công (phát RoundOpened)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Round' } } } } }
+  /api/registration-rounds/{id}/close:
+    post:
+      tags: [Rounds]
+      summary: Khóa đợt thủ công (phát RoundClosed). Job cũng gọi endpoint nội bộ tương ứng khi tới hạn
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Round' } } } } }
+
+  # ---------------- Imports ----------------
+  /api/imports/students/template:
+    get:
+      tags: [Imports]
+      summary: Tải file Excel mẫu
+      responses: { '200': { description: File xlsx, content: { application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } } } } }
+  /api/imports/students/preview:
+    post:
+      tags: [Imports]
+      summary: Tải file và xem trước dòng hợp lệ / dòng lỗi (W06 → W07). Chưa ghi dữ liệu
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, semesterId, courseCode]
+              properties:
+                file: { type: string, format: binary }
+                semesterId: { type: string, format: uuid }
+                courseCode: { type: string, enum: [EXE101, EXE201] }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ImportPreview' } } } }, '400': { $ref: '#/components/responses/Problem' } }
+  /api/imports/students/{previewId}/confirm:
+    post:
+      tags: [Imports]
+      summary: Xác nhận import, bỏ qua dòng lỗi. Phát StudentImported cho từng sinh viên
+      parameters: [ { name: previewId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ImportBatch' } } } }, '404': { $ref: '#/components/responses/Problem' } }
+  /api/imports:
+    get:
+      tags: [Imports]
+      summary: Lịch sử import (W08)
+      parameters: [ { name: semesterId, in: query, schema: { type: string, format: uuid } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/ImportBatch' } } } } ] } } } } }
+
+  # ---------------- Students ----------------
+  /api/students:
+    get:
+      tags: [Students]
+      summary: Danh sách sinh viên học kỳ (W09; S19 tìm để mời). Cờ hasTeam lấy từ Team Service
+      parameters:
+        - { name: semesterId, in: query, schema: { type: string, format: uuid }, description: Mặc định học kỳ hiện hành }
+        - { $ref: '#/components/parameters/CourseCode' }
+        - { name: search, in: query, schema: { type: string }, description: Tên hoặc MSSV }
+        - { name: classCode, in: query, schema: { type: string } }
+        - { name: specializationId, in: query, schema: { type: integer } }
+        - { name: hasTeam, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [name, -name, studentCode, -studentCode], default: name } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/StudentSummary' } } } } ] } } } } }
+  /api/students/{id}:
+    get:
+      tags: [Students]
+      summary: Hồ sơ sinh viên (W10, S04). SĐT chỉ trả cho đồng đội, giảng viên phụ trách, Admin (rule 11)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/StudentProfile' } } } }, '404': { $ref: '#/components/responses/Problem' } }
+  /api/students/me:
+    get:
+      tags: [Students]
+      summary: Hồ sơ của tôi (A05 bước 1, S02)
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/StudentProfile' } } } } }
+    put:
+      tags: [Students]
+      summary: Sửa hồ sơ (A05 bước 2, S03). Phát StudentProfileUpdated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone: { type: string, nullable: true, pattern: '^\+?[0-9]{9,14}$', description: "Lưu dạng chuỗi, giữ số 0 đầu" }
+                skills: { type: array, maxItems: 20, items: { type: string, maxLength: 50 } }
+                bio: { type: string, maxLength: 500, nullable: true }
+                isSeekingTeam: { type: boolean }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/StudentProfile' } } } }, '400': { $ref: '#/components/responses/Problem' } }
+
+  # ---------------- Lecturers ----------------
+  /api/lecturers:
+    get:
+      tags: [Lecturers]
+      summary: Danh sách giảng viên (W11 Admin; S23 sinh viên). Số nhóm đang nhận lấy từ Team Service
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: acceptingOnly, in: query, schema: { type: boolean } }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Lecturer' } } } } ] } } } } }
+    post:
+      tags: [Lecturers]
+      summary: Thêm giảng viên (Admin). Phát LecturerRegistered để Identity cấp quyền đăng nhập
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerInput' } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/lecturers/{id}:
+    get:
+      tags: [Lecturers]
+      summary: Chi tiết giảng viên (S24)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
+    put:
+      tags: [Lecturers]
+      summary: Sửa giảng viên (Admin)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerInput' } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
+  /api/lecturers/me:
+    get:
+      tags: [Lecturers]
+      summary: Hồ sơ giảng viên của tôi (L06)
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
+    put:
+      tags: [Lecturers]
+      summary: Sửa lĩnh vực, số nhóm tối đa, công tắc nhận nhóm mới (L06)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expertise: { type: string, maxLength: 300 }
+                maxTeams: { type: integer, minimum: 1, maximum: 50 }
+                isAcceptingTeams: { type: boolean }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
+
+  # ---------------- Catalogs ----------------
+  /api/specializations:
+    get: { tags: [Catalogs], summary: Danh mục chuyên ngành, responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CatalogItem' } } } } } } }
+    post: { tags: [Catalogs], summary: Thêm (Admin), requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogInput' } } } }, responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogItem' } } } } } }
+  /api/specializations/{id}:
+    put: { tags: [Catalogs], summary: Sửa / vô hiệu (Admin), parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ], requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogInput' } } } }, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogItem' } } } } } }
+  /api/domains:
+    get: { tags: [Catalogs], summary: "Danh mục domain D01–D18 (S14, W13)", responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CatalogItem' } } } } } } }
+    post: { tags: [Catalogs], summary: Thêm (Admin), requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogInput' } } } }, responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogItem' } } } } } }
+  /api/domains/{id}:
+    put: { tags: [Catalogs], summary: Sửa / vô hiệu (Admin), parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ], requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogInput' } } } }, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogItem' } } } } } }
+  /api/class-codes:
+    get: { tags: [Catalogs], summary: "Danh mục mã lớp (W12, bộ lọc S06)", responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CatalogItem' } } } } } } }
+    post: { tags: [Catalogs], summary: Thêm (Admin), requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogInput' } } } }, responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogItem' } } } } } }
+  /api/class-codes/{id}:
+    put: { tags: [Catalogs], summary: Sửa / vô hiệu (Admin), parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ], requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogInput' } } } }, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/CatalogItem' } } } } } }
+
+  # ---------------- Settings ----------------
+  /api/rule-settings:
+    get: { tags: [Settings], summary: Cấu hình quy tắc (W05), responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSettings' } } } } } }
+    put: { tags: [Settings], summary: Sửa cấu hình (Admin), requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSettings' } } } }, responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/RuleSettings' } } } } } }
+
+  # ---------------- Internal (Team, Job) ----------------
+  /internal/registration-rounds/open:
+    get:
+      tags: [Internal]
+      summary: Đợt đang mở cho môn và loại đợt? (Team hỏi trước khi ghi – rule 6). Cache Redis
+      parameters:
+        - { $ref: '#/components/parameters/CourseCode' }
+        - { name: roundType, in: query, required: true, schema: { type: string, enum: [TEAM_FORMATION, CHANGE_REQUEST] } }
+      responses: { '200': { description: Đợt đang mở, content: { application/json: { schema: { $ref: '#/components/schemas/Round' } } } }, '404': { description: Không có đợt nào đang mở } }
+  /internal/registration-rounds/{id}/close:
+    post:
+      tags: [Internal]
+      summary: Job đóng đợt khi tới hạn (RoundAutoCloseJob)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Round' } } } } }
+  /internal/students/lookup:
+    post:
+      tags: [Internal]
+      summary: Lấy snapshot sinh viên (MSSV, tên, chuyên ngành) và kiểm tra có trong học kỳ không
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [semesterId, studentIds]
+              properties:
+                semesterId: { type: string, format: uuid }
+                studentIds: { type: array, items: { type: string, format: uuid }, maxItems: 500 }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/StudentSnapshot' } } } } } }
+  /internal/students/by-code:
+    post:
+      tags: [Internal]
+      summary: Đổi danh sách MSSV sang snapshot (import mốc EXE101)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { semesterId: { type: string, format: uuid }, studentCodes: { type: array, items: { type: string } } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/StudentSnapshot' } } } } } }
+  /internal/lecturers/{id}:
+    get:
+      tags: [Internal]
+      summary: Giảng viên còn hoạt động, sức chứa (Team kiểm tra khi gửi nguyện vọng / phân công)
+      parameters: [ { $ref: '#/components/parameters/Id' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
+
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    CourseCode: { name: courseCode, in: query, schema: { type: string, enum: [EXE101, EXE201] } }
+    Page: { name: page, in: query, schema: { type: integer, default: 1, minimum: 1 } }
+    PageSize: { name: pageSize, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+  responses:
+    Problem:
+      description: Lỗi theo RFC 7807
+      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  schemas:
+    Problem:
+      type: object
+      properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string }, traceId: { type: string }, errors: { type: object, additionalProperties: { type: array, items: { type: string } } } }
+    PagedMeta:
+      type: object
+      properties: { page: { type: integer }, pageSize: { type: integer }, totalCount: { type: integer }, totalPages: { type: integer } }
+    Semester:
+      type: object
+      properties: { id: { type: string, format: uuid }, code: { type: string, example: FA26 }, name: { type: string }, startDate: { type: string, format: date }, endDate: { type: string, format: date }, isCurrent: { type: boolean } }
+    SemesterInput:
+      type: object
+      required: [code, name, startDate, endDate]
+      properties: { code: { type: string, pattern: '^(SP|SU|FA)[0-9]{2}$' }, name: { type: string }, startDate: { type: string, format: date }, endDate: { type: string, format: date }, isCurrent: { type: boolean } }
+    Round:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        semesterId: { type: string, format: uuid }
+        courseCode: { type: string, enum: [EXE101, EXE201] }
+        roundType: { type: string, enum: [TEAM_FORMATION, CHANGE_REQUEST] }
+        name: { type: string }
+        opensAt: { type: string, format: date-time }
+        deadlineAt: { type: string, format: date-time }
+        status: { type: string, enum: [SCHEDULED, OPEN, CLOSED] }
+        closedAt: { type: string, format: date-time, nullable: true }
+    RoundInput:
+      type: object
+      required: [semesterId, courseCode, roundType, name, opensAt, deadlineAt]
+      properties:
+        semesterId: { type: string, format: uuid }
+        courseCode: { type: string, enum: [EXE101, EXE201] }
+        roundType: { type: string, enum: [TEAM_FORMATION, CHANGE_REQUEST] }
+        name: { type: string, maxLength: 100 }
+        opensAt: { type: string, format: date-time }
+        deadlineAt: { type: string, format: date-time }
+    ImportPreview:
+      type: object
+      properties:
+        previewId: { type: string, format: uuid, description: Giữ tạm trong cache 30 phút }
+        fileName: { type: string }
+        totalRows: { type: integer }
+        validRows: { type: array, items: { $ref: '#/components/schemas/ImportRow' } }
+        errorRows:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ImportRow'
+              - type: object
+                properties: { errors: { type: array, items: { type: object, properties: { field: { type: string }, message: { type: string } } } } }
+    ImportRow:
+      type: object
+      properties: { rowNumber: { type: integer }, studentCode: { type: string }, fullName: { type: string }, email: { type: string }, specializationCode: { type: string }, classCode: { type: string } }
+    ImportBatch:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        semesterId: { type: string, format: uuid }
+        fileName: { type: string }
+        totalRows: { type: integer }
+        successRows: { type: integer }
+        failedRows: { type: integer }
+        status: { type: string, enum: [PROCESSING, COMPLETED, FAILED] }
+        importedByName: { type: string }
+        createdAt: { type: string, format: date-time }
+    StudentSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        studentCode: { type: string, example: SE184118 }
+        fullName: { type: string }
+        email: { type: string }
+        specialization: { $ref: '#/components/schemas/CatalogRef' }
+        classCode: { type: string }
+        courseCode: { type: string, enum: [EXE101, EXE201] }
+        hasTeam: { type: boolean }
+        isSeekingTeam: { type: boolean }
+    StudentProfile:
+      allOf:
+        - $ref: '#/components/schemas/StudentSummary'
+        - type: object
+          properties:
+            phone: { type: string, nullable: true, description: null nếu người xem không có quyền }
+            skills: { type: array, items: { type: string } }
+            bio: { type: string, nullable: true }
+            currentTeamId: { type: string, format: uuid, nullable: true }
+    StudentSnapshot:
+      type: object
+      properties: { id: { type: string, format: uuid }, studentCode: { type: string }, fullName: { type: string }, specializationId: { type: integer }, courseCode: { type: string }, isEnrolled: { type: boolean } }
+    Lecturer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string }
+        phone: { type: string, nullable: true }
+        expertise: { type: string, nullable: true }
+        maxTeams: { type: integer }
+        acceptedTeamCount: { type: integer, description: Số nhóm đã nhận (từ Team Service) }
+        isAcceptingTeams: { type: boolean }
+        isActive: { type: boolean }
+    LecturerInput:
+      type: object
+      required: [fullName, email]
+      properties: { fullName: { type: string }, email: { type: string, format: email }, phone: { type: string, nullable: true }, expertise: { type: string }, maxTeams: { type: integer, default: 8 }, isActive: { type: boolean, default: true } }
+    CatalogRef:
+      type: object
+      properties: { id: { type: integer }, code: { type: string }, name: { type: string } }
+    CatalogItem:
+      type: object
+      properties: { id: { type: integer }, code: { type: string }, name: { type: string }, description: { type: string, nullable: true }, isActive: { type: boolean } }
+    CatalogInput:
+      type: object
+      required: [code, name]
+      properties: { code: { type: string }, name: { type: string }, description: { type: string, nullable: true }, isActive: { type: boolean, default: true } }
+    RuleSettings:
+      type: object
+      properties: { minTeamSize: { type: integer, default: 4 }, maxTeamSize: { type: integer, default: 6 }, minSpecializations: { type: integer, default: 2 }, invitationExpiryHours: { type: integer, default: 72 }, reminderHours: { type: array, items: { type: integer }, example: [72, 24] } }
