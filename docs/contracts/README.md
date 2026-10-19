@@ -43,6 +43,8 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
 | `skills-incomplete` | Hồ sơ chưa đánh giá đủ 5 kỹ năng (rule 16) |
 | `not-workspace-member` (403) | Không thuộc workspace của nhóm (rule 21) |
+| `workspace-read-only` (403) | Admin thao tác ghi trong workspace – Admin chỉ xem (rule 21) |
+| `not-workspace-advisor` (403) | Thao tác chỉ dành cho giảng viên hướng dẫn hoặc mentor của nhóm |
 | `archive-read-only` | Ghi vào thư mục / việc EXE101 kỳ trước (rule 26) |
 | `instructor-only` (403) | Chỉ giảng viên hướng dẫn tạo / duyệt bài nộp (rule 23) |
 | `file-too-large` (413), `file-type-not-allowed` (415) | File quá 25 MB / sai định dạng (rule 24) |

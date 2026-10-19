@@ -14,7 +14,7 @@ namespace Collab.Services;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Khung Collaboration Service (BE-62): DbContext, Kafka + Outbox, consumer quyền workspace, policy WorkspaceMember.
+    /// Khung Collaboration Service (BE-62): DbContext, Kafka + Outbox, consumer quyền workspace, policy WorkspaceMember / WorkspaceWriter / WorkspaceAdvisor (BE-14).
     /// Mỗi module (Messages, Tasks, Files, Meetings, Checkpoints) tự đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddCollabServices(this IServiceCollection services, IConfiguration configuration)
@@ -32,8 +32,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkspaceAccessService, WorkspaceAccessService>();
         services.AddScoped<WorkspaceMembershipService>();
         services.AddScoped<IAuthorizationHandler, WorkspaceMemberHandler>();
-        services.AddAuthorizationBuilder()
-            .AddPolicy(CollabPolicies.WorkspaceMember, p => p.RequireAuthenticatedUser().AddRequirements(new WorkspaceMemberRequirement()));
+        services.AddAuthorizationBuilder().AddWorkspacePolicies();
 
         // Lưu file S3 (BE-63).
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));

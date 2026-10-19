@@ -112,6 +112,23 @@ public sealed class ServiceDefaultsTests : IAsyncLifetime
         Assert.Contains("Lecturer", await ok.Content.ReadAsStringAsync());
     }
 
+    [Theory]
+    [InlineData("advisor", new[] { "Lecturer" }, HttpStatusCode.OK)]
+    [InlineData("advisor", new[] { "Mentor" }, HttpStatusCode.OK)]
+    [InlineData("advisor", new[] { "Student" }, HttpStatusCode.Forbidden)]
+    [InlineData("advisor", new[] { "Admin" }, HttpStatusCode.Forbidden)]
+    [InlineData("mentor", new[] { "Lecturer", "Mentor" }, HttpStatusCode.OK)]
+    [InlineData("mentor", new[] { "Lecturer" }, HttpStatusCode.Forbidden)]
+    [InlineData("internal", new[] { "Admin" }, HttpStatusCode.Forbidden)]
+    [InlineData("internal", new[] { "Service" }, HttpStatusCode.OK)]
+    public async Task Role_policies_follow_the_roles_claim(string path, string[] roles, HttpStatusCode expected)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/test/{path}");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CreateToken(roles));
+
+        Assert.Equal(expected, (await _client.SendAsync(request)).StatusCode);
+    }
+
     [Fact]
     public async Task Health_check_is_anonymous()
     {
@@ -168,4 +185,16 @@ public sealed class TestController : ControllerBase
     [Authorize(Policy = Policies.Admin)]
     [HttpGet("admin")]
     public IActionResult Admin() => Ok(User.GetRoles());
+
+    [Authorize(Policy = Policies.Advisor)]
+    [HttpGet("advisor")]
+    public IActionResult Advisor() => Ok();
+
+    [Authorize(Policy = Policies.Mentor)]
+    [HttpGet("mentor")]
+    public IActionResult Mentor() => Ok();
+
+    [Authorize(Policy = Policies.Internal)]
+    [HttpGet("internal")]
+    public IActionResult Internal() => Ok();
 }
