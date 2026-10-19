@@ -45,7 +45,8 @@ public sealed class GoogleTokenValidator(IOptions<GoogleAuthOptions> options, IL
             });
             return new GoogleIdentity(payload.Subject, payload.Email, payload.EmailVerified, payload.Name);
         }
-        catch (InvalidJwtException ex)
+        // Token sai định dạng ném lỗi parse (Newtonsoft, base64) chứ không phải InvalidJwtException.
+        catch (Exception ex) when (ex is InvalidJwtException or FormatException or ArgumentException or Newtonsoft.Json.JsonException)
         {
             logger.LogInformation("Google ID token không hợp lệ: {Reason}", ex.Message);
             throw AuthErrors.InvalidGoogleToken();
