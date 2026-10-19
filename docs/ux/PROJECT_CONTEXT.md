@@ -68,14 +68,14 @@ Team Service     --REST/HTTP--> Academic Service
 Team Service     --gRPC-------> Matching Service
 Job Service      --gRPC-------> Matching Service
 Team, Academic, Job  --Publish--> Kafka
-Kafka --Consume--> Notification Service, Matching Service
+Kafka --Consume--> Notification Service, Matching Service, Identity Service
 Academic Service, Matching Service --> Redis (cache)
 Identity -> Identity DB | Team -> Team DB | Academic -> Academic DB | Job -> Job DB | Notification -> Notification DB  (PostgreSQL)
 Identity Service     --OAuth 2.0--> Google Identity
 Notification Service --SMTP------> Email Service
 ```
 
-Diagram sources: `c0.mmd`, `c1.mmd` (Mermaid flowchart). **The C1 diagram still needs three additions to match this file:** the Mobile App (Flutter) container, the edge API Gateway → Notification Service, and the edge Job Service → Team Service.
+Diagram source: `docs/c4-architecture/c1.mmd` (Mermaid flowchart, rendered to `c1.png`). Updated on 2026-10-19 to match this file: Mobile App (Flutter) container, edge API Gateway → Notification Service, edge Job Service → Team Service, edge Kafka → Identity Service (login allow-list), all databases on PostgreSQL.
 
 ## 5. Services
 
@@ -84,9 +84,10 @@ Diagram sources: `c0.mmd`, `c1.mmd` (Mermaid flowchart). **The C1 diagram still 
 - Exposes Identity, Team, Academic and the read API of Notification (`/api/notifications`). Job and Matching are **internal only**.
 
 ### 5.2 Identity Service – REST API
-- Google login: receives Google ID token, checks the email is in the allowed list, then **issues the system's own JWT** (access token ~15 min) + refresh token (~7 days). Refresh, logout/revoke.
+- Google login: receives Google ID token, looks up the email in its own `UserAccount` table, then **issues the system's own JWT** (access token ~15 min) + refresh token (~7 days). Refresh, logout/revoke. An email with no active account is rejected (mobile screen A04).
+- **Login allow-list (rule 5).** Identity never calls Academic at login. It consumes `StudentImported` and `LecturerRegistered` (topic `exe.student`) and pre-creates a `UserAccount` (role `Student` / `Lecturer`, status `PENDING`, becomes `ACTIVE` at the first Google login) for each email; the event is processed idempotently (same email → update, not duplicate). The first Admin account is seeded.
 - Roles: `Student`, `Lecturer`, `Admin`. Leader is checked as a policy at the Services layer, not a role.
-- DB (`Identity DB`): `UserAccount` (email, role, status), `Role`, `RefreshToken` (token, expiry, revoked).
+- DB (`Identity DB`): `UserAccount` (email, role, status, semester), `Role`, `RefreshToken` (token, expiry, revoked), `ProcessedEvent` (idempotency).
 - No Redis (JWT is validated by signature; caching login data risks keeping locked accounts active).
 
 ### 5.3 Academic Service – REST API
@@ -96,7 +97,7 @@ Diagram sources: `c0.mmd`, `c1.mmd` (Mermaid flowchart). **The C1 diagram still 
 - Student and lecturer profiles. A lecturer profile has a **capacity** (maximum number of teams) and an accepting-new-teams flag.
 - Answers Team Service (HTTP): "is the round open?", "does this student exist / is in this semester?".
 - Redis: caches catalogs and active round status; invalidate on change.
-- Publishes: `StudentImported`, `StudentProfileUpdated`, `RoundOpened`, `RoundClosed`.
+- Publishes: `StudentImported`, `StudentProfileUpdated`, `LecturerRegistered`, `RoundOpened`, `RoundClosed`.
 - DB (`Academic DB`): `Semester`, `RegistrationRound`, `Student`, `Lecturer`, `ClassCode`, `Specialization`, `Domain`.
 
 ### 5.4 Team Service – REST API (core business)
@@ -155,7 +156,7 @@ service MatchingService {
 | `exe.invitation` | InvitationSent, InvitationAccepted, InvitationDeclined, InvitationExpired, JoinRequestSubmitted, JoinRequestAccepted, JoinRequestDeclined | Team, Job | Notification |
 | `exe.change-request` | ChangeRequestSubmitted, ChangeRequestApproved, ChangeRequestRejected | Team | Notification |
 | `exe.registration` | RoundOpened, DeadlineApproaching, RoundClosed | Academic, Job | Notification (Job listens to RoundClosed internally via schedule) |
-| `exe.student` | StudentImported, StudentProfileUpdated | Academic | Matching |
+| `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered | Academic | Matching (read model), Identity (pre-created accounts), Notification (recipient contacts) |
 | `exe.assignment` | LecturerRequested, LecturerAccepted, LecturerDeclined, LecturerAssigned | Team | Notification |
 
 Event envelope: `eventId` (GUID, for idempotency), `eventType`, `occurredAt` (UTC), `correlationId`, `payload`.
@@ -212,7 +213,7 @@ deploy/
 | matching-grpc | 5004 (HTTP/2) |
 | notification (API + worker) | 5005 |
 | jobs (`/hangfire`) | 5006 |
-| postgres | 5432 (one instance, one database per service) |
+| postgres | 5432 (one instance, one database per service: `identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`; table design in `docs/EXE_Database_Design.pdf`, SQL scripts in `deploy/db/`) |
 | kafka | 9092 |
 | kafka-ui | 8085 |
 | redis | 6379 |
@@ -228,7 +229,7 @@ The Flutter mobile app is not part of Compose; it points at the gateway URL. `de
 | JWT authentication | Identity issues, Gateway + services validate |
 | Search, filter, sort, pagination | Team (teams), Academic (students) |
 | Background job | Job Service (Hangfire), Outbox dispatcher, Kafka consumers |
-| Message broker: ≥ 1 producer, ≥ 1 consumer | Kafka: Team/Academic/Job produce, Notification/Matching consume |
+| Message broker: ≥ 1 producer, ≥ 1 consumer | Kafka: Team/Academic/Job produce, Notification/Matching/Identity consume |
 | Independent gRPC service called from REST API | Team Service → Matching Service |
 | Docker deployment | Docker Compose |
 
@@ -242,13 +243,13 @@ The Flutter mobile app is not part of Compose; it points at the gateway URL. `de
 
 ## 12. Open decisions / assumptions
 
-- **Email whitelist check at login**: Identity needs the imported list owned by Academic. Options: (a) Identity calls Academic over HTTP at login, or (b) Academic publishes `StudentImported` and Identity consumes it to pre-create accounts. Not yet decided; neither edge is drawn in C1.
-- **Job → Team (internal HTTP)** for finalizing the round and creating auto-assigned teams exists in the design but is not drawn in C1. Same for **Mobile App** and **Gateway → Notification**.
+- ~~Email whitelist check at login~~ – **decided 2026-10-19: option (b).** Academic publishes `StudentImported` / `LecturerRegistered`, Identity consumes them and pre-creates accounts (section 5.2). Login does not depend on Academic being up. Edge Kafka → Identity is drawn in C1.
+- ~~Job → Team, Mobile App and Gateway → Notification missing from C1~~ – drawn on 2026-10-19.
 - **Assumptions added on 2026-10-12 – confirm with the team/lecturer:**
   - The EXE101 baseline of EXE201 teams comes from an **Excel import** by Admin (section 5.4), not from data of a previous semester inside the system.
   - Member changes of an inherited EXE201 team are **pending until Admin approves** the change request (rule 7).
   - Teams are **finalized automatically at the deadline**; invalid teams become `NeedsReview` and are handled by auto-assign, then by Admin (rules 13–14).
   - In-app notifications are fetched by **polling** the Notification read API; no SignalR / push.
 - The imported student file is assumed to come from FAP exports and to contain each student's Google account email.
-- Lecturer emails are entered by Admin to grant the `Lecturer` role; the first Admin account is seeded.
+- Lecturer emails are entered by Admin on the web app (Academic Service), which publishes `LecturerRegistered` so Identity grants the `Lecturer` role; the first Admin account is seeded.
 - If the team is short on people: merge Academic into Team and Notification into Job (4 services).

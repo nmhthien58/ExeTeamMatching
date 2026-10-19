@@ -1,0 +1,143 @@
+# AGENTS.md – Quy tắc làm việc cho thành viên và AI agent
+
+> File này dành cho mọi AI coding agent (Claude Code, Codex, Cursor, Copilot…) và cho 5 thành viên nhóm.
+> Đọc hết file này và các tài liệu ở mục 1 **trước khi** viết code, tạo nhánh hay mở PR.
+
+Dự án: **EXE Team Matching System** – PRN232 Final Assignment (backend .NET 8 microservices) + PRM323 (Flutter, React).
+Nhóm: Thiên (trưởng nhóm), Nam, Cường, Nguyên, Thành.
+
+---
+
+## 1. Tài liệu phải đọc
+
+Đọc theo thứ tự. Khi các tài liệu mâu thuẫn nhau, tin tài liệu đứng trước trong danh sách và **báo lại cho Thiên**, không tự đoán.
+
+| # | File | Đọc khi | Nội dung |
+|---|---|---|---|
+| 1 | [docs/ux/PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) | Luôn đọc | Nghiệp vụ, 15 quy tắc bắt buộc, kiến trúc, service, sự kiện Kafka, công nghệ, quy ước code, cổng Docker |
+| 2 | [docs/EXE_Database_Design.pdf](docs/EXE_Database_Design.pdf) | Đụng tới DB, entity, DbContext | Mỗi service 1 database; bảng, cột, ràng buộc, index, trigger; tham chiếu chéo service |
+| 3 | [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành |
+| 4 | [docs/c4-architecture/PRN232 - Final Assignment.pdf](docs/c4-architecture/PRN232%20-%20Final%20Assignment.pdf) | Luôn đọc | Đề bài, yêu cầu kỹ thuật, tiêu chí chấm |
+| 5 | [docs/c4-architecture/c1.mmd](docs/c4-architecture/c1.mmd) (ảnh `c1.png`), [EXE_Team_Matching_Kien_truc_C4.docx](docs/c4-architecture/EXE_Team_Matching_Kien_truc_C4.docx) | Làm backend, giao tiếp giữa service | Sơ đồ container, ma trận giao tiếp, proto gRPC, sự kiện, background job |
+| 6 | [docs/ux/DESIGN.md](docs/ux/DESIGN.md) | Làm web hoặc mobile | Design token, component, quy ước giao diện |
+| 7 | [docs/ux/flutter-handoff.md](docs/ux/flutter-handoff.md) | Làm mobile | Ánh xạ token/component sang Flutter, spec từng màn hình, checklist |
+| 8 | [docs/ux/EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx](docs/ux/EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx) | Làm web hoặc mobile | Nội dung và trạng thái cần có của mọi màn hình (A01–L06, W01–W26) |
+| 9 | [docs/ux/user-flow.md](docs/ux/user-flow.md), [docs/ux/design-decisions.md](docs/ux/design-decisions.md) | Làm web hoặc mobile | Luồng điều hướng, lý do các quyết định thiết kế, accessibility |
+| 10 | [docs/ux/persona.md](docs/ux/persona.md) | Khi cần hiểu người dùng | Persona, vấn đề, chỉ số thành công |
+
+Figma: https://www.figma.com/design/tX0K0MdkTKt5wJcvWnPbxr (page `03 Final UI` cho giao diện chuẩn).
+
+---
+
+## 2. Cấu trúc repo và người phụ trách
+
+Chia theo **nghiệp vụ**: mỗi người sở hữu trọn một mảng (backend + web + mobile). Chỉ sửa code trong vùng của mình. Muốn sửa vùng của người khác thì mở PR và để người đó review.
+
+```
+src/
+  BuildingBlocks/            Thiên   – JWT, logging, exception, Kafka, Outbox, event contracts
+  ApiGateway/                Thiên
+  Protos/                    Thiên   – *.proto dùng chung
+  Services/
+    Identity/                Thiên
+    Academic/                Nam
+    Team/                    Cường (lõi) – xem bảng chia module bên dưới
+    Matching/                Nguyên
+    Jobs/                    Nguyên
+    Notification/            Thành
+web/                         React (Bộ môn)
+  src/app, src/shared, src/features/auth, layout   Thiên
+  src/features/<feature>     theo bảng bên dưới
+mobile/                      Flutter (Sinh viên, Giảng viên)
+  lib/core, lib/shared, lib/features/auth          Thiên
+  lib/features/<feature>     theo bảng bên dưới
+deploy/
+  docker-compose*.yml        Thiên
+  db/                        Thiên   – DB script cho 5 database
+docs/                        Thiên   – mọi người được đề xuất sửa qua PR
+```
+
+| Người | Backend | Web (`web/src/features/…`) | Mobile (`mobile/lib/features/…`) |
+|---|---|---|---|
+| **Thiên** | BuildingBlocks, Gateway, Identity, Protos, `deploy/`, DB script | `auth`, khung trang, component dùng chung (W01, W25, W26) | `auth`, theme, widget dùng chung (A03, A04, A08) |
+| **Nam** | Academic Service | `semesters`, `rounds`, `imports`, `students`, `lecturers`, `catalogs`, `settings` (W03–W14) | `profile` (A05, S02–S04), `settings` (A07), `lecturer-profile` (L06) |
+| **Cường** | Team Service – module Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Outbox | `teams`, `audit-log` (W15, W16, W24) | `home` (S01), `discover` (S05, S06, S08–S11), `invitations` (S12), `my-team` (S13–S17, S20–S22) |
+| **Nguyên** | Matching, Jobs; Team Service – module Finalization, AutoAssign, Statistics, Export; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22) | `suggestions` (S07, S18, S19), `round-closed` (S30, S31); build APK demo |
+| **Thành** | Notification; Team Service – module ChangeRequests, BaselineImport, LecturerPreferences, LecturerAssignments | `change-requests`, `lecturer-assignment`, `announcements` (W17–W19, W23) | `onboarding` (A01, A02), `notifications` (A06), `lecturers` (S23–S25), `change-requests` (S26–S29), `lecturer` (L01–L05) |
+
+Team Service do 3 người cùng làm, nên mỗi module nằm trong thư mục riêng ở cả 4 project (`Team.Api/Controllers/<Module>`, `Team.Services/<Module>`, `Team.Repositories/<Module>`, `Team.Domain/<Module>`). `TeamDbContext` và migration/DB script của Team chỉ Thiên và Cường được sửa.
+
+---
+
+## 3. Quy tắc nhánh git
+
+### 3.1 Nhánh cố định
+| Nhánh | Mục đích | Ai được merge |
+|---|---|---|
+| `main` | Bản nộp, luôn chạy được bằng `docker compose up` | Chỉ Thiên, merge từ `develop` khi xong một giai đoạn |
+| `develop` | Nhánh tích hợp hằng ngày | Qua PR đã được duyệt |
+
+Không commit trực tiếp lên `main` hoặc `develop`. Không `push --force` lên hai nhánh này.
+
+### 3.2 Nhánh làm việc
+- Tạo từ `develop` mới nhất:
+  ```bash
+  git switch develop && git pull
+  git switch -c feat/BE-29-invitations
+  ```
+- Tên nhánh: `<loại>/<mã-task>-<mô-tả-ngắn>`, chữ thường, gạch ngang, không dấu.
+  - `<loại>`: `feat` (tính năng), `fix` (sửa lỗi), `refactor`, `test`, `docs`, `chore` (cấu hình, build).
+  - `<mã-task>`: mã trong file Excel task (`BE-29`, `FE-21`, `MB-14`). Một nhánh làm nhiều task thì ghi mã chính.
+  - Ví dụ: `feat/BE-01-db-script`, `feat/MB-14-discover-teams`, `fix/FE-24-reject-dialog`.
+- Một nhánh cho một task hoặc một nhóm task liền nhau; không gom việc của nhiều mảng vào một nhánh.
+- Cập nhật nhánh mỗi ngày để tránh conflict lớn:
+  ```bash
+  git fetch origin
+  git rebase origin/develop
+  ```
+  Chỉ rebase nhánh của chính mình. Sau khi rebase, đẩy lên bằng `git push --force-with-lease` (chỉ trên nhánh của mình).
+- Xóa nhánh sau khi PR đã merge.
+
+### 3.3 Commit
+Theo Conventional Commits, kèm mã task:
+```
+<loại>(<phạm-vi>): <mô tả ngắn, tiếng Việt hoặc tiếng Anh> (<mã-task>)
+```
+- `<phạm-vi>`: `identity`, `academic`, `team`, `matching`, `jobs`, `notification`, `gateway`, `building-blocks`, `db`, `web`, `mobile`, `docs`, `deploy`.
+- Ví dụ: `feat(team): gửi và chấp nhận lời mời (BE-29)`, `fix(mobile): giữ lời nhắn khi gửi lỗi (MB-16)`.
+- Commit nhỏ, mỗi commit build được. Không commit file sinh ra (`bin/`, `obj/`, `node_modules/`, `build/`, `.dart_tool/`).
+
+### 3.4 Pull request
+- Mở PR vào `develop`. Tiêu đề giống commit chính: `feat(team): gửi và chấp nhận lời mời (BE-29)`.
+- Mô tả PR gồm: mã task, việc đã làm, cách kiểm tra (lệnh chạy, request mẫu), ảnh chụp màn hình nếu có UI, các điểm chưa xong.
+- Trước khi mở PR: build không lỗi, test liên quan chạy qua, đã rebase lên `develop` mới nhất.
+- Cần **ít nhất 1 người duyệt**:
+  - Code trong vùng của người khác → người đó duyệt.
+  - Sửa contract (OpenAPI, `.proto`, sự kiện Kafka), DB script, BuildingBlocks, Docker Compose → **Thiên** duyệt.
+- Merge kiểu **Squash and merge**. Người mở PR tự merge sau khi được duyệt và CI (nếu có) xanh.
+- Sau khi merge: cập nhật cột Trạng thái của task trong file Excel thành `Xong`.
+
+---
+
+## 4. Quy tắc code (tóm tắt, chi tiết ở PROJECT_CONTEXT.md §7–8)
+
+- **Backend:** ASP.NET Core 8, kiến trúc API – Services – Repositories – Domain. Controller không chứa nghiệp vụ. EF Core (Npgsql) map đúng bảng trong DB script, không tự đổi tên bảng/cột. Lỗi trả ProblemDetails. Log bằng Serilog kèm CorrelationId. Route số nhiều, kebab-case (`/api/change-requests`). Giờ lưu UTC.
+- **Giao tiếp:** client chỉ gọi API Gateway. Giữa các service: REST nội bộ; gọi Matching bằng gRPC; báo sự kiện qua Kafka (ghi Outbox trong cùng transaction). Không service nào đọc database của service khác.
+- **Database:** mỗi service một database (`identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`). Muốn thay đổi bảng thì sửa DB script trong `deploy/db/` và cập nhật `docs/EXE_Database_Design.pdf`, PR do Thiên duyệt.
+- **Web (React):** dùng component và API client dùng chung trong `web/src/shared`, không gọi `fetch` trực tiếp trong màn hình. Màn hình có đủ trạng thái đang tải / trống / lỗi như trong danh sách màn hình.
+- **Mobile (Flutter):** lấy màu, chữ, khoảng cách qua `Theme.of(context)`, `AppSpacing`, `AppRadius`; không hardcode `Color(...)` hay `fontSize`. Làm đủ trạng thái và chạy checklist ở flutter-handoff.md §5.
+- **Ngôn ngữ:** tên biến, class, API, commit type bằng tiếng Anh; chữ hiển thị cho người dùng bằng tiếng Việt; tài liệu bằng tiếng Việt.
+- **Bí mật:** không commit mật khẩu, token, khóa Google OAuth, chuỗi kết nối thật. Dùng `appsettings.Development.json` với giá trị giả và biến môi trường / file `.env` (đã gitignore).
+- **Dữ liệu demo:** chỉ dùng dữ liệu ẩn danh (không SĐT thật, email giả).
+
+---
+
+## 5. Quy tắc riêng cho AI agent
+
+1. Đọc mục 1 trước. Nếu được giao một task, tìm task đó trong file Excel và làm đúng phần "Mô tả / tiêu chí hoàn thành"; không làm thêm việc ngoài task.
+2. Hỏi người dùng tên mình và mã task trước khi bắt đầu nếu chưa rõ. Chỉ sửa file trong vùng của người đó (mục 2).
+3. Không tự đổi contract API, `.proto`, tên/payload sự kiện Kafka, DB script hay BuildingBlocks. Cần đổi thì dừng lại, ghi rõ đề xuất để người dùng mở PR cho Thiên duyệt.
+4. Tài liệu mâu thuẫn hoặc thiếu thông tin: nêu rõ chỗ mâu thuẫn, đề xuất cách xử lý và hỏi lại, không tự đoán.
+5. Làm việc trên nhánh đúng quy tắc mục 3. Không commit lên `main`/`develop`, không `push --force` lên nhánh chung, không merge PR thay người dùng.
+6. Trước khi báo xong: build, chạy test liên quan, và nói rõ những gì chưa kiểm tra được.
+7. Không bỏ qua hook, không tắt kiểm tra (lint, test) để cho qua.

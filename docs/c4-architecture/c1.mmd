@@ -1,0 +1,77 @@
+---
+title: C1 – System Architecture – EXE Team Matching System
+config:
+  layout: elk
+  flowchart:
+    curve: step
+---
+flowchart LR
+    users(["<b>Student, Lecturer</b><br/>[Person]"]):::person
+    admin(["<b>EXE Department</b><br/>[Person]"]):::person
+
+    subgraph system["EXE Team Matching System"]
+        mobile["<b>Mobile App</b><br/>[Flutter]"]:::container
+        web["<b>Web App</b><br/>[React]"]:::container
+        gateway["<b>API Gateway</b><br/>[YARP]"]:::container
+
+        identity["<b>Identity Service</b>"]:::container
+        team["<b>Team Service</b>"]:::container
+        academic["<b>Academic Service</b>"]:::container
+        notification["<b>Notification Service</b>"]:::container
+        job["<b>Job Service</b><br/>[Hangfire]"]:::container
+        matching["<b>Matching Service</b>"]:::container
+        kafka[["<b>Message Broker</b><br/>[Apache Kafka]"]]:::container
+
+        identityDb[("<b>Identity DB</b><br/>[PostgreSQL]")]:::db
+        teamDb[("<b>Team DB</b><br/>[PostgreSQL]")]:::db
+        academicDb[("<b>Academic DB</b><br/>[PostgreSQL]")]:::db
+        jobDb[("<b>Job DB</b><br/>[PostgreSQL]")]:::db
+        notificationDb[("<b>Notification DB</b><br/>[PostgreSQL]")]:::db
+        redis[("<b>Cache</b><br/>[Redis]")]:::db
+    end
+
+    google["<b>Google Identity</b><br/>[External System]"]:::external
+    email["<b>Email Service</b><br/>[External System]"]:::external
+
+    users -->|HTTPS| mobile
+    admin -->|HTTPS| web
+    mobile -->|REST / HTTPS| gateway
+    web -->|REST / HTTPS| gateway
+
+    gateway -->|REST / HTTP| identity
+    gateway -->|REST / HTTP| team
+    gateway -->|REST / HTTP| academic
+    gateway -->|REST / HTTP| notification
+
+    team -->|REST / HTTP| academic
+    team -->|gRPC| matching
+    job -->|"REST / HTTP<br/>(internal, service token)"| team
+    job -->|gRPC| matching
+
+    team -->|Publish| kafka
+    academic -->|Publish| kafka
+    job -->|Publish| kafka
+    kafka -->|Consume| notification
+    kafka -->|Consume| matching
+    kafka -->|Consume| identity
+
+    identity -->|SQL| identityDb
+    team -->|SQL| teamDb
+    academic -->|SQL| academicDb
+    job -->|SQL| jobDb
+    notification -->|SQL| notificationDb
+    academic -->|Cache| redis
+    matching -->|Cache| redis
+
+    identity -->|OAuth 2.0| google
+    notification -->|SMTP| email
+
+    classDef person fill:#0E3F78,stroke:#0A2E59,color:#fff
+    classDef container fill:#3B87D6,stroke:#2A6BB0,color:#fff
+    classDef db fill:#2C5F93,stroke:#1E4670,color:#fff
+    classDef external fill:#8A8A8A,stroke:#666,color:#fff
+    style system fill:none,stroke:#888,stroke-dasharray: 5 5
+
+    linkStyle 12,13,14,15,16,17 stroke:#D9480F
+    linkStyle 18,19,20,21,22 stroke:#888
+    linkStyle 23,24 stroke:#2B8A3E
