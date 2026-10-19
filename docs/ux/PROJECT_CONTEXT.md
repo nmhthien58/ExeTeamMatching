@@ -333,7 +333,7 @@ Three projects per REST service, the same layout as the PRN232 labs (no separate
 
 The Flutter mobile app is not part of Compose; it points at the gateway URL. `depends_on` with `condition: service_healthy`. EF migrations auto-run in Development. Demo seed data comes from an **anonymized** Group List (no phone numbers, fake emails).
 
-> DB scripts and contracts follow version 4 and the 2026-10-20 rules (BE-60, BE-61, BE-78 – `deploy/db/`, `docs/contracts/`). `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists every difference. The object storage container (`object-storage`, SeaweedFS) is in Compose (BE-63); service containers (Dockerfile per service) are not yet.
+> DB scripts and contracts follow version 4 and the 2026-10-20 rules (BE-60, BE-61, BE-78 – `deploy/db/`, `docs/contracts/`). `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists every difference. The object storage container (`object-storage`, SeaweedFS) is in Compose (BE-63). All .NET services are built from one shared Dockerfile, `deploy/docker/dotnet.Dockerfile` (build context `backend/`, args `PROJECT` and `APP_DLL`); `docker compose -f deploy/docker-compose.yml up -d --build` starts the whole system. Each service container listens on 8080 with `ASPNETCORE_ENVIRONMENT=Development`; Compose overrides connection strings, Kafka (`kafka:29092`), `Jwt__SigningKey` and the Gateway cluster addresses to use Docker service names.
 
 ## 10. PRN232 requirement mapping
 

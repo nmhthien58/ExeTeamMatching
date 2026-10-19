@@ -13,6 +13,26 @@ Sau khi lập nhóm, mỗi nhóm có một **Dự án** (workspace) để làm v
 - **Figma:** https://www.figma.com/design/tX0K0MdkTKt5wJcvWnPbxr
 - **Môn:** PRM323 Lab 2 – Thiết kế UI/UX có hỗ trợ AI · PRN232 (backend)
 
+## Chạy bằng Docker
+
+Cần Docker Desktop. Từ thư mục gốc repo:
+
+```bash
+cp deploy/.env.example deploy/.env
+docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+| Địa chỉ | Nội dung |
+|---|---|
+| http://localhost:3000 | Web (React) |
+| http://localhost:8080 | API Gateway – client chỉ gọi địa chỉ này; Swagger gộp ở `/swagger` |
+| http://localhost:5001 … 5007 | Từng service (Identity, Academic, Team, Matching gRPC, Notification, Jobs, Collab), mỗi service có `/health` |
+| http://localhost:8085 · 8025 · 9001 | Kafka UI · Mailpit (email dev) · giao diện file S3 |
+
+Mọi service .NET dùng chung `deploy/docker/dotnet.Dockerfile`. Bảng cổng đầy đủ: [PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) mục 9. Lấy JWT thử không cần Google: `POST http://localhost:8080/api/dev/token` ([docs/setup/google-sign-in.md](docs/setup/google-sign-in.md) mục 6).
+
+DB script chỉ chạy khi volume Postgres còn trống. Nếu volume tạo từ script cũ (ví dụ thiếu `collab_db`), tạo lại (mất dữ liệu local): `docker compose -f deploy/docker-compose.yml down -v` rồi `up -d --build`.
+
 ## Artifact Lab 2 (`docs/ux/`)
 
 | Artifact | File | Slide |

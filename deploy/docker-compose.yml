@@ -1,6 +1,17 @@
-# BE-08 – Hạ tầng dùng chung. Chạy: cd deploy && cp .env.example .env && docker compose up -d
-# Các service .NET và web được thêm vào file này khi từng service có Dockerfile (cổng theo PROJECT_CONTEXT §9).
+# BE-08 – Toàn hệ thống: hạ tầng + 8 service .NET + web (cổng theo PROJECT_CONTEXT §9).
+# Chạy: cd deploy && cp .env.example .env && docker compose up -d --build
+# Service .NET dùng chung deploy/docker/dotnet.Dockerfile (build context = backend/).
 name: exe-team-matching
+
+x-dotnet-healthcheck: &dotnet-healthcheck
+  test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+  interval: 10s
+  timeout: 5s
+  start_period: 20s
+  retries: 12
+
+x-jwt-env: &jwt-env
+  Jwt__SigningKey: ${JWT_SIGNING_KEY:-dev-only-signing-key-change-me-0123456789abcdef}
 
 services:
   postgres:
@@ -110,6 +121,204 @@ services:
       interval: 5s
       timeout: 5s
       retries: 30
+
+  # ---------- Service .NET (container nghe 8080, Development để có Swagger và /api/dev/token) ----------
+  # Chỉ ghi đè cấu hình mà service đã đọc. Service thêm DB/Kafka/... thì thêm biến tương ứng ở đây (PR cho Thiên).
+
+  identity-api:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Identity/Identity.Api/Identity.Api.csproj
+        APP_DLL: Identity.Api.dll
+    container_name: exe-identity-api
+    environment:
+      <<: *jwt-env
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__IdentityDb: Host=postgres;Port=5432;Database=identity_db;Username=identity_svc;Password=${IDENTITY_DB_PASSWORD:-identity_dev_pw}
+      Kafka__BootstrapServers: kafka:29092
+    ports:
+      - "5001:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  academic-api:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Academic/Academic.Api/Academic.Api.csproj
+        APP_DLL: Academic.Api.dll
+    container_name: exe-academic-api
+    environment:
+      <<: *jwt-env
+      ASPNETCORE_ENVIRONMENT: Development
+      Kafka__BootstrapServers: kafka:29092
+    ports:
+      - "5002:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  team-api:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Team/Team.Api/Team.Api.csproj
+        APP_DLL: Team.Api.dll
+    container_name: exe-team-api
+    environment:
+      <<: *jwt-env
+      ASPNETCORE_ENVIRONMENT: Development
+      Kafka__BootstrapServers: kafka:29092
+    ports:
+      - "5003:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Chỉ HTTP/2 (gRPC, không TLS): healthcheck dùng --http2-prior-knowledge. Không có route qua Gateway.
+  matching-grpc:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Matching/Matching.Grpc/Matching.Grpc.csproj
+        APP_DLL: Matching.Grpc.dll
+    container_name: exe-matching-grpc
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Kestrel__EndpointDefaults__Protocols: Http2
+      Kafka__BootstrapServers: kafka:29092
+    ports:
+      - "5004:8080"
+    healthcheck:
+      <<: *dotnet-healthcheck
+      test: ["CMD-SHELL", "curl -fsS --http2-prior-knowledge http://localhost:8080/health || exit 1"]
+
+  notification:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Notification/Notification.Worker/Notification.Worker.csproj
+        APP_DLL: Notification.Worker.dll
+    container_name: exe-notification
+    environment:
+      <<: *jwt-env
+      ASPNETCORE_ENVIRONMENT: Development
+      Kafka__BootstrapServers: kafka:29092
+    ports:
+      - "5005:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  jobs:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Jobs/Jobs.Host/Jobs.Host.csproj
+        APP_DLL: Jobs.Host.dll
+    container_name: exe-jobs
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Kafka__BootstrapServers: kafka:29092
+    ports:
+      - "5006:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  collab-api:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: Services/Collaboration/Collab.Api/Collab.Api.csproj
+        APP_DLL: Collab.Api.dll
+    container_name: exe-collab-api
+    environment:
+      <<: *jwt-env
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__CollabDb: Host=postgres;Port=5432;Database=collab_db;Username=collab_svc;Password=${COLLAB_DB_PASSWORD:-collab_dev_pw}
+      Kafka__BootstrapServers: kafka:29092
+      ObjectStorage__ServiceUrl: http://object-storage:8333
+      ObjectStorage__PublicUrl: http://localhost:9000   # URL tải file ký sẵn trả cho trình duyệt / app
+    ports:
+      - "5007:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      object-storage:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/docker/dotnet.Dockerfile
+      args:
+        PROJECT: ApiGateway/ApiGateway.csproj
+        APP_DLL: ApiGateway.dll
+    container_name: exe-gateway
+    environment:
+      <<: *jwt-env
+      ASPNETCORE_ENVIRONMENT: Development
+      Kafka__BootstrapServers: kafka:29092
+      ReverseProxy__Clusters__identity__Destinations__d1__Address: http://identity-api:8080/
+      ReverseProxy__Clusters__academic__Destinations__d1__Address: http://academic-api:8080/
+      ReverseProxy__Clusters__team__Destinations__d1__Address: http://team-api:8080/
+      ReverseProxy__Clusters__notification__Destinations__d1__Address: http://notification:8080/
+      ReverseProxy__Clusters__collab__Destinations__d1__Address: http://collab-api:8080/
+    ports:
+      - "8080:8080"
+    healthcheck: *dotnet-healthcheck
+    depends_on:
+      identity-api:
+        condition: service_healthy
+      academic-api:
+        condition: service_healthy
+      team-api:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+      collab-api:
+        condition: service_healthy
+
+  # FE-01 – React build tĩnh phục vụ bằng nginx. Biến VITE_* được gắn lúc build.
+  web:
+    build:
+      context: ../web
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-221888974127-ho8c6t3rqct6f7r5o2e8gott7i8lrd7s.apps.googleusercontent.com}
+    container_name: exe-web
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      gateway:
+        condition: service_healthy
 
 volumes:
   postgres-data:
