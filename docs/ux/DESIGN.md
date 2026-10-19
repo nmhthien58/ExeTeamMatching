@@ -1,18 +1,23 @@
 # DESIGN.md – EXE Team Matching System
 
-> Quy ước thiết kế cho **Mobile (Flutter, Material 3)** và **web quản trị (React)**.
+> Quy ước thiết kế cho **Mobile (Flutter, Material 3)** và **Web (React)** – web quản trị của Bộ môn và web cho Sinh viên, Giảng viên, Mentor.
+> **Bản 4 – 19/10/2026 (sau góp ý của giảng viên):** bảng màu cam/xanh FPT sáng hơn, phong cách hiện đại hơn và ít chữ hơn, component cho workspace nhóm, web cho mọi vai trò. **Figma vẫn ở bản 3** (nhóm không vẽ lại); code theo bản 4. Mọi điểm khác bản 3 ở [Phụ lục D](#phụ-lục-d--thay-đổi-so-với-bản-3).
 > **Bản 3 – 13/10/2026.** Bản 1 chuyển nguyên từ `EXE_Team_Matching_Quy_uoc_thiet_ke.docx`. Bản 2 (12/10/2026) bổ sung để đáp ứng yêu cầu accessibility và design system của PRM323 Lab 2; mọi điểm khác bản 1 được liệt kê ở [Phụ lục B](#phụ-lục-b--thay-đổi-so-với-bản-1). Bản 3 ghi lại các quy ước rút ra từ ba vòng tinh chỉnh trong [ai-design-log.md](ai-design-log.md); mọi điểm khác bản 2 được liệt kê ở [Phụ lục C](#phụ-lục-c--thay-đổi-so-với-bản-2).
 > Dùng kèm: [persona.md](persona.md), [user-flow.md](user-flow.md), file Danh sách màn hình.
 
-Cả nhóm vẽ trên một bộ quy ước duy nhất: **nền trắng, màu nhấn xanh da trời, font Be Vietnam Pro, lưới 4 px và component theo Material 3**. Mọi màu, kiểu chữ và component lấy từ thư viện chung do người nhận gói G1 dựng; không ai tự đặt mã màu hay cỡ chữ riêng trong màn hình của mình.
+Cả nhóm làm trên một bộ quy ước duy nhất: **nền sáng, cam FPT cho hành động, xanh FPT cho điều hướng và lựa chọn, font Be Vietnam Pro, lưới 4 px và component theo Material 3**. Mọi màu, kiểu chữ và component lấy từ thư viện chung do người nhận gói G1 dựng; không ai tự đặt mã màu hay cỡ chữ riêng trong màn hình của mình.
 
 ## Nguyên tắc
 
 1. **Trạng thái luôn nhìn thấy được.** Mọi nhóm, lời mời và yêu cầu đều hiển thị trạng thái hiện tại và mốc thời gian. Đây là nỗi lo lớn nhất của cả bốn persona.
-2. **Yên tĩnh ở mọi nơi, nổi bật ở một chỗ.** Giao diện phẳng, trắng, viền mảnh. Điểm nhấn riêng của sản phẩm là **thanh điều kiện nhóm** (6 chấm thành viên và 2 dòng kiểm tra) – xuất hiện ở mọi nơi có nhóm, không trang trí thêm ở chỗ khác.
+2. **Sáng và yên, nổi bật ở một chỗ.** Nền sáng, thẻ nổi nhẹ bằng bóng mờ thay cho viền, nhiều khoảng trắng. Cam chỉ dành cho **một** hành động chính mỗi màn hình; xanh cho điều hướng và mục đang chọn. Điểm nhấn riêng của sản phẩm là **thanh điều kiện nhóm** (6 chấm thành viên và 2 dòng kiểm tra) – xuất hiện ở mọi nơi có nhóm.
 3. **Không bao giờ chỉ dùng màu.** Mỗi trạng thái có chữ, và có icon khi không gian cho phép.
 4. **Nói rõ việc tiếp theo.** Màn trống, lỗi và nút bị khóa đều giải thích lý do và cách đi tiếp.
 5. **Token trước, màn hình sau.** Đổi một token thì mọi màn hình đổi theo; không có giá trị gõ tay.
+6. **Ít chữ, nhiều tín hiệu.** Con số, icon, chip và thanh tiến độ thay cho câu giải thích; chi tiết mở khi cần (xem mục 9.1). Người dùng phải hiểu màn hình trong 5 giây mà không đọc đoạn văn nào.
+7. **Ít bước, không bắt chờ.** Điền sẵn những gì hệ thống đã biết (dữ liệu import, nhóm hiện tại, khung giờ gợi ý); thao tác đổi lại được thì làm ngay và cho **Hoàn tác** thay vì hỏi xác nhận; giao diện cập nhật ngay khi bấm, lỗi thì quay lại kèm lý do (mục 6.4).
+
+**Phong cách (bản 4):** tối giản kiểu Swiss – lưới rõ, nhiều khoảng trắng, chữ đậm làm phân cấp thay cho khung viền, mỗi màn một điểm nhấn màu. Nhìn hiện đại nhờ **bo lớn, bóng mờ nhẹ, icon tô đặc khi đang chọn, số liệu lớn** – không nhờ hiệu ứng, gradient đậm hay kính mờ.
 
 ---
 
@@ -47,58 +52,67 @@ Cả nhóm vẽ trên một bộ quy ước duy nhất: **nền trắng, màu nh
 
 - Sidebar cố định 240 px; vùng nội dung giãn, rộng tối đa 1200 px và căn trái.
 - Hỗ trợ từ 1280 px trở lên. Hẹp hơn thì bảng cuộn ngang trong khung của nó, trang không cuộn ngang.
+- Đây là quy cách của **web quản trị**. Web cho Sinh viên, Giảng viên, Mentor co giãn từ 360 px tới màn hình lớn – xem mục 8.2.
 
 ---
 
 ## 2. Màu sắc
 
-Tông chủ đạo là trắng và xanh da trời: khoảng **70%** diện tích là trắng, **20%** là nền xanh rất nhạt và viền xám xanh, **10%** là xanh đậm cho hành động chính. Bộ xanh lấy đúng dải Light Blue của Material nên có sẵn trong Flutter.
+Tông chủ đạo là **nền sáng + cam và xanh của FPT**: khoảng **75%** diện tích là trắng và nền sáng, **15%** là nền cam nhạt / xanh nhạt và viền, **10%** là cam đậm (hành động) và xanh (điều hướng, lựa chọn). Cam thương hiệu `#F37021` quá sáng để đặt chữ trắng (2,94:1), nên hành động dùng cam đậm `#C2410C`; cam thương hiệu chỉ để trang trí.
 
-Cột **Token** là tên biến trong Figma (collection `Color`) và là tên dùng khi handoff.
+Cột **Token** là tên biến (Figma collection `Color`, CSS variable, `ColorScheme`) và là tên dùng khi handoff.
 
 ### 2.1 Màu thương hiệu
 
 | Tên màu | Token | Hex | Dùng cho | Flutter |
 |---|---|---|---|---|
-| Primary | `color/primary` | `#0277BD` | Nút chính, link, icon và tab đang chọn, viền focus, phần đã đạt của thanh tiến độ. Được đặt chữ trắng lên trên. | `Colors.lightBlue.shade800` |
-| Primary Dark | `color/primary-dark` | `#01579B` | Trạng thái nhấn của nút chính; **mọi chữ đặt trên Primary Container**. | `Colors.lightBlue.shade900` |
-| Sky | `color/sky` | `#29B6F6` | Chỉ trang trí: minh họa. Không dùng làm nền cho khối nội dung, kể cả lời chào trang chủ. Chữ đặt lên trên dùng Text Primary. Không dùng để truyền đạt thông tin. | `Colors.lightBlue.shade400` |
-| Primary Border | `color/primary-border` | `#B3E5FC` | Viền thẻ đang chọn, nền avatar chữ cái (chữ Primary Dark). | `Colors.lightBlue.shade100` |
-| Primary Container | `color/primary-container` | `#E1F5FE` | Nền chip domain, mục đang chọn ở tab bar và sidebar, banner thông tin, phần nền của thanh tiến độ. | `Colors.lightBlue.shade50` |
+| Primary (cam) | `color/primary` | `#C2410C` | **Hành động**: nút chính (một nút mỗi màn hình), phần đã đạt của thanh tiến độ, số chưa đọc ở tab Tin nhắn. Được đặt chữ trắng. | `ColorScheme.primary` |
+| Primary Dark | `color/primary-dark` | `#9A3412` | Trạng thái nhấn của nút chính; **chữ đặt trên Primary Container**. | `ColorScheme.onPrimaryContainer` |
+| Primary Container | `color/primary-container` | `#FFF1E8` | Nền banner hạn chót bình thường, nền thẻ "việc cần làm ngay", nền ô ý tưởng. | `ColorScheme.primaryContainer` |
+| Primary Border | `color/primary-border` | `#FED7AA` | Nền avatar chữ cái (chữ Primary Dark), viền thẻ đang được đề xuất. | `AppColors.primaryBorder` |
+| Brand Orange | `color/brand-orange` | `#F37021` | **Chỉ trang trí**: logo, minh họa, dải màu đầu trang chủ. Không đặt chữ trắng lên trên, không làm viền hay icon mang nghĩa. Chữ đặt lên trên dùng Text Primary. | `AppColors.brandOrange` |
+| Secondary (xanh) | `color/secondary` | `#0E5BA8` | **Điều hướng và lựa chọn**: link, nút chữ, icon và nhãn tab đang chọn, chip lọc đang chọn (chữ trắng), viền focus, mục sidebar đang chọn. | `ColorScheme.secondary` |
+| Secondary Dark | `color/secondary-dark` | `#0A4D8C` | Chữ đặt trên Secondary Container (chip domain, mục đang chọn). | `ColorScheme.onSecondaryContainer` |
+| Secondary Container | `color/secondary-container` | `#E8F2FC` | Nền chip domain, viên thuốc tab đang chọn, mục sidebar đang chọn, bong bóng tin nhắn của người khác. | `ColorScheme.secondaryContainer` |
+
+`color/sky` của bản 3 được đổi tên thành `color/brand-orange`; `color/primary` đổi giá trị từ xanh sang cam.
 
 ### 2.2 Màu nền, viền và chữ
 
 | Tên màu | Token | Hex | Dùng cho | Flutter |
 |---|---|---|---|---|
-| Surface | `color/surface` | `#FFFFFF` | Nền thẻ, app bar, tab bar, bottom sheet, dialog, sidebar. | `Colors.white` |
-| Background | `color/background` | `#F5FAFE` | Nền trang phía sau các thẻ; nền hàng tiêu đề của bảng web. | `Color(0xFFF5FAFE)` |
-| Border | `color/border` | `#D9E2EC` | Viền **trang trí**: viền thẻ, đường kẻ phân cách, viền chip không bấm được; nền nút bị vô hiệu. | `Color(0xFFD9E2EC)` |
-| Border Strong | `color/border-strong` | `#728AA3` | Viền của **điều khiển bấm được**: ô nhập, dropdown, checkbox, chip lọc chưa chọn, chấm thành viên còn trống. | `Color(0xFF728AA3)` |
-| Text Primary | `color/text-primary` | `#102A43` | Tiêu đề và nội dung chính; nền snackbar. | `Color(0xFF102A43)` |
-| Text Secondary | `color/text-secondary` | `#486581` | Mô tả, nhãn phụ, **chữ gợi ý trong ô nhập**, icon không được chọn. | `Color(0xFF486581)` |
-| Text Disabled | `color/text-disabled` | `#9FB3C8` | Chỉ dùng cho chữ và icon của thành phần **bị vô hiệu**. | `Color(0xFF9FB3C8)` |
-| Scrim | `color/scrim` | `#102A43` 40% | Lớp phủ phía sau dialog, bottom sheet, drawer. | `Color(0x66102A43)` |
+| Surface | `color/surface` | `#FFFFFF` | Nền thẻ, app bar, tab bar, bottom sheet, dialog, sidebar, bong bóng tin nhắn của mình (viền Border). | `ColorScheme.surface` |
+| Background | `color/background` | `#F7F9FC` | Nền trang phía sau các thẻ; nền hàng tiêu đề của bảng web. | `scaffoldBackgroundColor` |
+| Border | `color/border` | `#E3E8EF` | Viền **trang trí**: đường kẻ phân cách, viền chip không bấm được; nền nút bị vô hiệu. | `ColorScheme.outlineVariant` |
+| Border Strong | `color/border-strong` | `#7A8599` | Viền của **điều khiển bấm được**: ô nhập, dropdown, checkbox, chip lọc chưa chọn, chấm thành viên còn trống, rãnh thanh kéo kỹ năng. | `ColorScheme.outline` |
+| Text Primary | `color/text-primary` | `#1A1F36` | Tiêu đề và nội dung chính; nền snackbar. | `ColorScheme.onSurface` |
+| Text Secondary | `color/text-secondary` | `#5B6478` | Mô tả, nhãn phụ, chữ gợi ý trong ô nhập, icon không được chọn. | `ColorScheme.onSurfaceVariant` |
+| Text Disabled | `color/text-disabled` | `#A3ABBA` | Chỉ cho chữ và icon của thành phần **bị vô hiệu**. | `AppColors.textDisabled` |
+| Scrim | `color/scrim` | `#1A1F36` 40% | Lớp phủ phía sau dialog, bottom sheet, drawer. | `ColorScheme.scrim` |
 
 ### 2.3 Màu trạng thái (chữ / nền)
 
-| Tên màu | Token | Hex | Dùng cho | Flutter |
-|---|---|---|---|---|
-| Success | `color/success` | `#1B5E20` | Chữ và icon trạng thái thành công. | `Color(0xFF1B5E20)` |
-| Success Container | `color/success-container` | `#E8F5E9` | Nền chip và banner thành công. | `Color(0xFFE8F5E9)` |
-| Warning | `color/warning` | `#8A5300` | Chữ và icon trạng thái đang chờ hoặc sắp hết hạn. | `Color(0xFF8A5300)` |
-| Warning Container | `color/warning-container` | `#FFF4E0` | Nền chip và banner cảnh báo. | `Color(0xFFFFF4E0)` |
-| Error | `color/error` | `#B3261E` | Chữ lỗi, viền ô nhập lỗi, nút hành động nguy hiểm (chữ trắng). | `Color(0xFFB3261E)` |
-| Error Container | `color/error-container` | `#FDECEA` | Nền chip và banner lỗi hoặc bị từ chối. | `Color(0xFFFDECEA)` |
-| Neutral Container | `color/neutral-container` | `#EEF2F6` | Nền chip trạng thái trung tính (chữ dùng Text Secondary). | `Color(0xFFEEF2F6)` |
+| Tên màu | Token | Hex | Dùng cho |
+|---|---|---|---|
+| Success | `color/success` | `#1E7F3C` | Chữ và icon trạng thái thành công, đạt. |
+| Success Container | `color/success-container` | `#E7F6EC` | Nền chip và banner thành công. |
+| Warning | `color/warning` | `#8A5300` | Chữ và icon trạng thái đang chờ, sắp hết hạn, cần sửa. |
+| Warning Container | `color/warning-container` | `#FFF4E0` | Nền chip và banner cảnh báo. |
+| Error | `color/error` | `#B3261E` | Chữ lỗi, viền ô nhập lỗi, trễ hạn, nút hành động nguy hiểm (chữ trắng). |
+| Error Container | `color/error-container` | `#FDECEA` | Nền chip và banner lỗi hoặc bị từ chối. |
+| Neutral Container | `color/neutral-container` | `#EEF1F5` | Nền chip trạng thái trung tính (chữ Text Secondary), skeleton. |
+
+Nhóm trạng thái dùng `ThemeExtension<AppColors>` trên Flutter (Material không có vai trò tương ứng).
 
 ### 2.4 Quy tắc dùng màu
 
-- Chữ trắng chỉ đặt trên Primary, Primary Dark, Error và Text Primary. **Không đặt chữ trắng trên Sky.**
-- Chữ trên Primary Container dùng Primary Dark; icon trên Primary Container được dùng Primary.
+- **Cam = làm việc gì đó, xanh = đang ở đâu / đang chọn gì.** Nút chính, thanh tiến độ: cam. Tab, link, chip lọc, focus: xanh. Không đổi vai trò hai màu giữa các màn hình.
+- Chữ trắng chỉ đặt trên Primary, Primary Dark, Secondary, Error và Text Primary. **Không đặt chữ trắng trên Brand Orange.**
+- Chữ trên Primary Container dùng Primary Dark; chữ trên Secondary Container dùng Secondary Dark.
 - Mọi cặp chữ / nền phải đạt **4,5:1**; icon mang nghĩa và viền điều khiển phải đạt **3:1**. Bảng số đo ở [Phụ lục A](#phụ-lục-a--độ-tương-phản).
 - Mỗi màn hình chỉ có **một** nút Primary. Hành động phụ dùng nút viền hoặc nút chữ.
 - Không dùng màu ngoài bảng. Cần màu mới thì báo người giữ thư viện thêm vào, kèm số đo tương phản.
-- Chỉ vẽ giao diện sáng, không vẽ dark mode.
+- Chỉ làm giao diện sáng, không làm dark mode.
 
 ---
 
@@ -144,17 +158,17 @@ Font duy nhất: **Be Vietnam Pro** (Google Fonts), hiển thị dấu tiếng V
 |---|---|---|
 | `radius/sm` | 8 | Ảnh nhỏ, ô bảng, ô nhập trên web |
 | `radius/md` | 12 | Nút, ô nhập mobile, banner |
-| `radius/lg` | 16 | Thẻ, modal web |
-| `radius/xl` | 24 | Góc trên bottom sheet, dialog mobile |
+| `radius/lg` | 20 | Thẻ, modal web, bong bóng tin nhắn |
+| `radius/xl` | 28 | Góc trên bottom sheet, dialog mobile |
 | `radius/full` | 999 | Chip, avatar, viên thuốc ở tab bar |
 
 ### 4.3 Độ nổi
 
 | Token | Bóng | Dùng cho |
 |---|---|---|
-| `elevation/0` | Không bóng, viền 1 px Border | Thẻ, app bar, tab bar, ô nhập, bảng |
-| `elevation/1` | Y 1, blur 4, `#102A43` 8% | Thanh nút cố định cuối màn hình khi nội dung cuộn bên dưới; app bar khi đã cuộn |
-| `elevation/2` | Y 4, blur 16, `#102A43` 8% | Bottom sheet, dialog, drawer, snackbar, nút nổi |
+| `elevation/0` | Không bóng | App bar, tab bar, ô nhập, bảng, thẻ đặt trên nền Surface (thêm viền 1 px Border) |
+| `elevation/1` | Y 2, blur 8, `#1A1F36` 6% | **Thẻ trên nền Background** (không cần viền); thanh nút cố định cuối màn hình; app bar khi đã cuộn |
+| `elevation/2` | Y 8, blur 24, `#1A1F36` 10% | Bottom sheet, dialog, drawer, snackbar, nút nổi |
 
 ### 4.4 Vùng chạm
 
@@ -178,13 +192,13 @@ Font duy nhất: **Be Vietnam Pro** (Google Fonts), hiển thị dấu tiếng V
 
 ## 5. Icon và hình ảnh
 
-- Một bộ icon duy nhất: **Material Symbols Rounded**, nét 400, không tô đặc. Icon đang chọn ở tab bar thì tô đặc.
+- Một bộ icon duy nhất: **Material Symbols Rounded**, nét 400, không tô đặc. Icon đang chọn ở tab bar và sidebar thì tô đặc. Icon được dùng thay chữ ở nơi nghĩa đã rõ (mục 9.1), luôn kèm tên cho trình đọc màn hình.
 - Kích thước: 24 px mặc định; 20 px trong chip và ô nhập; 48 px cho icon ở màn trống.
-- Màu icon: Text Secondary khi bình thường, Primary khi đang chọn hoặc là hành động.
+- Màu icon: Text Secondary khi bình thường, Secondary (xanh) khi đang chọn, Primary (cam) khi là hành động chính.
 - **Nút chỉ có icon** phải có tên đọc được cho trình đọc màn hình và ghi trong handoff (ví dụ icon chuông: "Thông báo, 3 chưa đọc"). Icon đứng cạnh chữ cùng nghĩa là icon trang trí, không cần tên.
 - Số chưa đọc trên icon chuông: chấm tròn nền Error, chữ trắng Caption Bold, tối thiểu 16 × 16; trên 99 hiện "99+".
-- Avatar: hình tròn 40 px trong danh sách, 72 px ở hồ sơ. Không có ảnh thì hiện 2 chữ cái đầu màu Primary Dark trên nền Primary Border.
-- Minh họa (onboarding, màn trống) dùng một phong cách nét phẳng, tông xanh Sky và Primary Container. Minh họa không chứa thông tin mà chữ bên dưới không nói.
+- Avatar: hình tròn 40 px trong danh sách, 72 px ở hồ sơ, 24 px khi xếp chồng (nhóm thành viên, người làm việc). Không có ảnh thì hiện 2 chữ cái đầu màu Primary Dark trên nền Primary Border. Mentor có viền 2 px Secondary và nhãn "Mentor".
+- Minh họa (onboarding, màn trống, đầu trang chủ) dùng một phong cách phẳng, tông Brand Orange, Secondary và hai màu Container. Minh họa không chứa thông tin mà chữ bên dưới không nói.
 
 ---
 
@@ -195,9 +209,9 @@ Font duy nhất: **Be Vietnam Pro** (Google Fonts), hiển thị dấu tiếng V
 | Component | Quy cách |
 |---|---|
 | App bar | Cao 56 px, nền trắng, tiêu đề kiểu Title căn trái, nút quay lại bên trái, tối đa 2 icon bên phải. Màn hình cấp 1 không có nút quay lại. |
-| Tab bar | Cao 80 px, nền trắng, viền trên 1 px. Sinh viên 5 mục, giảng viên 4 mục; mục nào cũng có icon và nhãn. Mục đang chọn: icon tô đặc màu Primary trên nền viên thuốc Primary Container, nhãn Caption Bold màu Text Primary. Mục chưa chọn: icon nét và nhãn màu Text Secondary. |
+| Tab bar | Cao 80 px, nền trắng, viền trên 1 px. Sinh viên 5 mục, giảng viên 5 mục, mentor 4 mục (`user-flow.md` mục 0); mục nào cũng có icon và nhãn. Mục đang chọn: icon tô đặc màu Secondary trên nền viên thuốc Secondary Container, nhãn Caption Bold màu Text Primary. Mục chưa chọn: icon nét và nhãn màu Text Secondary. |
 | Nút chính | Cao 48 px, bo 12, nền Primary, chữ trắng kiểu Label. Rộng hết chiều ngang khi nằm cuối màn hình. |
-| Nút phụ / nút chữ | Nút phụ: viền 1 px Primary, chữ Primary, nền trắng; được có một icon 20 px màu Primary đứng trước nhãn (thuộc tính `Icon` của `Button/Secondary`, mặc định tắt). Nút chữ: chỉ chữ Primary. Hành động nguy hiểm (xóa thành viên, rời nhóm): nền Error, chữ trắng, luôn qua dialog xác nhận. Đăng xuất không làm mất dữ liệu nên **không** phải hành động nguy hiểm: dùng nút phụ có icon `logout`, vẫn qua dialog xác nhận, và màu Error chỉ xuất hiện ở nút trong dialog. |
+| Nút phụ / nút chữ | Nút phụ: viền 1 px Secondary, chữ Secondary, nền trắng; được có một icon 20 px màu Secondary đứng trước nhãn (thuộc tính `Icon` của `Button/Secondary`, mặc định tắt). Nút chữ: chỉ chữ Secondary. Hành động nguy hiểm (xóa thành viên, rời nhóm): nền Error, chữ trắng, luôn qua dialog xác nhận. Đăng xuất không làm mất dữ liệu nên **không** phải hành động nguy hiểm: dùng nút phụ có icon `logout`, vẫn qua dialog xác nhận, và màu Error chỉ xuất hiện ở nút trong dialog. |
 | Ô nhập | Cao 56 px, bo 12, viền 1 px **Border Strong**. Nhãn kiểu Label nằm phía trên, cách 8 px; ô bắt buộc không đánh dấu, ô tùy chọn ghi "(không bắt buộc)" sau nhãn. Chữ gợi ý màu Text Secondary. Dòng hỗ trợ kiểu Body màu Text Secondary bên dưới, cách 4 px. |
 | Thẻ | Nền trắng, bo 16, viền 1 px Border, padding 16. Cả thẻ bấm được thì không thêm nút "Xem". |
 | Thẻ nhóm | Tên nhóm (Subtitle), tên dự án (Body, Text Secondary), tối đa 2 chip domain rồi "+n", thanh điều kiện nhóm dạng gọn ("4/6 thành viên"), dòng "Đang thiếu: …" nếu có. Chip trạng thái, nếu có, nằm cùng hàng với tên nhóm và căn phải; hàng chip bên dưới chỉ chứa chip domain. **Thẻ do người ngoài nhóm xem** (danh sách nhóm đang tuyển, nhóm gợi ý) không có chip trạng thái; dòng thành viên ghi thêm số chỗ còn lại: "4/6 thành viên · còn 2 chỗ". Nhóm đã đủ 6/6 không xuất hiện trong danh sách nhóm đang tuyển. |
@@ -207,7 +221,7 @@ Font duy nhất: **Be Vietnam Pro** (Google Fonts), hiển thị dấu tiếng V
 | Dòng điều hướng | Icon 24 bên trái, tiêu đề Body Large, dòng phụ Body màu Text Secondary, mũi tên `chevron_right` bên phải; cả dòng bấm được, vùng chạm tối thiểu 48. Mọi nội dung **bấm được để đi sang màn hình khác** (lời mời đang chờ, việc cần làm, yêu cầu đang chờ) dùng dòng điều hướng đặt trong thẻ, không dùng banner. |
 | Thẻ số liệu | Nhãn Body màu Text Secondary, con số Display. Các thẻ cùng hàng cao bằng nhau. Nhãn được xuống 2 dòng ở 360 px. |
 | Thẻ việc cần làm ngay | Dùng ở trang chủ khi có một việc gắn với hạn chót: tiêu đề Subtitle, mô tả Body, một nút chính nêu đúng hành động ("Mời người thay thế"). Đặt ngay dưới banner hạn chót và là nút Primary duy nhất của màn hình. |
-| Chip | Cao 32 px (vùng chạm 48 nếu bấm được), bo tròn, padding ngang 12, chữ **Label**. Chip domain: nền Primary Container, chữ Primary Dark. Chip kỹ năng: viền Border, chữ Text Secondary. Chip trạng thái: icon 16 px và chữ, màu theo mục 7. Chip lọc chưa chọn: viền Border Strong, chữ Text Primary. Chip lọc đang chọn: nền Primary, chữ trắng, **có dấu tích 16 px phía trước**. |
+| Chip | Cao 32 px (vùng chạm 48 nếu bấm được), bo tròn, padding ngang 12, chữ **Label**. Chip domain: nền Secondary Container, chữ Secondary Dark. Chip kỹ năng: viền Border, chữ Text Secondary. Chip trạng thái: icon 16 px và chữ, màu theo mục 7. Chip lọc chưa chọn: viền Border Strong, chữ Text Primary. Chip lọc đang chọn: nền Secondary, chữ trắng, **có dấu tích 16 px phía trước**. |
 | Banner hạn chót | Bo 12, padding 12 × 16, **icon 20 px bên trái và dòng chữ nêu thời gian còn lại**. Tiêu đề kiểu Subtitle, dòng mô tả (nếu có) kiểu Body. Banner là thông tin tĩnh: không bấm được và không ghi "Chạm để xem". Còn hơn 72 giờ: nền Primary Container, icon lịch, "Hạn chót 18:00 · 17/09/2026". Còn 72 giờ trở xuống: nền Warning Container, icon đồng hồ, "Còn 2 ngày 5 giờ". Còn 24 giờ trở xuống: nền Error Container, icon cảnh báo, "Còn 5 giờ". Đã khóa: nền Neutral Container, icon ổ khóa, "Đợt đăng ký đã đóng". |
 | Thanh điều kiện nhóm | 6 chấm thành viên 12 px: chỗ đã có tô Primary, chỗ trống viền Border Strong; luôn kèm chữ "4/6 thành viên". Dạng đầy đủ thêm 2 dòng kiểm tra "4–6 thành viên" và "Ít nhất 2 chuyên ngành", mỗi dòng có icon dấu tích màu Success hoặc dấu chấm than màu Warning. |
 | Bottom sheet | Bo góc trên 24, thanh kéo 32 × 4 px màu Border Strong, padding 24. Sheet không cao hơn màn hình trừ 48 px; nội dung dài cuộn bên trong sheet. Các nút nằm trong **thanh cố định cuối sheet** (nền Surface, viền trên 1 px Border, padding 16), phía trên vùng điều hướng hệ thống 24 px, nên luôn nhìn thấy. Đóng được bằng kéo xuống, chạm lớp phủ **và** nút Hủy hoặc nút đóng. |
@@ -238,13 +252,46 @@ Mỗi component trong thư viện Figma phải có đủ các biến thể sau.
 
 | Trạng thái | Quy cách |
 |---|---|
-| Nhấn | Nút chính: nền Primary Dark. Nút phụ, nút chữ, thẻ, dòng danh sách: phủ Primary 8%. Không đổi kích thước. |
-| Focus | Viền 2 px Primary. Với nút và chip: vòng 2 px Primary cách mép 2 px. Áp dụng cho bàn phím ngoài trên mobile và mọi điều khiển trên web. |
-| Đang chọn | Thẻ: viền 2 px Primary và icon dấu tích ở góc. Chip: xem mục 6.1. |
+| Nhấn | Nút chính: nền Primary Dark. Nút phụ, nút chữ, thẻ, dòng danh sách: phủ Secondary 8%. Không đổi kích thước. |
+| Focus | Viền 2 px Secondary. Với nút và chip: vòng 2 px Secondary cách mép 2 px. Áp dụng cho bàn phím ngoài trên mobile và mọi điều khiển trên web. |
+| Đang chọn | Thẻ: viền 2 px Secondary và icon dấu tích ở góc. Chip: xem mục 6.1. |
 | Lỗi (ô nhập) | Viền 2 px Error, **icon lỗi 20 px ở cuối ô**, dòng lỗi kiểu Body màu Error bên dưới nêu cách sửa. Lỗi hiện khi rời ô hoặc khi bấm gửi, không hiện khi đang gõ. |
 | Vô hiệu | Nút: nền Border, chữ Text Disabled. Ô nhập: nền Background, viền Border, chữ Text Disabled. **Nút vô hiệu luôn kèm một dòng Body màu Text Secondary nêu lý do** ("Đợt đăng ký đã đóng lúc 18:00 · 17/09/2026"). Thẻ có hành động bị khóa (giảng viên đã đủ nhóm) **không làm mờ cả thẻ**: chữ giữ màu bình thường, chỉ hành động bị khóa và thẻ có chip trạng thái nêu lý do ("Đã đủ"). Màn hình không có hành động nào cho người xem cũng ghi một dòng nêu lý do ("Chỉ trưởng nhóm gửi được lời mời."). |
 
 ---
+
+### 6.3 Component bổ sung (bản 4)
+
+| Component | Quy cách |
+|---|---|
+| Thanh kéo kỹ năng | Một hàng cho mỗi kỹ năng: icon 20 + tên (Label) bên trái, giá trị "3/5" (Label, Text Primary) bên phải; bên dưới là thanh kéo 5 nấc, rãnh Border Strong, phần đã chọn Primary, núm 20 px trong vùng chạm 48. Dưới thanh có nhãn hai đầu "Mới bắt đầu" – "Thành thạo" (Caption). Mặc định **chưa chọn** (núm rỗng, ghi "Chưa đánh giá"); phải chạm mỗi thanh ít nhất một lần. Năm kỹ năng theo thứ tự: Công nghệ (`code`), Thiết kế UI/UX (`palette`), Quản trị (`groups`), Marketing (`campaign`), Plan truyền thông (`forum`). |
+| Biểu đồ kỹ năng (chỉ xem) | Năm thanh ngang ngắn, mỗi thanh 5 ô; ô đã đạt tô Primary, ô còn lại Neutral Container; có số "4/5" ở cuối. Ở yêu cầu tham gia (S20), ô ứng với **kỹ năng nhóm đang thiếu** có viền Secondary và nhãn "Nhóm đang thiếu". Không dùng biểu đồ radar (khó đọc trên 360 px và với trình đọc màn hình). |
+| Nhóm ý tưởng | Thẻ nền Primary Container cho mỗi ý tưởng: tiêu đề (ô nhập 1 dòng, ≤ 80 ký tự) và mô tả (ô nhập 3 dòng, ≤ 300 ký tự, bộ đếm), nút xóa ở góc. Nút chữ "+ Thêm ý tưởng" (tối đa 3). Bên dưới là checkbox "Chưa có ý tưởng"; khi tích, các thẻ ý tưởng thu gọn và bị vô hiệu, kèm dòng "Không sao – nhiều nhóm cần người thực hiện." |
+| Hộp nhắc giai đoạn | Dialog có icon 48 (`event_busy`), tiêu đề một dòng ("Đợt lập nhóm đã đóng"), một dòng thời gian, một nút chính dẫn tới việc nên làm ("Mở dự án" / "Xem ghép tự động") và nút chữ "Đóng". |
+| Bong bóng tin nhắn | Của người khác: nền Secondary Container, bên trái, avatar 32 và tên ở tin đầu của chuỗi. Của mình: nền Surface viền Border, bên phải. Bo `radius/lg`, góc phía người gửi bo 4. Thời gian (Caption) chỉ hiện ở tin cuối của chuỗi trong 5 phút. Tin là **câu hỏi cho cố vấn** có chip Warning "Chờ trả lời" hoặc Success "Đã trả lời". |
+| Khung soạn tin | Ô nhập tự giãn tối đa 5 dòng; icon đính kèm file (chọn từ C06), icon gửi (Secondary, vô hiệu khi trống); ở kênh Cố vấn có công tắc "Hỏi cố vấn". Mất mạng: tin hiện mờ kèm icon `error` và "Gửi lại". |
+| Thẻ việc | Tiêu đề (Subtitle, tối đa 2 dòng), avatar người làm xếp chồng, chip hạn ("Hôm nay", "Còn 2 ngày", "Trễ 1 ngày" – màu theo mục 7). Bài nộp có thêm icon `assignment` và chip trạng thái nộp. Kéo thả giữa cột trên web; trên mobile đổi trạng thái bằng menu của thẻ. |
+| Dòng file | Icon theo loại file (40), tên (Body Large, tối đa 2 dòng), dòng phụ "v3 · Minh · 2 giờ trước", nút tải xuống. Chỉ hiện **bản mới nhất**; lịch sử phiên bản ở chi tiết file. |
+| Chọn khung giờ họp | Mỗi khung là một hàng: ngày giờ (Subtitle), số người đã chọn "4/7 có thể", avatar xếp chồng, hai nút chọn "Có" / "Không" (segmented button). Người tổ chức thấy nút "Chốt khung này" ở khung nhiều người chọn nhất. |
+| Chỉ báo quan tâm đề tài | Trên thẻ đề tài của giảng viên: nút phụ "Quan tâm" (icon `star`), sau khi bấm thành "Đã quan tâm" (icon tô đặc, Secondary) và dòng "1 giảng viên khác cũng quan tâm" (Body, Text Secondary). Ở phía nhóm: hàng avatar giảng viên quan tâm, mỗi người một nút "Gửi yêu cầu". |
+| Nhãn vai trò | Chip nhỏ cạnh tên: "Trưởng nhóm", "Giảng viên", "Mentor" – nền Neutral Container, chữ Text Secondary; dùng thống nhất trong tin nhắn, việc, file, họp. |
+| Thẻ đề tài | Tên đề tài (Subtitle), chip domain, dòng "Tiếp tục từ EXE101 · SP26" (icon `history`, Secondary) nếu kế thừa. Nút chữ "Lịch sử" mở **dòng thời gian đề tài**: mỗi mốc là một chấm + kỳ / môn + thay đổi một dòng ("Đổi đề tài: EduSpark → EduSpark AI · lý do…"), mới nhất ở trên. |
+| Tóm tắt cho mentor | Thẻ đầu C01 khi người xem là mentor: đề tài một dòng, thanh tiến độ việc, "Buổi mentor 1/3", 3 file mới nhất (dòng file rút gọn), biên bản gần nhất (2 dòng). Một nút chính "Đề xuất họp" nếu chưa có họp sắp tới. |
+| Bộ đếm buổi mentor | Chip Secondary Container "Buổi mentor 1/3" kèm 3 chấm (đã họp tô Primary). Đủ số buổi → chip Success "Đã đủ 3 buổi". |
+
+### 6.4 Mẫu tương tác (bản 4)
+
+| Tình huống | Làm thế này | Không làm |
+|---|---|---|
+| Thao tác **đổi lại được** (rút quan tâm, đổi trạng thái việc, ẩn thông báo, xóa bình luận của mình) | Làm ngay, hiện snackbar "Đã rút quan tâm · **Hoàn tác**" 5 giây | Hỏi "Bạn có chắc?" cho mọi thao tác |
+| Thao tác **không đổi lại được** hoặc ảnh hưởng người khác (gửi yêu cầu đổi nhóm, xóa thành viên, xóa file, chốt lịch họp, duyệt bài nộp) | Dialog xác nhận nêu hậu quả bằng một câu | Snackbar hoàn tác (người khác đã nhận thông báo) |
+| Gửi tin, đổi trạng thái việc, chọn khung giờ | **Cập nhật lạc quan**: giao diện đổi ngay; lỗi thì trả lại trạng thái cũ, đánh dấu phần lỗi và nút "Thử lại" | Vòng xoay chặn cả màn hình |
+| Kéo thả (bảng việc, sắp xếp thư mục) | Luôn có cách thay thế không cần kéo: menu "Chuyển sang…" trên thẻ, phím tắt trên web (WCAG 2.2 – Dragging Movements) | Kéo thả là cách duy nhất |
+| Số chưa đọc, số câu hỏi chờ thay đổi | Giữ sẵn chỗ cho badge để bố cục không nhảy; trình đọc màn hình đọc cả câu "3 tin chưa đọc trong kênh Cố vấn", một vùng thông báo cho cả màn | Đọc mỗi con số "3"; mỗi badge một vùng live |
+| Thanh cố định (khung soạn tin, thanh nút cuối màn) | Không che phần tử đang focus; danh sách có khoảng đệm dưới bằng chiều cao thanh | Nút đang focus nằm dưới khung soạn tin |
+| Form nhiều ô (A05, C08, W27) | Lỗi tại từng ô; từ 2 lỗi trở lên thêm tóm tắt lỗi ở đầu form, focus vào tóm tắt sau khi bấm gửi, mỗi dòng dẫn tới ô lỗi | Chỉ báo lỗi bằng snackbar |
+| Thông tin phụ (cách tính gợi ý, quy định giới hạn) | Icon `info` → tooltip (web) / bottom sheet (mobile) | Đoạn giải thích cố định trên màn |
+| Người dùng mới vào một màn có tính năng mới (Dự án, Đề tài phù hợp) | Một dòng gợi ý có thể đóng ở đầu màn, chỉ hiện lần đầu | Tour nhiều bước che màn hình |
 
 ## 7. Màu và icon của trạng thái
 
@@ -252,11 +299,11 @@ Mỗi trạng thái nghiệp vụ luôn dùng cùng một nhóm màu **và cùng
 
 | Nhóm màu | Icon (Material Symbols) | Các trạng thái | Chip mẫu |
 |---|---|---|---|
-| Warning | `schedule` | Đang chờ · Chờ duyệt · Chờ xác nhận · Sắp mở · Chưa đủ điều kiện | Đang chờ |
-| Success | `check_circle` | Đã chấp nhận · Đã duyệt · Giảng viên đã nhận · Đủ điều kiện · Hoạt động | Đã chấp nhận |
-| Error | `cancel` | Đã từ chối · Giảng viên từ chối | Đã từ chối |
-| Primary | `verified` | Đang mở · Đã chốt · Giảng viên chính thức | Đang mở |
-| Neutral | `remove_circle` | Nháp · Hết hạn · Đã thu hồi · Đã khóa · Đã đủ | Nháp |
+| Warning | `schedule` | Đang chờ · Chờ duyệt · Chờ xác nhận · Sắp mở · Chưa đủ điều kiện · Chờ trả lời · Chờ chốt lịch · Cần sửa | Đang chờ |
+| Success | `check_circle` | Đã chấp nhận · Đã duyệt · Giảng viên đã nhận · Đủ điều kiện · Hoạt động · Đã trả lời · Đạt · Xong | Đã chấp nhận |
+| Error | `cancel` | Đã từ chối · Giảng viên từ chối · Trễ hạn (icon `alarm`) · Đã hủy | Đã từ chối |
+| Secondary (xanh) | `verified` | Đang mở · Đã chốt · Giảng viên chính thức · Đã lên lịch | Đang mở |
+| Neutral | `remove_circle` | Nháp · Hết hạn · Đã thu hồi · Đã khóa · Đã đủ · Quan tâm đã đóng | Nháp |
 
 "Chưa đủ điều kiện" dùng icon `error` (dấu chấm than) thay cho `schedule`, vì đây là việc người dùng phải xử lý chứ không phải chờ.
 
@@ -264,11 +311,13 @@ Mỗi trạng thái nghiệp vụ luôn dùng cùng một nhóm màu **và cùng
 
 ---
 
-## 8. Web quản trị
+## 8. Web
+
+### 8.1 Web quản trị (Bộ môn)
 
 | Hạng mục | Quy cách |
 |---|---|
-| Sidebar | Rộng 240 px, nền trắng, viền phải 1 px. Mục đang chọn: nền Primary Container, **chữ Primary Dark**, icon Primary, thanh dọc 3 px Primary ở mép trái. Logo ở trên cùng. |
+| Sidebar | Rộng 240 px, nền trắng, viền phải 1 px. Mục đang chọn: nền Secondary Container, **chữ Secondary Dark**, icon Secondary tô đặc. Logo ở trên cùng. |
 | Header trang | Cao 64 px: tiêu đề trang kiểu Display bên trái, nút hành động chính bên phải. |
 | Bảng | Hàng tiêu đề cao 44 px, nền Background, chữ Caption Bold. Hàng dữ liệu cao 52 px, viền dưới 1 px, không tô xen kẽ. Cột số căn phải. Cột hành động ở cuối. Hàng tiêu đề dính trên cùng khi cuộn. Cột sắp xếp được có icon mũi tên chỉ chiều. Cột chứa chip trạng thái rộng tối thiểu bằng chip dài nhất cộng 24 px padding; chip không được cắt. |
 | Trạng thái của bảng | Đang tải: 8 hàng skeleton. Trống: màn trống đặt trong khung bảng. Lỗi: banner lỗi phía trên bảng, có nút "Thử lại". |
@@ -278,7 +327,23 @@ Mỗi trạng thái nghiệp vụ luôn dùng cùng một nhóm màu **và cùng
 | Drawer và modal | Drawer chi tiết trượt từ phải, rộng 480 px. Modal xác nhận rộng 480 px, bo 16. Cả hai đóng được bằng phím Esc và trả focus về nút đã mở nó. |
 | Thẻ số liệu | Dùng ở Tổng quan: nhãn Caption, con số Display, không icon trang trí. |
 | Trang duyệt | Căn cứ để quyết định (lý do của người gửi, các dòng thay đổi) nằm phía trên và trong màn hình đầu ở 1440 × 900, trước các số liệu phụ. Trong danh sách so sánh trước / sau, các dòng có thay đổi đứng đầu danh sách. |
-| Bàn phím | Mọi thao tác làm được bằng bàn phím; thứ tự Tab theo thứ tự nhìn; vòng focus 2 px Primary cách mép 2 px luôn hiển thị. |
+| Bàn phím | Mọi thao tác làm được bằng bàn phím; thứ tự Tab theo thứ tự nhìn; vòng focus 2 px Secondary cách mép 2 px luôn hiển thị. |
+
+### 8.2 Web cho Sinh viên, Giảng viên, Mentor (bản 4)
+
+Cùng mã màn hình và cùng nội dung với mobile; chỉ bố cục đổi theo bề rộng. Một codebase React với bốn khung theo vai trò (Admin dùng 8.1).
+
+| Bề rộng | Điều hướng | Bố cục |
+|---|---|---|
+| < 600 px | Tab bar dưới như mobile | Một cột, giống hệt mobile |
+| 600–1023 px | Navigation rail 80 px bên trái (icon + nhãn) | Một cột, rộng tối đa 720 px, căn giữa |
+| ≥ 1024 px | Sidebar 240 px, các mục giống tab bar mobile | Danh sách + chi tiết: cột danh sách 360–420 px bên trái, chi tiết bên phải (ví dụ C02 + C03, C04 + C05, L07 + chi tiết đề tài). Nội dung rộng tối đa 1200 px |
+
+- Bottom sheet của mobile thành **drawer phải** 480 px trên web; dialog giữ nguyên.
+- Thanh nút cố định cuối màn hình của mobile thành nút ở **góc phải đầu trang** trên web.
+- Bảng việc (C04) trên web hiện ba cột cạnh nhau và kéo thả được; dưới 1024 px hiện theo tab trạng thái.
+- Tin nhắn trên web: danh sách hội thoại bên trái, kênh ở giữa, thông tin nhóm (thành viên, file ghim, họp sắp tới) ở cột phải 320 px khi ≥ 1280 px.
+- Phím tắt tối thiểu: `/` vào ô tìm kiếm, `Enter` gửi tin, `Shift + Enter` xuống dòng, `Esc` đóng drawer.
 
 ---
 
@@ -294,7 +359,15 @@ Giao diện tiếng Việt, xưng "bạn" với người dùng. Các từ dướ
 | Lời mời | Invitation, thư mời | Trưởng nhóm gửi cho sinh viên |
 | Yêu cầu tham gia | Đơn xin, request | Sinh viên gửi cho nhóm |
 | Yêu cầu đổi nhóm | Đơn đổi nhóm, change request | Chỉ có ở EXE201 |
-| Giảng viên | GV, mentor, thầy cô | Trong bảng web được viết tắt "GV" ở tiêu đề cột |
+| Giảng viên | GV, thầy cô | Trong bảng web được viết tắt "GV" ở tiêu đề cột |
+| Mentor | Cố vấn doanh nghiệp, người hướng dẫn | Người do Bộ môn gán (mỗi nhóm một người), có thể là người ngoài trường hoặc giảng viên; làm việc với nhóm từ tuần 6, 2–3 buổi |
+| Giảng viên hướng dẫn | Instructor, GVHD | Viết đầy đủ ở tiêu đề mục; trong câu ngắn dùng "Giảng viên". Không hiển thị giảng viên lớp trên FAP |
+| Cố vấn | – | Từ chung cho giảng viên và mentor của nhóm; dùng cho kênh "Cố vấn" và "Hỏi cố vấn" |
+| Dự án | Workspace, không gian làm việc | Tab và màn hình C01 |
+| Việc | Task, công việc | Trên bảng việc C04 |
+| Bài nộp | Deliverable, bài tập | Việc do giảng viên tạo, cần nộp file |
+| Quan tâm | Thích, đăng ký | Giảng viên quan tâm một đề tài |
+| Đề tài | Topic, project | Dự án của nhóm; **đi theo nhóm từ EXE101 sang EXE201** (quy tắc 26) |
 | Bộ môn | Admin, phòng đào tạo | |
 | Đợt đăng ký | Round, kỳ đăng ký | |
 | Hạn chót | Deadline, hạn cuối | |
@@ -308,12 +381,29 @@ Giao diện tiếng Việt, xưng "bạn" với người dùng. Các từ dướ
 - Màn trống nói việc nên làm tiếp: "Chưa có lời mời nào. Xem các nhóm đang tuyển để xin tham gia."
 - Dữ liệu trong mockup lấy từ bộ dữ liệu mẫu ở file context, không dùng tên và số điện thoại thật.
 
+### 9.1 Ít chữ (bản 4)
+
+| Quy tắc | Ví dụ |
+|---|---|
+| Tiêu đề màn hình 1–3 từ | "Dự án", "Đề tài phù hợp", không viết "Danh sách các đề tài phù hợp với chuyên môn của bạn" |
+| Nhãn nút tối đa 3 từ, bắt đầu bằng động từ | "Xin tham gia", "Chốt lịch", "Nộp bài" |
+| Mỗi thẻ tối đa **một** dòng mô tả; phần còn lại ở màn chi tiết | Thẻ nhóm: tên, 2 chip domain, thanh điều kiện, "Đang thiếu: UI/UX" |
+| Thay câu bằng con số + đơn vị | "Còn 2 chỗ" thay cho "Nhóm hiện còn thiếu hai thành viên" |
+| Thay nhãn bằng icon khi nghĩa đã rõ, giữ tên cho trình đọc màn hình | Icon tải xuống, gửi, đính kèm, xóa không cần chữ bên cạnh |
+| Banner chỉ một dòng tiêu đề + tối đa một dòng phụ | "Còn 2 ngày 5 giờ" · "Đợt đổi nhóm đóng 18:00 · 24/09" |
+| Giải thích dài đặt sau icon `info` (tooltip trên web, bottom sheet trên mobile) | Cách tính "mức phù hợp" của đề tài |
+| Màn trống: một dòng + một nút | "Chưa có việc nào." · nút "Tạo việc" |
+| Không lặp điều đã nói | Không ghi "Trạng thái: Đang chờ" khi đã có chip "Đang chờ" |
+
+Ngoại lệ: lý do bị khóa, lỗi và hậu quả của hành động không đảo ngược được vẫn phải viết đủ câu (nguyên tắc 4).
+
 ---
 
 ## 10. Tổ chức file Figma
 
 | Hạng mục | Quy ước |
 |---|---|
+| Bản 4 | **Chưa vẽ lại.** Figma giữ bảng màu và màn hình bản 3 của Lab 2; màn hình mới (C01–C08, L07, M01, W27, W28) và bảng màu bản 4 chỉ có trong tài liệu này và file Danh sách màn hình. |
 | File nộp Lab (mobile) | Đúng 6 trang theo thứ tự: **01 User Flow · 02 Wireframe · 03 Final UI · 04 Design System · 05 Components · 06 Prototype**. Không thêm trang khác vào file này. |
 | Trang 03 Final UI | Chia thành các section: Chung · Sinh viên · Giảng viên · Kiểm tra 412. |
 | Trang 04 Design System | Bảng màu, kiểu chữ, khoảng cách, bo góc, độ nổi, icon – tất cả hiển thị từ variables và styles. |
@@ -364,6 +454,7 @@ Giao diện tiếng Việt, xưng "bạn" với người dùng. Các từ dướ
 |---|---|
 | `color/primary` | `ColorScheme.primary` |
 | Trắng trên Primary | `ColorScheme.onPrimary` |
+| `color/secondary`, `color/secondary-container`, `color/secondary-dark` | `ColorScheme.secondary`, `secondaryContainer`, `onSecondaryContainer`; trắng trên Secondary = `onSecondary` |
 | `color/primary-container` | `ColorScheme.primaryContainer` |
 | `color/primary-dark` | `ColorScheme.onPrimaryContainer` |
 | `color/surface` | `ColorScheme.surface` |
@@ -374,10 +465,10 @@ Giao diện tiếng Việt, xưng "bạn" với người dùng. Các từ dướ
 | `color/border` | `ColorScheme.outlineVariant` |
 | `color/error`, `color/error-container` | `ColorScheme.error`, `ColorScheme.errorContainer` |
 | `color/scrim` | `ColorScheme.scrim` |
-| `color/sky`, `color/primary-border`, nhóm success / warning / neutral, `color/text-disabled` | `ThemeExtension<AppColors>` (Material không có vai trò tương ứng) |
+| `color/brand-orange`, `color/primary-border`, nhóm success / warning / neutral, `color/text-disabled` | `ThemeExtension<AppColors>` (Material không có vai trò tương ứng) |
 | `type/display` … `type/caption` | `TextTheme`: `headlineSmall`, `titleLarge`, `titleMedium`, `bodyLarge`, `bodyMedium`, `labelLarge`, `bodySmall`, `labelSmall` |
 | `space/*`, `radius/*` | Hằng số trong `AppSpacing`, `AppRadius` |
-| `elevation/0–2` | `elevation: 0`, `1`, `3` với `shadowColor` là Text Primary |
+| `elevation/0–2` | `elevation: 0`, `1`, `3` với `shadowColor` là Text Primary; thẻ trên nền Background dùng `Card` (elevation 1), thẻ trên Surface dùng `Card.outlined` |
 | `motion/*` | Hằng số `Duration` trong `AppMotion` |
 
 Nền tảng: `ThemeData(useMaterial3: true)` với `ColorScheme` khai báo tay theo bảng trên (không dùng `fromSeed`, vì sẽ sinh ra màu khác bảng). Font: `GoogleFonts.beVietnamProTextTheme()`. Trong code không viết `Color(0x…)` hay `TextStyle(fontSize: …)` trực tiếp; luôn lấy qua `Theme.of(context)`.
@@ -400,6 +491,12 @@ Nền tảng: `ThemeData(useMaterial3: true)` với `ColorScheme` khai báo tay 
 | Skeleton | Khối `Container` nền Neutral Container, hoặc gói `skeletonizer` |
 | Kéo để làm mới | `RefreshIndicator` |
 | Màn trống, màn lỗi, banner hạn chót, thanh điều kiện nhóm | Widget riêng của dự án: `EmptyState`, `ErrorState`, `DeadlineBanner`, `TeamRequirementBar` |
+| Thanh kéo kỹ năng, biểu đồ kỹ năng | `Slider(divisions: 4, min: 1, max: 5)` với `semanticFormatterCallback` đọc "Công nghệ, 3 trên 5"; widget riêng `SkillSlider`, `SkillBars` |
+| Nhóm ý tưởng | Widget riêng `IdeaListField` (danh sách `TextField` + `CheckboxListTile` "Chưa có ý tưởng") |
+| Tin nhắn | Widget riêng `MessageBubble`, `MessageComposer`; kết nối hub bằng gói `signalr_netcore` |
+| Bảng việc, dòng file, chọn khung giờ | `TaskCard` (Card), `FileTile` (ListTile), `SlotVoteTile` với `SegmentedButton` Có/Không |
+| Thẻ đề tài, tóm tắt cho mentor, bộ đếm buổi | `ProjectCard` + `ProjectTimeline`, `MentorBriefCard`, `MentorSessionChip` |
+| Hoàn tác | `ScaffoldMessenger.showSnackBar` với `SnackBarAction(label: 'Hoàn tác')`, `duration: 5s` |
 | Icon | `Icons.*_rounded` hoặc gói `material_symbols_icons` |
 
 ### 12.3 Ghi chú accessibility khi hiện thực
@@ -411,7 +508,7 @@ Nền tảng: `ThemeData(useMaterial3: true)` với `ColorScheme` khai báo tay 
 
 ---
 
-## 13. Ánh xạ sang React (web quản trị) – đề xuất
+## 13. Ánh xạ sang React (web) – đề xuất
 
 `PROJECT_CONTEXT.md` chỉ quy định web dùng React. Phần này đề xuất **Tailwind CSS + shadcn/ui** vì cả hai dùng token dạng biến CSS, khớp một-một với bảng màu ở mục 2.
 
@@ -419,26 +516,29 @@ Nền tảng: `ThemeData(useMaterial3: true)` với `ColorScheme` khai báo tay 
 @import "tailwindcss";
 
 :root {
-  --background: #F5FAFE;
-  --foreground: #102A43;
+  --background: #F7F9FC;
+  --foreground: #1A1F36;
   --card: #FFFFFF;
-  --card-foreground: #102A43;
-  --primary: #0277BD;
+  --card-foreground: #1A1F36;
+  --primary: #C2410C;
   --primary-foreground: #FFFFFF;
-  --accent: #E1F5FE;
-  --accent-foreground: #01579B;
-  --muted: #EEF2F6;
-  --muted-foreground: #486581;
-  --border: #D9E2EC;
-  --input: #728AA3;
-  --ring: #0277BD;
+  --secondary: #0E5BA8;
+  --secondary-foreground: #FFFFFF;
+  --accent: #E8F2FC;
+  --accent-foreground: #0A4D8C;
+  --brand-orange: #F37021;
+  --muted: #EEF1F5;
+  --muted-foreground: #5B6478;
+  --border: #E3E8EF;
+  --input: #7A8599;
+  --ring: #0E5BA8;
   --destructive: #B3261E;
-  --success: #1B5E20;
-  --success-container: #E8F5E9;
+  --success: #1E7F3C;
+  --success-container: #E7F6EC;
   --warning: #8A5300;
   --warning-container: #FFF4E0;
   --destructive-container: #FDECEA;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -469,56 +569,64 @@ Nền tảng: `ThemeData(useMaterial3: true)` với `ColorScheme` khai báo tay 
 
 ## Phụ lục A – Độ tương phản
 
-Tính theo công thức WCAG 2.x từ mã hex ở mục 2. Ngưỡng: **4,5:1** cho chữ thường; **3:1** cho chữ lớn (từ 24 px, hoặc 18,66 px đậm), icon mang nghĩa và viền điều khiển.
+Tính theo công thức WCAG 2.x từ mã hex ở mục 2 (bản 4). Ngưỡng: **4,5:1** cho chữ thường; **3:1** cho chữ lớn (từ 24 px, hoặc 18,66 px đậm), icon mang nghĩa và viền điều khiển.
 
 ### A.1 Chữ
 
 | Chữ / nền | Dùng ở | Tỷ lệ | Ngưỡng | Kết quả |
 |---|---|---|---|---|
-| Text Primary / Surface | Nội dung chính | 14,64 | 4,5 | Đạt |
-| Text Primary / Primary Container | Chữ trong banner thông tin | 13,03 | 4,5 | Đạt |
-| Text Primary / Warning Container | Chữ trong banner cảnh báo | 13,43 | 4,5 | Đạt |
-| Text Primary / Error Container | Chữ trong banner lỗi | 12,80 | 4,5 | Đạt |
-| Text Primary / Sky | Chữ đặt trên mảng minh họa màu Sky | 6,36 | 4,5 | Đạt |
-| Text Secondary / Surface | Mô tả, chữ gợi ý trong ô nhập | 6,08 | 4,5 | Đạt |
-| Text Secondary / Background | Mô tả trên nền trang | 5,79 | 4,5 | Đạt |
-| Text Secondary / Neutral Container | Chip trung tính | 5,40 | 4,5 | Đạt |
-| Text Secondary / Primary Container | Mô tả trong banner thông tin | 5,41 | 4,5 | Đạt |
-| Trắng / Primary | Nút chính, chip lọc đang chọn | 4,80 | 4,5 | Đạt |
-| Trắng / Primary Dark | Nút chính khi nhấn | 7,40 | 4,5 | Đạt |
+| Text Primary / Surface | Nội dung chính | 16,24 | 4,5 | Đạt |
+| Text Primary / Background | Nội dung trên nền trang | 15,40 | 4,5 | Đạt |
+| Text Primary / Primary Container | Banner hạn chót, thẻ ý tưởng | 14,69 | 4,5 | Đạt |
+| Text Primary / Warning Container | Banner cảnh báo | 14,90 | 4,5 | Đạt |
+| Text Primary / Error Container | Banner lỗi | 14,20 | 4,5 | Đạt |
+| Text Primary / Brand Orange | Chữ trên dải màu trang trí | 5,53 | 4,5 | Đạt |
+| Text Secondary / Surface | Mô tả, chữ gợi ý | 5,93 | 4,5 | Đạt |
+| Text Secondary / Background | Mô tả trên nền trang | 5,63 | 4,5 | Đạt |
+| Text Secondary / Neutral Container | Chip trung tính, nhãn vai trò | 5,24 | 4,5 | Đạt |
+| Text Secondary / Primary Container | Mô tả trong banner | 5,37 | 4,5 | Đạt |
+| Text Secondary / Secondary Container | Thời gian trong bong bóng tin nhắn | 5,24 | 4,5 | Đạt |
+| Trắng / Primary | Nút chính | 5,18 | 4,5 | Đạt |
+| Trắng / Primary Dark | Nút chính khi nhấn | 7,31 | 4,5 | Đạt |
+| Trắng / Secondary | Chip lọc đang chọn | 6,82 | 4,5 | Đạt |
 | Trắng / Error | Nút nguy hiểm, số chưa đọc | 6,54 | 4,5 | Đạt |
-| Trắng / Text Primary | Snackbar | 14,64 | 4,5 | Đạt |
-| Primary / Surface | Nút chữ, link | 4,80 | 4,5 | Đạt |
-| Primary / Background | Link trên nền trang | 4,57 | 4,5 | Đạt |
-| Primary Dark / Primary Container | Chip domain, mục sidebar đang chọn | 6,59 | 4,5 | Đạt |
-| Primary Dark / Primary Border | Chữ cái trên avatar | 5,47 | 4,5 | Đạt |
-| Success / Success Container | Chip thành công | 7,00 | 4,5 | Đạt |
+| Trắng / Text Primary | Snackbar | 16,24 | 4,5 | Đạt |
+| Primary / Surface | Số chưa đọc dạng chữ, giá trị thanh kéo đang kéo | 5,18 | 4,5 | Đạt |
+| Primary / Background | Như trên, trên nền trang | 4,91 | 4,5 | Đạt |
+| Secondary / Surface | Link, nút chữ, nhãn tab đang chọn | 6,82 | 4,5 | Đạt |
+| Secondary / Background | Link trên nền trang | 6,46 | 4,5 | Đạt |
+| Primary Dark / Primary Container | Chữ đậm trong banner hạn chót | 6,61 | 4,5 | Đạt |
+| Primary Dark / Primary Border | Chữ cái trên avatar | 5,40 | 4,5 | Đạt |
+| Secondary Dark / Secondary Container | Chip domain, mục đang chọn | 7,56 | 4,5 | Đạt |
+| Success / Success Container | Chip thành công | 4,52 | 4,5 | Đạt (sát ngưỡng – không làm nhạt thêm) |
 | Warning / Warning Container | Chip đang chờ | 5,81 | 4,5 | Đạt |
-| Error / Error Container | Chip từ chối | 5,72 | 4,5 | Đạt |
+| Error / Error Container | Chip từ chối, trễ hạn | 5,72 | 4,5 | Đạt |
 | Error / Surface | Dòng lỗi dưới ô nhập | 6,54 | 4,5 | Đạt |
-| Success / Surface | Dòng kiểm tra đạt | 7,87 | 4,5 | Đạt |
+| Success / Surface | Dòng kiểm tra đạt | 5,05 | 4,5 | Đạt |
 | Warning / Surface | Dòng kiểm tra chưa đạt | 6,33 | 4,5 | Đạt |
 
 ### A.2 Icon và viền điều khiển
 
 | Nét / nền | Dùng ở | Tỷ lệ | Ngưỡng | Kết quả |
 |---|---|---|---|---|
-| Border Strong / Surface | Viền ô nhập, chip lọc, chấm trống | 3,57 | 3 | Đạt |
-| Border Strong / Background | Viền ô nhập trên nền trang | 3,40 | 3 | Đạt |
-| Primary / Surface | Viền focus, icon hành động, chấm đã có | 4,80 | 3 | Đạt |
-| Primary / Primary Container | Icon tab đang chọn, thanh tiến độ | 4,27 | 3 | Đạt |
-| Text Secondary / Surface | Icon chưa chọn | 6,08 | 3 | Đạt |
+| Border Strong / Surface | Viền ô nhập, chip lọc, chấm trống, rãnh thanh kéo | 3,72 | 3 | Đạt |
+| Border Strong / Background | Viền ô nhập trên nền trang | 3,53 | 3 | Đạt |
+| Secondary / Surface | Viền focus, icon tab đang chọn | 6,82 | 3 | Đạt |
+| Secondary / Secondary Container | Icon trong viên thuốc tab đang chọn | 6,02 | 3 | Đạt |
+| Primary / Surface | Phần đã chọn của thanh kéo, chấm thành viên đã có | 5,18 | 3 | Đạt |
+| Primary / Primary Container | Thanh tiến độ trên nền cam nhạt | 4,69 | 3 | Đạt |
+| Text Secondary / Surface | Icon chưa chọn | 5,93 | 3 | Đạt |
 | Error / Surface | Viền ô nhập lỗi | 6,54 | 3 | Đạt |
 
 ### A.3 Cặp không được dùng
 
 | Cặp | Tỷ lệ | Quy định |
 |---|---|---|
-| Trắng / Sky | 2,30 | Cấm. Chữ trên Sky dùng Text Primary. |
-| Primary / Primary Container (cho chữ) | 4,27 | Cấm cho chữ. Dùng Primary Dark. |
-| Text Disabled / Surface | 2,15 | Chỉ cho thành phần vô hiệu (WCAG miễn trừ). Không dùng cho chữ gợi ý. |
-| Border / Surface | 1,31 | Chỉ cho viền trang trí. Viền điều khiển dùng Border Strong. |
-| Sky / Primary Container | 2,05 | Cấm cho thanh tiến độ. Dùng Primary trên Primary Container. |
+| Trắng / Brand Orange | 2,94 | Cấm. Nút chính dùng Primary `#C2410C`; chữ trên Brand Orange dùng Text Primary. |
+| Brand Orange / Surface | 2,94 | Cấm cho icon mang nghĩa và viền điều khiển. Chỉ trang trí. |
+| Brand Orange / Primary Container | 2,66 | Cấm cho thanh tiến độ. Dùng Primary trên Primary Container. |
+| Text Disabled / Surface | 2,31 | Chỉ cho thành phần vô hiệu (WCAG miễn trừ). Không dùng cho chữ gợi ý. |
+| Border / Surface | 1,23 | Chỉ cho viền trang trí. Viền điều khiển dùng Border Strong. |
 
 ---
 
@@ -581,3 +689,24 @@ Bản 3 ghi lại các quy ước rút ra từ ba vòng tinh chỉnh ngày 12/10
 | 19 | Phụ lục A.1 | "Text Primary / Sky – Chữ trên header trang chủ" | Đổi thành "Chữ đặt trên mảng minh họa màu Sky"; số đo giữ nguyên | Vòng 1, 1.1 |
 
 Không có token màu, kiểu chữ hay khoảng cách nào được thêm hoặc đổi giá trị ở bản 3, nên bảng tương phản ở Phụ lục A và các bảng ánh xạ token ở mục 12.1 và 13 giữ nguyên.
+
+---
+
+## Phụ lục D – Thay đổi so với bản 3
+
+Bản 4 (19/10/2026) áp dụng góp ý của giảng viên (`PROJECT_CONTEXT.md` mục 13). Figma chưa cập nhật theo bản 4.
+
+| # | Mục | Bản 3 | Bản 4 | Nguồn |
+|---|---|---|---|---|
+| 1 | 2.1 | Primary xanh `#0277BD`, Sky `#29B6F6` | Primary cam đậm `#C2410C` (hành động), Secondary xanh FPT `#0E5BA8` (điều hướng, lựa chọn), Brand Orange `#F37021` (trang trí, thay Sky) | Góp ý 4 |
+| 2 | 2.2 | Background `#F5FAFE`, Text `#102A43`, Text Secondary `#486581`, Border Strong `#728AA3` | Background `#F7F9FC`, Text `#1A1F36`, Text Secondary `#5B6478`, Border Strong `#7A8599`; đo lại ở Phụ lục A | Góp ý 4 |
+| 3 | 2.4 | Một màu nhấn | Quy tắc "cam = hành động, xanh = vị trí / lựa chọn" | Góp ý 4 |
+| 4 | 4.2, 4.3 | Thẻ bo 16, viền 1 px | Thẻ bo 20, nổi nhẹ bằng `elevation/1` trên nền Background; sheet bo 28 | Góp ý 4 (hiện đại hơn) |
+| 5 | Nguyên tắc 6, 9.1 | Chưa có | Quy tắc ít chữ | Góp ý 4 |
+| 6 | 6.3 | Chưa có | Thanh kéo kỹ năng, biểu đồ kỹ năng, nhóm ý tưởng, hộp nhắc giai đoạn, tin nhắn, thẻ việc, dòng file, chọn khung giờ, chỉ báo quan tâm, nhãn vai trò | Góp ý 2, 3, 5, 6, 7, 8, 10 |
+| 7 | 7 | 5 nhóm trạng thái | Thêm trạng thái của workspace và đề tài; nhóm "Primary" đổi thành "Secondary (xanh)" | Góp ý 2, 3, 7 |
+| 8 | 8.2 | Web chỉ cho Bộ môn | Web cho Sinh viên, Giảng viên, Mentor: 3 mức bề rộng, danh sách + chi tiết | Góp ý 1 |
+| 9 | 9 | "Giảng viên" không dùng chữ "mentor" | Mentor là vai trò riêng; thêm Cố vấn, Dự án, Việc, Bài nộp, Quan tâm, Đề tài | Góp ý 10 |
+| 10 | 12, 13 | Token bản 3 | Ánh xạ Flutter / CSS theo token bản 4, widget mới | – |
+| 11 | Nguyên tắc 7, 6.4 | Chưa có | Mẫu tương tác: Hoàn tác thay xác nhận, cập nhật lạc quan, thay thế cho kéo thả, badge không làm nhảy bố cục, tóm tắt lỗi | Tra cứu UX (WCAG 2.2) |
+| 12 | 6.3 | – | Thẻ đề tài + dòng thời gian, tóm tắt cho mentor, bộ đếm buổi mentor | Góp ý 10, 11 |

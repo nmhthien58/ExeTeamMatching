@@ -6,14 +6,17 @@
 
 **Phạm vi.** Spec đầy đủ 6 mục cho **18 màn hình và overlay nằm trong 3 flow** (mục 4). Các màn còn lại (S02–S04, S10–S14, S16, S19–S26, S30, S31, L02, L05, L06, A01, A02, A07) dùng cùng quy ước; nội dung và trạng thái của chúng nằm trong file Excel danh sách màn hình.
 
+
+> **Cập nhật 19/10/2026 (sau góp ý của giảng viên):** token theo `DESIGN.md` bản 4 (cam / xanh FPT); widget mới ở mục 2; A05 viết lại theo quy tắc 16; spec 6 mục cho màn hình mới và màn hình thay đổi ở **mục 4a**. Các màn trong 3 flow của Lab 2 vẫn khớp Figma, trừ phần màu và các chỗ ghi "(bản 4)".
 ---
 
 ## 1. Bảng 1 – Token → Flutter
 
 | Token (Figma variables) | Flutter |
 |---|---|
-| `color/primary` | `ColorScheme.primary` |
+| `color/primary` (cam `#C2410C`) | `ColorScheme.primary` |
 | Trắng trên Primary | `ColorScheme.onPrimary` |
+| `color/secondary` (xanh `#0E5BA8`), `color/secondary-container`, `color/secondary-dark` | `ColorScheme.secondary`, `secondaryContainer`, `onSecondaryContainer`; trắng trên Secondary = `onSecondary` |
 | `color/primary-container` | `ColorScheme.primaryContainer` |
 | `color/primary-dark` | `ColorScheme.onPrimaryContainer` |
 | `color/surface` | `ColorScheme.surface` |
@@ -24,7 +27,7 @@
 | `color/border` | `ColorScheme.outlineVariant` |
 | `color/error`, `color/error-container` | `ColorScheme.error`, `ColorScheme.errorContainer` |
 | `color/scrim` | `ColorScheme.scrim` |
-| `color/sky`, `color/primary-border`, nhóm success / warning / neutral, `color/text-disabled` | `ThemeExtension<AppColors>` |
+| `color/brand-orange`, `color/primary-border`, nhóm success / warning / neutral, `color/text-disabled` | `ThemeExtension<AppColors>` |
 | `type/display` … `type/caption` | `TextTheme`: `headlineSmall`, `titleLarge`, `titleMedium`, `bodyLarge`, `bodyMedium`, `labelLarge`, `bodySmall`, `labelSmall` |
 | `space/*`, `radius/*` | Hằng số trong `AppSpacing`, `AppRadius` |
 | `elevation/0–2` | `elevation: 0`, `1`, `3`, `shadowColor` = Text Primary |
@@ -51,6 +54,14 @@
 | Skeleton | `Container` nền Neutral Container, hoặc gói `skeletonizer` |
 | Kéo để làm mới | `RefreshIndicator` |
 | Màn trống, màn lỗi, banner hạn chót, thanh điều kiện nhóm | Widget riêng: `EmptyState`, `ErrorState`, `DeadlineBanner`, `TeamRequirementBar` |
+| Thẻ đề tài, tóm tắt cho mentor (bản 4) | `ProjectCard` + `ProjectTimeline` (mốc theo kỳ / môn), `MentorBriefCard`, `MentorSessionChip` ("Buổi mentor 1/3") |
+| Thanh kéo kỹ năng (bản 4) | Widget riêng `SkillSlider` dựa trên `Slider(min: 1, max: 5, divisions: 4)`, giá trị `null` = chưa đánh giá; `semanticFormatterCallback` đọc "Công nghệ, 3 trên 5" |
+| Biểu đồ kỹ năng (bản 4) | Widget riêng `SkillBars` (5 hàng × 5 ô), tham số `highlight` cho kỹ năng nhóm đang thiếu |
+| Nhóm ý tưởng (bản 4) | Widget riêng `IdeaListField`: tối đa 3 cặp `TextField` + `CheckboxListTile` "Chưa có ý tưởng" |
+| Hộp nhắc giai đoạn (bản 4) | `AlertDialog` qua hàm `showPhaseClosedDialog(context, phase)` |
+| Tin nhắn (bản 4) | `MessageBubble`, `MessageComposer`, danh sách `ListView.builder(reverse: true)`; kết nối hub `/hubs/collab` bằng gói `signalr_netcore` |
+| Bảng việc, dòng file, khung giờ họp (bản 4) | `TaskCard` (Card), `FileTile` (ListTile), `SlotVoteTile` với `SegmentedButton` Có / Không |
+| Chỉ báo quan tâm, nhãn vai trò (bản 4) | `InterestButton` (OutlinedButton.icon ↔ FilledButton.tonal), `RoleChip` (Chip) |
 
 ## 3. Quy ước chung cho mọi màn hình
 
@@ -60,7 +71,10 @@
 - **Lỗi:** lỗi tải cả màn → `ErrorState` có nút "Thử lại"; lỗi khi gửi → banner lỗi nền Error Container có "Thử lại", giữ nguyên nội dung đã nhập. Không dùng `SnackBar` cho lỗi.
 - **Nút vô hiệu** luôn kèm một dòng nêu lý do.
 - **Điều hướng:** màn cấp 1 (tab) không có Back; màn cấp 2 Back về đúng màn cha; sau khi gửi thành công, Back không quay lại form đã gửi.
-- **Một nút Primary** mỗi màn hình.
+- **Một nút Primary (cam)** mỗi màn hình; điều hướng, lựa chọn, link dùng Secondary (xanh).
+- **Tab bar theo giai đoạn (bản 4):** shell đọc `phase` của môn từ Academic (`GET /api/semesters/current`) lúc khởi động và khi kéo để làm mới; giai đoạn học kỳ thì tab Khám phá đổi thành Dự án (C01). Route tới S05, S08, S10 kiểm tra `phase` trong `redirect` của go_router và mở `showPhaseClosedDialog` thay vì màn hình. API trả `409 round-closed` cũng mở hộp nhắc này.
+- **Ít chữ (bản 4):** theo `DESIGN.md` mục 9.1 – tiêu đề 1–3 từ, nút ≤ 3 từ, thẻ tối đa một dòng mô tả.
+- **Mẫu tương tác (bản 4):** theo `DESIGN.md` mục 6.4 – Hoàn tác cho thao tác đổi lại được, dialog cho thao tác không đổi lại được; cập nhật lạc quan cho gửi tin, đổi trạng thái việc, chọn khung giờ (Riverpod: cập nhật state trước, rollback khi API lỗi); kéo thả luôn có menu "Chuyển sang…"; badge giữ chỗ cố định, `Semantics(liveRegion: true)` một lần cho mỗi màn.
 - **Dữ liệu cá nhân:** SĐT chỉ hiện với đồng đội, giảng viên được phân công và Bộ môn.
 
 ---
@@ -91,16 +105,16 @@
 | Navigation | Từ A03; nút → A03. Không có ngõ cụt |
 | UI constraints | Hiện email vừa dùng để người dùng nhận ra nhầm tài khoản |
 
-#### A05 · Hoàn thiện hồ sơ lần đầu
+#### A05 · Hoàn thiện hồ sơ lần đầu (bản 4 – một màn)
 
 | Mục | Nội dung |
 |---|---|
-| Layout | Thanh bước "Bước 1/2", "Bước 2/2". Bước 1: thông tin đã import (họ tên, MSSV, ngành, chuyên ngành, mã lớp) chỉ đọc. Bước 2: SĐT/Zalo (không bắt buộc), kỹ năng dạng chip, giới thiệu ngắn; nút chính cuối trang |
-| Components | `AppBar` cấp 2, `ListTile` chỉ đọc, `TextField` (SĐT, giới thiệu), `FilterChip` (kỹ năng chọn từ danh mục), `FilledButton` |
-| States | Bước 1 · bước 2 · lỗi nhập SĐT (`errorText`, icon lỗi cuối ô) · đang lưu |
-| Interactions | "Tiếp tục" → bước 2; "Hoàn tất" → kiểm tra SĐT → lưu hồ sơ |
+| Layout | Khối "Thông tin từ bộ môn" thu gọn một dòng (họ tên · MSSV · chuyên ngành), chạm để mở; 5 `SkillSlider`; ô "Giới thiệu" 4 dòng; nút chính "Hoàn tất" cuối trang |
+| Components | `AppBar` cấp 2, `ExpansionTile` chỉ đọc, `SkillSlider` ×5, `TextField` nhiều dòng (bộ đếm 500), `FilledButton` |
+| States | Mặc định (5 thanh "Chưa đánh giá") · còn thanh chưa đánh giá (nút khóa + "Còn 2 kỹ năng chưa đánh giá") · đang lưu · lỗi lưu (banner lỗi, giữ dữ liệu) |
+| Interactions | Kéo / chạm thanh → giá trị hiện "n/5"; "Hoàn tất" → lưu → S01 |
 | Navigation | Từ A03 (lần đầu). Lưu xong → S01, Back không quay lại A05 |
-| UI constraints | SĐT lưu dạng chuỗi, giữ số 0 đầu (quy tắc 11). Chuyên ngành và kỹ năng chọn từ danh mục, không gõ tự do (quy tắc 12) |
+| UI constraints | Quy tắc 16: không có ô SĐT, Zalo, email; dữ liệu import chỉ đọc. Giới thiệu không bắt buộc. Mục tiêu hoàn tất ≤ 1 phút |
 
 #### S01 · Trang chủ sinh viên
 
@@ -146,7 +160,7 @@
 | Navigation | Từ S05, S07, S01; Back về màn cha |
 | UI constraints | Không hiện SĐT thành viên với người ngoài nhóm. Mỗi sinh viên chỉ thuộc 1 nhóm (quy tắc 4) |
 
-#### S09 · Gửi yêu cầu tham gia (bottom sheet)
+#### S09 · Gửi yêu cầu tham gia (bottom sheet) – bản Lab 2, xem bản 4 ở mục 4a
 
 | Mục | Nội dung |
 |---|---|
@@ -273,6 +287,150 @@
 
 ---
 
+## 4a. Spec bổ sung sau góp ý (bản 4, chưa có trong Figma)
+
+Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mục 8.2.
+
+### Thay đổi ở màn hình cũ
+
+| Màn hình | Thay đổi | Quy tắc |
+|---|---|---|
+| S02, S03 | Hồ sơ = `SkillBars` + giới thiệu; S03 sửa bằng `SkillSlider`. Không còn mục liên lạc | 16 |
+| S04 | Hồ sơ người khác: `SkillBars` + giới thiệu. Email chỉ hiện nếu người xem là đồng đội, giảng viên, mentor của nhóm | 11, 16 |
+| S05, S08, S10 | Chỉ mở được trong giai đoạn lập nhóm; ngoài giai đoạn → `showPhaseClosedDialog` | 18 |
+| S15 | Thêm `ProjectCard` ("Tiếp tục từ EXE101 · SP26", nút "Lịch sử" mở `ProjectTimeline` trong bottom sheet), mục "Cố vấn" (giảng viên hướng dẫn + một mentor, `RoleChip`; chưa có mentor → "Mentor sẽ được gán từ tuần 6") và lối tắt "Mở dự án" | 20, 21, 26 |
+| S27, S28 | Loại thay đổi mới "Đổi đề tài": ô tên đề tài mới, mô tả, lý do bắt buộc; hiện cạnh thay đổi thành viên trong cùng yêu cầu | 26 |
+| C06 | Nhóm EXE201 có thư mục ghim "EXE101 (kỳ trước)" (icon `history`), mọi file trong đó chỉ đọc | 26 |
+| S20 | Mỗi yêu cầu tham gia: `SkillBars(highlight: kỹ năng nhóm đang thiếu)`, danh sách ý tưởng hoặc nhãn "Chưa có ý tưởng", hai nút Nhận / Từ chối | 16, 17 |
+| S23, S25 | Đầu danh sách: "Quan tâm đề tài của nhóm" – avatar giảng viên quan tâm, mỗi người một nút "Gửi yêu cầu" | 19 |
+| L01 | Ba thẻ số liệu bấm được: "Cần trả lời n", "Trễ hạn nộp n", "Họp sắp tới n" (gom mọi nhóm); dưới là yêu cầu mới và đề tài gợi ý mới | 22, 23, 25 |
+| L04, L05 | Mỗi nhóm có tiến độ việc (thanh) và số bài nộp chờ duyệt; nhóm mình làm mentor có `RoleChip` "Mentor" | 20, 23 |
+
+#### S09 · Gửi yêu cầu tham gia (bản 4)
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Bottom sheet (web: drawer phải). Ô lời nhắn; mục "Ý tưởng của bạn" dùng `IdeaListField`; dòng nhắc hạn 72 giờ; thanh nút cố định "Hủy" / "Xin tham gia" |
+| Components | `showModalBottomSheet`, `TextField`, `IdeaListField`, `TextButton`, `FilledButton` |
+| States | Mặc định (chưa có ý tưởng nào, chưa tích) · đã thêm 1–3 ý tưởng · đã tích "Chưa có ý tưởng" (các ý tưởng thu gọn, vô hiệu) · thiếu lựa chọn (dòng lỗi dưới mục ý tưởng) · đang gửi · thành công · lỗi gửi (giữ toàn bộ nội dung) |
+| Interactions | "+ Thêm ý tưởng" thêm thẻ (ẩn khi đủ 3); nút xóa trên thẻ; tích ô → thu gọn ý tưởng. "Xin tham gia" khi chưa có ý tưởng và chưa tích → lỗi tại mục, không gửi |
+| Navigation | Overlay trên S08; thành công → S08 "đã gửi yêu cầu" + `SnackBar` |
+| UI constraints | Quy tắc 17: 1–3 ý tưởng hoặc "Chưa có ý tưởng"; tiêu đề ≤ 80, mô tả ≤ 300 ký tự. Ý tưởng chỉ thành viên nhóm nhận được thấy |
+
+### Workspace nhóm (C01–C08)
+
+#### C01 · Dự án – tổng quan
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Người xem là mentor: `MentorBriefCard` ở trên cùng (đề tài, tiến độ, "Buổi mentor n/3", 3 file mới nhất, biên bản gần nhất). Đầu trang: tên nhóm, hàng avatar thành viên + cố vấn. Bốn thẻ số liệu bấm được: "Việc của tôi", "Sắp đến hạn", "Họp sắp tới", "Câu hỏi chờ". Hàng lối tắt: Tin nhắn · Việc · File · Lịch họp. Danh sách "Mới cập nhật" (tối đa 5 dòng) |
+| Components | `Card` số liệu, `ListTile`, `Badge` số chưa đọc, avatar xếp chồng, `RoleChip` |
+| States | Có dữ liệu · nhóm mới (mỗi thẻ số liệu = 0, một `EmptyState` gợi ý "Tạo việc đầu tiên") · đang tải · lỗi tải |
+| Interactions | Chạm thẻ số liệu → C04 lọc sẵn / C07 / C02; kéo để làm mới |
+| Navigation | Tab "Dự án" (giai đoạn học kỳ) của sinh viên; từ L04 / M01 với giảng viên, mentor. → C02, C04, C06, C07 |
+| UI constraints | Quy tắc 21: chỉ thành viên, giảng viên chính thức, mentor được gán, Bộ môn (chỉ xem). Mỗi thẻ tối đa một dòng (`DESIGN.md` 9.1) |
+
+#### C02 · Tin nhắn – danh sách hội thoại
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Sinh viên: hai dòng "Nhóm" và "Cố vấn" của nhóm mình. Giảng viên / mentor: một dòng cho mỗi kênh Cố vấn của các nhóm, sắp theo tin mới nhất; bộ lọc "Tất cả / Cần trả lời" |
+| Components | `ListTile` (avatar nhóm, tên kênh, tin cuối 1 dòng, thời gian, `Badge` chưa đọc, chip "Cần trả lời"), `SegmentedButton` lọc |
+| States | Có dữ liệu · trống · đang tải · mất kết nối realtime (dải mảnh "Đang kết nối lại…", vẫn đọc được lịch sử) |
+| Interactions | Chạm → C03; web ≥ 1024 px mở C03 ở cột phải |
+| Navigation | Tab "Tin nhắn" của giảng viên / mentor; từ C01 với sinh viên |
+| UI constraints | Kênh Nhóm không hiện với giảng viên, mentor (quy tắc 22) |
+
+#### C03 · Kênh tin nhắn
+
+| Mục | Nội dung |
+|---|---|
+| Layout | App bar: tên kênh + số người. Danh sách tin (mới nhất ở dưới), chia theo ngày. Khung soạn tin dính đáy. Web ≥ 1280 px: cột phải thông tin nhóm |
+| Components | `MessageBubble`, `MessageComposer` (đính kèm file từ C06, công tắc "Hỏi cố vấn" ở kênh Cố vấn), `RoleChip`, luồng trả lời trong bottom sheet / drawer |
+| States | Có tin · kênh trống ("Chưa có tin nhắn.") · đang tải lịch sử (skeleton phía trên) · tin đang gửi · tin gửi lỗi ("Gửi lại") · câu hỏi chờ / đã trả lời |
+| Interactions | Gửi bằng nút hoặc `Enter` (web). Nhấn giữ tin (mobile) / di chuột (web) → Trả lời, Đánh dấu là câu hỏi. Cố vấn trả lời trong luồng → câu hỏi chuyển "Đã trả lời". Cuộn lên tải thêm (cursor) |
+| Navigation | Từ C02, C01, thông báo câu hỏi; Back về màn cha |
+| UI constraints | Tin ≤ 2.000 ký tự; tin thường không tạo thông báo; chỉ câu hỏi và nhắc tên (`@`) tạo thông báo (PROJECT_CONTEXT §5.7). Đánh dấu đã đọc khi tin hiện trên màn hình |
+
+#### C04 · Bảng việc
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Mobile: tab trạng thái "Cần làm · Đang làm · Xong" (kèm số), danh sách `TaskCard`, nút nổi "+". Web ≥ 1024 px: ba cột kéo thả. Bộ lọc nhanh: "Của tôi", "Bài nộp", "Trễ hạn" |
+| Components | `TabBar`, `TaskCard`, `FilterChip`, `FloatingActionButton` (mobile) / nút "Tạo việc" (web) |
+| States | Có dữ liệu · cột trống ("Chưa có việc.") · đang tải · lỗi tải |
+| Interactions | Tạo việc (bottom sheet: tên, người làm, hạn). Đổi trạng thái bằng menu thẻ (mobile) hoặc kéo thả (web). Giảng viên thấy nút "Tạo bài nộp" thay cho "Tạo việc". Mentor không có nút tạo |
+| Navigation | Từ C01; chạm thẻ → C05 |
+| UI constraints | Quy tắc 23: bài nộp chỉ giảng viên tạo; mentor chỉ bình luận. Hạn hiển thị tương đối ("Còn 2 ngày") + tuyệt đối khi mở chi tiết |
+
+#### C05 · Chi tiết việc / bài nộp
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Tiêu đề, chip trạng thái, người làm, hạn, mô tả. Bài nộp có thêm "Bản đã nộp" (dòng file, phiên bản, thời gian) và kết quả duyệt. Bình luận ở cuối |
+| Components | `Chip`, `FileTile`, `TextField` bình luận, `FilledButton` ("Nộp bài" với nhóm, "Đạt" với giảng viên), `OutlinedButton` ("Cần sửa") |
+| States | Việc: Cần làm · Đang làm · Xong. Bài nộp: Chưa nộp · Đã nộp · Cần sửa · Đạt · Trễ hạn. Đang tải lên (thanh tiến độ) · lỗi tải lên (giữ file đã chọn, Thử lại) |
+| Interactions | Nhóm: chọn file từ C06 hoặc tải lên → "Nộp bài". Giảng viên: "Đạt" hoặc "Cần sửa" (bắt buộc bình luận) |
+| Navigation | Từ C04, C01, thông báo; Back về màn cha |
+| UI constraints | File ≤ 25 MB, đúng định dạng (quy tắc 24) – kiểm tra trước khi tải lên. Nộp sau hạn vẫn được, chip "Trễ hạn" giữ lại |
+
+#### C06 · File dự án
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Đường dẫn thư mục; danh sách thư mục rồi file (chỉ bản mới nhất); nút "Tải lên" (thành viên). Chi tiết file: các phiên bản, bình luận |
+| Components | `FileTile`, `ListTile` thư mục, `FilePicker`, drawer / bottom sheet chi tiết |
+| States | Có dữ liệu · thư mục trống · đang tải lên (tiến độ từng file) · lỗi tải lên · file quá lớn / sai định dạng (lỗi tại chỗ, không tải) |
+| Interactions | Tải lên trùng tên → hỏi "Tạo phiên bản mới?" → v(n+1). Chạm file → mở bằng URL ký sẵn. Xóa (người tải lên, trưởng nhóm) → dialog xác nhận |
+| Navigation | Từ C01, C03 (đính kèm), C05 (chọn file nộp) |
+| UI constraints | Quy tắc 24: giảng viên, mentor chỉ xem và bình luận (không thấy nút tải lên, xóa) |
+
+#### C07 · Lịch họp
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Ba nhóm: "Chờ chốt", "Sắp tới", "Đã họp". Mỗi dòng: tiêu đề, ngày giờ (hoặc "3 khung giờ"), nơi họp, chip trạng thái. Nút "Đề xuất họp" |
+| Components | `ListTile`, `Chip`, `FilledButton` |
+| States | Có dữ liệu · trống · đang tải |
+| Interactions | Chạm → C08; "Đề xuất họp" → C08 ở chế độ tạo |
+| Navigation | Từ C01, M01, L01, thông báo |
+| UI constraints | Quy tắc 25: người tổ chức là trưởng nhóm, giảng viên chính thức hoặc mentor |
+
+#### C08 · Đề xuất / chi tiết cuộc họp
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Tạo: tiêu đề, 1–3 khung giờ (chọn ngày + giờ + thời lượng), nơi họp (phòng / link), nội dung (agenda). Chi tiết: các `SlotVoteTile`, người tham dự, nút "Chốt khung này" (người tổ chức). Sau họp: mục "Biên bản" + danh sách việc rút ra (checkbox "Tạo việc") |
+| Components | `DatePicker`, `TimePicker`, `TextField`, `SlotVoteTile`, `CheckboxListTile`, `FilledButton` |
+| States | Đang tạo · chờ trả lời · đã chốt · đã hủy (lý do) · đã họp (có / chưa có biên bản) · lỗi lưu (giữ nội dung) |
+| Interactions | Thành viên chọn Có / Không từng khung; người tổ chức chốt → mọi người được báo; thêm khung khi không khung nào đủ người. Biên bản: chọn dòng → "Tạo việc" mở bottom sheet đã điền sẵn |
+| Navigation | Từ C07, thông báo; chốt xong → C07 "Sắp tới" |
+| UI constraints | Mục tiêu ≤ 2 lượt tương tác của người tổ chức để chốt (persona.md chỉ số 12). Nhắc 24 giờ và 1 giờ do Job Service gửi |
+
+### Giảng viên và Mentor
+
+#### L07 · Đề tài phù hợp
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Hàng giới hạn "Đang quan tâm 3/5 · Còn nhận 2 nhóm". Danh sách thẻ đề tài: tên nhóm, tên dự án, chip domain trùng chuyên môn (Secondary), "4/6 thành viên", `InterestButton`, dòng "n giảng viên khác cũng quan tâm". Tab thứ hai "Yêu cầu" = L02 |
+| Components | `Card`, `Chip`, `InterestButton`, `SegmentedButton` / `TabBar`, icon `info` giải thích cách gợi ý |
+| States | Có gợi ý · chưa khai báo chuyên môn (`EmptyState` + "Cập nhật chuyên môn" → L06) · không có gợi ý · đã đạt giới hạn quan tâm (nút khóa + lý do) · đề tài vừa có giảng viên (thẻ chuyển "Đã có giảng viên") · đang tải |
+| Interactions | "Quan tâm" ↔ "Đã quan tâm" (bấm lại để rút, có xác nhận); chạm thẻ → chi tiết đề tài (ý tưởng, thành viên, kỹ năng nhóm) |
+| Navigation | Tab "Đề tài & yêu cầu" của giảng viên; → chi tiết, → L03 khi nhóm gửi yêu cầu |
+| UI constraints | Quy tắc 19: quan tâm không giữ chỗ, không tốn sức chứa; chỉ hiện **số** giảng viên khác, không hiện tên; giới hạn = sức chứa còn lại + 2 |
+
+#### M01 · Trang chủ mentor
+
+| Mục | Nội dung |
+|---|---|
+| Layout | Lời chào; ba thẻ số liệu bấm được: "Cần trả lời", "Họp sắp tới", "Chờ chốt lịch"; danh sách "Nhóm đang mentor" (tên nhóm, đề tài, `MentorSessionChip`, giảng viên hướng dẫn). Hàng "Đang nhận 3 nhóm · mong muốn 4" chạm để sửa số mong muốn |
+| Components | `Card` số liệu, `ListTile`, `LinearProgressIndicator`, `RoleChip` |
+| States | Có nhóm · chưa được gán nhóm (`EmptyState` "Bộ môn chưa gán nhóm cho bạn.") · đang tải |
+| Interactions | Chạm số liệu → C02 lọc "Cần trả lời" / C07; chạm nhóm → C01 của nhóm |
+| Navigation | Tab Trang chủ của mentor; icon tài khoản → hồ sơ mentor |
+| UI constraints | Quy tắc 20: mỗi nhóm một mentor; số nhóm mong muốn ≤ tối đa do Bộ môn đặt; mentor không có yêu cầu hướng dẫn, bài nộp – không hiện các mục này. Ngoài cửa sổ mentor (trước tuần 6) hiện `EmptyState` "Bộ môn sẽ gán nhóm từ tuần 6." |
+
 ## 5. Checklist khi hiện thực một màn hình
 
 - [ ] Mọi màu, chữ, khoảng cách lấy từ `Theme.of(context)` / `AppSpacing` / `AppRadius`.
@@ -280,4 +438,5 @@
 - [ ] Kiểm tra ở 360 và 412 dp, cỡ chữ hệ thống 130% không vỡ bố cục.
 - [ ] Vùng chạm ≥ 48, chữ nội dung ≥ 14 sp, trạng thái có chữ + icon.
 - [ ] Back đúng màn cha; sau khi gửi thành công không quay lại form.
-- [ ] Đối chiếu frame tương ứng trong Figma `03 Final UI` và luồng trong `06 Prototype`.
+- [ ] Đối chiếu frame tương ứng trong Figma `03 Final UI` và luồng trong `06 Prototype`; màn hình bản 4 đối chiếu mục 4a và `DESIGN.md` bản 4 (Figma chưa có).
+- [ ] Màn hình chạy được trên web ở ba mức bề rộng (`DESIGN.md` 8.2) nếu thuộc vai trò Sinh viên, Giảng viên, Mentor.

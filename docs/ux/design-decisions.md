@@ -2,7 +2,7 @@
 
 > Artifact cho **Slide 07 – Design Decisions** và **Slide 10 – Accessibility / Responsive** (PRM323 Lab 2).
 > Tham chiếu: [persona.md](persona.md), [user-flow.md](user-flow.md), [DESIGN.md](DESIGN.md), `PROJECT_CONTEXT.md` mục 3 (quy tắc nghiệp vụ).
-> Cập nhật: 19/10/2026 (chốt B10; mã màn hình theo `EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx`).
+> Cập nhật: 19/10/2026 (chốt B10; mã màn hình theo `EXE_Team_Matching_Danh_sach_man_hinh_v2.xlsx`). Lần 2 cùng ngày: thêm Phần E – quyết định theo góp ý của giảng viên.
 
 **Công cụ AI.** Nhóm dùng **Claude** thay cho Google Stitch (đã được giảng viên đồng ý). Claude đọc `DESIGN.md`, `persona.md` và `user-flow.md` rồi dựng màn hình trong Figma (vòng 0 trong [ai-design-log.md](ai-design-log.md)); sau đó Claude Code được yêu cầu phản biện lại chính giao diện đó qua ba vòng.
 
@@ -111,3 +111,30 @@ Claude Code xem 45 màn hình mobile (trạng thái mặc định) và 17 trang 
 - B5 chưa sửa nên ảnh S01, S05, S07 trong slide vẫn còn "Rất phù hợp · 92%".
 - Web mới được phản biện ở trạng thái mặc định của 17 trên 26 trang; các trạng thái trống, lỗi và form chưa được xem.
 - Tương phản được tính từ mã màu của token, chưa đo trên từng frame.
+
+---
+
+## E. Quyết định theo góp ý của giảng viên ngày 19/10/2026
+
+Góp ý gốc và nơi xử lý: `PROJECT_CONTEXT.md` mục 13. Phần này ghi **phương án đã cân nhắc** và lý do chọn, để trả lời câu hỏi "vì sao làm như vậy". Figma chưa cập nhật; tài liệu và code theo các quyết định dưới đây.
+
+| # | Góp ý | Phương án đã cân nhắc | Quyết định | Lý do |
+|---|---|---|---|---|
+| E1 | Web cho sinh viên, giảng viên | (a) Web riêng cho từng vai trò; (b) một web, bốn khung vai trò, **dùng chung mã màn hình với mobile** | **(b)** | Một spec cho hai nền tảng, không nhân đôi tài liệu; giảng viên (P3) và mentor (P5) làm việc nhiều trên laptop; bố cục danh sách + chi tiết tận dụng màn hình rộng (`DESIGN.md` 8.2) |
+| E2 | Giao tiếp giảng viên – sinh viên | (a) Chat tự do một kênh; (b) **hai kênh Nhóm / Cố vấn + đánh dấu câu hỏi**; (c) chỉ bình luận trên việc | **(b)** | Nỗi đau thật không phải "thiếu chỗ nhắn" (đã có Zalo) mà là **câu hỏi cho cố vấn bị trôi** (P1, P5). Câu hỏi có trạng thái Chờ / Đã trả lời và gom vào "Cần trả lời" ở L01, M01; kênh Nhóm riêng để cố vấn không bị ồn. Tin thường không gửi thông báo để tránh quá tải |
+| E3 | Quản lý file, task của nhóm và giảng viên | (a) Liên kết Google Drive; (b) **lưu file trong hệ thống, có phiên bản; task + bài nộp** | **(b)** | Link Drive hay mất quyền, không biết bản nào mới (P5). Phiên bản tự động khi tải trùng tên giải quyết "bản mới nhất"; **bài nộp** do giảng viên tạo thay cho nhận báo cáo qua email, và cho P3 thấy nhóm nào trễ hạn ngay ở trang chủ |
+| E4 | Tông màu sáng hơn, FPT hơn, hiện đại, ít chữ | (a) Cam `#F37021` làm nút chính; (b) **cam đậm `#C2410C` cho hành động, xanh `#0E5BA8` cho điều hướng, cam thương hiệu chỉ trang trí** | **(b)** | (a) chỉ đạt 2,94:1 với chữ trắng – trượt chuẩn 4,5:1 mà Lab 2 đã chứng minh đạt. Tách vai trò hai màu (cam = làm, xanh = ở đâu) giữ được nguyên tắc "một nút Primary". Ít chữ: quy tắc ở `DESIGN.md` 9.1 |
+| E5 | Ý tưởng khi xin vào nhóm | (a) Một ô mô tả tự do; (b) **1–3 thẻ ý tưởng có cấu trúc hoặc tích "Chưa có ý tưởng"**, bắt buộc chọn một trong hai | **(b)** | Trưởng nhóm (P1) cần so sánh nhanh nhiều yêu cầu; thẻ ý tưởng có tiêu đề đọc lướt được. Ô "Chưa có ý tưởng" kèm câu "nhiều nhóm cần người thực hiện" để Vy (P2) không thấy bị đánh giá thấp |
+| E6 | Không hiện Khám phá khi học kỳ đã bắt đầu | (a) Giữ tab, hiện popup khi bấm; (b) **đổi tab Khám phá thành Dự án**, popup chỉ cho đường dẫn cũ | **(b)** | (a) để lại một tab chết ở vị trí dễ bấm nhất suốt cả kỳ. Giai đoạn đổi thì nhu cầu đổi: trước là *tìm nhóm*, sau là *làm việc với nhóm* – tab bar đi theo nhu cầu. Popup vẫn cần cho link trong thông báo, email |
+| E7 | Gợi ý đề tài cho giảng viên; 2 giảng viên cùng thích 1 đề tài | (a) Ai bấm trước giữ đề tài; (b) giảng viên mời, nhóm nhận lời đầu tiên; (c) **"Quan tâm" không giữ chỗ, giảng viên thấy số người cùng quan tâm, nhóm thấy tên và tự chọn, các quan tâm khác tự đóng** | **(c)** | (a) tạo cuộc đua và trái quy tắc 9 (nhóm chọn nguyện vọng, Bộ môn quyết). (b) gây áp lực cho nhóm phải trả lời nhanh. (c) giữ nguyên luồng F3 đã kiểm thử, chuyển xung đột thành **lựa chọn của nhóm**, minh bạch với giảng viên (biết có cạnh tranh), không lộ danh tính đồng nghiệp; giới hạn "sức chứa còn lại + 2" chặn giữ đề tài |
+| E8 | 5 kỹ năng, thanh kéo 1–5 | (a) Chip kỹ năng tự do như cũ; (b) **5 thanh kéo, mặc định "Chưa đánh giá"**; (c) biểu đồ radar | **(b)** cho nhập, **thanh ngang 5 ô** cho xem | Mặc định 3/5 sẽ làm mọi hồ sơ giống nhau; bắt buộc chạm từng thanh. Radar khó đọc ở 360 px và với trình đọc màn hình. Ở S20, kỹ năng nhóm đang thiếu được đánh dấu để trưởng nhóm so khớp nhanh; Matching dùng thang này để gợi ý bù chỗ yếu |
+| E9 | Hồ sơ chỉ kỹ năng + mô tả, bỏ liên lạc | – | **Theo góp ý**; liên lạc lấy từ file import, chỉ hiện cho người trong nhóm | Rút onboarding từ 2 bước còn 1 màn (mục tiêu ≤ 1 phút); đồng thời xử lý luôn nỗi đau lộ SĐT (E01). Liên lạc hằng ngày chuyển sang tin nhắn trong Dự án (E2) |
+| E10 | Mentor: người ngoài hoặc giảng viên, màn hình như giảng viên | (a) Nhóm tự mời mentor; (b) **chỉ Bộ môn tạo và gán**; (c) nhóm mời, Bộ môn duyệt | **(b)** (nhóm chọn 19/10/2026) | Người ngoài trường cần được Bộ môn kiểm soát. **Một mentor mỗi nhóm**; Bộ môn đặt số nhóm tối đa riêng cho từng mentor, mentor tự chọn số mong muốn (cảnh báo khi vượt mong muốn, chặn khi vượt tối đa). Mentor vào từ tuần 6 và họp 2–3 buổi, nên điều quan trọng nhất là **vào cuộc nhanh**: C01 có thẻ tóm tắt nhóm và "Buổi mentor n/3". Giảng viên làm mentor: một tài khoản hai vai trò, nhóm mentor hiện trong khung giảng viên với nhãn – không có nút chuyển vai trò (bớt một bước, bớt nhầm lẫn) |
+
+| E11 | Quản lý đề tài và nhóm từ EXE101 lên EXE201 | (a) Theo **nhóm** (mã nhóm, tên nhóm); (b) coi nhóm EXE201 là **cùng một bản ghi** với nhóm EXE101; (c) **đề tài là trục xuyên kỳ, nhóm là đơn vị theo từng môn** | **(c)** | (a) đứt mạch khi đổi thành viên hoặc đổi tên nhóm – kỳ FA26 có 84 yêu cầu đổi nhóm. (b) trái quy tắc 4 (mỗi môn một nhóm) và làm rối yêu cầu đổi nhóm. (c) giữ được file, lịch sử, giảng viên kỳ trước theo đề tài, trong khi nhóm vẫn kiểm tra 4–6 người, 2 chuyên ngành theo môn. Đổi đề tài ở EXE201 đi cùng yêu cầu đổi nhóm để Bộ môn duyệt một lần (quy tắc 26) |
+
+**Kiến trúc đi kèm (chốt 19/10/2026):** thêm **Collaboration Service** riêng với `collab_db`, SignalR cho tin nhắn, MinIO cho file (`PROJECT_CONTEXT.md` §5.8). DB script, OpenAPI và sự kiện Kafka **chưa sửa** – đã ghi thành task BE-60 trở đi trong file phân chia task.
+
+**Đã chốt với nhóm (19/10/2026):** "học kỳ đã bắt đầu" = đợt lập nhóm đã đóng; một mentor mỗi nhóm, số nhóm do Bộ môn đặt riêng cho từng mentor; mentor từ tuần 6, 2–3 buổi; giảng viên lớp trên FAP không hiển thị.
+
+**Còn mở:** giới hạn 25 MB và 3 ý tưởng; đổi đề tài ở EXE201 có cần Bộ môn duyệt không (đang chọn: có, đi cùng yêu cầu đổi nhóm).

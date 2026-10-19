@@ -1,6 +1,6 @@
 # Kịch bản thuyết trình – PRM323 Lab 2
 
-> Dùng với `PRM393 Lab 2 – EXE Team Matching System v2.pptx` (15 slide). Lời nói giống hệt phần speaker notes trong file pptx.
+> Dùng với `PRM393 Lab 2 – EXE Team Matching System v2.pptx` (18 slide). Lời nói giống hệt phần speaker notes trong file pptx.
 > Thời lượng theo hướng dẫn chấm: **10 phút trình bày · 5 phút demo · 5 phút hỏi đáp**.
 > Chữ *nghiêng trong ngoặc* là thao tác, không đọc. Slide có dấu ⏩ có thể nói lướt nếu sắp hết giờ.
 
@@ -14,21 +14,33 @@ Em chào thầy. Em xin trình bày **EXE Team Matching System** – ứng dụn
 
 Hiện nay mỗi kỳ có khoảng 1.250 sinh viên ghép nhóm trên một file Google Sheets nhập tay. Ứng dụng của nhóm thay thế file đó, cho ba đối tượng: sinh viên, trưởng nhóm và giảng viên hướng dẫn. Link Figma và GitHub ở cuối slide.
 
-### Slide 02 · Problem & Persona (≈ 1 phút)
+### Slide 02 · Problem (≈ 45 giây)
 
-Bên trái là vấn đề, lấy từ **file thật của kỳ FA26**: 220 nhóm, 58 yêu cầu đổi nhóm đang chờ duyệt mà chỉ có ghi chú tự do, 7 nhóm cuối do bộ môn ghép tay sau hạn, và khoảng 9 nhóm chỉ có một chuyên ngành – vi phạm quy định mà không ai chặn.
+Vấn đề lấy từ **file thật của kỳ FA26**: khoảng 1.250 sinh viên, 220 nhóm, tất cả ghép trên một Google Sheet nhập tay. Có 58 yêu cầu đổi nhóm đang chờ duyệt mà kết quả chỉ là ghi chú tự do – không trạng thái, không lịch sử. 7 nhóm cuối do bộ môn ghép tay sau hạn, khoảng 9 nhóm chỉ có một chuyên ngành mà không ai chặn, và SĐT của mọi người đều công khai.
 
-Persona chính là **Minh – trưởng nhóm chạy deadline, xử lý mọi việc trên điện thoại**. Khi một thành viên không học tiếp EXE201 sát hạn, Minh muốn gửi một yêu cầu đổi người có lý do để kịp được duyệt. Nỗi khổ lớn nhất là gửi xong không biết yêu cầu đang ở đâu. Về accessibility, Minh thường dùng một tay và đọc ngoài nắng.
+Problem statement: *trưởng nhóm EXE201 cần thay người sát hạn ngay trên điện thoại và luôn biết yêu cầu đổi nhóm đang ở đâu.* Bốn chỉ số đo được trên prototype: gửi yêu cầu **dưới 2 phút**, **5 trên 5** người đọc đúng trạng thái, xin vào nhóm **trong 3 lần chạm**, và **90%** người thử hoàn thành 3 flow.
 
-Đây là **proto-persona, chưa phỏng vấn**. Vì vậy mỗi ô đều gắn nhãn nguồn: O là quan sát từ file, R là quy định môn, I là suy luận, A là giả định.
+### Slide 02b · P1 Minh – Primary Persona (≈ 50 giây)
 
-Problem statement: *trưởng nhóm cần thay người sát hạn ngay trên điện thoại và luôn biết yêu cầu đang ở đâu.* Hai chỉ số đo được: gửi yêu cầu **dưới 2 phút** và **5 trên 5** người thử đọc đúng trạng thái.
+Nhóm có ba persona dùng mobile, mỗi người một slide và đủ 12 trường theo template. Cả ba là **proto-persona, chưa phỏng vấn**, nên mỗi trường gắn nhãn nguồn: O là quan sát từ file, R là quy định môn, I là suy luận, A là giả định.
 
-### Slide 02b · Persona Coverage ⏩ (≈ 40 giây)
+Persona chính là **Minh – trưởng nhóm chạy deadline, xử lý mọi việc trên điện thoại**. Khi một thành viên không học tiếp sát hạn, Minh muốn gửi một yêu cầu đổi người có lý do để kịp duyệt. Hiện Minh phải chép danh sách vào sheet, tự tính tỷ lệ, rồi mở file nhiều lần để dò trong 65 ghi chú tự do. Minh thường dùng một tay và đọc ngoài nắng, nên tương phản và vùng chạm là ràng buộc thiết kế. Thành công là gửi yêu cầu dưới 2 phút và 5 trên 5 người đọc đúng trạng thái.
 
-Nhóm có bốn persona, khác nhau về hành vi chứ không chỉ khác tên. Minh là Primary vì flow đổi thành viên nhiều bước và nhiều điểm lỗi nhất – thiết kế đáp ứng được Minh thì Vy và thầy Khoa cũng được đáp ứng phần lớn.
+### Slide 02c · P2 Vy – Secondary Persona (≈ 40 giây)
 
-Vy và Minh đều là sinh viên nhưng không gộp được: Vy cần *tìm chỗ*, Minh cần *quản lý thay đổi*. Bảng dưới nối mỗi nhu cầu với một quyết định UI và một cách kiểm chứng.
+**Vy – người mới ngoài ngành, ngại chủ động nhắn người lạ.** Khi sắp đóng đợt mà chưa có nhóm, Vy muốn biết nhóm nào còn chỗ và đang cần người như mình. Hiện Vy chỉ đăng mô tả tự do ở sheet "SV tìm nhóm", không biết nhóm nào còn chỗ, cũng không lọc được.
+
+Vy khác Minh ở chỗ: Vy cần *tìm chỗ*, Minh cần *quản lý thay đổi* – nên hai người dẫn tới hai cấu trúc màn hình khác nhau. Thành công là xin vào nhóm trong 3 lần chạm.
+
+### Slide 02d · P3 Thầy Khoa – Supporting Persona (≈ 40 giây)
+
+**Thầy Khoa – người duyệt nhanh giữa các tiết.** Thầy mở ứng dụng từ thông báo, chỉ vài chục giây mỗi lần. Thầy muốn xem nhanh nhóm rồi nhận hoặc từ chối, và không nhận quá sức chứa. Trong file FA26 có 55 nhóm được điều tiết khác nguyện vọng mà không ai báo lại.
+
+Thành công là phản hồi trong 4 lần chạm và phân biệt đúng nhóm "tôi đã nhận" với nhóm "Bộ môn đã phân công".
+
+### Slide 02e · Persona Coverage ⏩ (≈ 30 giây)
+
+Minh là Primary vì flow đổi thành viên nhiều bước và nhiều điểm lỗi nhất – đáp ứng được Minh thì Vy và thầy Khoa cũng được đáp ứng phần lớn. Persona thứ tư, cô Hạnh, dùng web nên ngoài phạm vi mobile. Bảng dưới nối mỗi nhu cầu với một quyết định UI và một cách kiểm chứng.
 
 ### Slide 03 · Information Architecture (≈ 40 giây)
 

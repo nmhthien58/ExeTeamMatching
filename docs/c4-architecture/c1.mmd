@@ -6,7 +6,7 @@ config:
     curve: step
 ---
 flowchart LR
-    users(["<b>Student, Lecturer</b><br/>[Person]"]):::person
+    users(["<b>Student, Lecturer, Mentor</b><br/>[Person]"]):::person
     admin(["<b>EXE Department</b><br/>[Person]"]):::person
 
     subgraph system["EXE Team Matching System"]
@@ -20,6 +20,9 @@ flowchart LR
         notification["<b>Notification Service</b>"]:::container
         job["<b>Job Service</b><br/>[Hangfire]"]:::container
         matching["<b>Matching Service</b>"]:::container
+        collab["<b>Collaboration Service</b><br/>[REST + SignalR]"]:::container
+        collabDb[("<b>Collab DB</b><br/>[PostgreSQL]")]:::db
+        minio[("<b>File Storage</b><br/>[MinIO, S3]")]:::db
         kafka[["<b>Message Broker</b><br/>[Apache Kafka]"]]:::container
 
         identityDb[("<b>Identity DB</b><br/>[PostgreSQL]")]:::db
@@ -65,6 +68,14 @@ flowchart LR
 
     identity -->|OAuth 2.0| google
     notification -->|SMTP| email
+
+    users -->|HTTPS| web
+    gateway -->|"REST + WebSocket"| collab
+    job -->|"REST / HTTP<br/>(internal)"| collab
+    collab -->|Publish| kafka
+    kafka -->|Consume| collab
+    collab -->|SQL| collabDb
+    collab -->|S3 API| minio
 
     classDef person fill:#0E3F78,stroke:#0A2E59,color:#fff
     classDef container fill:#3B87D6,stroke:#2A6BB0,color:#fff

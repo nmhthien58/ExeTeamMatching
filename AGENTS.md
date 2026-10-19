@@ -16,7 +16,7 @@ Nhóm: Thiên (trưởng nhóm), Nam, Cường, Nguyên, Thành.
 |---|---|---|---|
 | 1 | [docs/ux/PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) | Luôn đọc | Nghiệp vụ, 15 quy tắc bắt buộc, kiến trúc, service, sự kiện Kafka, công nghệ, quy ước code, cổng Docker |
 | 2 | [docs/EXE_Database_Design.pdf](docs/EXE_Database_Design.pdf) | Đụng tới DB, entity, DbContext | Mỗi service 1 database; bảng, cột, ràng buộc, index, trigger; tham chiếu chéo service |
-| 3 | [Google Sheet phân công task](https://docs.google.com/spreadsheets/d/17i2s3hWEHvSUk5tS-TCRMvDZ9nsaShP44PwQjivsZ7I/edit?usp=sharing) (**bản chính**) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành, trạng thái. File [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) chỉ là bản chụp ban đầu, có thể đã cũ |
+| 3 | [Google Sheet phân công task](https://docs.google.com/spreadsheets/d/17i2s3hWEHvSUk5tS-TCRMvDZ9nsaShP44PwQjivsZ7I/edit?usp=sharing) (**bản chính**) | Luôn đọc | Danh sách task (BE-xx, FE-xx, MB-xx), người phụ trách, phụ thuộc, tiêu chí hoàn thành, trạng thái. File [docs/EXE_Team_Matching_Phan_chia_task.xlsx](docs/EXE_Team_Matching_Phan_chia_task.xlsx) chỉ là bản chụp, có thể đã cũ. Thay đổi ngày 19/10/2026 theo góp ý giảng viên (35 task mới, 37 task sửa): [docs/task-changes-2026-10-19.md](docs/task-changes-2026-10-19.md) |
 | 4 | [docs/c4-architecture/PRN232 - Final Assignment.pdf](docs/c4-architecture/PRN232%20-%20Final%20Assignment.pdf) | Luôn đọc | Đề bài, yêu cầu kỹ thuật, tiêu chí chấm |
 | 5 | [docs/c4-architecture/c1.mmd](docs/c4-architecture/c1.mmd) (ảnh `c1.png`), [EXE_Team_Matching_Kien_truc_C4.docx](docs/c4-architecture/EXE_Team_Matching_Kien_truc_C4.docx) | Làm backend, giao tiếp giữa service | Sơ đồ container, ma trận giao tiếp, proto gRPC, sự kiện, background job |
 | 6 | [docs/ux/DESIGN.md](docs/ux/DESIGN.md) | Làm web hoặc mobile | Design token, component, quy ước giao diện |
@@ -45,10 +45,11 @@ src/
     Matching/                Nguyên
     Jobs/                    Nguyên
     Notification/            Thành
-web/                         React (Bộ môn)
+    Collaboration/           Thiên (khung, hub, MinIO) – module Messages: Cường · Files, Tasks: Nguyên · Meetings: Nam
+web/                         React (Bộ môn, Sinh viên, Giảng viên, Mentor – cùng mã màn hình với mobile)
   src/app, src/shared, src/features/auth, layout   Thiên
   src/features/<feature>     theo bảng bên dưới
-mobile/                      Flutter (Sinh viên, Giảng viên)
+mobile/                      Flutter (Sinh viên, Giảng viên, Mentor)
   lib/core, lib/shared, lib/features/auth          Thiên
   lib/features/<feature>     theo bảng bên dưới (tên thư mục snake_case)
 deploy/
@@ -59,13 +60,17 @@ docs/                        Thiên   – mọi người được đề xuất s
 
 | Người | Backend | Web (`web/src/features/…`) | Mobile (`mobile/lib/features/…`) |
 |---|---|---|---|
-| **Thiên** | BuildingBlocks, Gateway, Identity, Protos, `deploy/`, DB script | `auth`, khung trang, component dùng chung (W01, W25, W26) | `auth`, theme, widget dùng chung (A03, A04, A08) |
-| **Nam** | Academic Service | `semesters`, `rounds`, `imports`, `students`, `lecturers`, `catalogs`, `settings` (W03–W14) | `profile` (A05, S02–S04), `settings` (A07), `lecturer_profile` (L06) |
-| **Cường** | Team Service – module Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Outbox | `teams`, `audit-log` (W15, W16, W24) | `home` (S01), `discover` (S05, S06, S08–S11), `invitations` (S12), `my_team` (S13–S17, S20–S22) |
-| **Nguyên** | Matching, Jobs; Team Service – module Finalization, AutoAssign, Statistics, Export; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22) | `suggestions` (S07, S18, S19), `round_closed` (S30, S31); build APK demo |
-| **Thành** | Notification; Team Service – module ChangeRequests, BaselineImport, LecturerPreferences, LecturerAssignments | `change-requests`, `lecturer-assignment`, `announcements` (W17–W19, W23) | `onboarding` (A01, A02), `notifications` (A06), `lecturers` (S23–S25), `change_requests` (S26–S29), `lecturer` (L01–L05) |
+| **Thiên** | BuildingBlocks, Gateway, Identity (gồm role Mentor), Protos, `deploy/`, DB script; khung Collaboration Service, SignalR hub, MinIO | `auth`, khung trang, theme, khung theo vai trò, component dùng chung (W01, W25, W26) | `auth`, theme, shell theo giai đoạn và vai trò, widget dùng chung (A03, A04, A08) |
+| **Nam** | Academic Service (gồm mentor, chuyên môn giảng viên, giai đoạn môn, hồ sơ kỹ năng); Collaboration – module Meetings | `semesters`, `rounds`, `imports`, `students`, `lecturers`, `mentors`, `catalogs`, `settings` (W03–W14, W27); `profile`, `meetings` (A05, S02–S04, L06, C07, C08) | `profile` (A05, S02–S04), `settings` (A07), `lecturer_profile` (L06), `meetings` (C07, C08) |
+| **Cường** | Team Service – module Teams, Members, Invitations, JoinRequests (gồm ý tưởng), Posts, AuditLog, Outbox; Collaboration – module Messages | `teams`, `audit-log` (W15, W16, W24); `home`, `discover`, `invitations`, `my_team`, `messages` (S01–S22, C02, C03); realtime client | `home` (S01), `discover` (S05, S06, S08–S11), `invitations` (S12), `my_team` (S13–S17, S20–S22), `messages` (C02, C03); realtime client |
+| **Nguyên** | Matching (gồm gợi ý đề tài), Jobs (gồm nhắc họp, hạn việc); Team Service – module Finalization, AutoAssign, Statistics, Export; Collaboration – module Files, Tasks; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22); `workspace`, `tasks`, `files`, `suggestions` (C01, C04–C06, S07, S18, S19, S30, S31) | `suggestions` (S07, S18, S19), `round_closed` (S30, S31), `workspace`, `tasks`, `files` (C01, C04–C06); build APK demo |
+| **Thành** | Notification (gồm thông báo workspace); Team Service – module ChangeRequests, BaselineImport, Projects (đề tài xuyên kỳ), LecturerPreferences, TopicInterests, LecturerAssignments, MentorAssignments | `change-requests`, `lecturer-assignment`, `mentor-assignment`, `announcements`, `projects` (W17–W19, W23, W28, W29); `lecturers`, `change_requests`, `notifications`, `lecturer`, `mentor` (S23–S29, A06, L01–L05, L07, M01) | `onboarding` (A01, A02), `notifications` (A06), `lecturers` (S23–S25), `change_requests` (S26–S29), `lecturer` (L01–L05, L07), `mentor` (M01) |
 
 Team Service do 3 người cùng làm, nên mỗi module nằm trong thư mục riêng ở cả 4 project (`Team.Api/Controllers/<Module>`, `Team.Services/<Module>`, `Team.Repositories/<Module>`, `Team.Domain/<Module>`). `TeamDbContext` và migration/DB script của Team chỉ Thiên và Cường được sửa.
+
+Collaboration Service (thêm 19/10/2026) chia giống vậy: mỗi module Messages, Tasks, Files, Meetings một thư mục trong 4 project `Collab.*`. Thiên dựng khung, hub SignalR và MinIO; `CollabDbContext` và DB script của `collab_db` chỉ Thiên được sửa.
+
+Web cho Sinh viên, Giảng viên, Mentor dùng **cùng mã màn hình** với mobile; người làm màn hình mobile của một mảng làm luôn bản web của mảng đó (`DESIGN.md` mục 8.2).
 
 ---
 
@@ -128,7 +133,7 @@ Theo Conventional Commits, kèm mã task:
 
 - **Backend:** ASP.NET Core 8, kiến trúc API – Services – Repositories – Domain. Controller không chứa nghiệp vụ. EF Core (Npgsql) map đúng bảng trong DB script, không tự đổi tên bảng/cột. Lỗi trả ProblemDetails. Log bằng Serilog kèm CorrelationId. Route số nhiều, kebab-case (`/api/change-requests`). Giờ lưu UTC.
 - **Giao tiếp:** client chỉ gọi API Gateway. Giữa các service: REST nội bộ; gọi Matching bằng gRPC; báo sự kiện qua Kafka (ghi Outbox trong cùng transaction). Không service nào đọc database của service khác.
-- **Database:** mỗi service một database (`identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`). Muốn thay đổi bảng thì sửa DB script trong `deploy/db/` và cập nhật `docs/EXE_Database_Design.pdf`, PR do Thiên duyệt.
+- **Database:** mỗi service một database (`identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`, `collab_db` – `collab_db` chưa có script, task BE-60). Muốn thay đổi bảng thì sửa DB script trong `deploy/db/` và cập nhật `docs/EXE_Database_Design.pdf`, PR do Thiên duyệt.
 - **Web (React):** dùng component và API client dùng chung trong `web/src/shared`, không gọi `fetch` trực tiếp trong màn hình. Màn hình có đủ trạng thái đang tải / trống / lỗi như trong danh sách màn hình.
 - **Mobile (Flutter):** lấy màu, chữ, khoảng cách qua `Theme.of(context)`, `AppSpacing`, `AppRadius`; không hardcode `Color(...)` hay `fontSize`. Làm đủ trạng thái và chạy checklist ở flutter-handoff.md §5.
 - **Ngôn ngữ:** tên biến, class, API, commit type bằng tiếng Anh; chữ hiển thị cho người dùng bằng tiếng Việt; tài liệu bằng tiếng Việt.
