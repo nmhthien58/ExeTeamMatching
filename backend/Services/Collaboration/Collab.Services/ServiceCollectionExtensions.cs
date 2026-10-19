@@ -2,6 +2,7 @@ using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Collab.Repositories.Context;
 using Collab.Repositories.Workspaces;
+using Collab.Services.Storage;
 using Collab.Services.Workspaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthorizationHandler, WorkspaceMemberHandler>();
         services.AddAuthorizationBuilder()
             .AddPolicy(CollabPolicies.WorkspaceMember, p => p.RequireAuthenticatedUser().AddRequirements(new WorkspaceMemberRequirement()));
+
+        // Lưu file S3 (BE-63).
+        services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.SectionName));
+        services.AddSingleton<IObjectStorage, S3ObjectStorage>();
+        services.AddHostedService<EnsureBucketHostedService>();
 
         if (configuration.GetValue("Kafka:ConsumersEnabled", true))
         {

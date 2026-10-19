@@ -37,6 +37,8 @@ public interface IWorkspaceRepository
     /// <summary>Workspace mà một trong các người cho trước đang là thành viên, kèm vai trò.</summary>
     Task<List<(Workspace Workspace, string Role)>> ListForPeopleAsync(IReadOnlyCollection<(string Type, Guid Id)> people, CancellationToken ct);
 
+    Task<Channel?> GetChannelAsync(Guid channelId, CancellationToken ct);
+
     Task SaveChangesAsync(CancellationToken ct);
 }
 
@@ -87,6 +89,9 @@ public sealed class WorkspaceRepository(CollabDbContext db) : IWorkspaceReposito
             .Select(x => (x.Workspace, x.Member.Role))
             .ToList();
     }
+
+    public Task<Channel?> GetChannelAsync(Guid channelId, CancellationToken ct) =>
+        db.Set<Channel>().AsNoTracking().FirstOrDefaultAsync(c => c.Id == channelId, ct);
 
     public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

@@ -1,0 +1,20 @@
+{
+  "identities": [
+    {
+      "name": "collab",
+      "credentials": [
+        {
+          "accessKey": "collab-dev",
+          "secretKey": "collab-dev-secret-change-me"
+        }
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "Write",
+        "List",
+        "Tagging"
+      ]
+    }
+  ]
+}

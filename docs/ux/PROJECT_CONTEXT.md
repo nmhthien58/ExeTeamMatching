@@ -130,7 +130,7 @@ Microservices, ASP.NET Core 8. Clients only talk to the **API Gateway**. Each se
 - Users (Student, Lecturer, Mentor, EXE Department) → **EXE Team Matching System** over HTTPS, from the web app or the mobile app.
 - System → **Google Identity** (OAuth 2.0 / OpenID Connect) to authenticate users.
 - System → **Email Service** (SMTP) to send notifications.
-- System → **Object storage** (MinIO, S3-compatible, runs in Docker) for workspace files.
+- System → **Object storage** (S3-compatible, runs in Docker – SeaweedFS, because MinIO images were removed from Docker Hub) for workspace files.
 - No integration with FAP (FPT Academic Portal has no API), no Google Sheets sync, no calendar integration (meeting links are entered by hand).
 
 ### C1 – Containers and communication
@@ -147,7 +147,7 @@ Job Service      --gRPC-------> Matching Service
 Team, Academic, Job, Collaboration  --Publish--> Kafka
 Kafka --Consume--> Notification, Matching, Identity, Collaboration
 Academic Service, Matching Service --> Redis (cache)
-Collaboration Service --S3 API--> MinIO (files)
+Collaboration Service --S3 API--> Object storage (files)
 Identity -> Identity DB | Team -> Team DB | Academic -> Academic DB | Job -> Job DB | Notification -> Notification DB | Collaboration -> Collab DB  (PostgreSQL)
 Identity Service     --OAuth 2.0--> Google Identity
 Notification Service --SMTP------> Email Service
@@ -243,7 +243,7 @@ service MatchingService {
 - One `Workspace` per team (rule 21), with `PreviousWorkspaceId` for the EXE101 workspace of the same project (read-only archive, rule 26). Keeps a local `WorkspaceMember` table (user, role in workspace: `Member`, `Leader`, `Lecturer`, `Mentor`, `Admin`) built from Kafka events: `TeamCreated`, `MemberJoined`, `MemberLeft`, `LeaderChanged`, `LecturerAssigned`, `MentorAssigned`, `MentorUnassigned`. Never calls Team to check access.
 - **Messages** (rule 22): channels `Team` and `Advisors`, threads (reply to a message), advisor questions with `Open` / `Answered`, read markers. SignalR hub `/hubs/collab`: groups per channel; events `messageCreated`, `messageUpdated`, `readUpdated`, `typing`. REST for history (cursor pagination) and sending (the hub only pushes).
 - **Tasks and deliverables** (rule 23): board per workspace, assignees, due dates, comments; deliverables with submissions (file version) and review status.
-- **Files** (rule 24): folders, files, versions; binary content in MinIO bucket `exe-files` (key `workspace/{id}/{fileId}/{version}`); downloads through short-lived pre-signed URLs; comments.
+- **Files** (rule 24): folders, files, versions; binary content in the S3 bucket `exe-files` (key `workspace/{id}/{fileId}/{version}`); downloads through short-lived pre-signed URLs; comments.
 - **Meetings** (rule 25): weekly instructor schedules for EXE201 (`MeetingSchedule` with time windows, `ScheduleSlot` of 15 minutes, `SlotBooking` one per team; weekly meetings generated from the booking; single-week cancel / move); proposals with slots, responses, confirmation, cancellation; minutes, action items → tasks.
 - **Checkpoints** (rule 27, EXE101): `CheckpointReview` (workspace, checkpoint 1–4, reviewed by, reviewed at, comment); progress per team and "missing checkpoint" lists for the instructor. Part of the Tasks module.
 - Lecturer / mentor overview endpoints across their teams: needs-reply questions, overdue deliverables, upcoming meetings.
@@ -271,7 +271,7 @@ Consumers retry, then send to a dead-letter topic `<topic>.dlq`.
 
 - C# 12, **ASP.NET Core 8**, **EF Core 8** (code-first, migrations, seed data) with **PostgreSQL** (Npgsql).
 - gRPC (`Grpc.AspNetCore`), Apache Kafka (KRaft, `Confluent.Kafka`), Redis 7 (`StackExchange.Redis`), Hangfire (PostgreSQL storage), YARP.
-- **SignalR** (ASP.NET Core) for workspace messages; **MinIO** (`Minio` .NET SDK or `AWSSDK.S3`) for files.
+- **SignalR** (ASP.NET Core) for workspace messages; **S3 object storage** through `AWSSDK.S3` (`IObjectStorage` in Collab.Services; SeaweedFS in Docker, any S3-compatible server works) for files.
 - Auth: Google OAuth 2.0 / OpenID Connect + JWT Bearer.
 - FluentValidation, Serilog (structured logs with CorrelationId through Gateway, REST, gRPC, Kafka), global exception middleware returning **ProblemDetails (RFC 7807)**, gRPC interceptor mapping exceptions to status codes.
 - Swagger/OpenAPI per REST service, aggregated at the Gateway.
@@ -328,12 +328,12 @@ Three projects per REST service, the same layout as the PRN232 labs (no separate
 | kafka | 9092 |
 | kafka-ui | 8085 |
 | redis | 6379 |
-| minio | 9000 (S3 API) / 9001 (console) |
+| object-storage (SeaweedFS, S3) | 9000 (S3 API) / 9001 (filer UI) |
 | mailpit (dev SMTP) | 1025 / 8025 |
 
 The Flutter mobile app is not part of Compose; it points at the gateway URL. `depends_on` with `condition: service_healthy`. EF migrations auto-run in Development. Demo seed data comes from an **anonymized** Group List (no phone numbers, fake emails).
 
-> DB scripts and contracts follow version 4 and the 2026-10-20 rules (BE-60, BE-61, BE-78 – `deploy/db/`, `docs/contracts/`). `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists every difference. The `collab-api` and `minio` containers come with BE-63.
+> DB scripts and contracts follow version 4 and the 2026-10-20 rules (BE-60, BE-61, BE-78 – `deploy/db/`, `docs/contracts/`). `EXE_Database_Design.pdf` still describes the earlier design – `deploy/db/README.md` lists every difference. The object storage container (`object-storage`, SeaweedFS) is in Compose (BE-63); service containers (Dockerfile per service) are not yet.
 
 ## 10. PRN232 requirement mapping
 
@@ -346,7 +346,7 @@ The Flutter mobile app is not part of Compose; it points at the gateway URL. `de
 | Message broker: ≥ 1 producer, ≥ 1 consumer | Kafka: Team/Academic/Job/Collaboration produce, Notification/Matching/Identity/Collaboration consume |
 | Independent gRPC service called from REST API | Team Service → Matching Service |
 | Docker deployment | Docker Compose |
-| Extra (not required) | Realtime with SignalR, object storage with MinIO |
+| Extra (not required) | Realtime with SignalR, S3 object storage |
 
 ## 11. End-to-end demo flows
 

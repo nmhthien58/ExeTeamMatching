@@ -4,7 +4,7 @@ info:
   version: 0.2.0-draft
   description: |
     BE-61 (bản 4) – bản nháp. Workspace nhóm (rule 21–25): tin nhắn, việc và bài nộp, file dự án, lịch họp.
-    Người phụ trách module (AGENTS.md mục 2): khung + hub + MinIO – Thiên; Messages – Cường; Files, Tasks – Nguyên; Meetings – Nam.
+    Người phụ trách module (AGENTS.md mục 2): khung + hub + lưu file S3 – Thiên; Messages – Cường; Files, Tasks – Nguyên; Meetings – Nam.
     Quy ước chung: docs/contracts/README.md.
 
     **Quyền:** chỉ thành viên workspace (đọc từ `workspace_members`, dựng từ Kafka) – thành viên nhóm, giảng viên hướng dẫn
@@ -227,7 +227,7 @@ paths:
   /api/files/{fileId}/download-url:
     get:
       tags: [Files]
-      summary: URL ký sẵn của MinIO để tải / xem (hết hạn sau 10 phút)
+      summary: URL ký sẵn của kho file S3 để tải / xem (hết hạn sau 10 phút)
       parameters: [ { $ref: '#/components/parameters/FileId' }, { name: version, in: query, schema: { type: integer }, description: Bỏ trống = bản mới nhất } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { url: { type: string, format: uri }, expiresAt: { type: string, format: date-time } } } } } } }
   /api/files/{fileId}/comments:

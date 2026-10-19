@@ -92,6 +92,26 @@ services:
       timeout: 5s
       retries: 10
 
+  # Lưu file dự án của workspace (rule 24, BE-63). Máy chủ tương thích S3: SeaweedFS
+  # (MinIO đã gỡ image khỏi Docker Hub). Collab dùng API S3 chuẩn nên đổi máy chủ không phải sửa code.
+  # S3 API: http://localhost:9000 · giao diện filer: http://localhost:9001
+  object-storage:
+    image: chrislusf/seaweedfs:3.97
+    container_name: exe-object-storage
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json -filer.port=8888
+    ports:
+      - "9000:8333"   # S3 API
+      - "9001:8888"   # filer UI
+    volumes:
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro   # khóa truy cập dev (giá trị giả)
+      - object-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
 volumes:
   postgres-data:
   kafka-data:
+  object-data:

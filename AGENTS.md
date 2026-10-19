@@ -46,7 +46,7 @@ backend/                     ASP.NET Core 8 (solution backend/ExeTeamMatching.sl
     Matching/                Nguyên – module AdvisorMatching: Thiên
     Jobs/                    Nguyên – job ghép cố vấn: Thiên
     Notification/            Thành
-    Collaboration/           Thiên (khung, hub, MinIO) – module Messages: Cường · Files, Tasks: Nguyên · Meetings: Nam · Checkpoints: Thành
+    Collaboration/           Thiên (khung, hub, lưu file S3) – module Messages: Cường · Files, Tasks: Nguyên · Meetings: Nam · Checkpoints: Thành
 web/                         React (Bộ môn, Sinh viên, Giảng viên, Mentor – cùng mã màn hình với mobile)
   src/app, src/shared, src/features/auth, layout   Thiên
   src/features/<feature>     theo bảng bên dưới
@@ -61,7 +61,7 @@ docs/                        Thiên   – mọi người được đề xuất s
 
 | Người | Backend | Web (`web/src/features/…`) | Mobile (`mobile/lib/features/…`) |
 |---|---|---|---|
-| **Thiên** | BuildingBlocks, Gateway, Identity (gồm role Mentor), Protos, `deploy/`, DB script; khung Collaboration Service, SignalR hub, MinIO; **ghép cố vấn tự động** (từ 20/10/2026): Matching – module AdvisorMatching, Team – module AdvisorMatching, Jobs – `LecturerMatchingJob`, `MentorMatchingJob` | `auth`, khung trang, theme, khung theo vai trò, component dùng chung (W01, W25, W26); `lecturer-matching`, `mentor-matching` (W19, W28) | `auth`, theme, shell theo giai đoạn và vai trò, widget dùng chung (A03, A04, A08) |
+| **Thiên** | BuildingBlocks, Gateway, Identity (gồm role Mentor), Protos, `deploy/`, DB script; khung Collaboration Service, SignalR hub, lưu file S3; **ghép cố vấn tự động** (từ 20/10/2026): Matching – module AdvisorMatching, Team – module AdvisorMatching, Jobs – `LecturerMatchingJob`, `MentorMatchingJob` | `auth`, khung trang, theme, khung theo vai trò, component dùng chung (W01, W25, W26); `lecturer-matching`, `mentor-matching` (W19, W28) | `auth`, theme, shell theo giai đoạn và vai trò, widget dùng chung (A03, A04, A08) |
 | **Nam** | Academic Service (gồm mentor, chuyên môn giảng viên, giai đoạn môn, hồ sơ kỹ năng); Collaboration – module Meetings (gồm lịch họp hằng tuần EXE201) | `semesters`, `rounds`, `imports`, `students`, `lecturers`, `mentors`, `catalogs`, `settings` (W03–W14, W27); `profile`, `meetings` (A05, S02–S04, L06, C07, C08) | `profile` (A05, S02–S04), `settings` (A07), `lecturer_profile` (L06), `meetings` (C07, C08) |
 | **Cường** | Team Service – module Teams, Members, Invitations, JoinRequests (gồm ý tưởng), Posts, AuditLog, Outbox; Collaboration – module Messages | `teams`, `audit-log` (W15, W16, W24); `home`, `discover`, `invitations`, `my_team`, `messages`, `meeting-schedule` (S01–S22, C02, C03, C09); realtime client | `home` (S01), `discover` (S05, S06, S08–S11), `invitations` (S12), `my_team` (S13–S17, S20–S22), `messages` (C02, C03), `meeting_schedule` (C09); realtime client |
 | **Nguyên** | Matching (gồm gợi ý đề tài), Jobs (gồm nhắc họp, hạn việc); Team Service – module Finalization, AutoAssign, Statistics, Export; Collaboration – module Files, Tasks; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22); `workspace`, `tasks`, `files`, `suggestions` (C01, C04–C06, S07, S18, S19, S30, S31) | `suggestions` (S07, S18, S19), `round_closed` (S30, S31), `workspace`, `tasks`, `files` (C01, C04–C06); build APK demo |
@@ -69,7 +69,7 @@ docs/                        Thiên   – mọi người được đề xuất s
 
 Team Service do 3 người cùng làm, nên mỗi module nằm trong thư mục riêng ở cả 3 project (`Team.Api/Controllers/<Module>`, `Team.Services/<Module>`, `Team.Repositories/<Module>` – entity của module nằm trong `Team.Repositories/<Module>`). `TeamDbContext` và migration/DB script của Team chỉ Thiên và Cường được sửa.
 
-Collaboration Service (thêm 19/10/2026) chia giống vậy: mỗi module Messages, Tasks, Files, Meetings, Checkpoints một thư mục trong 3 project `Collab.*`. Thiên dựng khung, hub SignalR và MinIO; `CollabDbContext` và DB script của `collab_db` chỉ Thiên được sửa.
+Collaboration Service (thêm 19/10/2026) chia giống vậy: mỗi module Messages, Tasks, Files, Meetings, Checkpoints một thư mục trong 3 project `Collab.*`. Thiên dựng khung, hub SignalR và lưu file S3; `CollabDbContext` và DB script của `collab_db` chỉ Thiên được sửa.
 
 Web cho Sinh viên, Giảng viên, Mentor dùng **cùng mã màn hình** với mobile; người làm màn hình mobile của một mảng làm luôn bản web của mảng đó (`DESIGN.md` mục 8.2).
 
