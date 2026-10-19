@@ -24,7 +24,8 @@
 
     /* Import "@/..." trỏ tới src */
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["src/*"] },
+    "types": ["vite/client", "vitest/globals"]
   },
   "include": ["src"]
 }
