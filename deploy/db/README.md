@@ -1,17 +1,18 @@
-# DB script (BE-01)
+# DB script (BE-01, BE-60)
 
-Script tạo 5 database (mỗi service 1 database) trên một instance PostgreSQL 16. Thiết kế gốc: [docs/EXE_Database_Design.pdf](../../docs/EXE_Database_Design.pdf).
+Script tạo 6 database (mỗi service 1 database) trên một instance PostgreSQL 16. BE-60 (19/10/2026) cập nhật theo bản 4 của `docs/ux/PROJECT_CONTEXT.md` (quy tắc 16–26). Thiết kế gốc: [docs/EXE_Database_Design.pdf](../../docs/EXE_Database_Design.pdf).
 
 | File | Nội dung |
 |---|---|
-| `00_init.sh` | Tạo login role `identity_svc`, `academic_svc`, `team_svc`, `notification_svc`, `job_svc` và 5 database; mỗi role chỉ CONNECT được database của mình |
-| `01_identity_db.sql` | Schema `identity`: roles, user_accounts, refresh_tokens, processed_events |
-| `02_academic_db.sql` | Schema `academic`: danh mục, học kỳ, đợt đăng ký, sinh viên, giảng viên, import, rule_settings, outbox |
-| `03_team_db.sql` | Schema `team`: nhóm, thành viên, mốc EXE101, lời mời, yêu cầu tham gia, bài đăng, đổi nhóm, giảng viên, audit log, outbox, trigger ép quy tắc nhóm |
+| `00_init.sh` | Tạo login role `identity_svc`, `academic_svc`, `team_svc`, `notification_svc`, `job_svc`, `collab_svc` và 6 database; mỗi role chỉ CONNECT được database của mình |
+| `01_identity_db.sql` | Schema `identity`: roles (Student, Lecturer, Admin, Mentor), user_accounts, user_account_roles (một tài khoản nhiều vai trò), refresh_tokens, processed_events |
+| `02_academic_db.sql` | Schema `academic`: danh mục, học kỳ (tuần bắt đầu mentor, số buổi mentor), đợt đăng ký, sinh viên + 5 kỹ năng, giảng viên + domain chuyên môn, mentor + domain, import, rule_settings, outbox |
+| `03_team_db.sql` | Schema `team`: đề tài + lịch sử đề tài, nhóm, thành viên, mốc EXE101, lời mời, yêu cầu tham gia + ý tưởng, bài đăng, đổi nhóm (cả đổi đề tài), quan tâm đề tài, giảng viên, mentor, audit log, outbox, trigger ép quy tắc |
 | `04_notification_db.sql` | Schema `notification`: contacts, notifications, email_logs, processed_events |
 | `05_job_db.sql` | Schema `hangfire` (bảng do Hangfire tự tạo) |
-| `90_seed_catalogs.sql` | Role, 16 chuyên ngành (tạm), domain D01–D18, mã lớp mẫu, học kỳ FA26, rule_settings |
-| `99_seed_admin.sh` | Tài khoản Admin đầu tiên từ biến `ADMIN_EMAIL` |
+| `06_collab_db.sql` | Schema `collab`: workspace + thành viên (read model), kênh, tin nhắn, câu hỏi cho cố vấn, thư mục, file + phiên bản, việc + bài nộp, họp + khung giờ + biên bản, outbox |
+| `90_seed_catalogs.sql` | 4 role, 16 chuyên ngành (tạm), domain D01–D18, mã lớp mẫu, học kỳ FA26, rule_settings |
+| `99_seed_admin.sh` | Tài khoản Admin đầu tiên từ biến `ADMIN_EMAIL` (dòng user_accounts + user_account_roles) |
 
 ## Chạy
 
@@ -53,6 +54,13 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | `uq_change_requests_pending` | Nhóm đã có yêu cầu đổi nhóm đang chờ duyệt |
 | `ex_registration_rounds_overlap` | Đợt đăng ký bị chồng thời gian |
 | `ck_audit_logs_append_only` | Audit log không được sửa / xóa |
+| `ck_join_requests_ideas`, `ck_join_request_ideas_position` | Yêu cầu tham gia cần 1–3 ý tưởng hoặc "Chưa có ý tưởng" (rule 17, kiểm tra lúc COMMIT) |
+| `uq_topic_interests_open` | Giảng viên đã quan tâm đề tài này (rule 19) |
+| `uq_mentor_assignments_active`, `uq_workspace_members_one_mentor` | Nhóm đã có mentor – mỗi nhóm một mentor (rule 20) |
+| `uq_teams_project_semester` | Đề tài đã có nhóm trong học kỳ (rule 26) |
+| `uq_change_request_items_project_pending` | Nhóm đã có thay đổi đề tài đang chờ |
+| `ck_file_versions_size`, `ck_project_files_type` | File quá 25 MB / sai định dạng (rule 24) |
+| `ck_task_items_deliverable_creator` | Chỉ giảng viên hướng dẫn tạo bài nộp (rule 23) |
 
 ## Khác với PDF thiết kế (theo PROJECT_CONTEXT, tài liệu ưu tiên cao hơn)
 
@@ -69,5 +77,14 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | Cấu hình | – | Thêm bảng `academic.rule_settings` | Màn W05 |
 | Danh bạ thông báo | – | Thêm `contacts.email_enabled` | Công tắc nhận email (A07) |
 | `team_members.join_source` | – | Thêm giá trị `ADMIN` | Admin thêm / chuyển thành viên (W16, W21) |
+| Vai trò tài khoản (BE-60) | `user_accounts.role_id` | Bảng `user_account_roles`; thêm role Mentor | Rule 20: giảng viên vừa là mentor dùng một tài khoản |
+| Hồ sơ sinh viên (BE-60) | `skills` dạng mảng chữ tự do | Bảng `student_skills` (5 kỹ năng 1–5); `bio` → `description`; `profile_completed_at` | Rule 16 |
+| Chuyên môn giảng viên (BE-60) | `lecturers.expertise` chữ tự do | Bảng `lecturer_domains` | Rule 12, 19: gợi ý đề tài theo domain |
+| Mentor (BE-60) | – | `mentors`, `mentor_domains`, `team.mentor_assignments`; `semesters.mentoring_start_week`, `expected_mentor_sessions` | Rule 20 |
+| Đề tài (BE-60) | `teams.idea_title`, `idea_description` | Bảng `projects`, `project_versions`; `teams.project_id`; `change_request_items` có `PROJECT_CHANGE` | Rule 26 |
+| Ý tưởng khi xin vào nhóm (BE-60) | – | `join_requests.has_no_idea`, bảng `join_request_ideas` | Rule 17 |
+| Quan tâm đề tài (BE-60) | – | Bảng `topic_interests` | Rule 19 |
+| Cấu hình (BE-60) | – | `rule_settings.max_ideas_per_join_request`, `interest_extra_slots`, `max_file_size_mb` | Rule 17, 19, 24 |
+| Collaboration (BE-60) | – | Database `collab_db` mới | §5.8 |
 
 Các thay đổi này cần được cập nhật vào PDF thiết kế khi có file nguồn.

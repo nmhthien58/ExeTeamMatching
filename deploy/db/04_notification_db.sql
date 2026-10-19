@@ -6,16 +6,16 @@ CREATE SCHEMA IF NOT EXISTS notification AUTHORIZATION notification_svc;
 SET ROLE notification_svc;
 SET search_path = notification, public;
 
--- Danh bạ người nhận (email, tên) dựng từ topic exe.student (StudentImported, StudentProfileUpdated, LecturerRegistered).
+-- Danh bạ người nhận (email, tên) dựng từ topic exe.student (StudentImported, StudentProfileUpdated, LecturerRegistered, MentorRegistered).
 CREATE TABLE notification.contacts (
-    id            uuid         NOT NULL,                      -- academic students.id / lecturers.id
+    id            uuid         NOT NULL,                      -- academic students.id / lecturers.id / mentors.id
     person_type   varchar(10)  NOT NULL,
     email         citext       NOT NULL,
     full_name     varchar(150) NOT NULL,
     email_enabled boolean      NOT NULL DEFAULT true,         -- công tắc nhận email thông báo (A07)
     updated_at    timestamptz  NOT NULL DEFAULT now(),
     CONSTRAINT pk_contacts PRIMARY KEY (id),
-    CONSTRAINT ck_contacts_person_type CHECK (person_type IN ('STUDENT', 'LECTURER'))
+    CONSTRAINT ck_contacts_person_type CHECK (person_type IN ('STUDENT', 'LECTURER', 'MENTOR'))
 );
 CREATE INDEX idx_contacts_email ON notification.contacts (email);
 
@@ -33,7 +33,7 @@ CREATE TABLE notification.notifications (
     read_at         timestamptz,
     created_at      timestamptz   NOT NULL DEFAULT now(),
     CONSTRAINT pk_notifications PRIMARY KEY (id),
-    CONSTRAINT ck_notifications_recipient_type CHECK (recipient_type IN ('STUDENT', 'LECTURER', 'ADMIN')),
+    CONSTRAINT ck_notifications_recipient_type CHECK (recipient_type IN ('STUDENT', 'LECTURER', 'MENTOR', 'ADMIN')),
     CONSTRAINT ck_notifications_recipient CHECK ((recipient_type = 'ADMIN') = (recipient_id IS NULL)),
     CONSTRAINT ck_notifications_read CHECK (is_read = (read_at IS NOT NULL))
 );

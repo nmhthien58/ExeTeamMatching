@@ -12,6 +12,46 @@ BEGIN
     RETURN NEW;
 END $$;
 
+-- ---------- Đề tài xuyên kỳ (rule 26) ----------
+-- Đề tài tạo khi nhóm EXE101 đăng ký ý tưởng; nhóm EXE201 kế thừa trỏ cùng project_id.
+CREATE TABLE team.projects (
+    id                 uuid          NOT NULL DEFAULT gen_random_uuid(),
+    name               varchar(200)  NOT NULL,
+    description        varchar(4000),
+    origin_semester_id uuid          NOT NULL,                -- academic.semesters.id
+    origin_course_code varchar(6)    NOT NULL,
+    current_version    smallint      NOT NULL DEFAULT 1,
+    status             varchar(10)   NOT NULL DEFAULT 'ACTIVE',
+    created_at         timestamptz   NOT NULL DEFAULT now(),
+    updated_at         timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT pk_projects PRIMARY KEY (id),
+    CONSTRAINT ck_projects_course CHECK (origin_course_code IN ('EXE101', 'EXE201')),
+    CONSTRAINT ck_projects_status CHECK (status IN ('ACTIVE', 'CLOSED')),
+    CONSTRAINT ck_projects_name CHECK (char_length(btrim(name)) >= 2),
+    CONSTRAINT ck_projects_version CHECK (current_version >= 1)
+);
+CREATE INDEX idx_projects_name ON team.projects (lower(name));
+
+-- Lịch sử đề tài. PIVOT (đổi đề tài ở EXE201) đi qua yêu cầu đổi nhóm và cần lý do.
+CREATE TABLE team.project_versions (
+    project_id            uuid          NOT NULL,
+    version               smallint      NOT NULL,
+    name                  varchar(200)  NOT NULL,
+    description           varchar(4000),
+    change_type           varchar(10)   NOT NULL,
+    reason                varchar(1000),
+    semester_id           uuid          NOT NULL,
+    course_code           varchar(6)    NOT NULL,
+    change_request_id     uuid,
+    changed_by_account_id uuid,                               -- NULL = hệ thống (import)
+    created_at            timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT pk_project_versions PRIMARY KEY (project_id, version),
+    CONSTRAINT fk_project_versions_project FOREIGN KEY (project_id) REFERENCES team.projects (id) ON DELETE CASCADE,
+    CONSTRAINT ck_project_versions_type CHECK (change_type IN ('CREATED', 'EDITED', 'PIVOT')),
+    CONSTRAINT ck_project_versions_pivot CHECK (change_type <> 'PIVOT' OR (reason IS NOT NULL AND change_request_id IS NOT NULL)),
+    CONSTRAINT ck_project_versions_course CHECK (course_code IN ('EXE101', 'EXE201'))
+);
+
 -- ---------- Nhóm và thành viên (rule 1, 2, 4, 13, 15) ----------
 -- status: DRAFT (< 4 người) -> ACTIVE -> FINALIZED, hoặc NEEDS_REVIEW sau hạn chót; DISBANDED khi giải tán.
 CREATE TABLE team.teams (
@@ -19,12 +59,11 @@ CREATE TABLE team.teams (
     semester_id      uuid          NOT NULL,                 -- academic.semesters.id
     course_code      varchar(6)    NOT NULL,
     name             varchar(100)  NOT NULL,
-    idea_title       varchar(200),                           -- tên dự án
-    idea_description varchar(4000),
+    project_id       uuid,                                   -- đề tài (rule 26); NULL khi nhóm chưa đăng ký ý tưởng
     status           varchar(12)   NOT NULL DEFAULT 'DRAFT',
     member_count     smallint      NOT NULL DEFAULT 0,       -- trigger duy trì
     is_inherited     boolean       NOT NULL DEFAULT false,   -- nhóm EXE201 kế thừa từ mốc EXE101 (import)
-    source_team_id   uuid,                                   -- nhóm EXE101 gốc nếu có trong hệ thống
+    source_team_id   uuid,                                   -- nhóm EXE101 gốc (cùng đề tài) nếu có trong hệ thống
     is_auto_assigned boolean       NOT NULL DEFAULT false,
     finalized_at     timestamptz,
     created_at       timestamptz   NOT NULL DEFAULT now(),
@@ -33,6 +72,7 @@ CREATE TABLE team.teams (
     CONSTRAINT uq_teams_id_course UNIQUE (id, course_code),
     CONSTRAINT uq_teams_id_semester UNIQUE (id, semester_id),
     CONSTRAINT fk_teams_source_team FOREIGN KEY (source_team_id) REFERENCES team.teams (id) ON DELETE RESTRICT,
+    CONSTRAINT fk_teams_project FOREIGN KEY (project_id) REFERENCES team.projects (id) ON DELETE RESTRICT,
     CONSTRAINT ck_teams_course CHECK (course_code IN ('EXE101', 'EXE201')),
     CONSTRAINT ck_teams_status CHECK (status IN ('DRAFT', 'ACTIVE', 'NEEDS_REVIEW', 'FINALIZED', 'DISBANDED')),
     CONSTRAINT ck_teams_member_count CHECK (member_count BETWEEN 0 AND 6),
@@ -43,6 +83,9 @@ CREATE TABLE team.teams (
 CREATE UNIQUE INDEX uq_teams_semester_name ON team.teams (semester_id, course_code, lower(name)) WHERE status <> 'DISBANDED';
 CREATE UNIQUE INDEX uq_teams_source_team_id ON team.teams (source_team_id) WHERE source_team_id IS NOT NULL;
 CREATE INDEX idx_teams_semester_status_name ON team.teams (semester_id, status, name);
+-- Một đề tài chỉ có một nhóm đang hoạt động trong mỗi học kỳ.
+CREATE UNIQUE INDEX uq_teams_project_semester ON team.teams (project_id, semester_id)
+    WHERE project_id IS NOT NULL AND status <> 'DISBANDED';
 CREATE INDEX idx_teams_semester_member_count ON team.teams (semester_id, member_count) WHERE status IN ('DRAFT', 'ACTIVE');
 
 -- Thành viên hiện tại. UNIQUE (semester_id, student_id) = rule 4. Snapshot MSSV, tên, chuyên ngành.
@@ -125,6 +168,7 @@ CREATE TABLE team.join_requests (
     team_id                uuid        NOT NULL,
     student_id             uuid        NOT NULL,
     message                varchar(500),
+    has_no_idea            boolean     NOT NULL DEFAULT false, -- tích "Chưa có ý tưởng" (rule 17)
     status                 varchar(10) NOT NULL DEFAULT 'PENDING',
     resolved_by_student_id uuid,                              -- leader duyệt
     created_at             timestamptz NOT NULL DEFAULT now(),
@@ -139,6 +183,19 @@ CREATE TABLE team.join_requests (
 CREATE UNIQUE INDEX uq_join_requests_pending ON team.join_requests (team_id, student_id) WHERE status = 'PENDING';
 CREATE INDEX idx_join_requests_student ON team.join_requests (student_id, status);
 CREATE INDEX idx_join_requests_expiry ON team.join_requests (expires_at) WHERE status = 'PENDING';
+
+-- Ý tưởng kèm yêu cầu tham gia (rule 17): 1–3 ý tưởng hoặc has_no_idea = true, kiểm tra lúc COMMIT.
+CREATE TABLE team.join_request_ideas (
+    join_request_id uuid         NOT NULL,
+    position        smallint     NOT NULL,
+    title           varchar(80)  NOT NULL,
+    description     varchar(300),
+    CONSTRAINT pk_join_request_ideas PRIMARY KEY (join_request_id, position),
+    CONSTRAINT fk_join_request_ideas_request FOREIGN KEY (join_request_id)
+        REFERENCES team.join_requests (id) ON DELETE CASCADE,
+    CONSTRAINT ck_join_request_ideas_position CHECK (position BETWEEN 1 AND 3),
+    CONSTRAINT ck_join_request_ideas_title CHECK (char_length(btrim(title)) >= 1)
+);
 
 -- ---------- Bài tuyển thành viên, bài tìm nhóm ----------
 CREATE TABLE team.recruitment_posts (
@@ -228,28 +285,60 @@ CREATE TABLE team.change_request_items (
     id                uuid         NOT NULL DEFAULT gen_random_uuid(),
     team_id           uuid         NOT NULL,
     change_request_id uuid,
-    action            varchar(12)  NOT NULL,
+    action            varchar(14)  NOT NULL,
     source            varchar(20)  NOT NULL,
-    student_id        uuid         NOT NULL,
-    student_code      varchar(8)   NOT NULL,
-    full_name         varchar(150) NOT NULL,
+    student_id        uuid,                                   -- NULL khi PROJECT_CHANGE
+    student_code      varchar(8),
+    full_name         varchar(150),
     specialization_id integer,
+    new_project_name  varchar(200),                           -- PROJECT_CHANGE (rule 26)
+    new_project_description varchar(4000),
     created_at        timestamptz  NOT NULL DEFAULT now(),
     CONSTRAINT pk_change_request_items PRIMARY KEY (id),
     CONSTRAINT fk_change_request_items_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE CASCADE,
     CONSTRAINT fk_change_request_items_request FOREIGN KEY (change_request_id)
         REFERENCES team.change_requests (id) ON DELETE CASCADE,
-    CONSTRAINT ck_change_request_items_action CHECK (action IN ('ADD', 'REMOVE', 'SET_LEADER')),
+    CONSTRAINT ck_change_request_items_action CHECK (action IN ('ADD', 'REMOVE', 'SET_LEADER', 'PROJECT_CHANGE')),
     CONSTRAINT ck_change_request_items_source CHECK (source IN
-        ('INVITATION', 'JOIN_REQUEST', 'LEAVE', 'REMOVE', 'LEADER_TRANSFER')),
+        ('INVITATION', 'JOIN_REQUEST', 'LEAVE', 'REMOVE', 'LEADER_TRANSFER', 'PROJECT')),
     CONSTRAINT ck_change_request_items_spec CHECK (action <> 'ADD' OR specialization_id IS NOT NULL),
-    CONSTRAINT ck_change_request_items_code CHECK (student_code ~ '^[A-Z]{2}[0-9]{6}$')
+    CONSTRAINT ck_change_request_items_code CHECK (student_code IS NULL OR student_code ~ '^[A-Z]{2}[0-9]{6}$'),
+    CONSTRAINT ck_change_request_items_target CHECK (
+        (action = 'PROJECT_CHANGE' AND source = 'PROJECT' AND student_id IS NULL AND new_project_name IS NOT NULL)
+        OR (action <> 'PROJECT_CHANGE' AND source <> 'PROJECT' AND student_id IS NOT NULL AND student_code IS NOT NULL
+            AND full_name IS NOT NULL AND new_project_name IS NULL))
 );
 CREATE UNIQUE INDEX uq_change_request_items_pending ON team.change_request_items (team_id, student_id, action)
     WHERE change_request_id IS NULL;
 CREATE UNIQUE INDEX uq_change_request_items_request ON team.change_request_items (change_request_id, student_id, action)
     WHERE change_request_id IS NOT NULL;
 CREATE INDEX idx_change_request_items_student_id ON team.change_request_items (student_id);
+-- Mỗi nhóm tối đa một thay đổi đề tài đang chờ.
+CREATE UNIQUE INDEX uq_change_request_items_project_pending ON team.change_request_items (team_id)
+    WHERE action = 'PROJECT_CHANGE' AND change_request_id IS NULL;
+
+-- ---------- Quan tâm đề tài của giảng viên (rule 19) ----------
+-- Không giữ chỗ, không tốn sức chứa; giới hạn "sức chứa còn lại + n" kiểm tra ở Services.
+-- CLOSED khi nhóm có giảng viên được nhận / phân công (closed_reason), WITHDRAWN khi giảng viên tự rút.
+CREATE TABLE team.topic_interests (
+    id            uuid         NOT NULL DEFAULT gen_random_uuid(),
+    team_id       uuid         NOT NULL,
+    lecturer_id   uuid         NOT NULL,                      -- academic.lecturers.id
+    lecturer_name varchar(150) NOT NULL,                      -- snapshot
+    status        varchar(10)  NOT NULL DEFAULT 'OPEN',
+    closed_reason varchar(30),
+    created_at    timestamptz  NOT NULL DEFAULT now(),
+    closed_at     timestamptz,
+    CONSTRAINT pk_topic_interests PRIMARY KEY (id),
+    CONSTRAINT fk_topic_interests_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE CASCADE,
+    CONSTRAINT ck_topic_interests_status CHECK (status IN ('OPEN', 'WITHDRAWN', 'CLOSED')),
+    CONSTRAINT ck_topic_interests_closed CHECK ((status = 'OPEN') = (closed_at IS NULL)),
+    CONSTRAINT ck_topic_interests_reason CHECK (
+        (status = 'CLOSED') = (closed_reason IS NOT NULL)
+        AND (closed_reason IS NULL OR closed_reason IN ('OTHER_LECTURER_ACCEPTED', 'LECTURER_ASSIGNED', 'THIS_LECTURER_ACCEPTED', 'TEAM_DISBANDED')))
+);
+CREATE UNIQUE INDEX uq_topic_interests_open ON team.topic_interests (team_id, lecturer_id) WHERE status = 'OPEN';
+CREATE INDEX idx_topic_interests_lecturer ON team.topic_interests (lecturer_id, status);
 
 -- ---------- Giảng viên (rule 9): nguyện vọng + giảng viên trả lời; Admin phân công cuối ----------
 CREATE TABLE team.lecturer_preferences (
@@ -291,6 +380,26 @@ CREATE TABLE team.lecturer_assignments (
 CREATE UNIQUE INDEX uq_lecturer_assignments_active ON team.lecturer_assignments (team_id) WHERE status = 'ASSIGNED';
 CREATE INDEX idx_lecturer_assignments_lecturer ON team.lecturer_assignments (lecturer_id, status);
 
+-- ---------- Mentor (rule 20): mỗi nhóm một mentor, Bộ môn gán ----------
+-- Sức chứa (max_teams, preferred_teams) nằm ở academic.mentors, kiểm tra ở Services.
+CREATE TABLE team.mentor_assignments (
+    id                     uuid         NOT NULL DEFAULT gen_random_uuid(),
+    team_id                uuid         NOT NULL,
+    mentor_id              uuid         NOT NULL,             -- academic.mentors.id
+    mentor_name            varchar(150) NOT NULL,             -- snapshot
+    status                 varchar(10)  NOT NULL DEFAULT 'ASSIGNED',
+    assigned_by_account_id uuid         NOT NULL,             -- Admin (identity)
+    assigned_at            timestamptz  NOT NULL DEFAULT now(),
+    ended_at               timestamptz,
+    end_reason             varchar(500),
+    CONSTRAINT pk_mentor_assignments PRIMARY KEY (id),
+    CONSTRAINT fk_mentor_assignments_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE RESTRICT,
+    CONSTRAINT ck_mentor_assignments_status CHECK (status IN ('ASSIGNED', 'ENDED')),
+    CONSTRAINT ck_mentor_assignments_ended CHECK ((status = 'ENDED') = (ended_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX uq_mentor_assignments_active ON team.mentor_assignments (team_id) WHERE status = 'ASSIGNED';
+CREATE INDEX idx_mentor_assignments_mentor ON team.mentor_assignments (mentor_id, status);
+
 -- ---------- Nhật ký (rule 10), Outbox ----------
 CREATE TABLE team.audit_logs (
     id               bigint        GENERATED ALWAYS AS IDENTITY,
@@ -306,7 +415,7 @@ CREATE TABLE team.audit_logs (
     correlation_id   varchar(64),
     occurred_at      timestamptz   NOT NULL DEFAULT now(),
     CONSTRAINT pk_audit_logs PRIMARY KEY (id),
-    CONSTRAINT ck_audit_logs_actor_role CHECK (actor_role IN ('Student', 'Lecturer', 'Admin', 'System'))
+    CONSTRAINT ck_audit_logs_actor_role CHECK (actor_role IN ('Student', 'Lecturer', 'Mentor', 'Admin', 'System'))
 );
 CREATE INDEX idx_audit_logs_team_time ON team.audit_logs (team_id, occurred_at DESC);
 CREATE INDEX idx_audit_logs_entity ON team.audit_logs (entity_type, entity_id);
@@ -331,6 +440,7 @@ CREATE INDEX idx_outbox_messages_pending ON team.outbox_messages (occurred_at) W
 
 -- ---------- Trigger ----------
 CREATE TRIGGER trg_teams_updated_at BEFORE UPDATE ON team.teams FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
+CREATE TRIGGER trg_projects_updated_at BEFORE UPDATE ON team.projects FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
 CREATE TRIGGER trg_recruitment_posts_updated_at BEFORE UPDATE ON team.recruitment_posts FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
 CREATE TRIGGER trg_seeking_posts_updated_at BEFORE UPDATE ON team.seeking_posts FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
 CREATE TRIGGER trg_change_requests_updated_at BEFORE UPDATE ON team.change_requests FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
@@ -407,6 +517,38 @@ BEGIN
 END $$;
 CREATE CONSTRAINT TRIGGER trg_teams_composition AFTER INSERT OR UPDATE OF status ON team.teams
     DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION team.tg_teams_composition();
+
+-- Rule 17: yêu cầu tham gia có 1–3 ý tưởng hoặc has_no_idea = true (không có cả hai). Kiểm tra lúc COMMIT
+-- vì ý tưởng được thêm sau dòng join_requests trong cùng transaction.
+CREATE OR REPLACE FUNCTION team.check_join_request_ideas(p_request_id uuid) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE
+    v_no_idea boolean;
+    v_ideas   integer;
+BEGIN
+    SELECT has_no_idea INTO v_no_idea FROM team.join_requests WHERE id = p_request_id;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+    SELECT count(*) INTO v_ideas FROM team.join_request_ideas WHERE join_request_id = p_request_id;
+    IF v_no_idea = (v_ideas > 0) THEN
+        RAISE EXCEPTION 'Yêu cầu % cần 1–3 ý tưởng hoặc chọn "Chưa có ý tưởng" (đang có % ý tưởng)', p_request_id, v_ideas
+            USING ERRCODE = '23514', CONSTRAINT = 'ck_join_requests_ideas';
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION team.tg_join_requests_ideas() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_TABLE_NAME = 'join_requests' THEN
+        PERFORM team.check_join_request_ideas(NEW.id);
+    ELSE
+        PERFORM team.check_join_request_ideas(CASE WHEN TG_OP = 'DELETE' THEN OLD.join_request_id ELSE NEW.join_request_id END);
+    END IF;
+    RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER trg_join_requests_ideas AFTER INSERT OR UPDATE OF has_no_idea ON team.join_requests
+    DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION team.tg_join_requests_ideas();
+CREATE CONSTRAINT TRIGGER trg_join_request_ideas_check AFTER INSERT OR DELETE ON team.join_request_ideas
+    DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION team.tg_join_requests_ideas();
 
 -- audit_logs chỉ được thêm, không sửa / xóa.
 CREATE OR REPLACE FUNCTION team.tg_audit_logs_append_only() RETURNS trigger LANGUAGE plpgsql AS $$

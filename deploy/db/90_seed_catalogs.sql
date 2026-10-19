@@ -6,7 +6,8 @@ SET ROLE identity_svc;
 INSERT INTO identity.roles (id, code, name) VALUES
     (1, 'Student', 'Sinh viên'),
     (2, 'Lecturer', 'Giảng viên'),
-    (3, 'Admin', 'Bộ môn EXE')
+    (3, 'Admin', 'Bộ môn EXE'),
+    (4, 'Mentor', 'Mentor')
 ON CONFLICT (id) DO NOTHING;
 RESET ROLE;
 

@@ -15,6 +15,7 @@ services:
       TEAM_DB_PASSWORD: ${TEAM_DB_PASSWORD:-team_dev_pw}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_dev_pw}
       JOB_DB_PASSWORD: ${JOB_DB_PASSWORD:-job_dev_pw}
+      COLLAB_DB_PASSWORD: ${COLLAB_DB_PASSWORD:-collab_dev_pw}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_NAME: ${ADMIN_NAME:-Bộ môn EXE}
     ports:

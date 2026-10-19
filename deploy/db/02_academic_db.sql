@@ -58,12 +58,16 @@ CREATE TABLE academic.semesters (
     start_date date        NOT NULL,
     end_date   date        NOT NULL,
     is_current boolean     NOT NULL DEFAULT false,
+    mentoring_start_week     smallint NOT NULL DEFAULT 6,   -- rule 20: mentor làm việc với nhóm từ tuần này
+    expected_mentor_sessions smallint NOT NULL DEFAULT 3,   -- số buổi mentor dự kiến ("Buổi mentor n/3")
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_semesters PRIMARY KEY (id),
     CONSTRAINT uq_semesters_code UNIQUE (code),
     CONSTRAINT ck_semesters_code CHECK (code ~ '^(SP|SU|FA)[0-9]{2}$'),
-    CONSTRAINT ck_semesters_dates CHECK (end_date > start_date)
+    CONSTRAINT ck_semesters_dates CHECK (end_date > start_date),
+    CONSTRAINT ck_semesters_mentoring_week CHECK (mentoring_start_week BETWEEN 1 AND 20),
+    CONSTRAINT ck_semesters_mentor_sessions CHECK (expected_mentor_sessions BETWEEN 1 AND 10)
 );
 CREATE UNIQUE INDEX uq_semesters_is_current ON academic.semesters (is_current) WHERE is_current;
 
@@ -97,16 +101,17 @@ CREATE INDEX idx_registration_rounds_semester_id ON academic.registration_rounds
 CREATE INDEX idx_registration_rounds_open ON academic.registration_rounds (deadline_at) WHERE status = 'OPEN';
 
 -- ---------- Sinh viên, giảng viên ----------
--- Hồ sơ sinh viên, ổn định qua các học kỳ (EXE101 -> EXE201). MSSV 2 chữ + 6 số, SĐT là chuỗi (rule 11).
+-- Hồ sơ sinh viên, ổn định qua các học kỳ (EXE101 -> EXE201). MSSV 2 chữ + 6 số.
+-- Rule 11, 16: SĐT chỉ đến từ file import (chuỗi, không cho sinh viên sửa); hồ sơ do sinh viên sửa = 5 kỹ năng + mô tả.
 CREATE TABLE academic.students (
     id                uuid          NOT NULL DEFAULT gen_random_uuid(),
     student_code      varchar(8)    NOT NULL,
     full_name         varchar(150)  NOT NULL,
     email             citext        NOT NULL,
-    phone             varchar(15),
+    phone             varchar(15),                       -- từ file import
     specialization_id integer       NOT NULL,
-    skills            varchar(50)[] NOT NULL DEFAULT '{}',
-    bio               varchar(500),
+    description       varchar(500),                      -- giới thiệu ngắn (rule 16)
+    profile_completed_at timestamptz,                    -- hoàn tất A05 (đã đánh giá đủ 5 kỹ năng)
     is_seeking_team   boolean       NOT NULL DEFAULT false,   -- công tắc "Tôi đang tìm nhóm" (S03)
     created_at        timestamptz   NOT NULL DEFAULT now(),
     updated_at        timestamptz   NOT NULL DEFAULT now(),
@@ -117,11 +122,23 @@ CREATE TABLE academic.students (
         REFERENCES academic.specializations (id) ON DELETE RESTRICT,
     CONSTRAINT ck_students_student_code CHECK (student_code ~ '^[A-Z]{2}[0-9]{6}$'),
     CONSTRAINT ck_students_email CHECK (email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
-    CONSTRAINT ck_students_phone CHECK (phone IS NULL OR phone ~ '^\+?[0-9]{9,14}$'),
-    CONSTRAINT ck_students_skills_count CHECK (cardinality(skills) <= 20)
+    CONSTRAINT ck_students_phone CHECK (phone IS NULL OR phone ~ '^\+?[0-9]{9,14}$')
 );
 CREATE INDEX idx_students_specialization_id ON academic.students (specialization_id);
 CREATE INDEX idx_students_full_name ON academic.students (lower(full_name));
+
+-- 5 kỹ năng cố định, tự đánh giá 1–5 (rule 16). Thiếu dòng = chưa đánh giá.
+CREATE TABLE academic.student_skills (
+    student_id uuid        NOT NULL,
+    skill      varchar(25) NOT NULL,
+    level      smallint    NOT NULL,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT pk_student_skills PRIMARY KEY (student_id, skill),
+    CONSTRAINT fk_student_skills_student FOREIGN KEY (student_id) REFERENCES academic.students (id) ON DELETE CASCADE,
+    CONSTRAINT ck_student_skills_skill CHECK (skill IN
+        ('TECHNOLOGY', 'UI_UX_DESIGN', 'MANAGEMENT', 'MARKETING', 'COMMUNICATION_PLANNING')),
+    CONSTRAINT ck_student_skills_level CHECK (level BETWEEN 1 AND 5)
+);
 
 -- Giảng viên do Admin nhập email (cấp role Lecturer qua sự kiện LecturerRegistered).
 CREATE TABLE academic.lecturers (
@@ -129,7 +146,6 @@ CREATE TABLE academic.lecturers (
     full_name          varchar(150) NOT NULL,
     email              citext       NOT NULL,
     phone              varchar(15),
-    expertise          varchar(300),                        -- lĩnh vực chuyên môn (S23, L06)
     max_teams          smallint     NOT NULL DEFAULT 8,      -- sức chứa (PROJECT_CONTEXT §5.3)
     is_accepting_teams boolean      NOT NULL DEFAULT true,   -- công tắc nhận nhóm mới (L06)
     is_active          boolean      NOT NULL DEFAULT true,
@@ -141,6 +157,52 @@ CREATE TABLE academic.lecturers (
     CONSTRAINT ck_lecturers_phone CHECK (phone IS NULL OR phone ~ '^\+?[0-9]{9,14}$'),
     CONSTRAINT ck_lecturers_max_teams CHECK (max_teams BETWEEN 1 AND 50)
 );
+
+-- Chuyên môn của giảng viên chọn từ danh mục domain (rule 12) – đầu vào gợi ý đề tài (rule 19, L07).
+CREATE TABLE academic.lecturer_domains (
+    lecturer_id uuid    NOT NULL,
+    domain_id   integer NOT NULL,
+    CONSTRAINT pk_lecturer_domains PRIMARY KEY (lecturer_id, domain_id),
+    CONSTRAINT fk_lecturer_domains_lecturer FOREIGN KEY (lecturer_id) REFERENCES academic.lecturers (id) ON DELETE CASCADE,
+    CONSTRAINT fk_lecturer_domains_domain FOREIGN KEY (domain_id) REFERENCES academic.domains (id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_lecturer_domains_domain ON academic.lecturer_domains (domain_id);
+
+-- Mentor do Bộ môn tạo (rule 20), phát MentorRegistered. Người ngoài trường hoặc giảng viên của trường
+-- (lecturer_id: cùng người với một giảng viên – một tài khoản, hai vai trò).
+-- max_teams do Bộ môn đặt riêng từng mentor; preferred_teams do mentor tự chọn (≤ max_teams).
+CREATE TABLE academic.mentors (
+    id              uuid         NOT NULL DEFAULT gen_random_uuid(),
+    full_name       varchar(150) NOT NULL,
+    email           citext       NOT NULL,
+    organization    varchar(150),
+    is_internal     boolean      NOT NULL DEFAULT false,
+    lecturer_id     uuid,
+    description     varchar(500),
+    max_teams       smallint     NOT NULL,
+    preferred_teams smallint,
+    is_active       boolean      NOT NULL DEFAULT true,
+    created_by      uuid         NOT NULL,                  -- identity.user_accounts.id (Admin)
+    created_at      timestamptz  NOT NULL DEFAULT now(),
+    updated_at      timestamptz  NOT NULL DEFAULT now(),
+    CONSTRAINT pk_mentors PRIMARY KEY (id),
+    CONSTRAINT uq_mentors_email UNIQUE (email),
+    CONSTRAINT fk_mentors_lecturer FOREIGN KEY (lecturer_id) REFERENCES academic.lecturers (id) ON DELETE SET NULL,
+    CONSTRAINT ck_mentors_email CHECK (email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+    CONSTRAINT ck_mentors_max_teams CHECK (max_teams BETWEEN 1 AND 50),
+    CONSTRAINT ck_mentors_preferred_teams CHECK (preferred_teams IS NULL OR preferred_teams BETWEEN 1 AND max_teams),
+    CONSTRAINT ck_mentors_internal CHECK (lecturer_id IS NULL OR is_internal)
+);
+CREATE UNIQUE INDEX uq_mentors_lecturer_id ON academic.mentors (lecturer_id) WHERE lecturer_id IS NOT NULL;
+
+CREATE TABLE academic.mentor_domains (
+    mentor_id uuid    NOT NULL,
+    domain_id integer NOT NULL,
+    CONSTRAINT pk_mentor_domains PRIMARY KEY (mentor_id, domain_id),
+    CONSTRAINT fk_mentor_domains_mentor FOREIGN KEY (mentor_id) REFERENCES academic.mentors (id) ON DELETE CASCADE,
+    CONSTRAINT fk_mentor_domains_domain FOREIGN KEY (domain_id) REFERENCES academic.domains (id) ON DELETE RESTRICT
+);
+CREATE INDEX idx_mentor_domains_domain ON academic.mentor_domains (domain_id);
 
 -- ---------- Import (W06–W08) và danh sách sinh viên học kỳ (nguồn whitelist) ----------
 CREATE TABLE academic.import_batches (
@@ -196,16 +258,23 @@ CREATE TABLE academic.rule_settings (
     min_specializations     smallint    NOT NULL DEFAULT 2,
     invitation_expiry_hours smallint    NOT NULL DEFAULT 72,
     reminder_hours          smallint[]  NOT NULL DEFAULT '{72,24}',
+    max_ideas_per_join_request smallint NOT NULL DEFAULT 3,   -- rule 17
+    interest_extra_slots    smallint    NOT NULL DEFAULT 2,  -- rule 19: giới hạn quan tâm = sức chứa còn lại + n
+    max_file_size_mb        smallint    NOT NULL DEFAULT 25, -- rule 24
     updated_by              uuid,
     updated_at              timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_rule_settings PRIMARY KEY (id),
     CONSTRAINT ck_rule_settings_singleton CHECK (id = 1),
     CONSTRAINT ck_rule_settings_team_size CHECK (min_team_size >= 2 AND max_team_size >= min_team_size),
-    CONSTRAINT ck_rule_settings_expiry CHECK (invitation_expiry_hours > 0)
+    CONSTRAINT ck_rule_settings_expiry CHECK (invitation_expiry_hours > 0),
+    CONSTRAINT ck_rule_settings_ideas CHECK (max_ideas_per_join_request BETWEEN 1 AND 10),
+    CONSTRAINT ck_rule_settings_interest CHECK (interest_extra_slots BETWEEN 0 AND 10),
+    CONSTRAINT ck_rule_settings_file_size CHECK (max_file_size_mb BETWEEN 1 AND 100)
 );
 
 -- ---------- Transactional Outbox ----------
--- StudentImported, StudentProfileUpdated, LecturerRegistered (topic exe.student); RoundOpened, RoundClosed (exe.registration).
+-- StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered (topic exe.student);
+-- RoundOpened, RoundClosed (exe.registration).
 CREATE TABLE academic.outbox_messages (
     id             uuid         NOT NULL,          -- = eventId của envelope
     topic          varchar(100) NOT NULL,
@@ -231,6 +300,8 @@ CREATE TRIGGER trg_semesters_updated_at       BEFORE UPDATE ON academic.semester
 CREATE TRIGGER trg_registration_rounds_updated_at BEFORE UPDATE ON academic.registration_rounds FOR EACH ROW EXECUTE FUNCTION academic.set_updated_at();
 CREATE TRIGGER trg_students_updated_at        BEFORE UPDATE ON academic.students        FOR EACH ROW EXECUTE FUNCTION academic.set_updated_at();
 CREATE TRIGGER trg_lecturers_updated_at       BEFORE UPDATE ON academic.lecturers       FOR EACH ROW EXECUTE FUNCTION academic.set_updated_at();
+CREATE TRIGGER trg_mentors_updated_at         BEFORE UPDATE ON academic.mentors         FOR EACH ROW EXECUTE FUNCTION academic.set_updated_at();
+CREATE TRIGGER trg_student_skills_updated_at  BEFORE UPDATE ON academic.student_skills  FOR EACH ROW EXECUTE FUNCTION academic.set_updated_at();
 CREATE TRIGGER trg_rule_settings_updated_at   BEFORE UPDATE ON academic.rule_settings   FOR EACH ROW EXECUTE FUNCTION academic.set_updated_at();
 
 RESET ROLE;
