@@ -287,11 +287,11 @@ backend/                 # ExeTeamMatching.sln
   BuildingBlocks/        # shared: JWT, logging, exception middleware, Kafka, Outbox, event contracts
   ApiGateway/
   Services/
-    Identity/       Identity.Api | Identity.Services | Identity.Repositories | Identity.Domain
-    Academic/       Academic.Api | Academic.Services | Academic.Repositories | Academic.Domain
-    Team/           Team.Api     | Team.Services     | Team.Repositories     | Team.Domain
-    Collaboration/  Collab.Api   | Collab.Services   | Collab.Repositories   | Collab.Domain
-                    (modules: Messages, Tasks, Files, Meetings – one folder each, like Team)
+    Identity/       Identity.Api | Identity.Services | Identity.Repositories
+    Academic/       Academic.Api | Academic.Services | Academic.Repositories
+    Team/           Team.Api     | Team.Services     | Team.Repositories
+    Collaboration/  Collab.Api   | Collab.Services   | Collab.Repositories
+                    (modules: Messages, Tasks, Files, Meetings, Checkpoints – one folder each, like Team)
     Matching/       Matching.Grpc | Matching.Services
     Notification/   Notification.Worker
     Jobs/           Jobs.Host (Hangfire)
@@ -301,9 +301,11 @@ deploy/
   docker-compose.override.yml
 ```
 
-- **Api**: controllers, DTOs, validation, mapping, Swagger, SignalR hubs. No business logic.
-- **Services**: business rules, gRPC/HTTP calls, write Outbox.
-- **Repositories**: DbContext, repositories, migrations, paged/filtered/sorted queries.
+Three projects per REST service, the same layout as the PRN232 labs (no separate Domain project – decided 2026-10-20); references go Api → Services → Repositories:
+
+- **Api**: controllers, request / response models, validation, mapping, middlewares, Swagger, SignalR hubs. No business logic.
+- **Services**: business models, business rules, exceptions, constants, gRPC/HTTP calls, write Outbox.
+- **Repositories**: DbContext, **entities** (mapped to the DB script), repositories, seeding, paged/filtered/sorted queries.
 - Use built-in DI; configuration via `appsettings.{Environment}.json` + environment variables; never commit secrets.
 - REST naming: plural nouns, kebab-case routes (`/api/teams/{id}/members`, `/api/change-requests`, `/api/workspaces/{id}/meetings`).
 - All times stored in UTC.

@@ -66,9 +66,9 @@ docs/                        Thiên   – mọi người được đề xuất s
 | **Nguyên** | Matching (gồm gợi ý đề tài), Jobs (gồm nhắc họp, hạn việc); Team Service – module Finalization, AutoAssign, Statistics, Export; Collaboration – module Files, Tasks; test và kịch bản demo | `dashboard`, `unmatched`, `auto-assign`, `finalize` (W02, W20–W22); `workspace`, `tasks`, `files`, `suggestions` (C01, C04–C06, S07, S18, S19, S30, S31) | `suggestions` (S07, S18, S19), `round_closed` (S30, S31), `workspace`, `tasks`, `files` (C01, C04–C06); build APK demo |
 | **Thành** | Notification (gồm thông báo workspace); Team Service – module ChangeRequests, BaselineImport, Projects (đề tài xuyên kỳ), LecturerPreferences, TopicInterests, LecturerAssignments, MentorAssignments (đọc / API cho nhóm và cố vấn; ghép do Thiên); Collaboration – module Checkpoints | `change-requests`, `announcements`, `projects` (W17, W18, W23, W29); `lecturers`, `change_requests`, `notifications`, `lecturer`, `mentor` (S23–S29, A06, L01–L05, L07, M01) | `onboarding` (A01, A02), `notifications` (A06), `lecturers` (S23–S25), `change_requests` (S26–S29), `lecturer` (L01, L04, L05 gồm Checkpoint, L07), `mentor` (M01) |
 
-Team Service do 3 người cùng làm, nên mỗi module nằm trong thư mục riêng ở cả 4 project (`Team.Api/Controllers/<Module>`, `Team.Services/<Module>`, `Team.Repositories/<Module>`, `Team.Domain/<Module>`). `TeamDbContext` và migration/DB script của Team chỉ Thiên và Cường được sửa.
+Team Service do 3 người cùng làm, nên mỗi module nằm trong thư mục riêng ở cả 3 project (`Team.Api/Controllers/<Module>`, `Team.Services/<Module>`, `Team.Repositories/<Module>` – entity của module nằm trong `Team.Repositories/<Module>`). `TeamDbContext` và migration/DB script của Team chỉ Thiên và Cường được sửa.
 
-Collaboration Service (thêm 19/10/2026) chia giống vậy: mỗi module Messages, Tasks, Files, Meetings, Checkpoints một thư mục trong 4 project `Collab.*`. Thiên dựng khung, hub SignalR và MinIO; `CollabDbContext` và DB script của `collab_db` chỉ Thiên được sửa.
+Collaboration Service (thêm 19/10/2026) chia giống vậy: mỗi module Messages, Tasks, Files, Meetings, Checkpoints một thư mục trong 3 project `Collab.*`. Thiên dựng khung, hub SignalR và MinIO; `CollabDbContext` và DB script của `collab_db` chỉ Thiên được sửa.
 
 Web cho Sinh viên, Giảng viên, Mentor dùng **cùng mã màn hình** với mobile; người làm màn hình mobile của một mảng làm luôn bản web của mảng đó (`DESIGN.md` mục 8.2).
 
@@ -131,7 +131,7 @@ Theo Conventional Commits, kèm mã task:
 
 ## 4. Quy tắc code (tóm tắt, chi tiết ở PROJECT_CONTEXT.md §7–8)
 
-- **Backend:** ASP.NET Core 8, kiến trúc API – Services – Repositories – Domain. Controller không chứa nghiệp vụ. EF Core (Npgsql) map đúng bảng trong DB script, không tự đổi tên bảng/cột. Lỗi trả ProblemDetails. Log bằng Serilog kèm CorrelationId. Route số nhiều, kebab-case (`/api/change-requests`). Giờ lưu UTC.
+- **Backend:** ASP.NET Core 8, kiến trúc 3 lớp API – Services – Repositories như các bài lab PRN232 (không có project Domain; entity đặt trong Repositories). Controller không chứa nghiệp vụ. EF Core (Npgsql) map đúng bảng trong DB script, không tự đổi tên bảng/cột. Lỗi trả ProblemDetails. Log bằng Serilog kèm CorrelationId. Route số nhiều, kebab-case (`/api/change-requests`). Giờ lưu UTC.
 - **Giao tiếp:** client chỉ gọi API Gateway. Giữa các service: REST nội bộ; gọi Matching bằng gRPC; báo sự kiện qua Kafka (ghi Outbox trong cùng transaction). Không service nào đọc database của service khác.
 - **Database:** mỗi service một database (`identity_db`, `academic_db`, `team_db`, `notification_db`, `job_db`, `collab_db` – `collab_db` chưa có script, task BE-60). Muốn thay đổi bảng thì sửa DB script trong `deploy/db/` và cập nhật `docs/EXE_Database_Design.pdf`, PR do Thiên duyệt.
 - **Web (React):** dùng component và API client dùng chung trong `web/src/shared`, không gọi `fetch` trực tiếp trong màn hình. Màn hình có đủ trạng thái đang tải / trống / lỗi như trong danh sách màn hình.
