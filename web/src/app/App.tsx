@@ -13,6 +13,7 @@ import { RoleShell } from '@/shared/layout/RoleShell'
 import { adminNav, roleNav, type NavItem } from '@/shared/layout/navigation'
 import { TeamFormationOnly } from '@/shared/phase/PhaseGuard'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { featureRoutes } from './featureRoutes'
 
 /** Trang gốc: vào đúng khung theo vai trò, chưa đăng nhập thì sang trang đăng nhập. */
 function RootRedirect() {
@@ -20,10 +21,14 @@ function RootRedirect() {
   return <Navigate to={user ? shellHome[shellOf(user)] : '/dang-nhap'} replace />
 }
 
-/** Route con từ mục điều hướng; mỗi màn hình thật thay ScreenPlaceholder trong features/ của người phụ trách. */
-function childRoutes(base: string, items: NavItem[]): RouteObject[] {
-  const unique = new Map(items.map((i) => [i.to, i]))
-  return [...unique.values()].map((item) => {
+/**
+ * Route con từ mục điều hướng; mục nào đã có màn hình thật trong `featureRoutes` (features/ của người phụ trách)
+ * thì dùng route đó thay cho ScreenPlaceholder.
+ */
+function childRoutes(base: string, items: NavItem[], features: RouteObject[]): RouteObject[] {
+  const provided = new Set(features.map((r) => (r.index ? base : `${base}/${r.path}`)))
+  const unique = new Map(items.filter((i) => !provided.has(i.to)).map((i) => [i.to, i]))
+  const placeholders = [...unique.values()].map((item): RouteObject => {
     const element = <ScreenPlaceholder screen={item.screen} title={item.label} owner={item.owner} />
     return item.to === base
       ? { index: true, element }
@@ -32,6 +37,7 @@ function childRoutes(base: string, items: NavItem[]): RouteObject[] {
           element: item.to === '/sv/kham-pha' ? <TeamFormationOnly>{element}</TeamFormationOnly> : element,
         }
   })
+  return [...placeholders, ...features]
 }
 
 /** Mọi route có thể có của khung (cả hai giai đoạn), để link cũ không thành 404. */
@@ -52,7 +58,7 @@ const router = createBrowserRouter([
         <AdminLayout />
       </RequireShell>
     ),
-    children: childRoutes('/admin', adminNav),
+    children: childRoutes('/admin', adminNav, featureRoutes.admin),
   },
   ...(['student', 'lecturer', 'mentor'] as const).map(
     (shell): RouteObject => ({
@@ -62,7 +68,7 @@ const router = createBrowserRouter([
           <RoleShell shell={shell} />
         </RequireShell>
       ),
-      children: childRoutes(shellHome[shell], allRoleItems(shell)),
+      children: childRoutes(shellHome[shell], allRoleItems(shell), featureRoutes[shell]),
     }),
   ),
   { path: '*', element: <NotFound /> },
