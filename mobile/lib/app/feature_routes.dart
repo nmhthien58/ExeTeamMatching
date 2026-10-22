@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/files/files_screen.dart';
+import '../features/round_closed/auto_assigned_screen.dart';
+import '../features/round_closed/round_closed_screen.dart';
+import '../features/suggestions/invite_students_screen.dart';
+import '../features/suggestions/suggested_members_screen.dart';
+import '../features/suggestions/suggested_teams_screen.dart';
 import '../features/tasks/task_board_screen.dart';
 import '../features/tasks/task_detail_screen.dart';
 import '../features/workspace/project_overview_screen.dart';
 import '../shared/widgets/states.dart';
 import 'navigation.dart';
+import 'role_shell.dart';
 
 /// Màn hình thật của các tab (thay ScreenPlaceholder). Mỗi mảng thêm tab của mình vào đây.
 final Map<String, Widget Function(GoRouterState state)> tabScreens = {
@@ -15,10 +21,22 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
 
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
 List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
-      Shell.student => _workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
+      Shell.student => [
+          ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
+          ..._studentTeamRoutes,
+        ],
       Shell.lecturer => [_advisorWorkspace('/gv/du-an')],
       Shell.mentor => [_advisorWorkspace('/mentor/du-an')],
     };
+
+/// S07 (trong Khám phá, chỉ mở trong đợt lập nhóm – quy tắc 18), S18, S19 (Nhóm của tôi), S30, S31 (sau hạn chót) – MB-15, MB-23, MB-31.
+final _studentTeamRoutes = [
+  GoRoute(path: '/sv/kham-pha/goi-y', builder: (_, _) => const TeamFormationOnly(child: SuggestedTeamsScreen())),
+  GoRoute(path: '/sv/nhom/goi-y', builder: (_, _) => const SuggestedMembersScreen()),
+  GoRoute(path: '/sv/nhom/moi', builder: (_, _) => const InviteStudentsScreen()),
+  GoRoute(path: '/sv/nhom/da-khoa', builder: (_, _) => const RoundClosedScreen()),
+  GoRoute(path: '/sv/nhom/ghep-tu-dong', builder: (_, _) => const AutoAssignedScreen()),
+];
 
 /// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).
 GoRoute _advisorWorkspace(String base) => GoRoute(

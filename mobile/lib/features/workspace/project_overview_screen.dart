@@ -79,16 +79,15 @@ class _Overview extends ConsumerWidget {
           if (workspace.myRole == WorkspaceRole.mentor) ...[_MentorBrief(workspace: workspace), const SizedBox(height: AppSpacing.s3)],
           _TeamHeader(workspace: workspace),
           const SizedBox(height: AppSpacing.s3),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: AppSpacing.s3,
-            crossAxisSpacing: AppSpacing.s3,
-            childAspectRatio: 1.6,
-            children: [
+          _StatGrid(
+            cards: [
               workspace.canEdit
-                  ? _StatCard(label: 'Việc của tôi', value: stats.mine, loading: tasks.isLoading, onTap: () => context.push('$basePath/viec?mine=1'))
+                  ? _StatCard(
+                      label: 'Việc của tôi',
+                      value: stats.mine,
+                      loading: tasks.isLoading,
+                      onTap: () => context.push('$basePath/viec?mine=1'),
+                    )
                   : _StatCard(
                       label: 'Bài nộp chờ duyệt',
                       value: stats.pendingReview,
@@ -171,7 +170,8 @@ class _TeamHeader extends StatelessWidget {
                 StatusChip(label: workspace.courseCode, tone: StatusTone.secondary, icon: Icons.school_outlined),
               ],
             ),
-            if (workspace.projectName != null) Text(workspace.projectName!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            if (workspace.projectName != null)
+              Text(workspace.projectName!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             if (workspace.previousWorkspaceId != null)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.s2),
@@ -179,7 +179,9 @@ class _TeamHeader extends StatelessWidget {
                   children: [
                     Icon(Icons.history, size: 20, color: theme.colorScheme.secondary),
                     const SizedBox(width: AppSpacing.s1),
-                    Text('Tiếp tục từ EXE101', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.secondary)),
+                    Flexible(
+                      child: Text('Tiếp tục từ EXE101', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.secondary)),
+                    ),
                   ],
                 ),
               ),
@@ -195,7 +197,7 @@ class _TeamHeader extends StatelessWidget {
                       children: [
                         Avatar(name: p.displayName, size: 32, isMentor: p.role == WorkspaceRole.mentor),
                         const SizedBox(width: AppSpacing.s2),
-                        Text(p.displayName, style: theme.textTheme.bodyMedium),
+                        Flexible(child: Text(p.displayName, style: theme.textTheme.bodyMedium)),
                         const SizedBox(width: AppSpacing.s1),
                         RoleChip(role: p.role),
                       ],
@@ -232,19 +234,50 @@ class _MentorBrief extends StatelessWidget {
           spacing: AppSpacing.s2,
           runSpacing: AppSpacing.s2,
           children: [
-            Text(workspace.projectName ?? workspace.teamName,
-                style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer)),
+            Text(
+              workspace.projectName ?? workspace.teamName,
+              style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+            ),
             done >= expected
                 ? StatusChip(label: 'Đã đủ $expected buổi', tone: StatusTone.success)
                 : Semantics(
                     label: 'Buổi mentor $done trên $expected',
-                    child: ExcludeSemantics(child: StatusChip(label: 'Buổi mentor $done/$expected', tone: StatusTone.secondary, icon: Icons.handshake_outlined)),
+                    child: ExcludeSemantics(
+                      child: StatusChip(label: 'Buổi mentor $done/$expected', tone: StatusTone.secondary, icon: Icons.handshake_outlined),
+                    ),
                   ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Lưới 2 × 2 thẻ số liệu; các thẻ cùng hàng cao bằng nhau theo nội dung (chữ lớn không bị cắt – DESIGN.md 6.1).
+class _StatGrid extends StatelessWidget {
+  const _StatGrid({required this.cards});
+
+  final List<Widget> cards;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var i = 0; i < cards.length; i += 2)
+        Padding(
+          padding: EdgeInsets.only(bottom: i + 2 < cards.length ? AppSpacing.s3 : 0),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: cards[i]),
+                const SizedBox(width: AppSpacing.s3),
+                Expanded(child: i + 1 < cards.length ? cards[i + 1] : const SizedBox.shrink()),
+              ],
+            ),
+          ),
+        ),
+    ],
+  );
 }
 
 /// Thẻ số liệu (DESIGN.md 6.1): nhãn Body màu Text Secondary, con số Display; cả thẻ bấm được.
@@ -294,7 +327,12 @@ class _Shortcuts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [('tin-nhan', 'Tin nhắn', Icons.forum_outlined), ('viec', 'Việc', Icons.task_alt), ('file', 'File', Icons.folder_outlined), ('lich-hop', 'Lịch họp', Icons.event_outlined)];
+    const items = [
+      ('tin-nhan', 'Tin nhắn', Icons.forum_outlined),
+      ('viec', 'Việc', Icons.task_alt),
+      ('file', 'File', Icons.folder_outlined),
+      ('lich-hop', 'Lịch họp', Icons.event_outlined),
+    ];
     return Row(
       children: [
         for (final (path, label, icon) in items)
