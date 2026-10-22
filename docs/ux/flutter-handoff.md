@@ -293,7 +293,7 @@
 
 ---
 
-## 4a. Spec bổ sung sau góp ý (bản 4, chưa có trong Figma)
+## 4a. Spec bổ sung sau góp ý (bản 4; Figma bản 5 từ 22/10/2026)
 
 Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mục 8.2.
 
@@ -458,5 +458,5 @@ Cùng một spec cho mobile và web; web đổi bố cục theo `DESIGN.md` mụ
 - [ ] Kiểm tra ở 360 và 412 dp, cỡ chữ hệ thống 130% không vỡ bố cục.
 - [ ] Vùng chạm ≥ 48, chữ nội dung ≥ 14 sp, trạng thái có chữ + icon.
 - [ ] Back đúng màn cha; sau khi gửi thành công không quay lại form.
-- [ ] Đối chiếu frame tương ứng trong Figma `03 Final UI` và luồng trong `06 Prototype`; màn hình bản 4 đối chiếu mục 4a và `DESIGN.md` bản 4 (Figma chưa có).
+- [ ] Đối chiếu frame tương ứng trong Figma `03 Final UI` và luồng trong `06 Prototype`; màn hình bản 4 đối chiếu mục 4a, `DESIGN.md` bản 5 và các section "(bản 5)" trong Figma.
 - [ ] Màn hình chạy được trên web ở ba mức bề rộng (`DESIGN.md` 8.2) nếu thuộc vai trò Sinh viên, Giảng viên, Mentor.

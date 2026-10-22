@@ -415,11 +415,13 @@ Ngoại lệ: lý do bị khóa, lỗi và hậu quả của hành động khôn
 
 | Hạng mục | Quy ước |
 |---|---|
-| Bản 5 | Figma chuyển sang bảng màu bản 5 (variables `Color` đổi giá trị, nhóm `secondary` thay bằng `info`); màn hình mới (C01–C09, L07, M01, W27–W29) vẽ theo bản 5. |
-| File nộp Lab (mobile) | Đúng 6 trang theo thứ tự: **01 User Flow · 02 Wireframe · 03 Final UI · 04 Design System · 05 Components · 06 Prototype**. Không thêm trang khác vào file này. |
-| Trang 03 Final UI | Chia thành các section: Chung · Sinh viên · Giảng viên · Kiểm tra 412. |
+| Bản 5 | Figma theo bản 5 từ 22/10/2026: variables `Color` mang mã màu bản 5 (nhóm `info` thay nhóm `secondary`), màn hình mới C01–C09, L07, M01, W19 (Ghép cố vấn), W27–W29 đã vẽ. Nhật ký chuyển đổi và vòng 4–6 ở [ai-design-log.md](ai-design-log.md). |
+| Trang | File "PRM - Lab 2" có hai trang `Mobile` và `Web` (gói Starter giới hạn số trang). Sáu phần của Lab là **section** trong trang `Mobile`, đúng thứ tự: **01 User Flow · 02 Wireframe · 03 Final UI · 04 Design System · 05 Components · 06 Prototype**. Trang `Web`: 01 Components – Web · 02 Final UI – Web. |
+| Section 03 Final UI | Chung · Sinh viên · Giảng viên · Kiểm tra 412 (Lab 2) · **Dự án (bản 5)** · **Giảng viên và Mentor (bản 5)** · **Màn hình thay đổi (bản 5)** · **Kiểm tra 412 (bản 5)**. Frame Lab 2 đã được bản 5 thay thế giữ lại với hậu tố ` · Lab 2`. |
+| Section 06 Prototype | Luồng F1–F3 của Lab 2 và section "Bản 5 – F4, F5, F6, F8" (điểm bắt đầu đặt tên theo luồng). |
+| Section web | W0–W3 (Lab 2) · **W4 – Bản 5: ghép cố vấn, mentor, đề tài** · **W5 – Bản 5: web cho Sinh viên, Giảng viên, Mentor**. Sidebar web: W19 và W28 chung mục "Ghép cố vấn" (hai tab), W27 là tab trong "Giảng viên và mentor", W29 là mục "Đề tài qua các kỳ". |
 | Trang 04 Design System | Bảng màu, kiểu chữ, khoảng cách, bo góc, độ nổi, icon – tất cả hiển thị từ variables và styles. |
-| File web và nháp | Màn hình web quản trị, bìa và nháp đặt ở file riêng "EXE Team Matching – Web", dùng chung thư viện. |
+| Component bản 5 | Nhóm "Bản 5 – Dự án, cố vấn, kỹ năng" trong `05 Components`: 17 component theo mục 6.3 (`Skill/Slider`, `Skill/Bar`, `Idea/Card`, `Message/Bubble`, `Message/Composer`, `Task/Card`, `File/Row`, `Meeting/Slot vote`, `Button/Quan tâm`, `Preference/Slot`, `Checkpoint/Progress`, `Weekly/Slot`, `Chip/Role`, `Chip/Lý do ghép`, `Chip/Buổi mentor`, `Card/Đề tài`, `Dialog/Giai đoạn`). |
 | Tên frame | `<Mã> – <Tên màn hình> / <Trạng thái>`. Ví dụ: `S08 – Chi tiết nhóm / Đã gửi yêu cầu`. Frame kiểm tra thêm hậu tố `@412`. |
 | Tên component | `<Loại>/<Biến thể>/<Trạng thái>`. Ví dụ: `Button/Primary/Disabled`, `Chip/Status/Warning`. |
 | Variables | Ba collection: `Color`, `Space` (gồm cả radius), `Motion`. Tên biến đúng cột Token trong file này. Kiểu chữ và độ nổi là text style và effect style, đặt tên `type/…` và `elevation/…`. |
@@ -713,7 +715,7 @@ Không có token màu, kiểu chữ hay khoảng cách nào được thêm hoặ
 
 ## Phụ lục D – Thay đổi so với bản 3
 
-Bản 4 (19/10/2026) áp dụng góp ý của giảng viên (`PROJECT_CONTEXT.md` mục 13). Figma chưa cập nhật theo bản 4.
+Bản 4 (19/10/2026) áp dụng góp ý của giảng viên (`PROJECT_CONTEXT.md` mục 13). Figma không vẽ theo bản 4; từ 22/10/2026 Figma theo bản 5 (Phụ lục E).
 
 | # | Mục | Bản 3 | Bản 4 | Nguồn |
 |---|---|---|---|---|
