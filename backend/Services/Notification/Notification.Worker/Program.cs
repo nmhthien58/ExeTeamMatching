@@ -1,10 +1,23 @@
 using BuildingBlocks.Web;
+using BuildingBlocks.Messaging;
+using Notification.Worker.Data;
+using Notification.Worker.Events;
+using Microsoft.EntityFrameworkCore;
 
 // Notification Service – khung (BE-04, BE-05). API đọc thông báo + consumer Kafka (BE-40..42).
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults("notification");
 builder.Services.AddApiControllers(typeof(Program).Assembly);
+builder.Services.AddDbContext<NotificationDbContext>(options => options
+    .UseNpgsql(builder.Configuration.GetConnectionString("NotificationDb"))
+    .UseSnakeCaseNamingConvention());
+builder.Services.AddKafka(builder.Configuration, "notification");
+builder.Services.AddScoped<IProcessedEventStore, NotificationProcessedEventStore>();
+foreach (var (topic, eventType) in NotificationEventHandler.Subscriptions)
+{
+    builder.Services.AddEventHandler<NotificationEventHandler>(topic, eventType);
+}
 
 var app = builder.Build();
 
