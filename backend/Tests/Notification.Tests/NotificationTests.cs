@@ -300,4 +300,41 @@ public sealed class NotificationTests
         await service.SetPreferencesAsync(Student(mine), new EmailPreferences(false), default);
         Assert.False((await service.PreferencesAsync(Student(mine), default)).EmailEnabled);
     }
+
+    [Fact]
+    public async Task Checkpoint_event_notifies_members_but_plain_messages_are_not_subscribed()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("CheckpointReviewed",
+            new { workspaceId = Guid.NewGuid(), checkpointNo = 2, memberStudentIds = new[] { studentId } },
+            "collab", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(studentId, db.Notifications.Single().RecipientId);
+        Assert.Contains("Checkpoint 2", db.Notifications.Single().Content);
+        Assert.DoesNotContain(NotificationEventHandler.Subscriptions, x => x.EventType == "MessageSent");
+    }
+
+    [Fact]
+    public async Task First_mentor_registration_creates_welcome_email_once()
+    {
+        await using var db = Database();
+        var mentorId = Guid.NewGuid();
+        var handler = new NotificationEventHandler(db);
+        var processed = new NotificationProcessedEventStore(db);
+        var first = EventEnvelope.Create("MentorRegistered",
+            new { mentorId, fullName = "Mentor", email = "mentor@example.test" }, "academic", null);
+        await handler.HandleAsync(first, default);
+        await processed.MarkProcessedAsync(first, default);
+        var updated = EventEnvelope.Create("MentorRegistered",
+            new { mentorId, fullName = "Mentor", email = "mentor@example.test" }, "academic", null);
+        await handler.HandleAsync(updated, default);
+        await processed.MarkProcessedAsync(updated, default);
+
+        Assert.Single(db.EmailLogs);
+        Assert.Single(db.Notifications);
+        Assert.Equal("MentorRegistered", db.EmailLogs.Single().TemplateCode);
+    }
 }

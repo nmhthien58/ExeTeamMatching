@@ -16,6 +16,8 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         (Topics.Invitation, ["InvitationSent", "InvitationAccepted", "InvitationDeclined", "InvitationExpired", "JoinRequestSubmitted", "JoinRequestAccepted", "JoinRequestDeclined"]),
         (Topics.ChangeRequest, ["ChangeRequestSubmitted", "ChangeRequestApproved", "ChangeRequestRejected"]),
         (Topics.Assignment, ["TopicInterestOpened", "TopicInterestClosed", "LecturerPreferencesUpdated", "LecturerAssigned", "MentorAssigned", "MentorUnassigned", "AdvisorMatchingCompleted"]),
+        (Topics.Collab, ["AdvisorQuestionAsked", "AdvisorQuestionAnswered", "UserMentioned", "TaskAssigned", "DeliverableCreated", "DeliverableSubmitted", "DeliverableReviewed", "FileUploaded", "MeetingProposed", "MeetingScheduled", "MeetingCancelled", "MeetingSlotsPublished", "MeetingSlotBooked", "CheckpointReviewed"]),
+        (Topics.Reminder, ["MeetingReminder", "TaskDueSoon", "DeliverableOverdue"]),
     ];
 
     public static IEnumerable<(string Topic, string EventType)> Subscriptions =>
@@ -29,7 +31,27 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         var data = envelope.Payload;
         if (TopicFor(envelope.EventType) == Topics.Student)
         {
+            var newMentor = envelope.EventType == "MentorRegistered" && Id(data, "mentorId") is { } mentorId &&
+                await db.Contacts.FindAsync([mentorId], ct) is null;
             await UpdateContactAsync(envelope.EventType, data, ct);
+            if (newMentor && Id(data, "mentorId") is { } recipientId &&
+                await db.Contacts.FindAsync([recipientId], ct) is { } contact && contact.EmailEnabled)
+            {
+                var welcome = new UserNotification
+                {
+                    Id = Guid.NewGuid(), RecipientType = "MENTOR", RecipientId = recipientId,
+                    Type = "MentorRegistered", Title = "Mời bạn đăng nhập EXE Team Matching",
+                    Content = "Bộ môn đã tạo tài khoản mentor cho bạn. Hãy đăng nhập bằng email đã đăng ký.",
+                    LinkUrl = "app://login", SourceEventId = envelope.EventId, CreatedAt = DateTimeOffset.UtcNow,
+                };
+                db.Notifications.Add(welcome);
+                db.EmailLogs.Add(new EmailLog
+                {
+                    Id = Guid.NewGuid(), NotificationId = welcome.Id, SourceEventId = envelope.EventId,
+                    ToEmail = contact.Email, Subject = welcome.Title, TemplateCode = "MentorRegistered",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                });
+            }
             return;
         }
 
@@ -65,7 +87,8 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         "InvitationSent" or "InvitationAccepted" or "InvitationDeclined" or "InvitationExpired" or
         "JoinRequestSubmitted" or "JoinRequestAccepted" or "JoinRequestDeclined" or
         "ChangeRequestApproved" or "ChangeRequestRejected" or "TopicInterestClosed" or
-        "DeadlineApproaching" or "LecturerAssigned" or "MentorAssigned";
+        "DeadlineApproaching" or "LecturerAssigned" or "MentorAssigned" or
+        "MeetingReminder" or "TaskDueSoon" or "DeliverableOverdue";
 
     private async Task UpdateContactAsync(string eventType, JsonElement data, CancellationToken ct)
     {
@@ -140,6 +163,32 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
             case "DeadlineApproaching":
                 foreach (var r in Students(data, "studentIdsWithoutTeam")) yield return r;
                 break;
+            case "TopicInterestClosed":
+                if (String(data, "advisorKind") is "LECTURER" or "MENTOR" && Id(data, "advisorId") is { } advisorId)
+                    yield return (String(data, "advisorKind")!, advisorId);
+                break;
+            case "AdvisorQuestionAsked": case "AdvisorQuestionAnswered":
+            case "MeetingSlotsPublished": case "MeetingSlotBooked":
+                foreach (var r in People(data, "recipients")) yield return r;
+                break;
+            case "UserMentioned":
+                foreach (var r in People(data, "mentioned")) yield return r;
+                break;
+            case "TaskAssigned": case "TaskDueSoon":
+                foreach (var r in Students(data, "assigneeStudentIds")) yield return r;
+                break;
+            case "DeliverableCreated": case "DeliverableReviewed": case "CheckpointReviewed":
+                foreach (var r in Students(data, "memberStudentIds")) yield return r;
+                break;
+            case "DeliverableSubmitted":
+                yield return ("LECTURER", Id(data, "lecturerId")); break;
+            case "DeliverableOverdue":
+                foreach (var r in Students(data, "memberStudentIds")) yield return r;
+                yield return ("LECTURER", Id(data, "lecturerId"));
+                break;
+            case "MeetingProposed": case "MeetingScheduled": case "MeetingCancelled": case "MeetingReminder":
+                foreach (var r in People(data, "invitees")) yield return r;
+                break;
         }
     }
 
@@ -147,6 +196,8 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
     {
         var teamId = Id(data, "teamId");
         var teamLink = teamId is null ? null : $"app://teams/{teamId}";
+        var workspaceId = Id(data, "workspaceId");
+        var workspaceLink = workspaceId is null ? null : $"app://workspaces/{workspaceId}";
         return type switch
         {
             "InvitationSent" => ("Lời mời vào nhóm", $"{String(data, "teamName") ?? "Một nhóm"} đã mời bạn tham gia.", "app://invitations"),
@@ -168,6 +219,23 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
             "TeamFinalized" => ("Nhóm đã được chốt", "Danh sách thành viên nhóm đã được chốt.", teamLink),
             "TeamNeedsReview" => ("Nhóm cần xem xét", "Có nhóm chưa đủ điều kiện sau khi đóng đợt.", "app://admin/teams"),
             "DeadlineApproaching" => ("Sắp hết hạn lập nhóm", "Đợt lập nhóm sắp đóng. Hãy hoàn tất nhóm của bạn.", "app://teams"),
+            "TopicInterestClosed" => ("Quan tâm đề tài đã đóng", "Bạn không còn theo dõi đề tài này trong đợt ghép cố vấn.", teamLink),
+            "AdvisorQuestionAsked" => ("Nhóm hỏi cố vấn", String(data, "preview") ?? "Nhóm có câu hỏi cần bạn trả lời.", workspaceLink),
+            "AdvisorQuestionAnswered" => ("Cố vấn đã trả lời", "Câu hỏi của nhóm đã được trả lời.", workspaceLink),
+            "UserMentioned" => ("Bạn được nhắc tên", "Có người nhắc đến bạn trong tin nhắn.", workspaceLink),
+            "TaskAssigned" => ("Việc mới được giao", $"Bạn được giao việc: {String(data, "title") ?? "Việc mới"}.", workspaceLink),
+            "DeliverableCreated" => ("Bài nộp mới", $"Giảng viên đã giao bài nộp: {String(data, "title") ?? "Bài nộp mới"}.", workspaceLink),
+            "DeliverableSubmitted" => ("Nhóm đã nộp bài", "Nhóm đã nộp bài cần bạn xem xét.", workspaceLink),
+            "DeliverableReviewed" => ("Bài nộp đã được duyệt", "Giảng viên đã xem xét bài nộp của nhóm.", workspaceLink),
+            "MeetingProposed" => ("Đề xuất lịch họp", "Có đề xuất lịch họp mới cần bạn phản hồi.", workspaceLink),
+            "MeetingScheduled" => ("Đã chốt lịch họp", "Lịch họp của nhóm đã được xác nhận.", workspaceLink),
+            "MeetingCancelled" => ("Lịch họp bị hủy", "Một cuộc họp của nhóm đã bị hủy.", workspaceLink),
+            "MeetingSlotsPublished" => ("Đã mở lịch họp hằng tuần", "Giảng viên đã đăng các khung giờ họp. Hãy chọn giờ cho nhóm.", "app://meeting-schedule"),
+            "MeetingSlotBooked" => ("Đã đặt giờ họp hằng tuần", $"Nhóm có giờ họp {String(data, "startTime") ?? "mới"}.", workspaceLink),
+            "CheckpointReviewed" => ("Checkpoint đã được ghi nhận", $"Nhóm đã trình bày Checkpoint {String(data, "checkpointNo") ?? ""}.", workspaceLink),
+            "MeetingReminder" => ("Sắp đến giờ họp", $"Cuộc họp {String(data, "title") ?? "của nhóm"} sắp bắt đầu.", workspaceLink),
+            "TaskDueSoon" => ("Việc sắp đến hạn", $"Việc {String(data, "title") ?? "được giao"} sắp đến hạn.", workspaceLink),
+            "DeliverableOverdue" => ("Bài nộp đã trễ hạn", $"Bài nộp {String(data, "title") ?? "của nhóm"} đã trễ hạn.", workspaceLink),
             _ => (type, "Có cập nhật mới liên quan đến nhóm của bạn.", teamLink),
         };
     }
@@ -180,6 +248,19 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array
             ? value.EnumerateArray().Select(x => Guid.TryParse(x.GetString(), out var id) ? id : Guid.Empty).Where(x => x != Guid.Empty)
             : [];
+
+    private static IEnumerable<(string Type, Guid? Id)> People(JsonElement data, string name)
+    {
+        if (data.ValueKind != JsonValueKind.Object || !data.TryGetProperty(name, out var array) ||
+            array.ValueKind != JsonValueKind.Array) yield break;
+        foreach (var person in array.EnumerateArray())
+        {
+            var type = String(person, "personType");
+            var id = Id(person, "personId");
+            if (type is "STUDENT" or "LECTURER" or "MENTOR" && id is not null)
+                yield return (type!, id);
+        }
+    }
 
     private static string? String(JsonElement data, string name) =>
         data.ValueKind == JsonValueKind.Object && data.TryGetProperty(name, out var value) ? value.ToString() : null;
