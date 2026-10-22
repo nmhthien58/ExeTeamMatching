@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router-dom'
 import type { Shell } from '@/shared/auth/AuthProvider'
+import { suggestionRoutes } from '@/features/suggestions/routes'
 import { workspaceRoutes } from '@/features/workspace/routes'
 
 /**
@@ -8,7 +9,7 @@ import { workspaceRoutes } from '@/features/workspace/routes'
  */
 export const featureRoutes: Record<Shell, RouteObject[]> = {
   admin: [],
-  student: [workspaceRoutes('/sv')],
+  student: [workspaceRoutes('/sv'), ...suggestionRoutes],
   lecturer: [workspaceRoutes('/gv')],
   mentor: [workspaceRoutes('/mentor')],
 }
