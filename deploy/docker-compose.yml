@@ -196,11 +196,17 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Kestrel__EndpointDefaults__Protocols: Http2
       Kafka__BootstrapServers: kafka:29092
+      ConnectionStrings__Redis: redis:6379   # read model (BE-35)
     ports:
       - "5004:8080"
     healthcheck:
       <<: *dotnet-healthcheck
       test: ["CMD-SHELL", "curl -fsS --http2-prior-knowledge http://localhost:8080/health || exit 1"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
 
   notification:
     build:
