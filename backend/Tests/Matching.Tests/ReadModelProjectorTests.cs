@@ -17,7 +17,7 @@ public sealed class ReadModelProjectorTests
         var team = await s.TeamAsync("Nhóm A", leader, [member]);
 
         var view = await s.Model.GetTeamAsync(team, Ct);
-        Assert.Equal([leader, member], view!.MemberIds.Order());
+        Assert.Equal(new[] { leader, member }.Order(), view!.MemberIds.Order());
         Assert.Equal(team, (await s.Model.GetStudentAsync(member, Ct))!.TeamId);
 
         await s.Projector.HandleAsync(new MemberLeft(team, member), Ct);
