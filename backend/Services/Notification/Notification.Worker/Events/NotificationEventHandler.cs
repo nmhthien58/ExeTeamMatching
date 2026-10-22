@@ -39,15 +39,31 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         foreach (var (type, id) in recipients)
         {
             // Idempotency còn được bảo vệ bởi UNIQUE(source_event_id, recipient_type, recipient_id).
-            db.Notifications.Add(new UserNotification
+            var notification = new UserNotification
             {
                 Id = Guid.NewGuid(), RecipientType = type, RecipientId = id,
                 Type = envelope.EventType, Title = title, Content = content,
                 LinkUrl = link, SourceEventId = envelope.EventId, CreatedAt = DateTimeOffset.UtcNow,
+            };
+            db.Notifications.Add(notification);
+            if (id is not { } personId || !ShouldEmail(envelope.EventType)) continue;
+            var contact = await db.Contacts.FindAsync([personId], ct);
+            if (contact is null || !contact.EmailEnabled ||
+                db.EmailLogs.Local.Any(x => x.SourceEventId == envelope.EventId &&
+                    string.Equals(x.ToEmail, contact.Email, StringComparison.OrdinalIgnoreCase))) continue;
+            db.EmailLogs.Add(new EmailLog
+            {
+                Id = Guid.NewGuid(), NotificationId = notification.Id, SourceEventId = envelope.EventId,
+                ToEmail = contact.Email, Subject = title, TemplateCode = envelope.EventType,
+                CreatedAt = DateTimeOffset.UtcNow,
             });
         }
         // MarkProcessedAsync lưu notification và processed_events cùng một transaction.
     }
+
+    private static bool ShouldEmail(string type) => type is
+        "InvitationSent" or "JoinRequestAccepted" or "ChangeRequestApproved" or "ChangeRequestRejected" or
+        "DeadlineApproaching" or "LecturerAssigned" or "MentorAssigned";
 
     private async Task UpdateContactAsync(string eventType, JsonElement data, CancellationToken ct)
     {

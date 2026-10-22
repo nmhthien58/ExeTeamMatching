@@ -36,11 +36,27 @@ public sealed class ProcessedNotificationEvent
     public DateTimeOffset ProcessedAt { get; set; }
 }
 
+public sealed class EmailLog
+{
+    public Guid Id { get; set; }
+    public Guid? NotificationId { get; set; }
+    public Guid SourceEventId { get; set; }
+    public string ToEmail { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public string TemplateCode { get; set; } = "";
+    public string Status { get; set; } = "PENDING";
+    public int Attempts { get; set; }
+    public string? LastError { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? SentAt { get; set; }
+}
+
 public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext> options) : DbContext(options)
 {
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<UserNotification> Notifications => Set<UserNotification>();
     public DbSet<ProcessedNotificationEvent> ProcessedEvents => Set<ProcessedNotificationEvent>();
+    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -62,6 +78,16 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
         {
             e.ToTable("processed_events");
             e.HasKey(x => new { x.EventId, x.Consumer });
+        });
+        model.Entity<EmailLog>(e =>
+        {
+            e.ToTable("email_logs");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ToEmail).HasColumnType("citext");
+            e.HasIndex(x => new { x.SourceEventId, x.ToEmail }).IsUnique()
+                .HasDatabaseName("uq_email_logs_event_to");
+            e.HasOne<UserNotification>().WithMany().HasForeignKey(x => x.NotificationId)
+                .HasConstraintName("fk_email_logs_notification").OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
