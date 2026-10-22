@@ -167,7 +167,7 @@ class _TeamHeader extends StatelessWidget {
               runSpacing: AppSpacing.s2,
               children: [
                 Text(workspace.teamName, style: theme.textTheme.titleLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
-                StatusChip(label: workspace.courseCode, tone: StatusTone.secondary, icon: Icons.school_outlined),
+                StatusChip(label: workspace.courseCode, tone: StatusTone.info, icon: Icons.school_outlined),
               ],
             ),
             if (workspace.projectName != null)
@@ -177,10 +177,10 @@ class _TeamHeader extends StatelessWidget {
                 padding: const EdgeInsets.only(top: AppSpacing.s2),
                 child: Row(
                   children: [
-                    Icon(Icons.history, size: 20, color: theme.colorScheme.secondary),
+                    Icon(Icons.history, size: 20, color: context.appColors.info),
                     const SizedBox(width: AppSpacing.s1),
                     Flexible(
-                      child: Text('Tiếp tục từ EXE101', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.secondary)),
+                      child: Text('Tiếp tục từ EXE101', style: theme.textTheme.bodyMedium?.copyWith(color: context.appColors.onInfoContainer)),
                     ),
                   ],
                 ),
@@ -243,7 +243,7 @@ class _MentorBrief extends StatelessWidget {
                 : Semantics(
                     label: 'Buổi mentor $done trên $expected',
                     child: ExcludeSemantics(
-                      child: StatusChip(label: 'Buổi mentor $done/$expected', tone: StatusTone.secondary, icon: Icons.handshake_outlined),
+                      child: StatusChip(label: 'Buổi mentor $done/$expected', tone: StatusTone.info, icon: Icons.handshake_outlined),
                     ),
                   ),
           ],
@@ -345,7 +345,7 @@ class _Shortcuts extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(icon, color: Theme.of(context).colorScheme.secondary),
+                    Icon(icon, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(height: AppSpacing.s1),
                     Text(label, style: Theme.of(context).textTheme.labelLarge),
                   ],

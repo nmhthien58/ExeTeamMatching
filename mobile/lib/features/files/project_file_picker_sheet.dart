@@ -77,7 +77,7 @@ class _ProjectFilePickerState extends ConsumerState<_ProjectFilePicker> {
                   children: [
                     for (final f in folders)
                       ListTile(
-                        leading: Icon(Icons.folder_outlined, color: theme.colorScheme.secondary),
+                        leading: Icon(Icons.folder_outlined, color: theme.colorScheme.primary),
                         title: Text(f.name),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => setState(() => _path.add(f.id)),

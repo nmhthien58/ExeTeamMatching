@@ -1,36 +1,37 @@
-/* Theme web theo docs/ux/DESIGN.md bản 4 (FE-02, FE-32). Token là biến CSS; Tailwind đọc qua @theme. */
+/* Theme web theo docs/ux/DESIGN.md bản 5 (FE-02, FE-32; màu theo Sổ tay thương hiệu FPT). Token là biến CSS; Tailwind đọc qua @theme. */
 @import "tailwindcss";
 
 
 /* Token trong @theme: Tailwind sinh class (bg-primary, text-text-secondary…) và biến CSS cùng tên (var(--color-primary)). */
 @theme {
-  /* 2.1 Thương hiệu – cam = hành động, xanh = vị trí / lựa chọn */
-  --color-primary: #c2410c;
-  --color-primary-dark: #9a3412;
-  --color-primary-container: #fff1e8;
-  --color-primary-border: #fed7aa;
+  /* 2.1 Thương hiệu – cam = bấm được / đang chọn, xanh dương FPT = thông tin, xanh lá = thành công */
+  --color-primary: #c6510b;
+  --color-primary-dark: #a8440f;
+  --color-primary-container: #fff3eb;
+  --color-primary-border: #fbc9a8;
   --color-brand-orange: #f37021; /* chỉ trang trí, không đặt chữ trắng */
-  --color-secondary: #0e5ba8;
-  --color-secondary-dark: #0a4d8c;
-  --color-secondary-container: #e8f2fc;
+  --color-info: #0066b3; /* chỉ thông tin, không dùng cho điều khiển */
+  --color-info-dark: #004c87;
+  --color-info-container: #e6f0f8;
+  --color-brand-green: #0db14b; /* chỉ trang trí */
 
   /* 2.2 Nền, viền, chữ */
   --color-surface: #ffffff;
-  --color-background: #f7f9fc;
-  --color-border: #e3e8ef;
-  --color-border-strong: #7a8599;
+  --color-background: #f7f8f9;
+  --color-border: #e3e6ea;
+  --color-border-strong: #7d8590;
   --color-text-primary: #1a1f36;
-  --color-text-secondary: #5b6478;
-  --color-text-disabled: #a3abba;
+  --color-text-secondary: #5b6370;
+  --color-text-disabled: #a7a9ac;
 
   /* 2.3 Trạng thái */
-  --color-success: #1e7f3c;
-  --color-success-container: #e7f6ec;
+  --color-success: #0a7e3a;
+  --color-success-container: #e7f7ed;
   --color-warning: #8a5300;
   --color-warning-container: #fff4e0;
   --color-error: #b3261e;
   --color-error-container: #fdecea;
-  --color-neutral-container: #eef1f5;
+  --color-neutral-container: #eef0f2;
 
   /* 4.3 Độ nổi */
   --elevation-1: 0 2px 8px rgb(26 31 54 / 6%);
@@ -83,9 +84,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 8.1 Bàn phím: vòng focus 2 px Secondary cách mép 2 px, luôn hiện khi dùng bàn phím */
+/* Tên biến kiểu shadcn/ui (DESIGN.md mục 13) trỏ về token ở trên; bản 5 không còn màu nhấn thứ hai. */
+:root {
+  --ring: var(--color-primary);
+  --accent: var(--color-primary-container);
+  --accent-foreground: var(--color-primary-dark);
+  --secondary: var(--color-primary-container);
+  --secondary-foreground: var(--color-primary-dark);
+  --link: var(--color-primary-dark);
+}
+
+/* 8.1 Bàn phím: vòng focus 2 px Primary cách mép 2 px, luôn hiện khi dùng bàn phím */
 :focus-visible {
-  outline: 2px solid var(--color-secondary);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 

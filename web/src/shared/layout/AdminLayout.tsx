@@ -6,8 +6,8 @@ import { adminNav } from './navigation'
 import { PageHeaderProvider, usePageHeaderState } from './PageHeader'
 
 /**
- * W25 – khung trang web quản trị (DESIGN.md 8.1): sidebar 240 px nền trắng, mục đang chọn nền Secondary Container
- * chữ Secondary Dark icon tô đặc; header 64 px với tiêu đề Display, nút hành động chính, menu tài khoản.
+ * W25 – khung trang web quản trị (DESIGN.md 8.1): sidebar 240 px nền trắng, mục đang chọn nền Primary Container
+ * chữ Primary Dark, icon Primary tô đặc; header 64 px với tiêu đề Display, nút hành động chính, menu tài khoản.
  */
 export function AdminLayout() {
   return (
@@ -28,13 +28,13 @@ export function AdminLayout() {
                     className={({ isActive }) =>
                       clsx(
                         'flex min-h-10 items-center gap-3 rounded-md px-3 font-medium',
-                        isActive ? 'bg-secondary-container text-secondary-dark' : 'text-text-secondary hover:bg-background hover:text-text-primary',
+                        isActive ? 'bg-primary-container text-primary-dark' : 'text-text-secondary hover:bg-background hover:text-text-primary',
                       )
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        <Icon name={item.icon} filled={isActive} className={isActive ? 'text-secondary' : undefined} />
+                        <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : undefined} />
                         <span className="truncate">{item.label}</span>
                       </>
                     )}

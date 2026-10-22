@@ -75,13 +75,13 @@ function TeamHeader() {
           <p className="line-clamp-2 text-display font-semibold">{workspace.teamName}</p>
           {workspace.projectName && <p className="text-body text-text-secondary">{workspace.projectName}</p>}
         </div>
-        <StatusChip tone="secondary" icon="school">
+        <StatusChip tone="info" icon="school">
           {workspace.courseCode}
         </StatusChip>
       </div>
       {workspace.previousWorkspaceId && (
-        <p className="mt-2 flex items-center gap-1 text-body text-secondary">
-          <Icon name="history" size={20} />
+        <p className="mt-2 flex items-center gap-1 text-body text-info-dark">
+          <Icon name="history" size={20} className="text-info" />
           Tiếp tục từ EXE101
         </p>
       )}
@@ -113,7 +113,7 @@ function MentorBrief() {
           <StatusChip tone="success">Đã đủ {expected} buổi</StatusChip>
         ) : (
           <span
-            className="inline-flex h-7 items-center gap-2 rounded-full bg-secondary-container px-3 font-medium text-secondary-dark"
+            className="inline-flex h-7 items-center gap-2 rounded-full bg-info-container px-3 font-medium text-info-dark"
             aria-label={`Buổi mentor ${done} trên ${expected}`}
           >
             Buổi mentor {done}/{expected}
@@ -138,7 +138,7 @@ function StatCard({ label, value, loading, to }: { label: string; value: number;
   )
   const className = 'flex h-full flex-col justify-between gap-2 rounded-lg bg-surface p-4 shadow-elevation-1'
   return to ? (
-    <Link to={to} className={clsx(className, 'hover:bg-secondary-container/40')}>
+    <Link to={to} className={clsx(className, 'hover:bg-primary-container/40')}>
       {content}
     </Link>
   ) : (
@@ -161,9 +161,9 @@ function Shortcuts() {
         <Link
           key={item.to}
           to={item.to}
-          className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-lg bg-surface font-medium shadow-elevation-1 hover:bg-secondary-container/40"
+          className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-lg bg-surface font-medium shadow-elevation-1 hover:bg-primary-container/40"
         >
-          <Icon name={item.icon} className="text-secondary" />
+          <Icon name={item.icon} className="text-primary" />
           {item.label}
         </Link>
       ))}

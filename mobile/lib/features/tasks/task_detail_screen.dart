@@ -142,7 +142,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         Wrap(spacing: AppSpacing.s2, runSpacing: AppSpacing.s2, children: [
           StatusChip(
             label: card.status.label,
-            tone: switch (card.status) { TaskStatus.done => StatusTone.success, TaskStatus.doing => StatusTone.secondary, _ => StatusTone.neutral },
+            tone: switch (card.status) { TaskStatus.done => StatusTone.success, TaskStatus.doing => StatusTone.info, _ => StatusTone.neutral },
           ),
           DueChip(task: card),
           if (card.submissionStatus != null) SubmissionChip(status: card.submissionStatus!),

@@ -59,7 +59,7 @@ export function FilePickerDialog({ workspaceId, onClose, onPick }: {
               .map((f) => (
                 <li key={f.id}>
                   <button type="button" onClick={() => setFolderId(f.id)} className="flex min-h-12 w-full items-center gap-3 rounded-md px-2 text-left hover:bg-background">
-                    <Icon name="folder" className="text-secondary" />
+                    <Icon name="folder" className="text-primary" />
                     <span className="flex-1 truncate">{f.name}</span>
                     <Icon name="chevron_right" className="text-text-secondary" />
                   </button>

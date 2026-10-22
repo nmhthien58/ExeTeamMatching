@@ -110,7 +110,7 @@ function StatCard({ label, value, hint, to }: { label: string; value: number; hi
   )
   const className = 'flex flex-col gap-1 rounded-lg bg-surface p-6 shadow-elevation-1'
   return to ? (
-    <Link to={to} className={clsx(className, 'hover:bg-secondary-container/40')}>
+    <Link to={to} className={clsx(className, 'hover:bg-primary-container/40')}>
       {body}
     </Link>
   ) : (
@@ -128,7 +128,7 @@ function BarList({ items, unit }: { items: { label: string; count: number; warn?
         <li key={item.label} className="grid grid-cols-[96px_1fr_64px] items-center gap-3">
           <span className="truncate font-medium">{item.label}</span>
           <span className="h-3 rounded-full bg-neutral-container" aria-hidden>
-            <span className={clsx('block h-full rounded-full', item.warn ? 'bg-warning' : 'bg-secondary')} style={{ width: `${(item.count / max) * 100}%` }} />
+            <span className={clsx('block h-full rounded-full', item.warn ? 'bg-warning' : 'bg-info')} style={{ width: `${(item.count / max) * 100}%` }} />
           </span>
           <span className="text-right tabular-nums" aria-label={`${item.count} ${unit}`}>
             {item.count}

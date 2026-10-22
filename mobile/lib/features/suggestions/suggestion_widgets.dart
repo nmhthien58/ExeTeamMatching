@@ -16,7 +16,7 @@ class FitChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => StatusChip(
         label: fitLabel(score),
-        tone: score >= 0.6 ? StatusTone.success : score >= 0.3 ? StatusTone.secondary : StatusTone.neutral,
+        tone: score >= 0.6 ? StatusTone.success : score >= 0.3 ? StatusTone.info : StatusTone.neutral,
         icon: Icons.auto_awesome,
       );
 }

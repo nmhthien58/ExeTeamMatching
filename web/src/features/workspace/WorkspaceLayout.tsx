@@ -69,7 +69,7 @@ function WorkspaceTabs({ basePath }: { basePath: string }) {
           className={({ isActive }) =>
             clsx(
               'inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full px-4 font-medium',
-              isActive ? 'bg-secondary text-white' : 'border border-border-strong bg-surface text-text-primary hover:bg-background',
+              isActive ? 'bg-primary text-white' : 'border border-border-strong bg-surface text-text-primary hover:bg-background',
             )
           }
         >
