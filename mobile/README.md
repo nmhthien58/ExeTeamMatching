@@ -26,5 +26,7 @@ Cấu trúc: `lib/app` (MaterialApp, router, shell theo vai trò), `lib/core` (c
 
 - Chưa đăng nhập → A03 (`/dang-nhap`); email không có trong danh sách → A04. Tài khoản chỉ có vai trò Admin → màn nhắc dùng web.
 - Sinh viên `/sv/*`, giảng viên `/gv/*` (gồm nhóm mình làm mentor), mentor `/mentor/*`. Tab bar đổi theo giai đoạn: Khám phá ↔ Dự án (sinh viên), Đề tài trong đợt lập nhóm / Lịch trong học kỳ (giảng viên), Đề tài trước tuần 6 / Nhóm từ tuần 6 (mentor).
-- Danh sách tab kèm mã màn hình và người phụ trách: `lib/app/navigation.dart`. Mỗi tab đang là `ScreenPlaceholder`; người làm thay bằng màn hình trong `lib/features/<mảng>/` và thêm màn cấp 2 vào `lib/app/router.dart`.
+- Danh sách tab kèm mã màn hình và người phụ trách: `lib/app/navigation.dart`. Tab nào chưa có màn hình thì hiện `ScreenPlaceholder`.
+- Người làm màn hình thêm vào `lib/app/feature_routes.dart`: màn của tab vào `tabScreens` (khóa là đường dẫn tab), màn cấp 2 (mở bằng `context.push`) vào `featureRoutes(shell)`. Mỗi mảng chỉ thêm dòng của mình để tránh conflict; không sửa `router.dart`.
+- Đã có màn hình thật (22/10/2026): C01, C04–C06 (`/sv/du-an/*`, `/gv/du-an/:workspaceId/*`, `/mentor/du-an/:workspaceId/*`); S07, S18, S19, S30, S31.
 - Đường dẫn cũ tới Khám phá sau khi đợt đóng mở hộp nhắc (`TeamFormationOnly`), theo quy tắc 18.
