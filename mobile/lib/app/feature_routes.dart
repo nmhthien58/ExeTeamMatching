@@ -1,0 +1,71 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../features/files/files_screen.dart';
+import '../features/tasks/task_board_screen.dart';
+import '../features/tasks/task_detail_screen.dart';
+import '../features/workspace/project_overview_screen.dart';
+import '../shared/widgets/states.dart';
+import 'navigation.dart';
+
+/// Màn hình thật của các tab (thay ScreenPlaceholder). Mỗi mảng thêm tab của mình vào đây.
+final Map<String, Widget Function(GoRouterState state)> tabScreens = {
+  '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
+};
+
+/// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
+List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
+      Shell.student => _workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
+      Shell.lecturer => [_advisorWorkspace('/gv/du-an')],
+      Shell.mentor => [_advisorWorkspace('/mentor/du-an')],
+    };
+
+/// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).
+GoRoute _advisorWorkspace(String base) => GoRoute(
+      path: '$base/:workspaceId',
+      builder: (_, state) => ProjectOverviewScreen(basePath: '$base/${state.pathParameters['workspaceId']}', workspaceId: state.pathParameters['workspaceId']),
+      routes: _workspaceRoutes(
+        '',
+        workspaceIdOf: (s) => s.pathParameters['workspaceId'],
+        basePathOf: (s) => '$base/${s.pathParameters['workspaceId']}',
+      ),
+    );
+
+/// C04, C05, C06 (MB-40, MB-41); Tin nhắn (C02, Cường) và Lịch họp (C07, Nam) giữ chỗ tới khi module đó xong.
+/// [prefix] là phần đầu đường dẫn (rỗng khi lồng trong route dự án của cố vấn).
+List<GoRoute> _workspaceRoutes(
+  String prefix, {
+  required String? Function(GoRouterState) workspaceIdOf,
+  required String Function(GoRouterState) basePathOf,
+}) {
+  return [
+    GoRoute(
+      path: '${prefix}viec',
+      builder: (_, s) => TaskBoardScreen(
+        basePath: basePathOf(s),
+        workspaceId: workspaceIdOf(s),
+        mine: s.uri.queryParameters['mine'] == '1',
+        deliverablesOnly: s.uri.queryParameters['kind'] == 'DELIVERABLE',
+        openCreate: s.uri.queryParameters['tao'] == '1',
+      ),
+    ),
+    GoRoute(path: '${prefix}viec/:taskId', builder: (_, s) => TaskDetailScreen(taskId: s.pathParameters['taskId']!, workspaceId: workspaceIdOf(s))),
+    GoRoute(path: '${prefix}file', builder: (_, s) => FilesScreen(workspaceId: workspaceIdOf(s))),
+    GoRoute(path: '${prefix}tin-nhan', builder: (_, _) => const _Pending(screen: 'C02', title: 'Tin nhắn', owner: 'Cường')),
+    GoRoute(path: '${prefix}lich-hop', builder: (_, _) => const _Pending(screen: 'C07', title: 'Lịch họp', owner: 'Nam')),
+  ];
+}
+
+class _Pending extends StatelessWidget {
+  const _Pending({required this.screen, required this.title, required this.owner});
+
+  final String screen;
+  final String title;
+  final String owner;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: EmptyState(icon: Icons.construction, title: '$screen · $title', description: 'Màn hình đang được làm – người phụ trách: $owner.'),
+      );
+}

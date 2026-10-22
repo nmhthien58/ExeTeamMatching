@@ -57,7 +57,7 @@ void main() {
 
     await tester.tap(find.text('Mở dự án'));
     await tester.pumpAndSettle();
-    expect(find.text('C01 · Dự án'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Dự án'), findsOneWidget);
   });
 
   testWidgets('giảng viên làm mentor dùng khung giảng viên; ngoài đợt lập nhóm có tab Lịch', (tester) async {

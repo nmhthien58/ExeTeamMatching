@@ -196,11 +196,17 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       Kestrel__EndpointDefaults__Protocols: Http2
       Kafka__BootstrapServers: kafka:29092
+      ConnectionStrings__Redis: redis:6379   # read model (BE-35)
     ports:
       - "5004:8080"
     healthcheck:
       <<: *dotnet-healthcheck
       test: ["CMD-SHELL", "curl -fsS --http2-prior-knowledge http://localhost:8080/health || exit 1"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
 
   notification:
     build:
@@ -232,8 +238,14 @@ services:
         APP_DLL: Jobs.Host.dll
     container_name: exe-jobs
     environment:
+      <<: *jwt-env   # ký token dịch vụ cho /internal/* (BE-51)
       ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__JobDb: Host=postgres;Port=5432;Database=job_db;Username=job_svc;Password=${JOB_DB_PASSWORD:-job_dev_pw}
       Kafka__BootstrapServers: kafka:29092
+      Jobs__AcademicUrl: http://academic-api:8080
+      Jobs__TeamUrl: http://team-api:8080
+      Jobs__MatchingUrl: http://matching-grpc:8080
+      Jobs__CollabUrl: http://collab-api:8080
     ports:
       - "5006:8080"
     healthcheck: *dotnet-healthcheck
