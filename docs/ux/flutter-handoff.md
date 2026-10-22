@@ -7,6 +7,7 @@
 **Phạm vi.** Spec đầy đủ 6 mục cho **18 màn hình và overlay nằm trong 3 flow** (mục 4). Các màn còn lại (S02–S04, S10–S14, S16, S19–S26, S30, S31, L02, L05, L06, A01, A02, A07) dùng cùng quy ước; nội dung và trạng thái của chúng nằm trong file Excel danh sách màn hình.
 
 
+> **Cập nhật 22/10/2026:** token theo `DESIGN.md` **bản 5** – mã màu FPT theo sổ tay thương hiệu: cam FPT cho mọi thứ bấm được và đang chọn, xanh dương FPT chỉ cho thông tin (nhóm `info`), bỏ nhóm `secondary`.
 > **Cập nhật 19/10/2026 (sau góp ý của giảng viên):** token theo `DESIGN.md` bản 4 (cam / xanh FPT); widget mới ở mục 2; A05 viết lại theo quy tắc 16; spec 6 mục cho màn hình mới và màn hình thay đổi ở **mục 4a**. Các màn trong 3 flow của Lab 2 vẫn khớp Figma, trừ phần màu và các chỗ ghi "(bản 4)".
 ---
 
@@ -14,9 +15,10 @@
 
 | Token (Figma variables) | Flutter |
 |---|---|
-| `color/primary` (cam `#C2410C`) | `ColorScheme.primary` |
+| `color/primary` (cam FPT đậm `#C6510B`) | `ColorScheme.primary` |
 | Trắng trên Primary | `ColorScheme.onPrimary` |
-| `color/secondary` (xanh `#0E5BA8`), `color/secondary-container`, `color/secondary-dark` | `ColorScheme.secondary`, `secondaryContainer`, `onSecondaryContainer`; trắng trên Secondary = `onSecondary` |
+| `color/primary-dark` `#A8440F` cho chữ cam (link, nút chữ, nút phụ) | `textButtonTheme` / `outlinedButtonTheme`: `foregroundColor` = Primary Dark; `ColorScheme.secondary` = Primary Dark |
+| `color/info` (xanh dương FPT `#0066B3`), `color/info-container`, `color/info-dark` | `ThemeExtension<AppColors>`: `info`, `infoContainer`, `onInfoContainer` – chỉ cho chip domain, chip lý do ghép, trạng thái "Thông tin", banner thông tin |
 | `color/primary-container` | `ColorScheme.primaryContainer` |
 | `color/primary-dark` | `ColorScheme.onPrimaryContainer` |
 | `color/surface` | `ColorScheme.surface` |
@@ -27,7 +29,7 @@
 | `color/border` | `ColorScheme.outlineVariant` |
 | `color/error`, `color/error-container` | `ColorScheme.error`, `ColorScheme.errorContainer` |
 | `color/scrim` | `ColorScheme.scrim` |
-| `color/brand-orange`, `color/primary-border`, nhóm success / warning / neutral, `color/text-disabled` | `ThemeExtension<AppColors>` |
+| `color/brand-orange`, `color/brand-green`, `color/primary-border`, nhóm success / warning / neutral, `color/text-disabled` | `ThemeExtension<AppColors>` |
 | `type/display` … `type/caption` | `TextTheme`: `headlineSmall`, `titleLarge`, `titleMedium`, `bodyLarge`, `bodyMedium`, `labelLarge`, `bodySmall`, `labelSmall` |
 | `space/*`, `radius/*` | Hằng số trong `AppSpacing`, `AppRadius` |
 | `elevation/0–2` | `elevation: 0`, `1`, `3`, `shadowColor` = Text Primary |
@@ -62,7 +64,7 @@
 | Tin nhắn (bản 4) | `MessageBubble`, `MessageComposer`, danh sách `ListView.builder(reverse: true)`; kết nối hub `/hubs/collab` bằng gói `signalr_netcore` |
 | Bảng việc, dòng file, khung giờ họp (bản 4) | `TaskCard` (Card), `FileTile` (ListTile), `SlotVoteTile` với `SegmentedButton` Có / Không |
 | Chỉ báo quan tâm, nhãn vai trò (bản 4) | `InterestButton` (OutlinedButton.icon ↔ FilledButton.tonal), `RoleChip` (Chip) |
-| Nguyện vọng, lý do ghép (bổ sung 20/10) | `PreferenceList` (`ReorderableListView` 3 ô + nút lên/xuống cho người không kéo được), `MatchReasonChip` (Chip Secondary Container: "Hai bên cùng chọn", "Nguyện vọng 2"…) |
+| Nguyện vọng, lý do ghép (bổ sung 20/10) | `PreferenceList` (`ReorderableListView` 3 ô + nút lên/xuống cho người không kéo được), `MatchReasonChip` (Chip Info Container: "Hai bên cùng chọn", "Nguyện vọng 2"…) |
 | Checkpoint, lịch họp hằng tuần (bổ sung 20/10) | `CheckpointProgress` (4 chấm + "Checkpoint 2/4", `Semantics` đọc đủ câu), `WeeklySlotGrid` (lưới ô slot, mỗi ô là nút có nhãn), `TimeRangeField` |
 
 ## 3. Quy ước chung cho mọi màn hình
@@ -73,7 +75,7 @@
 - **Lỗi:** lỗi tải cả màn → `ErrorState` có nút "Thử lại"; lỗi khi gửi → banner lỗi nền Error Container có "Thử lại", giữ nguyên nội dung đã nhập. Không dùng `SnackBar` cho lỗi.
 - **Nút vô hiệu** luôn kèm một dòng nêu lý do.
 - **Điều hướng:** màn cấp 1 (tab) không có Back; màn cấp 2 Back về đúng màn cha; sau khi gửi thành công, Back không quay lại form đã gửi.
-- **Một nút Primary (cam)** mỗi màn hình; điều hướng, lựa chọn, link dùng Secondary (xanh).
+- **Một nút Primary tô đặc (cam)** mỗi màn hình; điều hướng, lựa chọn, link cũng là cam nhưng ở dạng viền, chữ Primary Dark hoặc nền Primary Container. Xanh dương FPT chỉ cho thông tin không bấm được.
 - **Tab bar theo giai đoạn (bản 4):** shell đọc `phase` của môn từ Academic (`GET /api/semesters/current`) lúc khởi động và khi kéo để làm mới; giai đoạn học kỳ thì tab Khám phá đổi thành Dự án (C01). Route tới S05, S08, S10 kiểm tra `phase` trong `redirect` của go_router và mở `showPhaseClosedDialog` thay vì màn hình. API trả `409 round-closed` cũng mở hộp nhắc này.
 - **Ít chữ (bản 4):** theo `DESIGN.md` mục 9.1 – tiêu đề 1–3 từ, nút ≤ 3 từ, thẻ tối đa một dòng mô tả.
 - **Mẫu tương tác (bản 4):** theo `DESIGN.md` mục 6.4 – Hoàn tác cho thao tác đổi lại được, dialog cho thao tác không đổi lại được; cập nhật lạc quan cho gửi tin, đổi trạng thái việc, chọn khung giờ (Riverpod: cập nhật state trước, rollback khi API lỗi); kéo thả luôn có menu "Chuyển sang…"; badge giữ chỗ cố định, `Semantics(liveRegion: true)` một lần cho mỗi màn.
