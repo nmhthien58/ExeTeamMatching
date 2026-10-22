@@ -100,7 +100,7 @@ function Suggestions({ team }: { team: TeamDetail }) {
       )}
 
       {isLeader && !isFull && (
-        <Link to="/sv/nhom/moi" className="self-start font-medium text-secondary hover:underline">
+        <Link to="/sv/nhom/moi" className="self-start font-medium text-primary-dark hover:underline">
           Tìm theo tên hoặc MSSV
         </Link>
       )}

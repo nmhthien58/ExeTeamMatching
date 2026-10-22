@@ -5,7 +5,7 @@ import 'format.dart';
 import 'workspace_models.dart';
 
 /// Năm nhóm màu trạng thái (DESIGN.md mục 7), mỗi nhóm một icon mặc định.
-enum StatusTone { warning, success, error, secondary, neutral }
+enum StatusTone { warning, success, error, info, neutral }
 
 /// Chip trạng thái: luôn có chữ, icon đứng trước; không cắt chữ.
 class StatusChip extends StatelessWidget {
@@ -23,7 +23,7 @@ class StatusChip extends StatelessWidget {
       StatusTone.warning => (colors.warningContainer, colors.warning, Icons.schedule),
       StatusTone.success => (colors.successContainer, colors.success, Icons.check_circle_outline),
       StatusTone.error => (scheme.errorContainer, scheme.error, Icons.cancel_outlined),
-      StatusTone.secondary => (scheme.secondaryContainer, scheme.onSecondaryContainer, Icons.verified_outlined),
+      StatusTone.info => (colors.infoContainer, colors.onInfoContainer, Icons.verified_outlined),
       StatusTone.neutral => (colors.neutralContainer, scheme.onSurfaceVariant, Icons.remove_circle_outline),
     };
     return Container(
@@ -93,8 +93,8 @@ class Avatar extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: context.appColors.primaryBorder,
-          border: isMentor ? Border.all(color: scheme.secondary, width: 2) : null,
+          color: scheme.primaryContainer,
+          border: isMentor ? Border.all(color: context.appColors.info, width: 2) : null,
         ),
         child: Text(
           initials(name),
@@ -266,7 +266,7 @@ class _CommentComposerState extends State<CommentComposer> {
             tooltip: 'Gửi bình luận',
             onPressed: _sending ? null : _send,
             icon: _sending ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send),
-            color: Theme.of(context).colorScheme.secondary,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ],
       );

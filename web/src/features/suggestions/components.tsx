@@ -29,7 +29,7 @@ export function DomainChips({ domains }: { domains: CatalogRef[] }) {
   return (
     <span className="flex flex-wrap gap-2">
       {domains.slice(0, 2).map((d) => (
-        <span key={d.id} className="inline-flex h-8 items-center rounded-full bg-secondary-container px-3 font-medium text-secondary-dark">
+        <span key={d.id} className="inline-flex h-8 items-center rounded-full bg-info-container px-3 font-medium text-info-dark">
           {d.code} {d.name}
         </span>
       ))}

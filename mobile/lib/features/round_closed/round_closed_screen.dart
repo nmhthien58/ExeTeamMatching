@@ -32,13 +32,13 @@ class RoundClosedScreen extends ConsumerWidget {
             DeadlineBanner(deadline: closedAt ?? DateTime.now().subtract(const Duration(minutes: 1))),
             const SizedBox(height: AppSpacing.s6),
             if (t != null) ...[
-              Icon(Icons.groups_outlined, size: 48, color: theme.colorScheme.secondary),
+              Icon(Icons.groups_outlined, size: 48, color: theme.colorScheme.primary),
               const SizedBox(height: AppSpacing.s3),
               Text(t.card.name, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
               const SizedBox(height: AppSpacing.s2),
               Center(
                 child: t.card.status == 'FINALIZED'
-                    ? const StatusChip(label: 'Đã chốt', tone: StatusTone.secondary)
+                    ? const StatusChip(label: 'Đã chốt', tone: StatusTone.info)
                     : const StatusChip(label: 'Bộ môn đang xem lại', tone: StatusTone.warning, icon: Icons.error_outline),
               ),
               const SizedBox(height: AppSpacing.s3),
@@ -47,7 +47,7 @@ class RoundClosedScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.s6),
               FilledButton(onPressed: () => context.go('/sv/du-an'), child: const Text('Mở dự án')),
             ] else ...[
-              Icon(Icons.auto_awesome, size: 48, color: theme.colorScheme.secondary),
+              Icon(Icons.auto_awesome, size: 48, color: theme.colorScheme.primary),
               const SizedBox(height: AppSpacing.s3),
               Text('Bạn sẽ được ghép nhóm tự động', style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
               const SizedBox(height: AppSpacing.s2),

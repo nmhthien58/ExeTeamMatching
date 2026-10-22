@@ -84,9 +84,9 @@ export interface Paged<T> {
 }
 
 /** Nhãn mức phù hợp – điểm chỉ để sắp xếp, không hiện số % (matching.proto). */
-export function fitLabel(score: number): { text: string; tone: 'success' | 'secondary' | 'neutral' } {
+export function fitLabel(score: number): { text: string; tone: 'success' | 'info' | 'neutral' } {
   if (score >= 0.6) return { text: 'Rất phù hợp', tone: 'success' }
-  if (score >= 0.3) return { text: 'Phù hợp', tone: 'secondary' }
+  if (score >= 0.3) return { text: 'Phù hợp', tone: 'info' }
   return { text: 'Có thể phù hợp', tone: 'neutral' }
 }
 

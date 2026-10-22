@@ -4,16 +4,16 @@ import { Icon } from '@/shared/components/ui'
 import type { PersonRef, WorkspaceRole } from './api'
 import { initials } from './format'
 
-/** Avatar chữ (DESIGN.md mục 5): chữ Primary Dark trên nền Primary Border; mentor có viền Secondary. */
+/** Avatar chữ (DESIGN.md mục 5): chữ Primary Dark trên nền Primary Container; mentor có viền Info. */
 export function Avatar({ name, size = 32, isMentor = false }: { name: string; size?: 24 | 32 | 40; isMentor?: boolean }) {
   return (
     <span
       title={name}
       aria-hidden
       className={clsx(
-        'inline-grid shrink-0 place-items-center rounded-full bg-primary-border font-semibold text-primary-dark',
+        'inline-grid shrink-0 place-items-center rounded-full bg-primary-container font-semibold text-primary-dark',
         size === 24 ? 'size-6 text-[10px]' : size === 32 ? 'size-8 text-caption' : 'size-10 text-body',
-        isMentor && 'ring-2 ring-secondary',
+        isMentor && 'ring-2 ring-info',
       )}
     >
       {initials(name)}

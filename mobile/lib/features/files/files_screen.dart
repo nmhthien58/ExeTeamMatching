@@ -216,7 +216,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                           Card.outlined(
                             child: ListTile(
                               leading: Icon(f.isArchive ? Icons.history : Icons.folder_outlined,
-                                  color: f.isArchive ? Theme.of(context).colorScheme.secondary : context.appColors.brandOrange),
+                                  color: f.isArchive ? context.appColors.info : context.appColors.brandOrange),
                               title: Text(f.name),
                               subtitle: Text('${f.itemCount} mục'),
                               trailing: f.isArchive ? const Icon(Icons.lock_outline, semanticLabel: 'Chỉ xem') : const Icon(Icons.chevron_right),

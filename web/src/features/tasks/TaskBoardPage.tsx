@@ -124,7 +124,7 @@ export function TaskBoardPage() {
                 onClick={() => setTab(column.status)}
                 className={clsx(
                   'min-h-12 flex-1 border-b-2 font-medium',
-                  tab === column.status ? 'border-secondary text-secondary-dark' : 'border-transparent text-text-secondary',
+                  tab === column.status ? 'border-primary text-primary-dark' : 'border-transparent text-text-secondary',
                 )}
               >
                 {statusLabels[column.status]} ({column.tasks.length})
@@ -156,7 +156,7 @@ function FilterChip({ label, active, onToggle }: { label: string; active: boolea
       onClick={() => onToggle(!active)}
       className={clsx(
         'inline-flex min-h-10 items-center gap-1 rounded-full px-4 font-medium',
-        active ? 'bg-secondary text-white' : 'border border-border-strong bg-surface text-text-primary hover:bg-background',
+        active ? 'bg-primary text-white' : 'border border-border-strong bg-surface text-text-primary hover:bg-background',
       )}
     >
       {active && <Icon name="check" size={20} />}
@@ -193,7 +193,7 @@ function BoardColumn({ status, tasks, canMove, basePath, onDrop, findTask, onMov
       }}
       onDragLeave={() => setOver(false)}
       onDrop={(e) => dropAt(e)}
-      className={clsx('flex min-h-40 flex-col gap-3 rounded-lg p-3', over ? 'bg-secondary-container' : 'bg-neutral-container/60')}
+      className={clsx('flex min-h-40 flex-col gap-3 rounded-lg p-3', over ? 'bg-primary-container' : 'bg-neutral-container/60')}
     >
       <h2 className="flex items-center justify-between text-subtitle font-semibold">
         {statusLabels[status]}

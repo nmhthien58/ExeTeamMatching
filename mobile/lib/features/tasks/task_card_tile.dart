@@ -32,7 +32,7 @@ class TaskCardTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (task.isDeliverable) ...[
-                    Icon(Icons.assignment_outlined, color: theme.colorScheme.secondary, semanticLabel: 'Bài nộp'),
+                    Icon(Icons.assignment_outlined, color: context.appColors.info, semanticLabel: 'Bài nộp'),
                     const SizedBox(width: AppSpacing.s2),
                   ],
                   Expanded(child: Text(task.title, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis)),

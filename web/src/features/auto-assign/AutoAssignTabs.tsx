@@ -20,7 +20,7 @@ export function AutoAssignTabs() {
           className={({ isActive }) =>
             clsx(
               'inline-flex min-h-12 items-center border-b-2 px-4 font-medium',
-              isActive ? 'border-secondary text-secondary-dark' : 'border-transparent text-text-secondary hover:text-text-primary',
+              isActive ? 'border-primary text-primary-dark' : 'border-transparent text-text-secondary hover:text-text-primary',
             )
           }
         >

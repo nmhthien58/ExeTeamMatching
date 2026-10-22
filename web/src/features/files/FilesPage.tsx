@@ -261,7 +261,7 @@ export function FilesPage() {
 function Breadcrumb({ trail, onOpen }: { trail: Folder[]; onOpen: (id?: string) => void }) {
   return (
     <nav aria-label="Đường dẫn thư mục" className="flex min-w-0 flex-wrap items-center gap-1">
-      <button type="button" onClick={() => onOpen(undefined)} className="min-h-10 rounded-md px-2 font-medium text-secondary hover:bg-secondary-container">
+      <button type="button" onClick={() => onOpen(undefined)} className="min-h-10 rounded-md px-2 font-medium text-primary-dark hover:bg-primary-container">
         Tất cả file
       </button>
       {trail.map((f, i) => (
@@ -272,7 +272,7 @@ function Breadcrumb({ trail, onOpen }: { trail: Folder[]; onOpen: (id?: string) 
               {f.name}
             </span>
           ) : (
-            <button type="button" onClick={() => onOpen(f.id)} className="min-h-10 rounded-md px-2 font-medium text-secondary hover:bg-secondary-container">
+            <button type="button" onClick={() => onOpen(f.id)} className="min-h-10 rounded-md px-2 font-medium text-primary-dark hover:bg-primary-container">
               {f.name}
             </button>
           )}
@@ -286,7 +286,7 @@ function FolderRow({ folder, onOpen }: { folder: Folder; onOpen: () => void }) {
   return (
     <li className="border-b border-border last:border-none">
       <button type="button" onClick={onOpen} className="flex min-h-16 w-full items-center gap-3 px-4 text-left hover:bg-background">
-        <Icon name={folder.isArchive ? 'history' : 'folder'} className={folder.isArchive ? 'text-secondary' : 'text-brand-orange'} />
+        <Icon name={folder.isArchive ? 'history' : 'folder'} className={folder.isArchive ? 'text-info' : 'text-brand-orange'} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-body-lg">{folder.name}</span>
           <span className="block text-body text-text-secondary">{folder.itemCount} mục</span>
@@ -324,7 +324,7 @@ function FileRow({ file, onOpen, onDelete }: { file: ProjectFile; onOpen: () => 
 function UploadRow({ state, onRetry, onDismiss }: { state: UploadState; onRetry: () => void; onDismiss: () => void }) {
   return (
     <div className={clsx('mb-3 flex items-center gap-3 rounded-md px-4 py-3', state.error ? 'bg-error-container' : 'bg-surface shadow-elevation-1')}>
-      <Icon name={state.error ? 'error' : 'upload'} className={state.error ? 'text-error' : 'text-secondary'} />
+      <Icon name={state.error ? 'error' : 'upload'} className={state.error ? 'text-error' : 'text-primary'} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{state.file.name}</p>
         {state.error ? (

@@ -36,10 +36,10 @@ export function RoundClosedPage() {
           <Skeleton className="h-40 rounded-lg" />
         ) : team.data ? (
           <section className="flex flex-col items-center gap-3 rounded-lg bg-surface p-6 text-center shadow-elevation-1">
-            <Icon name="groups" size={48} className="text-secondary" />
+            <Icon name="groups" size={48} className="text-primary" />
             <p className="text-subtitle font-semibold">{team.data.name}</p>
             {team.data.status === 'FINALIZED' ? (
-              <StatusChip tone="secondary">Đã chốt</StatusChip>
+              <StatusChip tone="info">Đã chốt</StatusChip>
             ) : (
               <StatusChip tone="warning" icon="error">Bộ môn đang xem lại</StatusChip>
             )}
@@ -50,12 +50,12 @@ export function RoundClosedPage() {
           </section>
         ) : (
           <section className="flex flex-col items-center gap-3 rounded-lg bg-surface p-6 text-center shadow-elevation-1">
-            <Icon name="auto_awesome" size={48} className="text-secondary" />
+            <Icon name="auto_awesome" size={48} className="text-primary" />
             <p className="text-subtitle font-semibold">Bạn sẽ được ghép nhóm tự động</p>
             <p className="max-w-[420px] text-body text-text-secondary">
               Hệ thống đưa bạn vào nhóm còn thiếu người hoặc lập nhóm mới đủ 4–6 người, ít nhất 2 chuyên ngành. Bạn sẽ nhận thông báo khi có kết quả.
             </p>
-            <Link to="/sv/thong-bao" className={`${linkClass} border border-secondary text-secondary hover:bg-secondary-container`}>
+            <Link to="/sv/thong-bao" className={`${linkClass} border border-primary text-primary-dark hover:bg-primary-container`}>
               Xem thông báo
             </Link>
           </section>
