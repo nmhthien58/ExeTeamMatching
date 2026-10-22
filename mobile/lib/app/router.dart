@@ -6,6 +6,7 @@ import '../core/auth/session.dart';
 import '../core/providers.dart';
 import '../features/auth/login_screen.dart';
 import '../shared/widgets/states.dart';
+import 'feature_routes.dart';
 import 'navigation.dart';
 import 'role_shell.dart';
 
@@ -66,9 +67,10 @@ ShellRoute _shellRoute(Shell shell) {
             key: state.pageKey,
             child: tab.path == '/sv/kham-pha'
                 ? TeamFormationOnly(child: ScreenPlaceholder(item: tab))
-                : ScreenPlaceholder(item: tab),
+                : tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab),
           ),
         ),
+      ...featureRoutes(shell),
       // Đường dẫn lạ trong khung → về trang chủ của khung.
       GoRoute(path: '$home/:rest(.*)', redirect: (_, _) => home),
     ],
