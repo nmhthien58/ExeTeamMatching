@@ -47,6 +47,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       await (widget.onboardingStore ?? OnboardingStore()).markSeen();
       if (mounted) widget.onFinished();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Không lưu được trạng thái giới thiệu. Vui lòng thử lại.',
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _finishing = false);
     }
