@@ -20,6 +20,50 @@ public sealed class NotificationTests
         new Claim(ClaimNames.Roles, Roles.Student),
     ], "test", ClaimNames.Name, ClaimNames.Roles));
 
+    private static ClaimsPrincipal Admin() => new(new ClaimsIdentity(
+    [
+        new Claim(ClaimNames.Roles, Roles.Admin),
+    ], "test", ClaimNames.Name, ClaimNames.Roles));
+
+    [Fact]
+    public async Task Admin_sees_only_global_admin_notifications_and_cannot_set_email_preferences()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        db.Notifications.AddRange(
+            new UserNotification { Id = Guid.NewGuid(), RecipientType = "ADMIN", RecipientId = null,
+                Type = "Announcement", Title = "Quản trị", Content = "Nội dung", CreatedAt = DateTimeOffset.UtcNow },
+            new UserNotification { Id = Guid.NewGuid(), RecipientType = "STUDENT", RecipientId = studentId,
+                Type = "InvitationSent", Title = "Sinh viên", Content = "Nội dung", CreatedAt = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+        var service = new NotificationService(db);
+
+        var page = await service.ListAsync(Admin(), 1, 20, false, default);
+        Assert.Equal("Quản trị", Assert.Single(page.Items).Title);
+        Assert.Equal(1, (await service.UnreadAsync(Admin(), default)).Count);
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.PreferencesAsync(Admin(), default));
+    }
+
+    [Fact]
+    public async Task Read_is_idempotent_and_missing_notification_is_not_found()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var notification = new UserNotification { Id = Guid.NewGuid(), RecipientType = "STUDENT",
+            RecipientId = studentId, Type = "InvitationSent", Title = "Lời mời", Content = "Nội dung",
+            CreatedAt = DateTimeOffset.UtcNow };
+        db.Notifications.Add(notification);
+        await db.SaveChangesAsync();
+        var service = new NotificationService(db);
+
+        await service.ReadAsync(Student(studentId), notification.Id, default);
+        var firstReadAt = notification.ReadAt;
+        await service.ReadAsync(Student(studentId), notification.Id, default);
+        Assert.Equal(firstReadAt, notification.ReadAt);
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            service.ReadAsync(Student(studentId), Guid.NewGuid(), default));
+    }
+
     [Fact]
     public async Task Contact_event_and_invitation_create_one_notification_and_email_log()
     {
