@@ -411,4 +411,59 @@ public sealed class NotificationTests
         Assert.Contains(db.Notifications, x => x.RecipientType == "STUDENT" && x.RecipientId == studentId);
         Assert.Contains(db.Notifications, x => x.RecipientType == "LECTURER" && x.RecipientId == lecturerId);
     }
+
+    [Theory]
+    [InlineData("LecturerAssigned", "MUTUAL", "hai phía cùng chọn")]
+    [InlineData("LecturerAssigned", "PREFERENCE", "nguyện vọng của nhóm")]
+    [InlineData("LecturerAssigned", "LECTURER_INTEREST", "giảng viên quan tâm")]
+    [InlineData("LecturerAssigned", "PREVIOUS_INSTRUCTOR", "giảng viên hướng dẫn kỳ trước")]
+    [InlineData("LecturerAssigned", "DOMAIN", "phù hợp chuyên môn")]
+    [InlineData("LecturerAssigned", "MANUAL", "Bộ môn phân công")]
+    [InlineData("MentorAssigned", "MENTOR_INTEREST", "mentor quan tâm")]
+    [InlineData("MentorAssigned", "DOMAIN", "phù hợp chuyên môn")]
+    [InlineData("MentorAssigned", "MANUAL", "Bộ môn phân công")]
+    public async Task Advisor_assignment_explains_reason_to_advisor_and_students(
+        string eventType, string reason, string explanation)
+    {
+        await using var db = Database();
+        var advisorId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var payload = eventType == "LecturerAssigned"
+            ? (object)new { lecturerId = advisorId, lecturerName = "Giảng viên A",
+                reason, memberStudentIds = new[] { studentId } }
+            : new { mentorId = advisorId, mentorName = "Mentor A",
+                reason, memberStudentIds = new[] { studentId } };
+        var envelope = EventEnvelope.Create(eventType, payload, "assignment", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(2, await db.Notifications.CountAsync());
+        Assert.All(db.Notifications, item => Assert.Contains(explanation, item.Content));
+        Assert.Contains(db.Notifications, item => item.RecipientId == studentId);
+        Assert.Contains(db.Notifications, item => item.RecipientId == advisorId);
+    }
+
+    [Theory]
+    [InlineData("LEADER", "Đã đặt giờ họp hằng tuần")]
+    [InlineData("INSTRUCTOR", "Giảng viên đã đổi giờ họp hằng tuần")]
+    [InlineData("AUTO", "Hệ thống đã xếp giờ họp hằng tuần")]
+    public async Task Meeting_slot_booking_explains_source_to_students(string source, string expectedTitle)
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("MeetingSlotBooked", new
+        {
+            workspaceId = Guid.NewGuid(), startTime = "09:15", source,
+            recipients = new[] { new { personType = "STUDENT", personId = studentId } },
+        }, "collab", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        var notification = Assert.Single(db.Notifications);
+        Assert.Equal(expectedTitle, notification.Title);
+        Assert.Contains("09:15", notification.Content);
+        Assert.Equal(studentId, notification.RecipientId);
+    }
 }

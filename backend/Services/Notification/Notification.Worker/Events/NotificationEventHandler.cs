@@ -219,7 +219,6 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
             "TeamFinalized" => ("Nhóm đã được chốt", "Danh sách thành viên nhóm đã được chốt.", teamLink),
             "TeamNeedsReview" => ("Nhóm cần xem xét", "Có nhóm chưa đủ điều kiện sau khi đóng đợt.", "app://admin/teams"),
             "DeadlineApproaching" => ("Sắp hết hạn lập nhóm", "Đợt lập nhóm sắp đóng. Hãy hoàn tất nhóm của bạn.", "app://teams"),
-            "TopicInterestClosed" => ("Quan tâm đề tài đã đóng", "Bạn không còn theo dõi đề tài này trong đợt ghép cố vấn.", teamLink),
             "AdvisorQuestionAsked" => ("Nhóm hỏi cố vấn", String(data, "preview") ?? "Nhóm có câu hỏi cần bạn trả lời.", workspaceLink),
             "AdvisorQuestionAnswered" => ("Cố vấn đã trả lời", "Câu hỏi của nhóm đã được trả lời.", workspaceLink),
             "UserMentioned" => ("Bạn được nhắc tên", "Có người nhắc đến bạn trong tin nhắn.", workspaceLink),
@@ -231,7 +230,12 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
             "MeetingScheduled" => ("Đã chốt lịch họp", "Lịch họp của nhóm đã được xác nhận.", workspaceLink),
             "MeetingCancelled" => ("Lịch họp bị hủy", "Một cuộc họp của nhóm đã bị hủy.", workspaceLink),
             "MeetingSlotsPublished" => ("Đã mở lịch họp hằng tuần", "Giảng viên đã đăng các khung giờ họp. Hãy chọn giờ cho nhóm.", "app://meeting-schedule"),
-            "MeetingSlotBooked" => ("Đã đặt giờ họp hằng tuần", $"Nhóm có giờ họp {String(data, "startTime") ?? "mới"}.", workspaceLink),
+            "MeetingSlotBooked" => (String(data, "source") switch
+                {
+                    "INSTRUCTOR" => "Giảng viên đã đổi giờ họp hằng tuần",
+                    "AUTO" => "Hệ thống đã xếp giờ họp hằng tuần",
+                    _ => "Đã đặt giờ họp hằng tuần",
+                }, $"Nhóm có giờ họp {String(data, "startTime") ?? "mới"}.", workspaceLink),
             "CheckpointReviewed" => ("Checkpoint đã được ghi nhận", $"Nhóm đã trình bày Checkpoint {String(data, "checkpointNo") ?? ""}.", workspaceLink),
             "MeetingReminder" => ("Sắp đến giờ họp", $"Cuộc họp {String(data, "title") ?? "của nhóm"} sắp bắt đầu.", workspaceLink),
             "TaskDueSoon" => ("Việc sắp đến hạn", $"Việc {String(data, "title") ?? "được giao"} sắp đến hạn.", workspaceLink),
