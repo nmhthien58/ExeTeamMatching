@@ -59,6 +59,30 @@ public sealed class SmtpEmailWorkerTests
     }
 
     [Fact]
+    public async Task Changed_email_address_is_removed_from_queue_before_smtp()
+    {
+        using var services = Services();
+        await SeedAsync(services, Guid.NewGuid(), Guid.NewGuid(), emailEnabled: true);
+        await using (var scope = services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+            (await db.Contacts.SingleAsync()).Email = "new@example.test";
+            await db.SaveChangesAsync();
+        }
+        using var worker = Worker(services);
+
+        await worker.StartAsync(default);
+        try
+        {
+            await WaitUntilAsync(services, async db => !await db.EmailLogs.AnyAsync());
+            await using var scope = services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+            Assert.Single(await db.Notifications.ToListAsync());
+        }
+        finally { await worker.StopAsync(default); }
+    }
+
+    [Fact]
     public async Task Smtp_failure_records_attempt_and_keeps_email_for_retry()
     {
         using var services = Services();
