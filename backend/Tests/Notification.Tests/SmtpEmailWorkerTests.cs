@@ -105,6 +105,41 @@ public sealed class SmtpEmailWorkerTests
         finally { await worker.StopAsync(default); }
     }
 
+    [Fact]
+    public async Task Failed_email_is_retried_and_clears_old_error_after_success()
+    {
+        using var services = Services();
+        await SeedAsync(services, Guid.NewGuid(), Guid.NewGuid(), emailEnabled: true);
+        using (var failingWorker = Worker(services))
+        {
+            await failingWorker.StartAsync(default);
+            try
+            {
+                await WaitUntilAsync(services, db => db.EmailLogs.AnyAsync(x => x.Attempts == 1));
+            }
+            finally { await failingWorker.StopAsync(default); }
+        }
+
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var smtp = ServeOneEmailAsync(listener, timeout.Token);
+        using var retryWorker = Worker(services, ((IPEndPoint)listener.LocalEndpoint).Port);
+        await retryWorker.StartAsync(default);
+        try
+        {
+            await WaitUntilAsync(services, db => db.EmailLogs.AnyAsync(x => x.Status == "SENT"));
+            await smtp;
+            await using var scope = services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+            var log = await db.EmailLogs.SingleAsync();
+            Assert.Equal(2, log.Attempts);
+            Assert.NotNull(log.SentAt);
+            Assert.Null(log.LastError);
+        }
+        finally { await retryWorker.StopAsync(default); }
+    }
+
     private static ServiceProvider Services()
     {
         var services = new ServiceCollection();
