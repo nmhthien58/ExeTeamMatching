@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../core/auth/session.dart';
 import '../core/providers.dart';
 import '../features/auth/login_screen.dart';
+import '../features/onboarding/onboarding_screen.dart';
+import '../features/onboarding/splash_screen.dart';
 import '../shared/widgets/states.dart';
 import 'feature_routes.dart';
 import 'navigation.dart';
@@ -25,7 +27,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (value.isLoading) return state.matchedLocation == '/' ? null : '/';
       final user = value.value;
       final loc = state.matchedLocation;
-      final publicRoute = loc == '/dang-nhap' || loc == '/tai-khoan-chua-co';
+      final publicRoute = loc == '/dang-nhap' || loc == '/tai-khoan-chua-co' || loc == '/gioi-thieu';
+      // Splash quyết định onboarding sau khi đọc phiên và trạng thái đã xem.
+      if (loc == '/') return null;
       if (user == null) return publicRoute ? null : '/dang-nhap';
       final shell = shellOf(user);
       if (shell == null) return '/chi-dung-web';
@@ -35,7 +39,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       return inOwnShell || loc == '/chi-dung-web' ? null : shellHome[shell];
     },
     routes: [
-      GoRoute(path: '/', builder: (_, _) => const Scaffold(body: Center(child: CircularProgressIndicator()))),
+      GoRoute(path: '/', builder: (context, _) => SplashScreen(onResolved: context.go)),
+      GoRoute(path: '/gioi-thieu', builder: (context, _) => OnboardingScreen(onFinished: () => context.go('/dang-nhap'))),
       GoRoute(path: '/dang-nhap', builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/tai-khoan-chua-co', builder: (_, state) => NotInListScreen(email: state.extra as String?)),
       GoRoute(

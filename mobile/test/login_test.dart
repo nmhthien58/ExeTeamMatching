@@ -35,7 +35,7 @@ void main() {
   late _MockGoogle google;
 
   setUp(() {
-    FlutterSecureStorage.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({'exe.onboardingSeen': 'true'});
     google = _MockGoogle();
     when(() => google.signOut()).thenAnswer((_) async => null);
   });
