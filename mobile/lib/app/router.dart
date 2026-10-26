@@ -71,7 +71,7 @@ ShellRoute _shellRoute(Shell shell) {
           pageBuilder: (_, state) => NoTransitionPage(
             key: state.pageKey,
             child: tab.path == '/sv/kham-pha'
-                ? TeamFormationOnly(child: ScreenPlaceholder(item: tab))
+                ? TeamFormationOnly(child: tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab))
                 : tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab),
           ),
         ),
