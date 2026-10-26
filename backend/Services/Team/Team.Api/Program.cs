@@ -23,3 +23,6 @@ if (app.Environment.IsDevelopment())
 app.MapControllers();
 
 app.Run();
+
+/// <summary>Cho WebApplicationFactory trong test.</summary>
+public partial class Program;
