@@ -28,9 +28,22 @@ Future<void> pumpApp(WidgetTester tester, {required List<CoursePhase> phases, St
 void main() {
   setUpAll(() => AppTheme.useGoogleFonts = false);
 
-  testWidgets('chưa đăng nhập → A03', (tester) async {
+  testWidgets('đã xem giới thiệu, chưa đăng nhập → A03', (tester) async {
+    FlutterSecureStorage.setMockInitialValues({'exe.onboardingSeen': 'true'});
+    await pumpApp(tester, phases: const []);
+    expect(find.text('Đăng nhập với Google'), findsOneWidget);
+  });
+
+  testWidgets('lần đầu mở app → giới thiệu → bỏ qua → đăng nhập', (tester) async {
     FlutterSecureStorage.setMockInitialValues({});
     await pumpApp(tester, phases: const []);
+    expect(find.text('Lập nhóm'), findsOneWidget);
+    await tester.tap(find.text('Bỏ qua'));
+    await tester.pumpAndSettle();
+    expect(find.text('Đăng nhập với Google'), findsOneWidget);
+    expect(await const FlutterSecureStorage().read(key: 'exe.onboardingSeen'), 'true');
+    GoRouterHelper.go(tester, '/');
+    await tester.pumpAndSettle();
     expect(find.text('Đăng nhập với Google'), findsOneWidget);
   });
 
