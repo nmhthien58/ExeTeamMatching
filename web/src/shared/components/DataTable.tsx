@@ -283,7 +283,7 @@ export function DataTable<T>({
 
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex h-8 items-center gap-1 rounded-full bg-secondary-container pl-3 pr-1 text-body font-medium text-secondary-dark">
+    <span className="inline-flex h-8 items-center gap-1 rounded-full bg-primary-container pl-3 pr-1 text-body font-medium text-primary-dark">
       {label}
       <button type="button" onClick={onRemove} aria-label={`Gỡ lọc ${label}`} className="grid size-6 place-items-center rounded-full hover:bg-white/60">
         <Icon name="close" size={20} />

@@ -50,12 +50,12 @@ export function AutoAssignedPage() {
                     </p>
                     <p className="flex flex-wrap gap-x-4 text-body">
                       {m.email && (
-                        <a href={`mailto:${m.email}`} className="text-secondary hover:underline">
+                        <a href={`mailto:${m.email}`} className="text-primary-dark hover:underline">
                           {m.email}
                         </a>
                       )}
                       {m.phone && (
-                        <a href={`tel:${m.phone}`} className="text-secondary hover:underline">
+                        <a href={`tel:${m.phone}`} className="text-primary-dark hover:underline">
                           {m.phone}
                         </a>
                       )}
@@ -82,7 +82,7 @@ export function AutoAssignedPage() {
 function NextStep({ to, icon, title, description }: { to: string; icon: string; title: string; description: string }) {
   return (
     <Link to={to} className="flex min-h-14 items-center gap-3 rounded-md px-2 hover:bg-background">
-      <Icon name={icon} className="text-secondary" />
+      <Icon name={icon} className="text-primary" />
       <span className="min-w-0 flex-1">
         <span className="block text-body-lg">{title}</span>
         <span className="block text-body text-text-secondary">{description}</span>

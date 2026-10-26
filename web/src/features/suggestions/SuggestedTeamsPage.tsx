@@ -45,7 +45,7 @@ export function SuggestedTeamsPage() {
               score={s.score}
               reasons={s.reasons}
               action={
-                <Link to={`/sv/kham-pha/nhom/${s.team.id}`} className={`${linkClass} border border-secondary text-secondary hover:bg-secondary-container`}>
+                <Link to={`/sv/kham-pha/nhom/${s.team.id}`} className={`${linkClass} border border-primary text-primary-dark hover:bg-primary-container`}>
                   Xem nhóm
                 </Link>
               }

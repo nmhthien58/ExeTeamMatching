@@ -32,8 +32,8 @@ type ButtonVariant = 'primary' | 'outline' | 'text' | 'danger'
 
 const buttonStyles: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-white hover:bg-primary-dark',
-  outline: 'border border-border-strong bg-surface text-text-primary hover:bg-background',
-  text: 'text-secondary hover:bg-secondary-container',
+  outline: 'border border-primary bg-surface text-primary-dark hover:bg-primary-container',
+  text: 'text-primary-dark hover:bg-primary-container',
   danger: 'bg-error text-white hover:brightness-90',
 }
 
@@ -79,13 +79,13 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 /** Năm nhóm màu trạng thái, mỗi nhóm một icon cố định (DESIGN.md mục 7). */
-export type StatusTone = 'warning' | 'success' | 'error' | 'secondary' | 'neutral'
+export type StatusTone = 'warning' | 'success' | 'error' | 'info' | 'neutral'
 
 const toneStyles: Record<StatusTone, { cls: string; icon: string }> = {
   warning: { cls: 'bg-warning-container text-warning', icon: 'schedule' },
   success: { cls: 'bg-success-container text-success', icon: 'check_circle' },
   error: { cls: 'bg-error-container text-error', icon: 'cancel' },
-  secondary: { cls: 'bg-secondary-container text-secondary-dark', icon: 'verified' },
+  info: { cls: 'bg-info-container text-info-dark', icon: 'verified' },
   neutral: { cls: 'bg-neutral-container text-text-secondary', icon: 'remove_circle' },
 }
 
@@ -101,7 +101,7 @@ export function StatusChip({ tone, children, icon }: { tone: StatusTone; childre
 }
 
 const bannerStyles: Record<'info' | 'success' | 'warning' | 'error', { cls: string; icon: string }> = {
-  info: { cls: 'bg-secondary-container text-secondary-dark', icon: 'info' },
+  info: { cls: 'bg-info-container text-info-dark', icon: 'info' },
   success: { cls: 'bg-success-container text-success', icon: 'check_circle' },
   warning: { cls: 'bg-warning-container text-warning', icon: 'warning' },
   error: { cls: 'bg-error-container text-error', icon: 'error' },

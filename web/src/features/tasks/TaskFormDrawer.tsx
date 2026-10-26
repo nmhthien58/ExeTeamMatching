@@ -104,7 +104,7 @@ export function TaskFormDrawer({ task, onClose }: { task?: TaskDetail; onClose: 
                 <label key={s.personId} className="flex min-h-10 items-center gap-3">
                   <input
                     type="checkbox"
-                    className="size-5 accent-secondary"
+                    className="size-5 accent-primary"
                     checked={assignees.includes(s.personId)}
                     onChange={(e) =>
                       setAssignees((current) => (e.target.checked ? [...current, s.personId] : current.filter((id) => id !== s.personId)))

@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'app_tokens.dart';
 
-/// Theme Material 3 (MB-02, MB-37): ColorScheme khai báo tay theo DESIGN.md bản 4 (không dùng fromSeed),
+/// Theme Material 3 (MB-02, MB-37): ColorScheme khai báo tay theo DESIGN.md bản 5 (không dùng fromSeed),
 /// chữ Be Vietnam Pro 3 độ đậm, component theo flutter-handoff mục 2.
 abstract final class AppTheme {
   /// Test đặt `false` để không tải font qua mạng (google_fonts).
@@ -15,11 +15,13 @@ abstract final class AppTheme {
     onPrimary: Colors.white,
     primaryContainer: Palette.primaryContainer,
     onPrimaryContainer: Palette.primaryDark,
-    secondary: Palette.secondary,
+    // Bản 5 bỏ màu nhấn thứ hai: secondary = Primary Dark (DESIGN.md 12.1); container dùng cho
+    // chip lọc, SegmentedButton, NavigationBar khi đang chọn nên cũng là cam nhạt.
+    secondary: Palette.primaryDark,
     onSecondary: Colors.white,
-    secondaryContainer: Palette.secondaryContainer,
-    onSecondaryContainer: Palette.secondaryDark,
-    tertiary: Palette.secondary,
+    secondaryContainer: Palette.primaryContainer,
+    onSecondaryContainer: Palette.primaryDark,
+    tertiary: Palette.primaryDark,
     onTertiary: Colors.white,
     error: Palette.error,
     onError: Colors.white,
@@ -86,13 +88,13 @@ abstract final class AppTheme {
         style: OutlinedButton.styleFrom(
           minimumSize: buttonSize,
           shape: roundedMd,
-          side: const BorderSide(color: Palette.borderStrong),
-          foregroundColor: Palette.textPrimary,
+          side: const BorderSide(color: Palette.primary),
+          foregroundColor: Palette.primaryDark,
           textStyle: text.labelLarge,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(minimumSize: buttonSize, foregroundColor: Palette.secondary, textStyle: text.labelLarge),
+        style: TextButton.styleFrom(minimumSize: buttonSize, foregroundColor: Palette.primaryDark, textStyle: text.labelLarge),
       ),
       cardTheme: CardThemeData(
         color: Palette.surface,
@@ -108,7 +110,7 @@ abstract final class AppTheme {
         labelStyle: text.labelLarge,
         shape: const StadiumBorder(),
         side: const BorderSide(color: Palette.border),
-        selectedColor: Palette.secondary,
+        selectedColor: Palette.primary,
         secondaryLabelStyle: text.labelLarge?.copyWith(color: Colors.white),
         checkmarkColor: Colors.white,
       ),
@@ -123,7 +125,7 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: Palette.secondary, width: 2),
+          borderSide: const BorderSide(color: Palette.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -133,16 +135,16 @@ abstract final class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Palette.surface,
-        indicatorColor: Palette.secondaryContainer,
+        indicatorColor: Palette.primaryContainer,
         surfaceTintColor: Colors.transparent,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => text.labelSmall?.copyWith(
-            color: states.contains(WidgetState.selected) ? Palette.secondaryDark : Palette.textSecondary,
+            color: states.contains(WidgetState.selected) ? Palette.primaryDark : Palette.textSecondary,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            color: states.contains(WidgetState.selected) ? Palette.secondary : Palette.textSecondary,
+            color: states.contains(WidgetState.selected) ? Palette.primary : Palette.textSecondary,
           ),
         ),
       ),

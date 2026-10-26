@@ -95,13 +95,13 @@ function SideNav({ items, compact }: { items: NavItem[]; compact: boolean }) {
                     compact
                       ? 'flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-caption'
                       : 'flex min-h-10 items-center gap-3 rounded-md px-3',
-                    isActive ? 'bg-secondary-container text-secondary-dark' : 'text-text-secondary hover:bg-background hover:text-text-primary',
+                    isActive ? 'bg-primary-container text-primary-dark' : 'text-text-secondary hover:bg-background hover:text-text-primary',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    <Icon name={item.icon} filled={isActive} className={isActive ? 'text-secondary' : undefined} />
+                    <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : undefined} />
                     <span className="truncate">{item.label}</span>
                   </>
                 )}
@@ -114,7 +114,7 @@ function SideNav({ items, compact }: { items: NavItem[]; compact: boolean }) {
   )
 }
 
-/** Tab bar dưới như mobile: viên thuốc Secondary Container cho mục đang chọn, nhãn Caption Bold, vùng chạm 48. */
+/** Tab bar dưới như mobile: viên thuốc Primary Container cho mục đang chọn, nhãn Caption Bold, vùng chạm 48. */
 function TabBar({ items }: { items: NavItem[] }) {
   return (
     <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
@@ -124,10 +124,10 @@ function TabBar({ items }: { items: NavItem[] }) {
             <NavLink to={item.to} end={item.end} className="flex min-h-16 flex-col items-center justify-center gap-1">
               {({ isActive }) => (
                 <>
-                  <span className={clsx('grid h-8 w-16 place-items-center rounded-full', isActive && 'bg-secondary-container')}>
-                    <Icon name={item.icon} filled={isActive} className={isActive ? 'text-secondary' : 'text-text-secondary'} />
+                  <span className={clsx('grid h-8 w-16 place-items-center rounded-full', isActive && 'bg-primary-container')}>
+                    <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : 'text-text-secondary'} />
                   </span>
-                  <span className={clsx('text-caption font-semibold', isActive ? 'text-secondary-dark' : 'text-text-secondary')}>{item.label}</span>
+                  <span className={clsx('text-caption font-semibold', isActive ? 'text-primary-dark' : 'text-text-secondary')}>{item.label}</span>
                 </>
               )}
             </NavLink>

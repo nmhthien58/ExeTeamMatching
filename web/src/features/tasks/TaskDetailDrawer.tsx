@@ -63,7 +63,7 @@ function TaskDetailBody({ task, onDeleted }: { task: TaskDetail; onDeleted: () =
       <div className="flex flex-col gap-2">
         <h3 className="text-title font-semibold">{task.title}</h3>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusChip tone={task.status === 'DONE' ? 'success' : task.status === 'DOING' ? 'secondary' : 'neutral'}>
+          <StatusChip tone={task.status === 'DONE' ? 'success' : task.status === 'DOING' ? 'info' : 'neutral'}>
             {statusLabels[task.status]}
           </StatusChip>
           <DueChip task={task} />
@@ -190,7 +190,7 @@ function Submissions({ task }: { task: TaskDetail }) {
             <li key={s.id} className="rounded-md border border-border p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Icon name="description" className="text-text-secondary" />
-                <button type="button" className="min-w-0 flex-1 truncate text-left font-medium text-secondary hover:underline"
+                <button type="button" className="min-w-0 flex-1 truncate text-left font-medium text-primary-dark hover:underline"
                   onClick={() => void downloadFile(s.file.id, s.version)}>
                   {s.file.name} · v{s.version}
                 </button>

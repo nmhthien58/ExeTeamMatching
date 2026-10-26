@@ -40,7 +40,7 @@ export function AutoAssignResultPage() {
       </div>
 
       {run.isPending ? (
-        <div role="status" className="flex items-center gap-3 rounded-md bg-secondary-container px-4 py-3 font-semibold text-secondary-dark">
+        <div role="status" className="flex items-center gap-3 rounded-md bg-info-container px-4 py-3 font-semibold text-info-dark">
           <Spinner />
           Đang ghép sinh viên còn lẻ…
         </div>
@@ -180,7 +180,7 @@ function TeamColumn({ team, teams, movedIds, onMove }: {
       }}
       onDragLeave={() => setOver(false)}
       onDrop={onDrop}
-      className={clsx('rounded-lg bg-surface p-4 shadow-elevation-1', over && 'ring-2 ring-secondary')}
+      className={clsx('rounded-lg bg-surface p-4 shadow-elevation-1', over && 'ring-2 ring-primary')}
     >
       <header className="mb-2 flex flex-wrap items-center gap-2">
         <h2 className="min-w-0 flex-1 truncate text-subtitle font-semibold">{team.name}</h2>
@@ -242,7 +242,7 @@ function MemberList({ students, teams, movedIds, onMove }: {
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2 font-medium">
               <span className="truncate">{s.fullName}</span>
-              {movedIds.has(s.id) && <span className="shrink-0 rounded-full bg-secondary-container px-2 text-caption font-semibold text-secondary-dark">Mới chuyển</span>}
+              {movedIds.has(s.id) && <span className="shrink-0 rounded-full bg-info-container px-2 text-caption font-semibold text-info-dark">Mới chuyển</span>}
             </span>
             <span className="block text-body text-text-secondary">
               {s.studentCode} · {s.specialization?.name ?? 'Chưa rõ chuyên ngành'}

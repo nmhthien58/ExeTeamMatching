@@ -61,7 +61,7 @@ export function TaskCardView({
       )}
     >
       <div className="flex items-start gap-2">
-        {task.kind === 'DELIVERABLE' && <Icon name="assignment" className="text-secondary" label="Bài nộp" />}
+        {task.kind === 'DELIVERABLE' && <Icon name="assignment" className="text-info" label="Bài nộp" />}
         <Link to={to} className="line-clamp-2 min-w-0 flex-1 text-subtitle font-semibold after:absolute after:inset-0 hover:underline">
           {task.title}
         </Link>

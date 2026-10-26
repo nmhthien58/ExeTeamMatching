@@ -1,35 +1,36 @@
 import 'package:flutter/material.dart';
 
-/// Token màu theo docs/ux/DESIGN.md bản 4 (mục 2). Chỉ dùng trong lớp theme; màn hình đọc qua
+/// Token màu theo docs/ux/DESIGN.md bản 5 (mục 2, theo Sổ tay thương hiệu FPT). Chỉ dùng trong lớp theme; màn hình đọc qua
 /// `Theme.of(context).colorScheme` hoặc `context.appColors`, không viết `Color(...)` trực tiếp.
 abstract final class Palette {
-  // Thương hiệu – cam = hành động, xanh = vị trí / lựa chọn
-  static const primary = Color(0xFFC2410C);
-  static const primaryDark = Color(0xFF9A3412);
-  static const primaryContainer = Color(0xFFFFF1E8);
-  static const primaryBorder = Color(0xFFFED7AA);
+  // Thương hiệu – cam = bấm được / đang chọn, xanh dương FPT = thông tin, xanh lá = thành công
+  static const primary = Color(0xFFC6510B);
+  static const primaryDark = Color(0xFFA8440F);
+  static const primaryContainer = Color(0xFFFFF3EB);
+  static const primaryBorder = Color(0xFFFBC9A8);
   static const brandOrange = Color(0xFFF37021); // chỉ trang trí
-  static const secondary = Color(0xFF0E5BA8);
-  static const secondaryDark = Color(0xFF0A4D8C);
-  static const secondaryContainer = Color(0xFFE8F2FC);
+  static const info = Color(0xFF0066B3); // không dùng cho điều khiển
+  static const infoDark = Color(0xFF004C87);
+  static const infoContainer = Color(0xFFE6F0F8);
+  static const brandGreen = Color(0xFF0DB14B); // chỉ trang trí
 
   // Nền, viền, chữ
   static const surface = Color(0xFFFFFFFF);
-  static const background = Color(0xFFF7F9FC);
-  static const border = Color(0xFFE3E8EF);
-  static const borderStrong = Color(0xFF7A8599);
+  static const background = Color(0xFFF7F8F9);
+  static const border = Color(0xFFE3E6EA);
+  static const borderStrong = Color(0xFF7D8590);
   static const textPrimary = Color(0xFF1A1F36);
-  static const textSecondary = Color(0xFF5B6478);
-  static const textDisabled = Color(0xFFA3ABBA);
+  static const textSecondary = Color(0xFF5B6370);
+  static const textDisabled = Color(0xFFA7A9AC);
 
   // Trạng thái
-  static const success = Color(0xFF1E7F3C);
-  static const successContainer = Color(0xFFE7F6EC);
+  static const success = Color(0xFF0A7E3A);
+  static const successContainer = Color(0xFFE7F7ED);
   static const warning = Color(0xFF8A5300);
   static const warningContainer = Color(0xFFFFF4E0);
   static const error = Color(0xFFB3261E);
   static const errorContainer = Color(0xFFFDECEA);
-  static const neutralContainer = Color(0xFFEEF1F5);
+  static const neutralContainer = Color(0xFFEEF0F2);
 }
 
 /// Khoảng cách (DESIGN.md 4.1), lưới 4 px.
@@ -61,12 +62,16 @@ abstract final class AppMotion {
       MediaQuery.maybeDisableAnimationsOf(context) == true ? Duration.zero : d;
 }
 
-/// Nhóm màu Material không có vai trò tương ứng (DESIGN.md 2.3, flutter-handoff mục 1).
+/// Nhóm màu Material không có vai trò tương ứng: Info, trạng thái, trang trí (DESIGN.md 2.1, 2.3, 12.1).
 @immutable
 class AppColors extends ThemeExtension<AppColors> {
   const AppColors({
     required this.brandOrange,
+    required this.brandGreen,
     required this.primaryBorder,
+    required this.info,
+    required this.infoContainer,
+    required this.onInfoContainer,
     required this.background,
     required this.textDisabled,
     required this.success,
@@ -78,7 +83,11 @@ class AppColors extends ThemeExtension<AppColors> {
 
   static const light = AppColors(
     brandOrange: Palette.brandOrange,
+    brandGreen: Palette.brandGreen,
     primaryBorder: Palette.primaryBorder,
+    info: Palette.info,
+    infoContainer: Palette.infoContainer,
+    onInfoContainer: Palette.infoDark,
     background: Palette.background,
     textDisabled: Palette.textDisabled,
     success: Palette.success,
@@ -89,7 +98,11 @@ class AppColors extends ThemeExtension<AppColors> {
   );
 
   final Color brandOrange;
+  final Color brandGreen;
   final Color primaryBorder;
+  final Color info;
+  final Color infoContainer;
+  final Color onInfoContainer;
   final Color background;
   final Color textDisabled;
   final Color success;
@@ -101,7 +114,11 @@ class AppColors extends ThemeExtension<AppColors> {
   @override
   AppColors copyWith({
     Color? brandOrange,
+    Color? brandGreen,
     Color? primaryBorder,
+    Color? info,
+    Color? infoContainer,
+    Color? onInfoContainer,
     Color? background,
     Color? textDisabled,
     Color? success,
@@ -112,7 +129,11 @@ class AppColors extends ThemeExtension<AppColors> {
   }) =>
       AppColors(
         brandOrange: brandOrange ?? this.brandOrange,
+        brandGreen: brandGreen ?? this.brandGreen,
         primaryBorder: primaryBorder ?? this.primaryBorder,
+        info: info ?? this.info,
+        infoContainer: infoContainer ?? this.infoContainer,
+        onInfoContainer: onInfoContainer ?? this.onInfoContainer,
         background: background ?? this.background,
         textDisabled: textDisabled ?? this.textDisabled,
         success: success ?? this.success,
@@ -127,7 +148,11 @@ class AppColors extends ThemeExtension<AppColors> {
     if (other == null) return this;
     return AppColors(
       brandOrange: Color.lerp(brandOrange, other.brandOrange, t)!,
+      brandGreen: Color.lerp(brandGreen, other.brandGreen, t)!,
       primaryBorder: Color.lerp(primaryBorder, other.primaryBorder, t)!,
+      info: Color.lerp(info, other.info, t)!,
+      infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
+      onInfoContainer: Color.lerp(onInfoContainer, other.onInfoContainer, t)!,
       background: Color.lerp(background, other.background, t)!,
       textDisabled: Color.lerp(textDisabled, other.textDisabled, t)!,
       success: Color.lerp(success, other.success, t)!,
