@@ -136,7 +136,7 @@ Danh sách đầy đủ (nội dung, trạng thái cần vẽ) nằm trong file 
 
 **Tổng: 45 mã = 42 màn hình khác nhau + 2 bottom sheet (S06, S09) + 1 frame mẫu trạng thái (A08).** Theo hướng dẫn chấm, dialog, bottom sheet và biến thể trạng thái không tính là màn hình riêng.
 
-### 1.1a Màn hình bổ sung sau góp ý (19/10/2026, chưa có trong Figma)
+### 1.1a Màn hình bổ sung sau góp ý (19/10/2026; có trong Figma từ 22/10/2026)
 
 | Nhóm | Mã | Màn hình | Vai trò | Flow |
 |---|---|---|---|---|
@@ -151,11 +151,11 @@ Danh sách đầy đủ (nội dung, trạng thái cần vẽ) nằm trong file 
 | | C09 | Lịch họp hằng tuần (EXE201). GV: tạo khung giờ, cắt slot 15 phút, link họp, xem nhóm nào ở slot nào, đổi slot cho nhóm. Trưởng nhóm: lưới slot trống, chọn một slot, hạn chọn | GV, Trưởng nhóm (thành viên chỉ xem) | F8 |
 | L. Giảng viên | L07 | Đề tài (gợi ý theo chuyên môn, **"Nhóm chọn tôi"** kèm thứ hạng nguyện vọng, đã quan tâm; số người khác cùng quan tâm). Mentor dùng cùng màn hình trước tuần 6 | Giảng viên, Mentor | F5 |
 | M. Mentor | M01 | Trang chủ mentor (trước tuần 6: "Đang quan tâm n đề tài · Ghép vào tuần 6"; sau đó: cần trả lời, họp sắp tới, nhóm đang mentor) | Mentor | F4 |
-| W. Bộ môn | W27 | Mentor – danh sách và tạo mới | Bộ môn | – |
-| | W28 | Ghép mentor (kết quả ghép kèm lý do, "Ghép sớm" → xem trước → chốt, đổi mentor tay; cảnh báo vượt số mong muốn, chặn vượt tối đa) | Bộ môn | – |
+| W. Bộ môn | W27 | Mentor – danh sách và tạo mới (Figma: tab Mentor trong "Giảng viên và mentor") | Bộ môn | – |
+| | W28 | Ghép mentor – Figma: tab Mentor trong mục "Ghép cố vấn" (kết quả ghép kèm lý do, "Ghép sớm" → xem trước → chốt, đổi mentor tay; cảnh báo vượt số mong muốn, chặn vượt tối đa) | Bộ môn | – |
 | | W29 | Đề tài qua các kỳ (nhóm EXE101 → EXE201, % thành viên giữ lại, lịch sử đề tài) | Bộ môn | F7 |
 
-**Màn hình cũ thay đổi khi code** (Figma chưa cập nhật):
+**Màn hình cũ thay đổi khi code** (Figma: section "Màn hình thay đổi (bản 5)", từ 22/10/2026):
 
 | Mã | Thay đổi | Quy tắc |
 |---|---|---|
@@ -336,7 +336,7 @@ flowchart LR
 
 ---
 
-## 4a. Flow bổ sung sau góp ý (19/10/2026, chưa có trong Figma)
+## 4a. Flow bổ sung sau góp ý (19/10/2026; prototype F4, F5, F6, F8 trong Figma từ 22/10/2026)
 
 ### F4 – Mentor hẹn họp với nhóm và chuyển biên bản thành việc
 

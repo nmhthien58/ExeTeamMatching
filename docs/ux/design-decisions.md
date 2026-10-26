@@ -72,7 +72,7 @@ Claude Code xem 45 màn hình mobile (trạng thái mặc định) và 17 trang 
 | B2 | S10 → S04 | Thẻ sinh viên tìm nhóm không có nút mời; prototype dẫn sang `S04 / Người khác xem`, cũng không có nút. | Nielsen 4, 7; persona Minh | **Accept** – thêm biến thể S10 cho trưởng nhóm, có nút "Gửi lời mời" và dẫn sang `S04 / Trưởng nhóm xem` | Đã sửa 12/10/2026 (vòng 2): frame mới `S10 / Trưởng nhóm xem` |
 | B3 | S06 | Bottom sheet bị cắt ở đáy frame, không thấy nút áp dụng và nút xóa bộ lọc. | Nielsen 3 | **Accept** – đưa hai nút vào thanh cố định cuối sheet | Đã sửa 12/10/2026 (vòng 2) |
 | B4 | S01 | Banner "Bạn có 1 lời mời… Chạm để xem" trông giống banner hạn chót tĩnh, không có dấu hiệu bấm được. | Nielsen 4, 6 | **Accept** – đổi thành thẻ có mũi tên, giống các dòng điều hướng khác | Đã sửa 12/10/2026 (vòng 1) |
-| B5 | S01, S05, S18 | "Rất phù hợp · 92%" là con số chính xác giả; S01 không giải thích 92% tính từ đâu. | Nielsen 2; persona cần phân biệt "tham khảo" với "chính thức" | **Modify** – giữ nhãn "Rất phù hợp", bỏ số %, luôn kèm dòng lý do | Chưa sửa |
+| B5 | S01, S05, S18 | "Rất phù hợp · 92%" là con số chính xác giả; S01 không giải thích 92% tính từ đâu. | Nielsen 2; persona cần phân biệt "tham khảo" với "chính thức" | **Modify** – giữ nhãn "Rất phù hợp", bỏ số %, luôn kèm dòng lý do | Đã sửa 22/10/2026: bỏ % và thanh %, nhãn chuyển màu Info, thêm một dòng lý do ([ai-design-log.md](ai-design-log.md), mục bản 5 và 4.3) |
 | B6 | S05 | Nhóm đã 6/6 vẫn nằm trong "Nhóm đang tuyển"; chip "Hoạt động" / "Chưa đủ điều kiện" là trạng thái nội bộ. | Persona Vy; Nielsen 2 | **Accept** – ẩn nhóm đã đủ; với người ngoài nhóm chỉ hiện "Còn n chỗ" | Đã sửa 12/10/2026 (vòng 2): thay chip bằng dòng "n/6 thành viên · còn k chỗ" |
 | B7 | S08, S15, L01–L05 | Chip trạng thái nằm chung hàng với chip domain, cùng hình dạng. | Nielsen 4 | **Accept** – đưa chip trạng thái lên cạnh tên nhóm | Đã sửa 12/10/2026 (vòng 1) ở S08, S15, L03, L05; thẻ danh sách L01, L02, L04 vốn đã đúng |
 | B8 | S17, S19 | Chuyên ngành bị cắt ("Digital M…"), trong khi đây là thông tin quyết định khi mời người. | Nielsen 6; quy tắc ≥ 2 chuyên ngành | **Accept** – cho dòng chuyên ngành xuống tối đa 2 dòng | Đã sửa 12/10/2026 (vòng 3), cả S27–S29 |
@@ -81,9 +81,9 @@ Claude Code xem 45 màn hình mobile (trạng thái mặc định) và 17 trang 
 | B11 | A07 | "Đăng xuất" là nút đỏ tô đặc rộng hết màn hình. | Nielsen 5; DESIGN.md: hành động nguy hiểm đi qua dialog | **Modify** – đổi thành nút viền; màu Error chỉ dùng trong dialog xác nhận | Đã sửa 12/10/2026 (vòng 1) |
 | B12 | S27–S29, L01 | 26 nhãn số liệu ("Thành viên thay đổi", "Tỷ lệ thay đổi", "Yêu cầu đang chờ", "Nhóm đang hướng dẫn") dùng cỡ 12. | Accessibility: chữ nội dung ≥ 14 sp | **Accept** – nâng lên Body 14 | Đã sửa 12/10/2026 (vòng 3) |
 | B13 | S23 | Thẻ giảng viên đã đủ nhóm bị làm mờ toàn bộ. | Accessibility: Text Disabled chỉ 2,15:1 | **Modify** – giữ chữ bình thường, chỉ khóa hành động và thêm chip "Đã đủ" | Đã sửa 12/10/2026 (vòng 3): chip "Đã đủ" |
-| B14 | S14 | Tên domain không khớp danh mục D01–D18 trong tài liệu context. | Nhất quán dữ liệu | **Accept** – dùng đúng 18 tên trong `EXE_Team_Matching_Context.md` | Chưa sửa |
+| B14 | S14 | Tên domain không khớp danh mục D01–D18 trong tài liệu context. | Nhất quán dữ liệu | **Accept** – dùng đúng 18 tên trong `EXE_Team_Matching_Context.md` | Đã sửa 22/10/2026: S14 theo D01–D18 trong `deploy/db/90_seed_catalogs.sql`; chip domain mẫu đổi theo nghĩa gần nhất; W13 sửa mô tả theo seed |
 | W1 | W19 | Cột Trạng thái bị cắt ở mép phải tại 1440 px. | Responsive; DESIGN.md mục 1.3 | **Accept** – cho bảng cuộn ngang trong khung hoặc rút gọn cột | Đã sửa 12/10/2026 (vòng 3): nới cột Trạng thái lên 192 px |
-| W2 | W19 | Hai nút "Gán theo nguyện vọng" và "Gán giảng viên đã nhận" khó phân biệt; thanh tải 0/6 vẫn hiện gần đầy. | Nielsen 2, 5 | **Accept** – đặt lại tên nút, vẽ thanh tải đúng tỷ lệ | Chưa sửa |
+| W2 | W19 | Hai nút "Gán theo nguyện vọng" và "Gán giảng viên đã nhận" khó phân biệt; thanh tải 0/6 vẫn hiện gần đầy. | Nielsen 2, 5 | **Accept** – đặt lại tên nút, vẽ thanh tải đúng tỷ lệ | Đã sửa 22/10/2026: W19 vẽ lại thành "Ghép cố vấn" theo E12 – một nút chính "Ghép sớm" (hoặc "Chốt kết quả"), thanh tải tính đúng tỷ lệ số nhóm / tối đa |
 | W3 | W18 | Nút Duyệt / Từ chối ở header, còn lý do của trưởng nhóm nằm dưới mép 900 px. | Nielsen 5; persona cô Hạnh | **Accept** – đưa lý do lên trên bảng so sánh | Đã sửa 12/10/2026 (vòng 2) |
 
 **Chọn cho Slide 07** (5 ví dụ, đủ ba loại): viền ô nhập – AI phát hiện ở vòng 0, cùng nội dung A1 (Accept, có số đo), B10 (Reject), B13 (Modify), B11 (Modify), B2 (Accept).
@@ -107,12 +107,10 @@ Claude Code xem 45 màn hình mobile (trạng thái mặc định) và 17 trang 
 
 ## D. Tồn tại
 
-- 13 trên 17 mục ở Phần B đã sửa trong Figma qua ba vòng ngày 12/10/2026; ảnh trước / sau và chi tiết ở [ai-design-log.md](ai-design-log.md). Còn lại: B5, B14, W2 chưa sửa. B10 đã chốt Reject ngày 19/10/2026 (không cần sửa Figma).
-- B5 chưa sửa nên ảnh S01, S05, S07 trong slide vẫn còn "Rất phù hợp · 92%".
-- Web mới được phản biện ở trạng thái mặc định của 17 trên 26 trang; các trạng thái trống, lỗi và form chưa được xem.
-- Tương phản được tính từ mã màu của token, chưa đo trên từng frame.
-
----
+- 17/17 mục ở Phần B đã xử lý: 13 mục qua ba vòng ngày 12/10/2026, B5, B14, W2 sửa ngày 22/10/2026 khi chuyển Figma sang bản 5, B10 chốt Reject ngày 19/10/2026.
+- Ảnh trên slide Lab 2 (bản 3) vẫn còn "Rất phù hợp · 92%"; Figma hiện tại đã bỏ.
+- Web mới được phản biện ở trạng thái mặc định của 17 trên 26 trang Lab 2; các trang web bản 5 (W19, W27–W29, web cho vai trò) được quét tự động ở vòng 6.
+- Tương phản được đo trên từng frame bản 5 ở vòng 6 (nền gần nhất có màu đặc); màn hình Lab 2 vẫn chỉ tính từ mã màu token.
 
 ## E. Quyết định theo góp ý của giảng viên ngày 19/10/2026
 
@@ -124,6 +122,7 @@ Góp ý gốc và nơi xử lý: `PROJECT_CONTEXT.md` mục 13. Phần này ghi 
 | E2 | Giao tiếp giảng viên – sinh viên | (a) Chat tự do một kênh; (b) **hai kênh Nhóm / Cố vấn + đánh dấu câu hỏi**; (c) chỉ bình luận trên việc | **(b)** | Nỗi đau thật không phải "thiếu chỗ nhắn" (đã có Zalo) mà là **câu hỏi cho cố vấn bị trôi** (P1, P5). Câu hỏi có trạng thái Chờ / Đã trả lời và gom vào "Cần trả lời" ở L01, M01; kênh Nhóm riêng để cố vấn không bị ồn. Tin thường không gửi thông báo để tránh quá tải |
 | E3 | Quản lý file, task của nhóm và giảng viên | (a) Liên kết Google Drive; (b) **lưu file trong hệ thống, có phiên bản; task + bài nộp** | **(b)** | Link Drive hay mất quyền, không biết bản nào mới (P5). Phiên bản tự động khi tải trùng tên giải quyết "bản mới nhất"; **bài nộp** do giảng viên tạo thay cho nhận báo cáo qua email, và cho P3 thấy nhóm nào trễ hạn ngay ở trang chủ |
 | E4 | Tông màu sáng hơn, FPT hơn, hiện đại, ít chữ | (a) Cam `#F37021` làm nút chính; (b) **cam đậm `#C2410C` cho hành động, xanh `#0E5BA8` cho điều hướng, cam thương hiệu chỉ trang trí** | **(b)** | (a) chỉ đạt 2,94:1 với chữ trắng – trượt chuẩn 4,5:1 mà Lab 2 đã chứng minh đạt. Tách vai trò hai màu (cam = làm, xanh = ở đâu) giữ được nguyên tắc "một nút Primary". Ít chữ: quy tắc ở `DESIGN.md` 9.1 |
+| E4a | Sửa lại E4 (22/10/2026): màu chưa đúng FPT, nút cam đỏ còn tab, chip lọc, nút phụ, icon màn trống màu xanh – nhìn lệch | (a) Giữ E4; (b) dùng đúng `#F37021` cho nút, chữ tối; (c) **mã màu theo sổ tay thương hiệu FPT: cam FPT đậm `#C6510B` (cùng sắc độ `#F37021`) cho mọi thứ bấm được và đang chọn, FPT Blue `#0066B3` chỉ cho thông tin, FPT Green cho thành công** | **(c)** | `#C2410C` và `#0E5BA8` không phải mã FPT; hai màu nhấn cho hai loại điều khiển làm lệch tông (góp ý của trưởng nhóm 22/10). (b) giữ đúng mã nhưng nút cam chữ đen khác mọi ứng dụng FPT và khó đọc khi nhấn. (c) đạt 4,58:1 với chữ trắng, một màu nhấn duy nhất, ba màu logo vẫn hiện diện ở đúng vai trò. Chi tiết `DESIGN.md` bản 5, Phụ lục E |
 | E5 | Ý tưởng khi xin vào nhóm | (a) Một ô mô tả tự do; (b) **1–3 thẻ ý tưởng có cấu trúc hoặc tích "Chưa có ý tưởng"**, bắt buộc chọn một trong hai | **(b)** | Trưởng nhóm (P1) cần so sánh nhanh nhiều yêu cầu; thẻ ý tưởng có tiêu đề đọc lướt được. Ô "Chưa có ý tưởng" kèm câu "nhiều nhóm cần người thực hiện" để Vy (P2) không thấy bị đánh giá thấp |
 | E6 | Không hiện Khám phá khi học kỳ đã bắt đầu | (a) Giữ tab, hiện popup khi bấm; (b) **đổi tab Khám phá thành Dự án**, popup chỉ cho đường dẫn cũ | **(b)** | (a) để lại một tab chết ở vị trí dễ bấm nhất suốt cả kỳ. Giai đoạn đổi thì nhu cầu đổi: trước là *tìm nhóm*, sau là *làm việc với nhóm* – tab bar đi theo nhu cầu. Popup vẫn cần cho link trong thông báo, email |
 | E7 | Gợi ý đề tài cho giảng viên; 2 giảng viên cùng thích 1 đề tài | (a) Ai bấm trước giữ đề tài; (b) giảng viên mời, nhóm nhận lời đầu tiên; (c) **"Quan tâm" không giữ chỗ, giảng viên thấy số người cùng quan tâm, nhóm thấy tên và tự chọn, các quan tâm khác tự đóng** | **(c)** | (a) tạo cuộc đua và trái quy tắc 9 (nhóm chọn nguyện vọng, Bộ môn quyết). (b) gây áp lực cho nhóm phải trả lời nhanh. (c) giữ nguyên luồng F3 đã kiểm thử, chuyển xung đột thành **lựa chọn của nhóm**, minh bạch với giảng viên (biết có cạnh tranh), không lộ danh tính đồng nghiệp; giới hạn "sức chứa còn lại + 2" chặn giữ đề tài. **Sửa 20/10/2026 bởi E12:** nhóm không gửi yêu cầu mà xếp nguyện vọng, hệ thống ghép – F3 chỉ còn trong Figma Lab 2 |
@@ -141,3 +140,11 @@ Góp ý gốc và nơi xử lý: `PROJECT_CONTEXT.md` mục 13. Phần này ghi 
 **Đã chốt với nhóm (19/10/2026):** "học kỳ đã bắt đầu" = đợt lập nhóm đã đóng; một mentor mỗi nhóm, số nhóm do Bộ môn đặt riêng cho từng mentor; mentor từ tuần 6, 2–3 buổi; giảng viên lớp trên FAP không hiển thị.
 
 **Còn mở:** giới hạn 25 MB và 3 ý tưởng; đổi đề tài ở EXE201 có cần Bộ môn duyệt không (đang chọn: có, đi cùng yêu cầu đổi nhóm).
+
+## F. Quyết định khi vẽ Figma bản 5 (22/10/2026)
+
+| # | Vấn đề | Phương án đã cân nhắc | Quyết định | Lý do |
+|---|---|---|---|---|
+| F1 | Sidebar web Bộ môn gần kín 900 px, cần thêm W19 mới, W27, W28, W29 | (a) Thêm 4 mục, sidebar cuộn; (b) giảm chiều cao mục xuống 36 px; (c) **gom theo nghiệp vụ: "Ghép cố vấn" (W19 + W28, hai tab), W27 là tab trong "Giảng viên và mentor", thêm một mục "Đề tài qua các kỳ"** | **(c)** – AI đề xuất, cần nhóm xác nhận | (a) giấu "Nhật ký hệ thống" dưới mép; (b) dưới chuẩn điều khiển web 40 px (DESIGN.md 4.4). Ghép giảng viên và ghép mentor cùng một thao tác của cô Hạnh (P4): xem trước, chốt, sửa tay kèm lý do |
+| F2 | Tên domain cũ của dữ liệu mẫu không có trong D01–D18 | (a) Đổi theo vị trí D01–D18; (b) **đổi theo nghĩa gần nhất** | **(b)** cho chip trên thẻ nhóm, **(a)** cho bảng W13 (bảng liệt kê đúng 18 mã) | Giữ nhóm mẫu có domain hợp lý (GreenBite – suất ăn → Marketing & Consumer Growth); bảng danh mục phải đúng thứ tự mã |
+| F3 | Frame Lab 2 bị bản 5 thay thế (A05 hai bước, S23–S25 gửi yêu cầu, L01–L03) | (a) Xóa; (b) **giữ, thêm hậu tố ` · Lab 2`** | **(b)** | Slide và ai-design-log vòng 1–3 dẫn tới các frame này; tên không trùng với frame bản 5 |
