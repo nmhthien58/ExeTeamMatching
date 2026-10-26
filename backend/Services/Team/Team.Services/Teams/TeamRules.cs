@@ -31,6 +31,18 @@ public static class TeamRules
     public const int MaxSize = 6;
     public const int MinSpecializations = 2;
 
+    // shortcut: rule 8 "72 giờ (cấu hình được)" – đọc từ cấu hình quy tắc khi có BE-23.
+    public static readonly TimeSpan RequestLifetime = TimeSpan.FromHours(72);
+
+    /// <summary>
+    /// Rule 15: Nháp (dưới 4 người) ↔ Hoạt động khi số thành viên đổi. Cần xem lại, Đã chốt, Đã giải tán do chốt nhóm / Admin quyết định, giữ nguyên.
+    /// </summary>
+    public static string StatusAfterMemberChange(string current, int memberCount) => current switch
+    {
+        TeamStatuses.Draft or TeamStatuses.Active => memberCount >= MinSize ? TeamStatuses.Active : TeamStatuses.Draft,
+        _ => current,
+    };
+
     public static bool IsValid(int memberCount, int specializationCount) =>
         memberCount is >= MinSize and <= MaxSize && specializationCount >= MinSpecializations;
 

@@ -55,6 +55,7 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
     /// <list type="bullet">
     /// <item>INSERT/DELETE team_members khi cũng sửa teams – trigger đếm thành viên đổi xmin của nhóm ở giữa nên UPDATE teams báo concurrency giả.</item>
     /// <item>Domain chính mới khi domain chính cũ của nhóm bị bỏ cờ / xóa – unique index một phần <c>uq_team_domains_primary</c>.</item>
+    /// <item>Trưởng nhóm mới khi trưởng nhóm cũ thành thành viên – <c>uq_team_members_one_leader</c>.</item>
     /// </list>
     /// </summary>
     private List<(EntityEntry Entry, EntityState State)> SecondPhaseChanges()
@@ -64,6 +65,14 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
         {
             later.AddRange(ChangeTracker.Entries<TeamMember>().Where(e => e.State is EntityState.Added or EntityState.Deleted));
         }
+
+        var members = ChangeTracker.Entries<TeamMember>().Where(e => e.State == EntityState.Modified).ToList();
+        var teamsLosingLeader = members
+            .Where(e => e.OriginalValues.GetValue<string>(nameof(TeamMember.Role)) == "LEADER" && e.Entity.Role != "LEADER")
+            .Select(e => e.Entity.TeamId)
+            .ToHashSet();
+        later.AddRange(members.Where(e => e.Entity.Role == "LEADER" && teamsLosingLeader.Contains(e.Entity.TeamId)
+            && e.Property(x => x.Role).IsModified));
 
         var domains = ChangeTracker.Entries<TeamDomain>().ToList();
         var teamsDroppingPrimary = domains
@@ -81,6 +90,8 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
     {
         await using var transaction = Database.CurrentTransaction is null ? await Database.BeginTransactionAsync(cancellationToken) : null;
         int saved;
+        // Modified → Unchanged làm EF trả giá trị về như lúc đọc, nên giữ giá trị mới để gán lại ở bước sau.
+        var values = later.Select(m => m.Entry.CurrentValues.Clone()).ToList();
         try
         {
             later.ForEach(m => m.Entry.State = EntityState.Unchanged);
@@ -88,7 +99,14 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
         }
         finally
         {
-            later.ForEach(m => m.Entry.State = m.State);
+            for (var i = 0; i < later.Count; i++)
+            {
+                later[i].Entry.State = later[i].State;
+                if (later[i].State == EntityState.Modified)
+                {
+                    later[i].Entry.CurrentValues.SetValues(values[i]);
+                }
+            }
         }
         saved += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         if (transaction is not null)

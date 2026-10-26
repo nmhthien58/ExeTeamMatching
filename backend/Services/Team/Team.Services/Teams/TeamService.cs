@@ -36,15 +36,15 @@ public interface ITeamService
 }
 
 /// <summary>Module Teams của Team Service (BE-25, BE-26, BE-27).</summary>
-public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAcademicClient academic, TimeProvider clock) : ITeamService
+public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAcademicClient academic, RoundGuard rounds, TeamReader reader, TimeProvider clock) : ITeamService
 {
     private sealed record DomainChoice(int Id, string Code, bool IsPrimary);
 
     public async Task<TeamDetailResponse> CreateAsync(TeamInput input, ClaimsPrincipal user, CancellationToken ct)
     {
         var studentId = user.GetStudentId() ?? throw TeamErrors.StudentsOnly();
-        var (semester, me) = await ResolveStudentAsync(studentId, ct);
-        await RequireOpenRoundAsync(me.CourseCode, semester.Id, ct);
+        var (semester, me) = await rounds.ResolveStudentAsync(studentId, ct);
+        await rounds.RequireTeamFormationAsync(me.CourseCode, semester.Id, ct);
         if (await teams.IsStudentInTeamAsync(semester.Id, studentId, ct))
         {
             throw TeamErrors.AlreadyInTeam();
@@ -53,7 +53,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         var name = input.Name.Trim();
         await RequireUniqueNameAsync(semester.Id, me.CourseCode, name, null, ct);
         var domains = await ResolveDomainsAsync(input, ct);
-        var actor = Actor(user);
+        var actor = user.ToAuditActor();
 
         var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = semester.Id, CourseCode = me.CourseCode, Name = name };
         teams.Add(team);
@@ -96,13 +96,13 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
             {
                 throw TeamErrors.RoundClosed();
             }
-            await RequireOpenRoundAsync(team.CourseCode, team.SemesterId, ct);
+            await rounds.RequireTeamFormationAsync(team.CourseCode, team.SemesterId, ct);
         }
 
         var name = input.Name.Trim();
         await RequireUniqueNameAsync(team.SemesterId, team.CourseCode, name, team.Id, ct);
         var domains = await ResolveDomainsAsync(input, ct);
-        var actor = Actor(user);
+        var actor = user.ToAuditActor();
         var current = await teams.ListDomainsAsync(teamId, ct);
         var project = team.ProjectId is { } projectId ? await teams.GetProjectAsync(projectId, ct) : null;
         var before = new { name = team.Name, projectName = project?.Name, ideaDescription = project?.Description, domains = current.Select(d => d.DomainCode) };
@@ -134,7 +134,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
 
         var viewer = user.GetStudentId();
         var extras = await teams.GetDetailExtrasAsync(teamId, viewer, clock.GetUtcNow(), ct);
-        return TeamMapper.ToDetail(graph, await LoadCatalogsAsync(ct), extras, TeamMapper.Relation(graph, viewer, extras));
+        return TeamMapper.ToDetail(graph, await reader.LoadCatalogsAsync(ct), extras, TeamMapper.Relation(graph, viewer, extras));
     }
 
     public async Task<TeamDetailResponse> GetMineAsync(ClaimsPrincipal user, CancellationToken ct)
@@ -153,8 +153,8 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
 
         if (graph is null)
         {
-            var (semester, me) = await ResolveStudentAsync(studentId, ct);
-            var phase = await PhaseAsync(me.CourseCode, semester.Id, ct);
+            var (semester, me) = await rounds.ResolveStudentAsync(studentId, ct);
+            var phase = await rounds.PhaseAsync(me.CourseCode, semester.Id, ct);
             var action = TeamRules.NextAction(new NextActionInput(false, false, phase, null, 0, 0, false, false, false, false));
             return new TeamHomeResponse(null, false, invitations, 0, action, phase, 0, false);
         }
@@ -162,11 +162,11 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         var team = graph.Team;
         var isLeader = graph.Members.Any(m => m.StudentId == studentId && m.Role == MemberRoles.Leader);
         var stats = await teams.GetHomeStatsAsync(team.Id, now, ct);
-        var teamPhase = await PhaseAsync(team.CourseCode, team.SemesterId, ct);
+        var teamPhase = await rounds.PhaseAsync(team.CourseCode, team.SemesterId, ct);
         var nextAction = TeamRules.NextAction(new NextActionInput(true, isLeader, teamPhase, team.Status, graph.Members.Count,
             graph.Members.Select(m => m.SpecializationId).Distinct().Count(), stats.HasLecturer, stats.HasLecturerPreferences,
             stats.HasUnsubmittedChanges, stats.HasPendingChangeRequest));
-        return new TeamHomeResponse(TeamMapper.ToCard(graph, await LoadCatalogsAsync(ct)), isLeader, invitations,
+        return new TeamHomeResponse(TeamMapper.ToCard(graph, await reader.LoadCatalogsAsync(ct)), isLeader, invitations,
             isLeader ? stats.PendingJoinRequests : 0, nextAction, teamPhase, stats.InterestedLecturers, team.IsAutoAssigned);
     }
 
@@ -174,12 +174,12 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
     {
         Guid semesterId;
         string? courseCode;
-        var studentView = IsStudentOnly(user);
+        var studentView = user.IsStudentOnly();
         if (studentView)
         {
             var studentId = user.GetStudentId() ?? throw TeamErrors.StudentsOnly();
-            var (semester, me) = await ResolveStudentAsync(studentId, ct);
-            await RequireOpenRoundAsync(me.CourseCode, semester.Id, ct);
+            var (semester, me) = await rounds.ResolveStudentAsync(studentId, ct);
+            await rounds.RequireTeamFormationAsync(me.CourseCode, semester.Id, ct);
             (semesterId, courseCode) = (semester.Id, me.CourseCode);
         }
         else
@@ -191,31 +191,10 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         var (ids, total) = await teams.SearchAsync(new TeamSearch(semesterId, courseCode, query.Search, query.Domain, query.MissingSpecializationId,
             query.MinOpenSlots, query.Status, query.InvalidOnly, HideFullAndDisbanded: studentView, TeamRules.MaxSize, TeamRules.MinSize,
             TeamRules.MinSpecializations, query.Sort, query.Page, query.PageSize), ct);
-        var catalogs = await LoadCatalogsAsync(ct);
+        var catalogs = await reader.LoadCatalogsAsync(ct);
         var cards = (await teams.ListGraphsAsync(ids, ct)).Select(g => TeamMapper.ToCard(g, catalogs)).ToList();
         return new PagedResponse<TeamCardResponse>(cards, query.Page, query.PageSize, total, (total + query.PageSize - 1) / query.PageSize);
     }
-
-    private async Task<(SemesterDto Semester, StudentSnapshot Me)> ResolveStudentAsync(Guid studentId, CancellationToken ct)
-    {
-        var semester = await academic.GetCurrentSemesterAsync(ct) ?? throw TeamErrors.RoundClosed();
-        var me = (await academic.LookupStudentsAsync(semester.Id, [studentId], ct)).FirstOrDefault(s => s.Id == studentId);
-        return me is { IsEnrolled: true } ? (semester, me) : throw TeamErrors.NotInList();
-    }
-
-    private async Task RequireOpenRoundAsync(string courseCode, Guid semesterId, CancellationToken ct)
-    {
-        if (await PhaseAsync(courseCode, semesterId, ct) != Phases.TeamFormation)
-        {
-            throw TeamErrors.RoundClosed();
-        }
-    }
-
-    /// <summary>Rule 18: còn đợt lập nhóm đang mở của môn trong học kỳ thì đang lập nhóm, ngược lại học kỳ đã bắt đầu.</summary>
-    private async Task<string> PhaseAsync(string courseCode, Guid semesterId, CancellationToken ct) =>
-        await academic.GetOpenRoundAsync(courseCode, RoundTypes.TeamFormation, ct) is { } round && round.SemesterId == semesterId
-            ? Phases.TeamFormation
-            : Phases.SemesterRunning;
 
     private async Task RequireUniqueNameAsync(Guid semesterId, string courseCode, string name, Guid? exceptTeamId, CancellationToken ct)
     {
@@ -301,24 +280,6 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         ProjectId = project.Id, Version = project.CurrentVersion, Name = project.Name, Description = project.Description, ChangeType = changeType,
         SemesterId = team.SemesterId, CourseCode = team.CourseCode, ChangedByAccountId = actor.AccountId,
     };
-
-    private async Task<Catalogs> LoadCatalogsAsync(CancellationToken ct)
-    {
-        try
-        {
-            return new Catalogs((await academic.GetDomainsAsync(ct)).ToDictionary(d => d.Id),
-                (await academic.GetSpecializationsAsync(ct)).ToDictionary(s => s.Id));
-        }
-        catch (HttpRequestException)
-        {
-            return Catalogs.Empty; // Academic lỗi chỉ làm mất tên danh mục, vẫn trả dữ liệu nhóm
-        }
-    }
-
-    private static bool IsStudentOnly(ClaimsPrincipal user) =>
-        user.IsInRole(Roles.Student) && !user.IsInRole(Roles.Admin) && !user.IsInRole(Roles.Lecturer) && !user.IsInRole(Roles.Mentor);
-
-    private static AuditActor Actor(ClaimsPrincipal user) => new(user.GetUserId(), user.IsInRole(Roles.Admin) ? Roles.Admin : Roles.Student);
 
     private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

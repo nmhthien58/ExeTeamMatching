@@ -107,6 +107,7 @@ public sealed class TeamsApiTests : IAsyncLifetime
         var back = await _api.ClientFor(leader.Id).PutAsJsonAsync($"/api/teams/{team.Id}", new TeamInput("Nhóm Đã Sửa", null, null, [2, 3], 2));
         Assert.True(back.IsSuccessStatusCode, await back.Content.ReadAsStringAsync());
         Assert.Equal(["D02", "D03"], (await back.Content.ReadFromJsonAsync<TeamDetailResponse>())!.Domains.Select(d => d.Code));
+        Assert.Equal(["D02"], await _api.QueryDbAsync(db => db.Set<TeamDomain>().Where(d => d.TeamId == team.Id && d.IsPrimary).Select(d => d.DomainCode).ToListAsync()));
 
         // Admin sửa được cả khi đợt đã khóa; trưởng nhóm thì không.
         Academic.OpenCourses.Clear();

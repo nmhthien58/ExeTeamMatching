@@ -87,6 +87,26 @@ public sealed class TeamDbIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Swapping_leader_in_one_save_keeps_exactly_one_leader()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var team = await CreateTeamAsync("Nhóm đổi trưởng", members: 2);
+
+        await using var db = NewDb();
+        var members = await db.Set<TeamMember>().Where(m => m.TeamId == team.Id).ToListAsync();
+        var (leader, member) = (members.Single(m => m.Role == "LEADER"), members.Single(m => m.Role == "MEMBER"));
+        (leader.Role, member.Role) = ("MEMBER", "LEADER");
+        await db.SaveChangesAsync();
+
+        await using var check = NewDb();
+        Assert.Equal(member.StudentId, await check.Set<TeamMember>().Where(m => m.TeamId == team.Id && m.Role == "LEADER").Select(m => m.StudentId).SingleAsync());
+    }
+
+    [Fact]
     public async Task Stale_xmin_becomes_concurrency_conflict()
     {
         if (!Enabled)
