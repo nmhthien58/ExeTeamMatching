@@ -1,3 +1,4 @@
+using Academic.Services;
 using BuildingBlocks.Web;
 
 // Academic Service – cấu hình chung ở BuildingBlocks (BE-05): Serilog + CorrelationId, ProblemDetails, JWT, FluentValidation.
@@ -5,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults("academic");
 builder.Services.AddApiControllers(typeof(Program).Assembly);
+builder.Services.AddAcademicServices(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -21,3 +23,6 @@ if (app.Environment.IsDevelopment())
 app.MapControllers();
 
 app.Run();
+
+/// <summary>Cho WebApplicationFactory trong test.</summary>
+public partial class Program;
