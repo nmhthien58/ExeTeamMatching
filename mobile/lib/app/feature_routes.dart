@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/files/files_screen.dart';
+import '../features/my_team/members_screen.dart';
+import '../features/my_team/my_team_screen.dart';
+import '../features/my_team/requests_screen.dart';
+import '../features/my_team/team_form_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
 import '../features/round_closed/round_closed_screen.dart';
 import '../features/suggestions/invite_students_screen.dart';
@@ -17,6 +21,7 @@ import 'role_shell.dart';
 /// Màn hình thật của các tab (thay ScreenPlaceholder). Mỗi mảng thêm tab của mình vào đây.
 final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
+  '/sv/nhom': (_) => const MyTeamScreen(),
 };
 
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
@@ -36,6 +41,11 @@ final _studentTeamRoutes = [
   GoRoute(path: '/sv/nhom/moi', builder: (_, _) => const InviteStudentsScreen()),
   GoRoute(path: '/sv/nhom/da-khoa', builder: (_, _) => const RoundClosedScreen()),
   GoRoute(path: '/sv/nhom/ghep-tu-dong', builder: (_, _) => const AutoAssignedScreen()),
+  // S13, S16, S17, S20 – MB-19, MB-21, MB-22, MB-24 (Cường).
+  GoRoute(path: '/sv/nhom/tao', builder: (_, _) => const TeamFormationOnly(child: TeamFormScreen())),
+  GoRoute(path: '/sv/nhom/sua', builder: (_, _) => const EditTeamScreen()),
+  GoRoute(path: '/sv/nhom/thanh-vien', builder: (_, _) => const MembersScreen()),
+  GoRoute(path: '/sv/nhom/yeu-cau', builder: (_, _) => const RequestsScreen()),
 ];
 
 /// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).
