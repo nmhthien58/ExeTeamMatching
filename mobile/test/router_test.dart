@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:exe_team_matching/app/app.dart';
 import 'package:exe_team_matching/core/phase.dart';
 import 'package:exe_team_matching/core/theme/app_theme.dart';
+import 'package:exe_team_matching/features/home/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -53,7 +54,7 @@ void main() {
 
     expect(find.text('Khám phá'), findsOneWidget);
     expect(find.text('Dự án'), findsNothing);
-    expect(find.text('S01 · Trang chủ'), findsOneWidget);
+    expect(find.byType(HomeScreen), findsOneWidget);
   });
 
   testWidgets('sinh viên sau khi đợt đóng: tab Dự án, mở Khám phá từ link cũ thì hiện hộp nhắc', (tester) async {

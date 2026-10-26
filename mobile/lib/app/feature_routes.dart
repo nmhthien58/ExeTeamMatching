@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/discover/discover_screen.dart';
+import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
+import '../features/home/home_screen.dart';
+import '../features/invitations/invitations_screen.dart';
 import '../features/my_team/members_screen.dart';
 import '../features/my_team/my_team_screen.dart';
 import '../features/my_team/requests_screen.dart';
@@ -22,6 +26,8 @@ import 'role_shell.dart';
 final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
   '/sv/nhom': (_) => const MyTeamScreen(),
+  '/sv': (_) => const HomeScreen(),
+  '/sv/kham-pha': (_) => const DiscoverScreen(),
 };
 
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
@@ -46,6 +52,12 @@ final _studentTeamRoutes = [
   GoRoute(path: '/sv/nhom/sua', builder: (_, _) => const EditTeamScreen()),
   GoRoute(path: '/sv/nhom/thanh-vien', builder: (_, _) => const MembersScreen()),
   GoRoute(path: '/sv/nhom/yeu-cau', builder: (_, _) => const RequestsScreen()),
+  // S08 (chỉ trong đợt lập nhóm – quy tắc 18), S12 – MB-16, MB-18 (Cường).
+  GoRoute(
+    path: '/sv/kham-pha/nhom/:teamId',
+    builder: (_, s) => TeamFormationOnly(child: TeamDetailScreen(teamId: s.pathParameters['teamId']!)),
+  ),
+  GoRoute(path: '/sv/loi-moi', builder: (_, _) => const InvitationsScreen()),
 ];
 
 /// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).
