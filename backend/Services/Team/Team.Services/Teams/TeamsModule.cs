@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Team.Repositories.AuditLog;
 using Team.Repositories.Teams;
+using Team.Services.Academic;
 
 namespace Team.Services.Teams;
 
@@ -11,6 +12,8 @@ public static class TeamsModule
     {
         services.AddScoped<ITeamRepository, TeamRepository>();
         services.AddScoped<AuditLogWriter>();
+        services.AddScoped<RoundGuard>();
+        services.AddScoped<TeamReader>();
         services.AddScoped<ITeamService, TeamService>();
         return services;
     }
