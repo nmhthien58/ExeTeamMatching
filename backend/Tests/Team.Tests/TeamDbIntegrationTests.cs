@@ -1,8 +1,13 @@
 using BuildingBlocks.Errors;
 using Microsoft.EntityFrameworkCore;
+using Team.Repositories.AdvisorMatching;
+using Team.Repositories.ChangeRequests;
 using Team.Repositories.Context;
 using Team.Repositories.JoinRequests;
+using Team.Repositories.LecturerAssignments;
+using Team.Repositories.LecturerPreferences;
 using Team.Repositories.Members;
+using Team.Repositories.Projects;
 using Team.Repositories.Teams;
 
 namespace Team.Tests;
@@ -141,6 +146,38 @@ public sealed class TeamDbIntegrationTests : IAsyncLifetime
 
         var ex = await Assert.ThrowsAsync<ConflictException>(() => db.SaveChangesAsync());
         Assert.Equal("ideas-required", ex.Code);
+    }
+
+    [Fact]
+    public async Task Inherited_exe201_team_saves_project_change_request_and_advisor()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        await using var db = NewDb();
+        var project = new Project { Id = Guid.NewGuid(), Name = "Đề tài thử", OriginSemesterId = _semesterId, OriginCourseCode = "EXE101" };
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = _semesterId, CourseCode = "EXE201", Name = "Nhóm kế thừa", ProjectId = project.Id, IsInherited = true };
+        var request = new ChangeRequest { Id = Guid.NewGuid(), TeamId = team.Id, RoundId = Guid.NewGuid(), RequestedByStudentId = Guid.NewGuid(), Reason = "Bổ sung một thành viên mới", ChangedMemberCount = 1, ChangedPercent = 20m };
+        var run = new AdvisorMatchingRun { Id = Guid.NewGuid(), AdvisorKind = "LECTURER", SemesterId = _semesterId, CourseCode = "EXE201", Trigger = "SCHEDULED" };
+        db.AddRange(project, team, Member(team, "SE000001", "LEADER", "INHERITED"), request, run);
+        db.Add(new ProjectVersion { ProjectId = project.Id, Version = 1, Name = project.Name, ChangeType = "CREATED", SemesterId = _semesterId, CourseCode = "EXE101" });
+        db.Add(new ChangeRequestItem { TeamId = team.Id, ChangeRequestId = request.Id, Action = "ADD", Source = "INVITATION", StudentId = Guid.NewGuid(), StudentCode = "SE000009", FullName = "Thành viên mới", SpecializationId = 2 });
+        db.Add(new LecturerPreference { TeamId = team.Id, Rank = 1, LecturerId = Guid.NewGuid(), LecturerName = "Giảng viên A", UpdatedByStudentId = Guid.NewGuid() });
+        db.Add(new LecturerAssignment { TeamId = team.Id, LecturerId = Guid.NewGuid(), LecturerName = "Giảng viên A", Reason = "PREFERENCE", PreferenceRank = 1, MatchingRunId = run.Id });
+        await db.SaveChangesAsync();
+
+        await using var check = NewDb();
+        var saved = await check.Set<ChangeRequest>().SingleAsync(r => r.Id == request.Id);
+        Assert.Equal(("EXE201", "PENDING", 20m), (saved.CourseCode, saved.Status, saved.ChangedPercent));
+
+        // Dọn trước khi xóa nhóm: change_requests và lecturer_assignments chặn xóa nhóm (ON DELETE RESTRICT).
+        await check.Set<LecturerAssignment>().Where(a => a.TeamId == team.Id).ExecuteDeleteAsync();
+        await check.Set<ChangeRequest>().Where(r => r.TeamId == team.Id).ExecuteDeleteAsync();
+        await check.Set<AdvisorMatchingRun>().Where(r => r.Id == run.Id).ExecuteDeleteAsync();
+        await check.Set<TeamEntity>().Where(t => t.Id == team.Id).ExecuteDeleteAsync();
+        await check.Set<Project>().Where(p => p.Id == project.Id).ExecuteDeleteAsync();
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

@@ -14,6 +14,8 @@ public sealed class TeamDbErrorsTests
     [InlineData(PostgresErrorCodes.UniqueViolation, "uq_join_requests_pending", "pending-exists")]
     [InlineData(PostgresErrorCodes.CheckViolation, "ck_team_finalized_size", "composition-invalid")]
     [InlineData(PostgresErrorCodes.CheckViolation, "ck_join_requests_ideas", "ideas-required")]
+    [InlineData(PostgresErrorCodes.UniqueViolation, "uq_lecturer_assignments_active", "team-has-advisor")]
+    [InlineData(PostgresErrorCodes.UniqueViolation, "uq_mentor_assignments_active", "team-has-advisor")]
     [InlineData(PostgresErrorCodes.UniqueViolation, "uq_teams_semester_name", "constraint-violation")]
     [InlineData(PostgresErrorCodes.ForeignKeyViolation, "fk_invitations_team", "constraint-violation")]
     public void Constraint_violation_becomes_409_with_contract_code(string sqlState, string constraint, string code)

@@ -27,6 +27,8 @@ public static class TeamDbErrors
         "ck_team_finalized_size" or "ck_team_finalized_specializations" =>
             new ConflictException("composition-invalid", "Nhóm chưa đủ điều kiện", "Nhóm cần 4–6 thành viên và ít nhất 2 chuyên ngành."),
         "ck_join_requests_ideas" => new ConflictException("ideas-required", "Thiếu ý tưởng", "Cần 1–3 ý tưởng hoặc chọn \"Chưa có ý tưởng\"."),
+        "uq_lecturer_assignments_active" or "uq_mentor_assignments_active" =>
+            new ConflictException("team-has-advisor", "Nhóm đã có cố vấn", "Nhóm đã có cố vấn cùng loại đang hiệu lực."),
         _ when pg.SqlState is PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.CheckViolation or PostgresErrorCodes.ForeignKeyViolation =>
             new ConflictException("constraint-violation", "Dữ liệu không hợp lệ", $"Vi phạm ràng buộc {pg.ConstraintName}."),
         _ => null,

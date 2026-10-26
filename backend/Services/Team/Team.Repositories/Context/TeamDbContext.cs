@@ -3,12 +3,20 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Team.Repositories.AdvisorMatching;
 using Team.Repositories.AuditLog;
+using Team.Repositories.BaselineImport;
+using Team.Repositories.ChangeRequests;
 using Team.Repositories.Invitations;
 using Team.Repositories.JoinRequests;
+using Team.Repositories.LecturerAssignments;
+using Team.Repositories.LecturerPreferences;
 using Team.Repositories.Members;
+using Team.Repositories.MentorAssignments;
 using Team.Repositories.Posts;
+using Team.Repositories.Projects;
 using Team.Repositories.Teams;
+using Team.Repositories.TopicInterests;
 
 namespace Team.Repositories.Context;
 
@@ -80,7 +88,7 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
 
         modelBuilder.Entity<TeamEntity>(e =>
         {
-            e.ToTable("teams"); e.HasKey(x => x.Id); e.HasAlternateKey(x => new { x.Id, x.SemesterId });
+            e.ToTable("teams"); e.HasKey(x => x.Id); e.HasAlternateKey(x => new { x.Id, x.SemesterId }); e.HasAlternateKey(x => new { x.Id, x.CourseCode });
             e.Property(x => x.MemberCount).ValueGeneratedOnAddOrUpdate().Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
             e.Property(x => x.MemberCount).Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
             e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); UpdatedAtByTrigger(e.Property(x => x.UpdatedAt)); Xmin(e.Property(x => x.Version));
@@ -101,6 +109,18 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
             e.Property(x => x.OccurredAt).HasDefaultValueSql("now()");
         });
 
+        // Module của Thành (Projects, BaselineImport, ChangeRequests, TopicInterests, LecturerPreferences, LecturerAssignments, MentorAssignments) và Thiên (AdvisorMatching).
+        modelBuilder.Entity<Project>(e => { e.ToTable("projects"); e.HasKey(x => x.Id); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); UpdatedAtByTrigger(e.Property(x => x.UpdatedAt)); Xmin(e.Property(x => x.Version)); });
+        modelBuilder.Entity<ProjectVersion>(e => { e.ToTable("project_versions"); e.HasKey(x => new { x.ProjectId, x.Version }); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); });
+        modelBuilder.Entity<TeamBaselineMember>(e => { e.ToTable("team_baseline_members"); e.HasKey(x => new { x.TeamId, x.StudentId }); e.Property(x => x.ImportedAt).HasDefaultValueSql("now()"); });
+        modelBuilder.Entity<ChangeRequest>(e => { e.ToTable("change_requests"); e.HasKey(x => x.Id); e.Property(x => x.ChangedPercent).HasPrecision(5, 2); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); UpdatedAtByTrigger(e.Property(x => x.UpdatedAt)); Xmin(e.Property(x => x.Version)); });
+        modelBuilder.Entity<ChangeRequestItem>(e => { e.ToTable("change_request_items"); e.HasKey(x => x.Id); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); });
+        modelBuilder.Entity<TopicInterest>(e => { e.ToTable("topic_interests"); e.HasKey(x => x.Id); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); Xmin(e.Property(x => x.Version)); });
+        modelBuilder.Entity<LecturerPreference>(e => { e.ToTable("lecturer_preferences"); e.HasKey(x => new { x.TeamId, x.Rank }); e.Property(x => x.UpdatedAt).HasDefaultValueSql("now()"); });
+        modelBuilder.Entity<AdvisorMatchingRun>(e => { e.ToTable("advisor_matching_runs"); e.HasKey(x => x.Id); e.Property(x => x.Plan).HasColumnType("jsonb"); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); Xmin(e.Property(x => x.Version)); });
+        modelBuilder.Entity<LecturerAssignment>(e => { e.ToTable("lecturer_assignments"); e.HasKey(x => x.Id); e.Property(x => x.AssignedAt).HasDefaultValueSql("now()"); Xmin(e.Property(x => x.Version)); });
+        modelBuilder.Entity<MentorAssignment>(e => { e.ToTable("mentor_assignments"); e.HasKey(x => x.Id); e.Property(x => x.AssignedAt).HasDefaultValueSql("now()"); Xmin(e.Property(x => x.Version)); });
+
         // Khóa ngoại – để EF ghi đúng thứ tự (bảng cha trước) và khớp hành vi xóa của DB script.
         modelBuilder.Entity<TeamEntity>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.SourceTeamId).HasConstraintName("fk_teams_source_team").OnDelete(DeleteBehavior.Restrict);
         modelBuilder.Entity<TeamDomain>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_team_domains_team").OnDelete(DeleteBehavior.Cascade);
@@ -111,6 +131,18 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
         modelBuilder.Entity<RecruitmentPost>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_recruitment_posts_team").OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<RecruitmentPostSpecialization>().HasOne<RecruitmentPost>().WithMany().HasForeignKey(x => x.RecruitmentPostId).HasConstraintName("fk_rps_post").OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<SeekingPostDomain>().HasOne<SeekingPost>().WithMany().HasForeignKey(x => x.SeekingPostId).HasConstraintName("fk_spd_post").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<TeamEntity>().HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).HasConstraintName("fk_teams_project").OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ProjectVersion>().HasOne<Project>().WithMany().HasForeignKey(x => x.ProjectId).HasConstraintName("fk_project_versions_project").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<TeamBaselineMember>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_team_baseline_members_team").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ChangeRequest>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => new { x.TeamId, x.CourseCode }).HasPrincipalKey(x => new { x.Id, x.CourseCode }).HasConstraintName("fk_change_requests_team").OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ChangeRequestItem>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_change_request_items_team").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ChangeRequestItem>().HasOne<ChangeRequest>().WithMany().HasForeignKey(x => x.ChangeRequestId).HasConstraintName("fk_change_request_items_request").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<TopicInterest>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_topic_interests_team").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<LecturerPreference>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_lecturer_preferences_team").OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<LecturerAssignment>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_lecturer_assignments_team").OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<LecturerAssignment>().HasOne<AdvisorMatchingRun>().WithMany().HasForeignKey(x => x.MatchingRunId).HasConstraintName("fk_lecturer_assignments_run").OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<MentorAssignment>().HasOne<TeamEntity>().WithMany().HasForeignKey(x => x.TeamId).HasConstraintName("fk_mentor_assignments_team").OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<MentorAssignment>().HasOne<AdvisorMatchingRun>().WithMany().HasForeignKey(x => x.MatchingRunId).HasConstraintName("fk_mentor_assignments_run").OnDelete(DeleteBehavior.SetNull);
     }
 
     /// <summary>Cột hệ thống <c>xmin</c> của PostgreSQL làm concurrency token (BE-24).</summary>

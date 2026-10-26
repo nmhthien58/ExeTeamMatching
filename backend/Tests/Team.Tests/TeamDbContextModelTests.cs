@@ -9,6 +9,16 @@ namespace Team.Tests;
 public sealed class TeamDbContextModelTests
 {
     [Fact]
+    public void Every_table_of_the_db_script_is_mapped()
+    {
+        using var db = new TeamDbContext(new DbContextOptionsBuilder<TeamDbContext>()
+            .UseNpgsql("Host=unused").UseSnakeCaseNamingConvention().Options);
+
+        var mapped = db.Model.GetEntityTypes().Select(e => e.GetTableName()!).ToHashSet();
+        Assert.Empty(ReadScriptTables().Keys.Except(mapped));
+    }
+
+    [Fact]
     public void Every_mapped_table_has_exactly_the_columns_of_the_db_script()
     {
         var scriptTables = ReadScriptTables();
@@ -39,7 +49,11 @@ public sealed class TeamDbContextModelTests
             .Select(e => e.GetTableName())
             .ToHashSet();
 
-        Assert.Equal(new HashSet<string?> { "teams", "team_members", "invitations", "join_requests", "recruitment_posts", "seeking_posts" }, withXmin);
+        Assert.Equal(new HashSet<string?>
+        {
+            "teams", "team_members", "invitations", "join_requests", "recruitment_posts", "seeking_posts",
+            "projects", "change_requests", "topic_interests", "advisor_matching_runs", "lecturer_assignments", "mentor_assignments",
+        }, withXmin);
     }
 
     private static Dictionary<string, HashSet<string>> ReadScriptTables()
