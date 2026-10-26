@@ -56,15 +56,18 @@ public sealed class NotificationService(NotificationDbContext db)
 
     public async Task<EmailPreferences> PreferencesAsync(ClaimsPrincipal user, CancellationToken ct)
     {
-        var contact = await ContactAsync(user, ct);
-        return new EmailPreferences(contact.EmailEnabled);
+        var contacts = await ContactsAsync(user, ct);
+        return new EmailPreferences(contacts.All(x => x.EmailEnabled));
     }
 
     public async Task SetPreferencesAsync(ClaimsPrincipal user, EmailPreferences request, CancellationToken ct)
     {
-        var contact = await ContactAsync(user, ct);
-        contact.EmailEnabled = request.EmailEnabled;
-        contact.UpdatedAt = DateTimeOffset.UtcNow;
+        var contacts = await ContactsAsync(user, ct);
+        foreach (var contact in contacts)
+        {
+            contact.EmailEnabled = request.EmailEnabled;
+            contact.UpdatedAt = DateTimeOffset.UtcNow;
+        }
         await db.SaveChangesAsync(ct);
     }
 
@@ -81,11 +84,14 @@ public sealed class NotificationService(NotificationDbContext db)
             (admin && x.RecipientType == "ADMIN" && x.RecipientId == null));
     }
 
-    private async Task<Contact> ContactAsync(ClaimsPrincipal user, CancellationToken ct)
+    private async Task<List<Contact>> ContactsAsync(ClaimsPrincipal user, CancellationToken ct)
     {
-        var id = user.GetStudentId() ?? user.GetLecturerId() ?? user.GetMentorId();
-        if (id is null) throw new ForbiddenException("preferences-unavailable", "Tài khoản không có cài đặt email");
-        return await db.Contacts.FindAsync([id.Value], ct) ?? throw new NotFoundException("contact", id);
+        var ids = new[] { user.GetStudentId(), user.GetLecturerId(), user.GetMentorId() }
+            .Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToArray();
+        if (ids.Length == 0) throw new ForbiddenException("preferences-unavailable", "Tài khoản không có cài đặt email");
+        var contacts = await db.Contacts.Where(x => ids.Contains(x.Id)).ToListAsync(ct);
+        if (contacts.Count == 0) throw new NotFoundException("contact", ids[0]);
+        return contacts;
     }
 
     private static void ValidatePage(int page, int pageSize)

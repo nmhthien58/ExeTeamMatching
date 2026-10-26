@@ -151,6 +151,81 @@ public sealed class NotificationTests
     }
 
     [Fact]
+    public async Task Change_request_result_also_notifies_assigned_lecturer()
+    {
+        await using var db = Database();
+        var lecturerId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("ChangeRequestRejected",
+            new { lecturerId, memberStudentIds = Array.Empty<Guid>() }, "team", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        var notification = Assert.Single(db.Notifications);
+        Assert.Equal("LECTURER", notification.RecipientType);
+        Assert.Equal(lecturerId, notification.RecipientId);
+    }
+
+    [Fact]
+    public async Task Other_advisor_match_notifies_interested_mentor_only()
+    {
+        await using var db = Database();
+        var mentorId = Guid.NewGuid();
+        var handler = new NotificationEventHandler(db);
+        var closed = EventEnvelope.Create("TopicInterestClosed",
+            new { advisorKind = "MENTOR", advisorId = mentorId, reason = "OTHER_ADVISOR_MATCHED" }, "team", null);
+        var withdrawn = EventEnvelope.Create("TopicInterestClosed",
+            new { advisorKind = "MENTOR", advisorId = mentorId, reason = "WITHDRAWN" }, "team", null);
+        await handler.HandleAsync(closed, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(closed, default);
+        await handler.HandleAsync(withdrawn, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(withdrawn, default);
+
+        var notification = Assert.Single(db.Notifications);
+        Assert.Equal("MENTOR", notification.RecipientType);
+        Assert.Equal(mentorId, notification.RecipientId);
+        Assert.Equal("TopicInterestClosed", notification.Type);
+    }
+
+    [Fact]
+    public async Task Assignment_notification_includes_match_reason()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("LecturerAssigned", new
+        {
+            lecturerId = Guid.NewGuid(), lecturerName = "Cô An", memberStudentIds = new[] { studentId },
+            reason = "MUTUAL", preferenceRank = 1,
+        }, "team", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Contains("Hai bên cùng chọn", db.Notifications.Single(x => x.RecipientId == studentId).Content);
+    }
+
+    [Fact]
+    public async Task Dual_role_email_preference_updates_both_contacts()
+    {
+        await using var db = Database();
+        var lecturerId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
+        db.Contacts.AddRange(
+            new Contact { Id = lecturerId, PersonType = "LECTURER", Email = "advisor@example.test", FullName = "Cố vấn", EmailEnabled = true },
+            new Contact { Id = mentorId, PersonType = "MENTOR", Email = "advisor@example.test", FullName = "Cố vấn", EmailEnabled = true });
+        await db.SaveChangesAsync();
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimNames.LecturerId, lecturerId.ToString()),
+            new Claim(ClaimNames.MentorId, mentorId.ToString()),
+        ], "test"));
+        var service = new NotificationService(db);
+
+        await service.SetPreferencesAsync(user, new EmailPreferences(false), default);
+
+        Assert.False((await service.PreferencesAsync(user, default)).EmailEnabled);
+        Assert.All(db.Contacts, contact => Assert.False(contact.EmailEnabled));
+    }
+
+    [Fact]
     public async Task Profile_update_without_contact_fields_preserves_existing_email_and_name()
     {
         await using var db = Database();
