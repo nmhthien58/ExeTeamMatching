@@ -40,8 +40,8 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
     {
         try
         {
-            return MemberChangesBesideTeamEdits() is { Count: > 0 } members
-                ? await SaveTeamsBeforeMembersAsync(members, acceptAllChangesOnSuccess, cancellationToken)
+            return SecondPhaseChanges() is { Count: > 0 } later
+                ? await SaveInTwoPhasesAsync(later, acceptAllChangesOnSuccess, cancellationToken)
                 : await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
         catch (Exception ex) when (TeamDbErrors.ToAppException(ex) is { } mapped)
@@ -50,28 +50,45 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
         }
     }
 
-    // EF ghi INSERT/DELETE team_members trước UPDATE teams; trigger đếm thành viên đổi xmin của nhóm ở giữa
-    // nên UPDATE báo concurrency giả. Khi có cả hai: lưu nhóm trước, thành viên sau, trong cùng transaction.
-    private List<(EntityEntry Entry, EntityState State)> MemberChangesBesideTeamEdits() =>
-        ChangeTracker.Entries<TeamEntity>().Any(e => e.State == EntityState.Modified)
-            ? ChangeTracker.Entries<TeamMember>()
-                .Where(e => e.State is EntityState.Added or EntityState.Deleted)
-                .Select(e => ((EntityEntry)e, e.State))
-                .ToList()
-            : [];
+    /// <summary>
+    /// Thay đổi phải ghi sau, vì EF không biết thứ tự mà DB cần:
+    /// <list type="bullet">
+    /// <item>INSERT/DELETE team_members khi cũng sửa teams – trigger đếm thành viên đổi xmin của nhóm ở giữa nên UPDATE teams báo concurrency giả.</item>
+    /// <item>Domain chính mới khi domain chính cũ của nhóm bị bỏ cờ / xóa – unique index một phần <c>uq_team_domains_primary</c>.</item>
+    /// </list>
+    /// </summary>
+    private List<(EntityEntry Entry, EntityState State)> SecondPhaseChanges()
+    {
+        var later = new List<EntityEntry>();
+        if (ChangeTracker.Entries<TeamEntity>().Any(e => e.State == EntityState.Modified))
+        {
+            later.AddRange(ChangeTracker.Entries<TeamMember>().Where(e => e.State is EntityState.Added or EntityState.Deleted));
+        }
 
-    private async Task<int> SaveTeamsBeforeMembersAsync(List<(EntityEntry Entry, EntityState State)> members, bool acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+        var domains = ChangeTracker.Entries<TeamDomain>().ToList();
+        var teamsDroppingPrimary = domains
+            .Where(e => e.OriginalValues.GetValue<bool>(nameof(TeamDomain.IsPrimary))
+                && (e.State == EntityState.Deleted || (e.State == EntityState.Modified && !e.Entity.IsPrimary)))
+            .Select(e => e.Entity.TeamId)
+            .ToHashSet();
+        later.AddRange(domains.Where(e => e.Entity.IsPrimary && teamsDroppingPrimary.Contains(e.Entity.TeamId)
+            && (e.State == EntityState.Added || (e.State == EntityState.Modified && e.Property(x => x.IsPrimary).IsModified))));
+
+        return later.Select(e => (e, e.State)).ToList();
+    }
+
+    private async Task<int> SaveInTwoPhasesAsync(List<(EntityEntry Entry, EntityState State)> later, bool acceptAllChangesOnSuccess, CancellationToken cancellationToken)
     {
         await using var transaction = Database.CurrentTransaction is null ? await Database.BeginTransactionAsync(cancellationToken) : null;
         int saved;
         try
         {
-            members.ForEach(m => m.Entry.State = EntityState.Unchanged);
+            later.ForEach(m => m.Entry.State = EntityState.Unchanged);
             saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         }
         finally
         {
-            members.ForEach(m => m.Entry.State = m.State);
+            later.ForEach(m => m.Entry.State = m.State);
         }
         saved += await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         if (transaction is not null)
