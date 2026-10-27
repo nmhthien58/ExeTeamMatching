@@ -16,6 +16,9 @@ public interface IRoundService
     /// <summary>Đợt đang mở, lọc theo môn nếu có (banner hạn chót S01, L01). Cache Redis.</summary>
     Task<IReadOnlyList<RoundResponse>> ListOpenAsync(string? courseCode, CancellationToken ct);
 
+    /// <summary>Đợt đang mở và chưa quá hạn của môn + loại đợt (Team hỏi trước khi ghi, BE-22). Cache Redis; 404 khi không có.</summary>
+    Task<RoundResponse> GetOpenAsync(string courseCode, string roundType, CancellationToken ct);
+
     Task<RoundResponse> CreateAsync(RoundInput input, ClaimsPrincipal user, CancellationToken ct);
 
     Task<RoundResponse> UpdateAsync(Guid id, RoundInput input, CancellationToken ct);
@@ -39,6 +42,17 @@ public sealed class RoundService(IRoundRepository rounds, ISemesterRepository se
         var open = await cache.GetOrLoadAsync(AcademicCacheKeys.OpenRounds, async token =>
             (await rounds.ListAsync(null, null, RoundStatuses.Open, token)).Select(RoundResponse.From).ToList(), ct);
         return courseCode is null ? open : open.Where(r => r.CourseCode == courseCode).ToList();
+    }
+
+    /// <remarks>
+    /// Đợt đã quá hạn chót nhưng Job chưa kịp khóa vẫn coi là đã đóng: rule 6 khóa đúng hạn chót,
+    /// không phụ thuộc lúc RoundAutoCloseJob chạy.
+    /// </remarks>
+    public async Task<RoundResponse> GetOpenAsync(string courseCode, string roundType, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow();
+        return (await ListOpenAsync(courseCode, ct)).FirstOrDefault(r => r.RoundType == roundType && r.DeadlineAt > now)
+            ?? throw new NotFoundException($"đợt {roundType} đang mở của {courseCode}");
     }
 
     public async Task<RoundResponse> CreateAsync(RoundInput input, ClaimsPrincipal user, CancellationToken ct)

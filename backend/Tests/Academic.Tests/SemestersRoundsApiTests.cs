@@ -14,6 +14,7 @@ namespace Academic.Tests;
 /// Mỗi test tạo học kỳ thử có mã chưa dùng, xóa học kỳ, đợt và outbox của nó khi xong; học kỳ hiện hành được trả lại như cũ.
 /// Container <c>academic-api</c> phải tắt trong lúc chạy, để Outbox dispatcher của nó không phát sự kiện thử lên Kafka.
 /// </summary>
+[Collection(RoundTestsCollection.Name)]
 public sealed class SemestersRoundsApiTests : IAsyncLifetime
 {
     private static bool Enabled => Environment.GetEnvironmentVariable("EXE_INTEGRATION") == "1";
