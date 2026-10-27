@@ -101,6 +101,14 @@ public sealed class FakeAcademic : IAcademicClient
         return student;
     }
 
+    public StudentSnapshot EnrollWithCode(string studentCode, string fullName, int specializationId = 1, string course = "EXE201", bool enrolled = true)
+    {
+        var id = Guid.NewGuid();
+        var student = new StudentSnapshot(id, studentCode, fullName, specializationId, course, enrolled);
+        _students[id] = student;
+        return student;
+    }
+
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => Task.FromResult<SemesterDto?>(Semester);
 
     public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
@@ -110,6 +118,13 @@ public sealed class FakeAcademic : IAcademicClient
 
     public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<StudentSnapshot>>(studentIds.Where(_students.ContainsKey).Select(id => _students[id]).ToList());
+
+    public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct)
+    {
+        var codeSet = studentCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return Task.FromResult<IReadOnlyList<StudentSnapshot>>(
+            _students.Values.Where(s => codeSet.Contains(s.StudentCode)).ToList());
+    }
 
     public Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<CatalogItem>>(Enumerable.Range(1, 18).Select(i => new CatalogItem(i, $"D{i:00}", $"Domain {i}", true)).ToList());
