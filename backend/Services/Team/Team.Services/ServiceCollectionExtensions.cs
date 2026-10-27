@@ -8,6 +8,7 @@ using Team.Repositories.Context;
 using Team.Services.Academic;
 using Team.Services.Invitations;
 using Team.Services.JoinRequests;
+using Team.Services.Posts;
 using Team.Services.Members;
 using Team.Services.Teams;
 
@@ -38,7 +39,7 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
         // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests… (Thành).
-        services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule();
+        services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule();
         return services;
     }
 }
