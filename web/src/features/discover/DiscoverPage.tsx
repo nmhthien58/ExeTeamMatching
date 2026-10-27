@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState } from '@/shared/components/States'
 import { Button, Icon } from '@/shared/components/ui'
 import { PageHeader } from '@/shared/layout/PageHeader'
@@ -9,12 +9,44 @@ import { DomainChips, TeamRequirementBar } from '@/features/suggestions/componen
 import { useDomains } from '@/features/my_team/api'
 import { ListSkeleton } from '@/features/my_team/components'
 import { emptyFilter, filterCount, useTeamSearch, type TeamFilter } from './api'
+import { SeekingPostsPanel } from './SeekingPosts'
+
+const tabs = [
+  { key: 'nhom', label: 'Nhóm đang tuyển' },
+  { key: 'sinh-vien', label: 'Sinh viên tìm nhóm' },
+] as const
+
+/** Khám phá: tab "Nhóm đang tuyển" (S05) và "Sinh viên tìm nhóm" (S10). Tab đang chọn nằm trên URL (`?tab=sinh-vien`). */
+export function DiscoverPage() {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'sinh-vien' ? 'sinh-vien' : 'nhom'
+  return (
+    <>
+      <PageHeader title="Khám phá" />
+      <div role="tablist" aria-label="Khám phá" className="mb-4 flex gap-1 border-b border-border">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => setParams(t.key === 'nhom' ? {} : { tab: t.key }, { replace: true })}
+            className={`min-h-12 border-b-2 px-4 font-medium ${tab === t.key ? 'border-primary text-primary-dark' : 'border-transparent text-text-secondary'}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel">{tab === 'nhom' ? <TeamsPanel /> : <SeekingPostsPanel />}</div>
+    </>
+  )
+}
 
 /**
- * S05 – Khám phá, nhóm đang tuyển (FE-37, cùng spec MB-14): tìm kiếm, bộ lọc S06 (drawer), lối vào "Gợi ý cho bạn" (S07),
- * thẻ nhóm "n/6 thành viên · còn k chỗ" không có chip trạng thái, phân trang. Tab "Sinh viên tìm nhóm" (S10) ở MB-17.
+ * S05 – nhóm đang tuyển (FE-37, cùng spec MB-14): tìm kiếm, bộ lọc S06 (drawer), lối vào "Gợi ý cho bạn" (S07),
+ * thẻ nhóm "n/6 thành viên · còn k chỗ" không có chip trạng thái, phân trang.
  */
-export function DiscoverPage() {
+function TeamsPanel() {
   const [draft, setDraft] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<TeamFilter>(emptyFilter)
@@ -31,7 +63,6 @@ export function DiscoverPage() {
 
   return (
     <>
-      <PageHeader title="Khám phá" />
       <div className="flex flex-col gap-4">
         <form
           className="flex flex-wrap gap-2"
