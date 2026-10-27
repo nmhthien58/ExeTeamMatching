@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/discover/discover_screen.dart';
+import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/invitations/invitations_screen.dart';
 import '../features/my_team/members_screen.dart';
 import '../features/my_team/my_team_screen.dart';
+import '../features/my_team/recruitment_post_screen.dart';
 import '../features/my_team/requests_screen.dart';
 import '../features/my_team/team_form_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
@@ -58,6 +60,9 @@ final _studentTeamRoutes = [
     builder: (_, s) => TeamFormationOnly(child: TeamDetailScreen(teamId: s.pathParameters['teamId']!)),
   ),
   GoRoute(path: '/sv/loi-moi', builder: (_, _) => const InvitationsScreen()),
+  // S11, S21 – MB-17, MB-25 (Cường); chỉ trong đợt lập nhóm (quy tắc 18).
+  GoRoute(path: '/sv/kham-pha/tim-nhom', builder: (_, _) => const TeamFormationOnly(child: SeekingPostFormScreen())),
+  GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),
 ];
 
 /// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).

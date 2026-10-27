@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
+import '../discover/posts_api.dart' show RecruitmentPost;
 import '../suggestions/suggestions_api.dart' show CatalogRef, myTeamProvider;
 
 // Model theo docs/contracts/openapi/team.yaml (tag Teams, Members, Invitations, JoinRequests) – các trường S13–S17, S20 dùng.
@@ -47,7 +48,7 @@ class MyTeam {
     this.isInherited = false,
     this.hasPendingChanges = false,
     this.relation = 'NONE',
-    this.recruitment,
+    this.recruitmentPost,
   });
 
   final String id;
@@ -72,8 +73,11 @@ class MyTeam {
   /// Quan hệ của người xem: LEADER, MEMBER, INVITED, REQUESTED, NONE (chọn nút ở S08).
   final String relation;
 
-  /// Bài tuyển đang mở (tiêu đề – mô tả), nếu có.
-  final String? recruitment;
+  /// Bài tuyển đang mở (S21), nếu có.
+  final RecruitmentPost? recruitmentPost;
+
+  /// Bài tuyển dạng "tiêu đề – mô tả" cho S08.
+  String? get recruitment => recruitmentPost == null ? null : [recruitmentPost!.title, ?recruitmentPost!.description].join(' – ');
 
   bool get isFull => memberCount >= maxSize;
 
@@ -102,10 +106,7 @@ class MyTeam {
       isInherited: j['isInherited'] as bool? ?? false,
       hasPendingChanges: j['hasPendingChanges'] as bool? ?? false,
       relation: j['myRelation'] as String? ?? 'NONE',
-      recruitment: switch (j['recruitmentPost']) {
-        final Map<dynamic, dynamic> p => [p['title'], if (p['description'] != null) p['description']].join(' – '),
-        _ => null,
-      },
+      recruitmentPost: j['recruitmentPost'] == null ? null : RecruitmentPost.fromJson(_map(j['recruitmentPost'])),
     );
   }
 }
