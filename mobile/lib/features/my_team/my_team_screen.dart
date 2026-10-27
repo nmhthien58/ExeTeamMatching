@@ -151,6 +151,7 @@ class _TeamOverview extends StatelessWidget {
                   path: '/sv/nhom/bai-tuyen',
                 ),
               if (canEdit) const _Shortcut(icon: Icons.edit_outlined, label: 'Sửa thông tin', path: '/sv/nhom/sua'),
+              const _Shortcut(icon: Icons.history, label: 'Lịch sử hoạt động', path: '/sv/nhom/lich-su'),
             ],
           ),
         ),
