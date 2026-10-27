@@ -40,7 +40,8 @@ public sealed class TeamReader(ITeamRepository teams, IAcademicClient academic)
         return (graphs.ToDictionary(g => g.Team.Id, g => TeamMapper.ToCard(g, catalogs)), students);
     }
 
-    private async Task<Dictionary<Guid, StudentRef>> StudentsAsync(Guid semesterId, IEnumerable<Guid> studentIds, Catalogs catalogs, CancellationToken ct)
+    /// <summary>StudentRef theo học kỳ; sinh viên Academic không trả về có tên rỗng.</summary>
+    public async Task<Dictionary<Guid, StudentRef>> StudentsAsync(Guid semesterId, IEnumerable<Guid> studentIds, Catalogs catalogs, CancellationToken ct)
     {
         var ids = studentIds.Distinct().ToList();
         IReadOnlyList<StudentSnapshot> found;
