@@ -1,11 +1,13 @@
 using Academic.Repositories.Context;
 using Academic.Services.Caching;
 using Academic.Services.Catalogs;
+using Academic.Services.Semesters;
 using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using StackExchange.Redis;
 
 namespace Academic.Services;
@@ -26,9 +28,10 @@ public static class ServiceCollectionExtensions
         services.AddOutbox<AcademicDbContext>(configuration);
 
         services.AddAcademicCache(configuration);
+        services.TryAddSingleton(TimeProvider.System);
 
-        // Module: Catalogs (BE-21); Semesters, Rounds, Imports, Students, Lecturers, Mentors, Settings (các task sau).
-        services.AddCatalogsModule();
+        // Module: Catalogs (BE-21), Semesters + Rounds (BE-16); Imports, Students, Lecturers, Mentors, Settings (các task sau).
+        services.AddCatalogsModule().AddSemestersModule();
         return services;
     }
 
