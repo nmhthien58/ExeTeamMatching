@@ -4,7 +4,8 @@ import { Button, Icon } from '@/shared/components/ui'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { Card } from '@/features/workspace/components'
 import { useMyTeam } from '@/features/suggestions/api'
-import { formatDateTime, useTeamAuditLogs } from '@/features/audit-log/api'
+import { useTeamAuditLogs } from '@/features/audit-log/api'
+import { formatDateTime } from '@/features/workspace/format'
 import { ListSkeleton } from './components'
 
 const icons: Record<string, string> = {

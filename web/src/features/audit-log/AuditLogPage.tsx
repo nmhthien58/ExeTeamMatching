@@ -2,7 +2,8 @@ import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from '@/shared/components/States'
 import { Button, Icon } from '@/shared/components/ui'
 import { PageHeader } from '@/shared/layout/PageHeader'
-import { formatDateTime, useSystemAuditLogs, useTeamOptions } from './api'
+import { formatDateTime } from '@/features/workspace/format'
+import { useSystemAuditLogs, useTeamOptions } from './api'
 
 const fieldClass = 'h-10 rounded-sm border border-border-strong bg-surface px-3 text-body'
 

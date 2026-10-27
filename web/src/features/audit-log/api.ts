@@ -66,9 +66,3 @@ export function useTeamOptions() {
   })
 }
 
-/** "08:05 · 27/10/2026" (DESIGN.md mục 9). */
-export function formatDateTime(iso: string) {
-  const d = new Date(iso)
-  const two = (v: number) => String(v).padStart(2, '0')
-  return `${two(d.getHours())}:${two(d.getMinutes())} · ${two(d.getDate())}/${two(d.getMonth() + 1)}/${d.getFullYear()}`
-}
