@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Team.Repositories.Context;
 using Team.Services.Academic;
+using Team.Services.AdvisorAssignments;
 using Team.Services.AuditLog;
 using Team.Services.Invitations;
 using Team.Services.JoinRequests;
@@ -19,7 +20,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Khung Team Service (BE-24): DbContext <c>team_db</c>, Kafka + Outbox, client gọi Academic.
-    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests…) tự đăng ký service của mình bên dưới.
+    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, AdvisorAssignments…) tự đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddTeamServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -39,9 +40,9 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<CorrelationIdHandler>()
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
-        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests… (Thành).
+        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, AdvisorAssignments… (Thành).
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
-            .AddAuditLogModule();
+            .AddAuditLogModule().AddAdvisorAssignmentsModule();
         return services;
     }
 }
