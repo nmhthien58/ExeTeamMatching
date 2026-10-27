@@ -5,7 +5,7 @@ using BuildingBlocks.Web;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults("academic");
-builder.Services.AddApiControllers(typeof(Program).Assembly);
+builder.Services.AddApiControllers(typeof(Program).Assembly, typeof(ServiceCollectionExtensions).Assembly);
 builder.Services.AddAcademicServices(builder.Configuration);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
