@@ -57,7 +57,9 @@ function Overview({ team }: { team: FullTeam }) {
     { to: '/sv/nhom/thanh-vien', icon: 'groups', label: 'Thành viên', detail: `${team.memberCount}/${maxSize}`, show: true },
     { to: '/sv/nhom/yeu-cau', icon: 'mark_email_unread', label: 'Yêu cầu và lời mời', show: isLeader },
     { to: '/sv/nhom/goi-y', icon: 'person_search', label: 'Gợi ý thành viên', show: canEdit && team.memberCount < maxSize },
+    { to: '/sv/nhom/bai-tuyen', icon: 'campaign', label: 'Bài tuyển thành viên', detail: team.recruitmentPost ? 'Đang mở' : undefined, show: canEdit },
     { to: '/sv/nhom/sua', icon: 'edit', label: 'Sửa thông tin', show: canEdit },
+    { to: '/sv/nhom/lich-su', icon: 'history', label: 'Lịch sử hoạt động', show: true },
   ].filter((s) => s.show)
 
   return (

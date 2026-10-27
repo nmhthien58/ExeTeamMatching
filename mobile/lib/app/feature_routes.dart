@@ -6,11 +6,14 @@ import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/messages/channel_screen.dart';
+import '../features/messages/conversations_screen.dart';
 import '../features/invitations/invitations_screen.dart';
 import '../features/my_team/members_screen.dart';
 import '../features/my_team/my_team_screen.dart';
 import '../features/my_team/recruitment_post_screen.dart';
 import '../features/my_team/requests_screen.dart';
+import '../features/my_team/team_history_screen.dart';
 import '../features/my_team/team_form_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
 import '../features/round_closed/round_closed_screen.dart';
@@ -30,6 +33,9 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/nhom': (_) => const MyTeamScreen(),
   '/sv': (_) => const HomeScreen(),
   '/sv/kham-pha': (_) => const DiscoverScreen(),
+  // C02 của cố vấn – MB-39 (Cường).
+  '/gv/tin-nhan': (_) => const AdvisorConversationsScreen(basePath: '/gv/tin-nhan'),
+  '/mentor/tin-nhan': (_) => const AdvisorConversationsScreen(basePath: '/mentor/tin-nhan'),
 };
 
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
@@ -38,8 +44,8 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
           ..._studentTeamRoutes,
         ],
-      Shell.lecturer => [_advisorWorkspace('/gv/du-an')],
-      Shell.mentor => [_advisorWorkspace('/mentor/du-an')],
+      Shell.lecturer => [_advisorWorkspace('/gv/du-an'), _channelRoute('/gv/tin-nhan')],
+      Shell.mentor => [_advisorWorkspace('/mentor/du-an'), _channelRoute('/mentor/tin-nhan')],
     };
 
 /// S07 (trong Khám phá, chỉ mở trong đợt lập nhóm – quy tắc 18), S18, S19 (Nhóm của tôi), S30, S31 (sau hạn chót) – MB-15, MB-23, MB-31.
@@ -63,6 +69,8 @@ final _studentTeamRoutes = [
   // S11, S21 – MB-17, MB-25 (Cường); chỉ trong đợt lập nhóm (quy tắc 18).
   GoRoute(path: '/sv/kham-pha/tim-nhom', builder: (_, _) => const TeamFormationOnly(child: SeekingPostFormScreen())),
   GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),
+  // S22 – MB-26 (Cường).
+  GoRoute(path: '/sv/nhom/lich-su', builder: (_, _) => const TeamHistoryScreen()),
 ];
 
 /// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).
@@ -76,7 +84,7 @@ GoRoute _advisorWorkspace(String base) => GoRoute(
       ),
     );
 
-/// C04, C05, C06 (MB-40, MB-41); Tin nhắn (C02, Cường) và Lịch họp (C07, Nam) giữ chỗ tới khi module đó xong.
+/// C04, C05, C06 (MB-40, MB-41), Tin nhắn C02, C03 (MB-39); Lịch họp (C07, Nam) giữ chỗ tới khi module đó xong.
 /// [prefix] là phần đầu đường dẫn (rỗng khi lồng trong route dự án của cố vấn).
 List<GoRoute> _workspaceRoutes(
   String prefix, {
@@ -96,7 +104,14 @@ List<GoRoute> _workspaceRoutes(
     ),
     GoRoute(path: '${prefix}viec/:taskId', builder: (_, s) => TaskDetailScreen(taskId: s.pathParameters['taskId']!, workspaceId: workspaceIdOf(s))),
     GoRoute(path: '${prefix}file', builder: (_, s) => FilesScreen(workspaceId: workspaceIdOf(s))),
-    GoRoute(path: '${prefix}tin-nhan', builder: (_, _) => const _Pending(screen: 'C02', title: 'Tin nhắn', owner: 'Cường')),
+    GoRoute(path: '${prefix}tin-nhan', builder: (_, s) => ConversationsScreen(basePath: basePathOf(s), workspaceId: workspaceIdOf(s))),
+    GoRoute(
+      path: '${prefix}tin-nhan/:channelId',
+      builder: (_, s) => switch (s.uri.queryParameters['ws'] ?? workspaceIdOf(s)) {
+        final String ws => ChannelScreen(workspaceId: ws, channelId: s.pathParameters['channelId']!),
+        null => ConversationsScreen(basePath: basePathOf(s)),
+      },
+    ),
     GoRoute(path: '${prefix}lich-hop', builder: (_, _) => const _Pending(screen: 'C07', title: 'Lịch họp', owner: 'Nam')),
   ];
 }
@@ -114,3 +129,12 @@ class _Pending extends StatelessWidget {
         body: EmptyState(icon: Icons.construction, title: '$screen · $title', description: 'Màn hình đang được làm – người phụ trách: $owner.'),
       );
 }
+
+/// C03 mở từ tab Tin nhắn của cố vấn: `{base}/{channelId}?ws={workspaceId}` – MB-39 (Cường).
+GoRoute _channelRoute(String base) => GoRoute(
+      path: '$base/:channelId',
+      builder: (_, s) => switch (s.uri.queryParameters['ws']) {
+        final String ws => ChannelScreen(workspaceId: ws, channelId: s.pathParameters['channelId']!),
+        null => Scaffold(appBar: AppBar(), body: const EmptyState(icon: Icons.forum_outlined, title: 'Không tìm thấy kênh')),
+      },
+    );

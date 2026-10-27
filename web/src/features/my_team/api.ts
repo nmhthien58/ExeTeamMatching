@@ -8,7 +8,7 @@ export interface FullTeam extends TeamDetail {
   ideaDescription?: string | null
   isInherited?: boolean
   hasPendingChanges?: boolean
-  recruitmentPost?: { title: string; description?: string | null } | null
+  recruitmentPost?: { id: string; title: string; description?: string | null; specializationIds?: number[] } | null
 }
 
 export interface TeamInput {
