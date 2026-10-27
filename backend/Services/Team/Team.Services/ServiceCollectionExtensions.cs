@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Team.Repositories.Context;
 using Team.Services.Academic;
+using Team.Services.AuditLog;
 using Team.Services.Invitations;
 using Team.Services.JoinRequests;
 using Team.Services.Posts;
@@ -39,7 +40,8 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
         // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests… (Thành).
-        services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule();
+        services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
+            .AddAuditLogModule();
         return services;
     }
 }

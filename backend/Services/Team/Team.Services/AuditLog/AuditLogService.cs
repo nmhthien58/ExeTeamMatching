@@ -1,0 +1,97 @@
+using System.Security.Claims;
+using System.Text.Json;
+using BuildingBlocks.Auth;
+using Team.Repositories.AuditLog;
+using Team.Repositories.Teams;
+using Team.Services.Teams;
+
+namespace Team.Services.AuditLog;
+
+public interface IAuditLogService
+{
+    /// <summary>S22, L05 – lịch sử nhóm cho thành viên nhóm, giảng viên hướng dẫn / mentor của nhóm và Admin.</summary>
+    Task<PagedResponse<AuditLogResponse>> ListForTeamAsync(Guid teamId, AuditLogPageQuery query, ClaimsPrincipal user, CancellationToken ct);
+
+    /// <summary>W24 – nhật ký hệ thống cho Admin.</summary>
+    Task<PagedResponse<AuditLogResponse>> SearchAsync(AuditLogQuery query, CancellationToken ct);
+}
+
+/// <summary>Module AuditLog của Team Service (BE-32, rule 10) – chỉ đọc; ghi bằng <see cref="AuditLogWriter"/>.</summary>
+public sealed class AuditLogService(IAuditLogRepository logs, ITeamRepository teams) : IAuditLogService
+{
+    public async Task<PagedResponse<AuditLogResponse>> ListForTeamAsync(Guid teamId, AuditLogPageQuery query, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var graph = await teams.GetGraphAsync(teamId, ct) ?? throw TeamErrors.TeamNotFound(teamId);
+        var studentId = user.GetStudentId();
+        var allowed = user.IsInRole(Roles.Admin)
+            || graph.Members.Any(m => m.StudentId == studentId)
+            || await logs.IsAdvisorAsync(teamId, user.GetLecturerId(), user.GetMentorId(), ct);
+        if (!allowed)
+        {
+            throw TeamErrors.NotMember();
+        }
+        return await PageAsync(new AuditLogFilter(teamId, null, null, null, query.Page, query.PageSize), ct);
+    }
+
+    public Task<PagedResponse<AuditLogResponse>> SearchAsync(AuditLogQuery query, CancellationToken ct) =>
+        PageAsync(new AuditLogFilter(query.TeamId, query.ActorAccountId, query.From, query.To, query.Page, query.PageSize), ct);
+
+    private async Task<PagedResponse<AuditLogResponse>> PageAsync(AuditLogFilter filter, CancellationToken ct)
+    {
+        var (items, total) = await logs.SearchAsync(filter, ct);
+        return new PagedResponse<AuditLogResponse>(items.Select(ToResponse).ToList(), filter.Page, filter.PageSize, total,
+            (total + filter.PageSize - 1) / filter.PageSize);
+    }
+
+    private static AuditLogResponse ToResponse(AuditLogEntry e) =>
+        new(e.Id, e.TeamId, e.Action, ActorName(e.ActorRole), e.ActorRole, Summary(e), e.Reason, e.OccurredAt);
+
+    // shortcut: audit_logs chỉ lưu actor_account_id (Identity), Team không tra được tên người thực hiện nên hiện theo vai trò;
+    // thêm cột actor_name vào DB script (Thiên duyệt) khi màn S22 / W24 cần tên.
+    private static string ActorName(string role) => role switch
+    {
+        Roles.Admin => "Bộ môn",
+        Roles.Lecturer => "Giảng viên",
+        Roles.Mentor => "Mentor",
+        Roles.Student => "Sinh viên",
+        _ => "Hệ thống",
+    };
+
+    /// <summary>Câu mô tả tiếng Việt từ mã hành động và giá trị đã lưu; hành động của module khác hiện nguyên mã.</summary>
+    public static string Summary(AuditLogEntry e)
+    {
+        string? New(string property) => Read(e.NewValues, property);
+        string? Old(string property) => Read(e.OldValues, property);
+        return e.Action switch
+        {
+            "TEAM_CREATED" => $"Tạo nhóm {New("name")}",
+            "TEAM_UPDATED" => "Sửa thông tin nhóm",
+            "INVITATION_SENT" => $"Mời {New("studentCode")} vào nhóm",
+            "INVITATION_CANCELLED" => "Thu hồi lời mời",
+            "JOIN_REQUEST_SUBMITTED" => $"{New("studentCode")} xin vào nhóm",
+            "JOIN_REQUEST_CANCELLED" => "Hủy yêu cầu tham gia",
+            "MEMBER_JOINED" => $"{New("studentCode")} vào nhóm",
+            "MEMBER_ADD_PENDING" => $"{New("studentCode")} vào nhóm – chờ Bộ môn duyệt",
+            "MEMBER_LEFT" => $"{Old("studentCode")} rời nhóm",
+            "MEMBER_REMOVED" => $"Xóa {Old("studentCode")} khỏi nhóm",
+            "MEMBER_REMOVE_PENDING" => $"{New("studentCode")} rời nhóm – chờ Bộ môn duyệt",
+            "LEADER_CHANGED" => $"Chuyển trưởng nhóm từ {Old("leader")} sang {New("leader")}",
+            "RECRUITMENT_POST_OPENED" => "Đăng bài tuyển thành viên",
+            "RECRUITMENT_POST_UPDATED" => "Sửa bài tuyển thành viên",
+            "RECRUITMENT_POST_CLOSED" => "Đóng bài tuyển thành viên",
+            _ => e.Action,
+        };
+    }
+
+    private static string? Read(string? json, string property)
+    {
+        if (json is null)
+        {
+            return null;
+        }
+        using var doc = JsonDocument.Parse(json);
+        return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty(property, out var value)
+            ? value.ToString()
+            : null;
+    }
+}
