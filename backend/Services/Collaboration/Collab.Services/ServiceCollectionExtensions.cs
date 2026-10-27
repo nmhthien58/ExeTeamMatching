@@ -2,6 +2,7 @@ using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Collab.Repositories.Context;
 using Collab.Repositories.Workspaces;
+using Collab.Services.Checkpoints;
 using Collab.Services.Files;
 using Collab.Services.Messages;
 using Collab.Services.Storage;
@@ -48,7 +49,7 @@ public static class ServiceCollectionExtensions
         }
 
         // Module: Messages (Cường), Tasks + Files (Nguyên), Meetings (Nam), Checkpoints (Thành) – đăng ký ở đây.
-        services.AddFilesModule().AddTasksModule().AddMessagesModule();
+        services.AddFilesModule().AddTasksModule().AddMessagesModule().AddCheckpointsModule(configuration);
         return services;
     }
 }
