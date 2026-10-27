@@ -8,6 +8,12 @@ namespace Academic.Services.Caching;
 public static class AcademicCacheKeys
 {
     public static string Catalog(string path) => $"catalog:{path}";
+
+    /// <summary>Học kỳ hiện hành (Team gọi trước mỗi thao tác lập nhóm).</summary>
+    public const string CurrentSemester = "semesters:current";
+
+    /// <summary>Mọi đợt đang mở (trạng thái OPEN) của mọi môn.</summary>
+    public const string OpenRounds = "rounds:open";
 }
 
 /// <summary>
