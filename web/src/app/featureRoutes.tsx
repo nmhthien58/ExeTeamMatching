@@ -1,6 +1,7 @@
 import type { RouteObject } from 'react-router-dom'
 import type { Shell } from '@/shared/auth/AuthProvider'
 import { adminAutoAssignRoutes } from '@/features/auto-assign/routes'
+import { studentTeamRoutes } from '@/features/my_team/routes'
 import { suggestionRoutes } from '@/features/suggestions/routes'
 import { workspaceRoutes } from '@/features/workspace/routes'
 
@@ -10,7 +11,7 @@ import { workspaceRoutes } from '@/features/workspace/routes'
  */
 export const featureRoutes: Record<Shell, RouteObject[]> = {
   admin: [...adminAutoAssignRoutes],
-  student: [workspaceRoutes('/sv'), ...suggestionRoutes],
+  student: [workspaceRoutes('/sv'), ...suggestionRoutes, ...studentTeamRoutes],
   lecturer: [workspaceRoutes('/gv')],
   mentor: [workspaceRoutes('/mentor')],
 }

@@ -46,6 +46,8 @@ class MyTeam {
     this.mentorName,
     this.isInherited = false,
     this.hasPendingChanges = false,
+    this.relation = 'NONE',
+    this.recruitment,
   });
 
   final String id;
@@ -66,6 +68,12 @@ class MyTeam {
   final String? mentorName;
   final bool isInherited;
   final bool hasPendingChanges;
+
+  /// Quan hệ của người xem: LEADER, MEMBER, INVITED, REQUESTED, NONE (chọn nút ở S08).
+  final String relation;
+
+  /// Bài tuyển đang mở (tiêu đề – mô tả), nếu có.
+  final String? recruitment;
 
   bool get isFull => memberCount >= maxSize;
 
@@ -93,6 +101,11 @@ class MyTeam {
       mentorName: j['mentorName'] as String?,
       isInherited: j['isInherited'] as bool? ?? false,
       hasPendingChanges: j['hasPendingChanges'] as bool? ?? false,
+      relation: j['myRelation'] as String? ?? 'NONE',
+      recruitment: switch (j['recruitmentPost']) {
+        final Map<dynamic, dynamic> p => [p['title'], if (p['description'] != null) p['description']].join(' – '),
+        _ => null,
+      },
     );
   }
 }
