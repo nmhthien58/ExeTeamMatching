@@ -20,12 +20,23 @@ public sealed record AutoAssignPlan(IReadOnlyList<PlannedFill> Fills, IReadOnlyL
         Fills.SelectMany(f => f.StudentIds).Concat(NewTeams.SelectMany(t => t.StudentIds)).Concat(UnassignedStudentIds).Distinct();
 }
 
+/// <summary>Gợi ý thành viên (S18): <see cref="Skills"/> là kỹ năng đã tự đánh giá, mạnh trước, ví dụ "Thiết kế UI/UX 4/5".</summary>
+public sealed record SuggestedMember(Guid StudentId, int SpecializationId, double Score, IReadOnlyList<string> Reasons, IReadOnlyList<string> Skills);
+
+public sealed record SuggestedMembers(IReadOnlyList<int> MissingSpecializationIds, IReadOnlyList<SuggestedMember> Items);
+
+public sealed record SuggestedTeam(Guid TeamId, double Score, IReadOnlyList<string> Reasons);
+
 /// <summary>Lời gọi gRPC tới Matching Service (PROJECT_CONTEXT §5.5). Matching lỗi hoặc quá hạn → 503 matching-unavailable.</summary>
 public interface IMatchingClient
 {
     Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct);
 
     Task<AutoAssignPlan> PlanAutoAssignmentAsync(Guid semesterId, string courseCode, CancellationToken ct);
+
+    Task<SuggestedMembers> SuggestMembersAsync(Guid semesterId, string courseCode, Guid teamId, int limit, CancellationToken ct);
+
+    Task<IReadOnlyList<SuggestedTeam>> SuggestTeamsAsync(Guid semesterId, string courseCode, Guid studentId, int limit, CancellationToken ct);
 }
 
 public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc) : IMatchingClient
@@ -58,6 +69,39 @@ public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc) :
                     t.Members.Select(m => Guid.Parse(m.StudentId)).ToList())).ToList(),
                 response.UnassignedStudentIds.Select(Guid.Parse).ToList());
         }, ct);
+
+    public Task<SuggestedMembers> SuggestMembersAsync(Guid semesterId, string courseCode, Guid teamId, int limit, CancellationToken ct) =>
+        CallAsync(async options =>
+        {
+            var response = await grpc.SuggestMembersAsync(new SuggestMembersRequest
+            {
+                SemesterId = semesterId.ToString(), Course = ToCourse(courseCode), TeamId = teamId.ToString(), Limit = limit,
+            }, options);
+            return new SuggestedMembers(response.MissingSpecializationIds.ToList(), response.Suggestions.Select(s => new SuggestedMember(
+                Guid.Parse(s.StudentId), s.SpecializationId, s.Score, s.Reasons.ToList(),
+                s.SkillRatings.OrderByDescending(r => r.Level).Select(r => $"{SkillLabel(r.Skill)} {r.Level}/5").ToList())).ToList());
+        }, ct);
+
+    public Task<IReadOnlyList<SuggestedTeam>> SuggestTeamsAsync(Guid semesterId, string courseCode, Guid studentId, int limit, CancellationToken ct) =>
+        CallAsync<IReadOnlyList<SuggestedTeam>>(async options =>
+        {
+            var response = await grpc.SuggestTeamsAsync(new SuggestTeamsRequest
+            {
+                SemesterId = semesterId.ToString(), Course = ToCourse(courseCode), StudentId = studentId.ToString(), Limit = limit,
+            }, options);
+            return response.Suggestions.Select(s => new SuggestedTeam(Guid.Parse(s.TeamId), s.Score, s.Reasons.ToList())).ToList();
+        }, ct);
+
+    /// <summary>Tên kỹ năng như Matching dùng trong lý do gợi ý (rule 16).</summary>
+    private static string SkillLabel(Skill skill) => skill switch
+    {
+        Skill.Technology => "Công nghệ",
+        Skill.UiUxDesign => "Thiết kế UI/UX",
+        Skill.Management => "Quản lý",
+        Skill.Marketing => "Marketing",
+        Skill.CommunicationPlanning => "Truyền thông – kế hoạch",
+        _ => skill.ToString(),
+    };
 
     internal static Course ToCourse(string courseCode) => courseCode == "EXE201" ? Course.Exe201 : Course.Exe101;
 

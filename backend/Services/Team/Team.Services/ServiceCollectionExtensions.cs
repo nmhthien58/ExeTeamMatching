@@ -16,6 +16,7 @@ using Team.Services.Matching;
 using Team.Services.Posts;
 using Team.Services.Members;
 using Team.Services.Statistics;
+using Team.Services.Suggestions;
 using Team.Services.Teams;
 
 namespace Team.Services;
@@ -48,7 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
             .AddAuditLogModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
-            .AddStatisticsModule().AddExportModule();
+            .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
         return services;
     }
 }
