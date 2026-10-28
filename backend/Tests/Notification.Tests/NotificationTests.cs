@@ -226,6 +226,25 @@ public sealed class NotificationTests
     }
 
     [Fact]
+    public async Task New_mentor_keeps_disabled_email_preference_of_same_account()
+    {
+        await using var db = Database();
+        db.Contacts.Add(new Contact { Id = Guid.NewGuid(), PersonType = "LECTURER",
+            Email = "advisor@example.test", FullName = "Cố vấn", EmailEnabled = false });
+        await db.SaveChangesAsync();
+        var mentorId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("MentorRegistered",
+            new { mentorId, email = "advisor@example.test", fullName = "Cố vấn" }, "academic", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.False((await db.Contacts.SingleAsync(x => x.Id == mentorId)).EmailEnabled);
+        Assert.Equal(mentorId, Assert.Single(db.Notifications).RecipientId);
+        Assert.Empty(db.EmailLogs);
+    }
+
+    [Fact]
     public async Task Profile_update_without_contact_fields_preserves_existing_email_and_name()
     {
         await using var db = Database();
@@ -299,5 +318,279 @@ public sealed class NotificationTests
         Assert.NotNull(notification.ReadAt);
         await service.SetPreferencesAsync(Student(mine), new EmailPreferences(false), default);
         Assert.False((await service.PreferencesAsync(Student(mine), default)).EmailEnabled);
+    }
+
+    [Fact]
+    public async Task Checkpoint_event_notifies_members_but_plain_messages_are_not_subscribed()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("CheckpointReviewed",
+            new { workspaceId = Guid.NewGuid(), checkpointNo = 2, memberStudentIds = new[] { studentId } },
+            "collab", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(studentId, db.Notifications.Single().RecipientId);
+        Assert.Contains("Checkpoint 2", db.Notifications.Single().Content);
+        Assert.DoesNotContain(NotificationEventHandler.Subscriptions, x => x.EventType == "MessageSent");
+    }
+
+    [Fact]
+    public async Task First_mentor_registration_creates_welcome_email_once()
+    {
+        await using var db = Database();
+        var mentorId = Guid.NewGuid();
+        var handler = new NotificationEventHandler(db);
+        var processed = new NotificationProcessedEventStore(db);
+        var first = EventEnvelope.Create("MentorRegistered",
+            new { mentorId, fullName = "Mentor", email = "mentor@example.test" }, "academic", null);
+        await handler.HandleAsync(first, default);
+        await processed.MarkProcessedAsync(first, default);
+        var updated = EventEnvelope.Create("MentorRegistered",
+            new { mentorId, fullName = "Mentor", email = "mentor@example.test" }, "academic", null);
+        await handler.HandleAsync(updated, default);
+        await processed.MarkProcessedAsync(updated, default);
+
+        Assert.Single(db.EmailLogs);
+        Assert.Single(db.Notifications);
+        Assert.Equal("MentorRegistered", db.EmailLogs.Single().TemplateCode);
+    }
+
+    [Fact]
+    public async Task Mention_notifies_only_valid_people_without_email()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("UserMentioned", new
+        {
+            workspaceId,
+            mentioned = new object[]
+            {
+                new { personType = "STUDENT", personId = studentId },
+                new { personType = "MENTOR", personId = mentorId },
+                new { personType = "STUDENT", personId = studentId },
+                new { personType = "ADMIN", personId = Guid.NewGuid() },
+            },
+        }, "collab", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(2, await db.Notifications.CountAsync());
+        Assert.Contains(db.Notifications, x => x.RecipientType == "STUDENT" && x.RecipientId == studentId);
+        Assert.Contains(db.Notifications, x => x.RecipientType == "MENTOR" && x.RecipientId == mentorId);
+        Assert.All(db.Notifications, x => Assert.Equal($"app://workspaces/{workspaceId}", x.LinkUrl));
+        Assert.Empty(db.EmailLogs);
+    }
+
+    [Fact]
+    public async Task Due_soon_reminder_notifies_assignees_in_app_only()
+    {
+        await using var db = Database();
+        var assignee = Guid.NewGuid();
+        var unrelated = Guid.NewGuid();
+        db.Contacts.AddRange(
+            new Contact { Id = assignee, PersonType = "STUDENT", Email = "assignee@example.test",
+                FullName = "Người nhận", EmailEnabled = true },
+            new Contact { Id = unrelated, PersonType = "STUDENT", Email = "other@example.test",
+                FullName = "Người khác", EmailEnabled = true });
+        await db.SaveChangesAsync();
+        var envelope = EventEnvelope.Create("TaskDueSoon", new
+        {
+            workspaceId = Guid.NewGuid(), title = "Nộp báo cáo", assigneeStudentIds = new[] { assignee },
+        }, "jobs", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(assignee, Assert.Single(db.Notifications).RecipientId);
+        Assert.Empty(db.EmailLogs);
+    }
+
+    [Fact]
+    public async Task Meeting_reminder_notifies_invited_student_and_lecturer()
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var lecturerId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("MeetingReminder", new
+        {
+            title = "Họp tuần", invitees = new object[]
+            {
+                new { personType = "STUDENT", personId = studentId },
+                new { personType = "LECTURER", personId = lecturerId },
+            },
+        }, "jobs", null);
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(2, await db.Notifications.CountAsync());
+        Assert.Contains(db.Notifications, x => x.RecipientType == "STUDENT" && x.RecipientId == studentId);
+        Assert.Contains(db.Notifications, x => x.RecipientType == "LECTURER" && x.RecipientId == lecturerId);
+    }
+
+    [Theory]
+    [InlineData("LecturerAssigned", "MUTUAL", "Hai bên cùng chọn")]
+    [InlineData("LecturerAssigned", "PREFERENCE", "Nguyện vọng 2")]
+    [InlineData("LecturerAssigned", "LECTURER_INTEREST", "Giảng viên quan tâm")]
+    [InlineData("LecturerAssigned", "PREVIOUS_INSTRUCTOR", "Giảng viên kỳ trước")]
+    [InlineData("LecturerAssigned", "DOMAIN", "Theo chuyên môn")]
+    [InlineData("LecturerAssigned", "MANUAL", "Bộ môn phân công")]
+    [InlineData("MentorAssigned", "MENTOR_INTEREST", "Mentor quan tâm")]
+    [InlineData("MentorAssigned", "DOMAIN", "Theo chuyên môn")]
+    [InlineData("MentorAssigned", "MANUAL", "Bộ môn phân công")]
+    public async Task Advisor_assignment_explains_reason_to_advisor_and_students(
+        string eventType, string reason, string explanation)
+    {
+        await using var db = Database();
+        var advisorId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var payload = eventType == "LecturerAssigned"
+            ? (object)new { lecturerId = advisorId, lecturerName = "Giảng viên A",
+                reason, preferenceRank = 2, memberStudentIds = new[] { studentId } }
+            : new { mentorId = advisorId, mentorName = "Mentor A",
+                reason, memberStudentIds = new[] { studentId } };
+        var envelope = EventEnvelope.Create(eventType, payload, "assignment", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(2, await db.Notifications.CountAsync());
+        Assert.All(db.Notifications, item => Assert.Contains(explanation, item.Content));
+        Assert.Contains(db.Notifications, item => item.RecipientId == studentId);
+        Assert.Contains(db.Notifications, item => item.RecipientId == advisorId);
+    }
+
+    [Theory]
+    [InlineData("LEADER", "Đã đặt giờ họp hằng tuần")]
+    [InlineData("INSTRUCTOR", "Giảng viên đã đổi giờ họp hằng tuần")]
+    [InlineData("AUTO", "Hệ thống đã xếp giờ họp hằng tuần")]
+    public async Task Meeting_slot_booking_explains_source_to_students(string source, string expectedTitle)
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("MeetingSlotBooked", new
+        {
+            workspaceId = Guid.NewGuid(), startTime = "09:15", source,
+            recipients = new[] { new { personType = "STUDENT", personId = studentId } },
+        }, "collab", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        var notification = Assert.Single(db.Notifications);
+        Assert.Equal(expectedTitle, notification.Title);
+        Assert.Contains("09:15", notification.Content);
+        Assert.Equal(studentId, notification.RecipientId);
+    }
+
+    [Fact]
+    public async Task Task_and_deliverable_events_notify_only_intended_people_in_app()
+    {
+        await using var db = Database();
+        var firstStudent = Guid.NewGuid();
+        var secondStudent = Guid.NewGuid();
+        var lecturer = Guid.NewGuid();
+        var unrelated = Guid.NewGuid();
+        foreach (var (id, type) in new[]
+                 {
+                     (firstStudent, "STUDENT"), (secondStudent, "STUDENT"),
+                     (lecturer, "LECTURER"), (unrelated, "STUDENT"),
+                 })
+        {
+            db.Contacts.Add(new Contact { Id = id, PersonType = type,
+                Email = $"{id}@example.test", FullName = "Người nhận", EmailEnabled = true });
+        }
+        await db.SaveChangesAsync();
+        var workspaceId = Guid.NewGuid();
+        var cases = new (string Type, object Payload, Guid[] Recipients, int Emails)[]
+        {
+            ("TaskAssigned", new { workspaceId, title = "Việc mới",
+                assigneeStudentIds = new[] { firstStudent } }, [firstStudent], 0),
+            ("DeliverableCreated", new { workspaceId, title = "Bài nộp mới",
+                memberStudentIds = new[] { firstStudent, secondStudent } },
+                [firstStudent, secondStudent], 0),
+            ("DeliverableSubmitted", new { workspaceId, lecturerId = lecturer }, [lecturer], 0),
+            ("DeliverableReviewed", new { workspaceId, reviewStatus = "ACCEPTED",
+                memberStudentIds = new[] { firstStudent, secondStudent } },
+                [firstStudent, secondStudent], 0),
+            ("DeliverableOverdue", new { workspaceId, title = "Bài nộp trễ",
+                memberStudentIds = new[] { firstStudent, secondStudent }, lecturerId = lecturer },
+                [firstStudent, secondStudent, lecturer], 0),
+        };
+        var handler = new NotificationEventHandler(db);
+        var processed = new NotificationProcessedEventStore(db);
+
+        foreach (var (type, payload, expected, emailCount) in cases)
+        {
+            var envelope = EventEnvelope.Create(type, payload, "collab", null);
+            await handler.HandleAsync(envelope, default);
+            await processed.MarkProcessedAsync(envelope, default);
+            var notices = db.Notifications.Where(x => x.SourceEventId == envelope.EventId).ToList();
+            Assert.Equal(expected.Length, notices.Count);
+            foreach (var id in expected) Assert.Contains(notices, x => x.RecipientId == id);
+            Assert.DoesNotContain(notices, x => x.RecipientId == unrelated);
+            Assert.Equal(emailCount, db.EmailLogs.Count(x => x.SourceEventId == envelope.EventId));
+            Assert.All(notices, x => Assert.Equal($"app://workspaces/{workspaceId}", x.LinkUrl));
+        }
+    }
+
+    [Theory]
+    [InlineData("MeetingProposed")]
+    [InlineData("MeetingScheduled")]
+    [InlineData("MeetingCancelled")]
+    public async Task Meeting_changes_notify_invitees_without_email(string eventType)
+    {
+        await using var db = Database();
+        var studentId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create(eventType, new
+        {
+            workspaceId,
+            invitees = new object[]
+            {
+                new { personType = "STUDENT", personId = studentId },
+                new { personType = "MENTOR", personId = mentorId },
+            },
+        }, "collab", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.Equal(2, await db.Notifications.CountAsync());
+        Assert.Contains(db.Notifications, x => x.RecipientType == "STUDENT" && x.RecipientId == studentId);
+        Assert.Contains(db.Notifications, x => x.RecipientType == "MENTOR" && x.RecipientId == mentorId);
+        Assert.Empty(db.EmailLogs);
+    }
+
+    [Theory]
+    [InlineData("AdvisorQuestionAsked", "LECTURER")]
+    [InlineData("AdvisorQuestionAnswered", "STUDENT")]
+    [InlineData("MeetingSlotsPublished", "STUDENT")]
+    public async Task Advisor_questions_and_published_slots_notify_explicit_recipients(
+        string eventType, string recipientType)
+    {
+        await using var db = Database();
+        var recipientId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create(eventType, new
+        {
+            workspaceId, preview = "Cần góp ý đề tài",
+            recipients = new[] { new { personType = recipientType, personId = recipientId } },
+        }, "collab", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        var notification = Assert.Single(db.Notifications);
+        Assert.Equal(recipientType, notification.RecipientType);
+        Assert.Equal(recipientId, notification.RecipientId);
+        if (eventType == "MeetingSlotsPublished")
+            Assert.Equal("app://meeting-schedule", notification.LinkUrl);
+        else
+            Assert.Equal($"app://workspaces/{workspaceId}", notification.LinkUrl);
+        Assert.Empty(db.EmailLogs);
     }
 }
