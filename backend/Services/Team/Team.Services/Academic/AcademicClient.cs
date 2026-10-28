@@ -16,7 +16,7 @@ public static class RoundTypes
 public sealed record SemesterDto(Guid Id, string Code, string Name);
 
 /// <summary>Schema <c>Round</c>.</summary>
-public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status);
+public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, string? Name = null);
 
 /// <summary>Schema <c>StudentSnapshot</c>.</summary>
 public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int SpecializationId, string CourseCode, bool IsEnrolled);
@@ -31,6 +31,9 @@ public interface IAcademicClient
 
     /// <summary>Đợt đang mở của môn và loại đợt; null nếu không có (404).</summary>
     Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct);
+
+    Task<IReadOnlyList<RoundDto>> ListChangeRequestRoundsAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<RoundDto>>([]);
 
     /// <summary>Snapshot MSSV, tên, chuyên ngành; sinh viên không thuộc học kỳ không có trong kết quả hoặc <c>IsEnrolled = false</c>.</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
@@ -50,6 +53,10 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
 
     public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
         GetOrNullAsync<RoundDto>($"/internal/registration-rounds/open?courseCode={courseCode}&roundType={roundType}", ct);
+
+    public async Task<IReadOnlyList<RoundDto>> ListChangeRequestRoundsAsync(CancellationToken ct) =>
+        (await http.GetFromJsonAsync<List<RoundDto>>("/api/registration-rounds?courseCode=EXE201", ct) ?? [])
+            .Where(r => r.RoundType == RoundTypes.ChangeRequest).ToList();
 
     public async Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct)
     {

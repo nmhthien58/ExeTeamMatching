@@ -8,6 +8,7 @@ using Team.Repositories.Context;
 using Team.Services.Academic;
 using Team.Services.AuditLog;
 using Team.Services.AutoAssign;
+using Team.Services.ChangeRequests;
 using Team.Services.Export;
 using Team.Services.Finalization;
 using Team.Services.Invitations;
@@ -47,7 +48,7 @@ public static class ServiceCollectionExtensions
 
         // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests… (Thành).
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
-            .AddAuditLogModule();
+            .AddAuditLogModule().AddChangeRequestsModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
         return services;
