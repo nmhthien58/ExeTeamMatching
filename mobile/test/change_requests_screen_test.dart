@@ -104,13 +104,29 @@ PendingChanges pendingChanges() => PendingChanges(
   wouldHaveSpecializationCount: 2,
 );
 
-Future<void> pumpCreate(WidgetTester tester, FakeChangeRequestsApi api) async {
+Future<void> pumpCreate(
+  WidgetTester tester,
+  FakeChangeRequestsApi api, {
+  TeamDetail? currentTeam,
+}) async {
   AppTheme.useGoogleFonts = false;
+  final team =
+      currentTeam ??
+      TeamDetail(
+        card: const TeamCard(
+          id: 't1',
+          name: 'EduSpark',
+          status: 'ACTIVE',
+          memberCount: 4,
+        ),
+        members: api.changes.baselineMembers,
+        isLeader: true,
+      );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         myCourseProvider.overrideWith((ref) async => 'EXE201'),
-        myTeamProvider.overrideWith((ref) async => fixtures.team()),
+        myTeamProvider.overrideWith((ref) async => team),
         openChangeRoundProvider.overrideWith((ref) async => true),
         changeRequestsApiProvider.overrideWithValue(api),
       ],
@@ -206,6 +222,48 @@ void main() {
     expect(api.createCalls, 0);
   });
 
+  testWidgets('S27 tính từ thành viên hiện tại sau lần duyệt trước', (
+    tester,
+  ) async {
+    final data = PendingChanges(
+      baselineMembers: [
+        for (var i = 1; i <= 4; i++) fixtures.student('$i', 'Sinh viên $i'),
+      ],
+      pendingItems: [
+        ChangeItem(
+          id: 'remove-5',
+          action: 'REMOVE',
+          student: fixtures.student('5', 'Sinh viên 5'),
+        ),
+      ],
+      wouldHaveMemberCount: 4,
+      wouldHaveSpecializationCount: 1,
+    );
+    final team = TeamDetail(
+      card: const TeamCard(
+        id: 't1',
+        name: 'EduSpark',
+        status: 'ACTIVE',
+        memberCount: 5,
+      ),
+      members: [
+        for (var i = 1; i <= 5; i++) fixtures.student('$i', 'Sinh viên $i'),
+      ],
+      isLeader: true,
+    );
+    await pumpCreate(tester, FakeChangeRequestsApi(data), currentTeam: team);
+    await tester.tap(find.text('Xóa Sinh viên 5'));
+    await tester.pump();
+
+    expect(find.text('Sau thay đổi đã chọn: 4 thành viên'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tiếp tục'))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets('S27 cảnh báo thiếu chuyên ngành nhưng vẫn cho tiếp tục', (
     tester,
   ) async {
@@ -233,6 +291,48 @@ void main() {
           .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tiếp tục'))
           .onPressed,
       isNotNull,
+    );
+  });
+
+  testWidgets('S27 cập nhật cảnh báo theo thay đổi được chọn', (tester) async {
+    final data = PendingChanges(
+      baselineMembers: [
+        for (var i = 1; i <= 4; i++) fixtures.student('$i', 'Sinh viên $i'),
+      ],
+      pendingItems: [
+        ChangeItem(
+          id: 'add-design',
+          action: 'ADD',
+          student: const StudentRef(
+            id: '5',
+            studentCode: 'SE180005',
+            fullName: 'Sinh viên chuyên ngành khác',
+            specialization: CatalogRef(
+              id: 6,
+              code: 'SE',
+              name: 'Kỹ thuật phần mềm',
+            ),
+          ),
+        ),
+      ],
+      wouldHaveMemberCount: 5,
+      wouldHaveSpecializationCount: 2,
+    );
+    await pumpCreate(tester, FakeChangeRequestsApi(data));
+    expect(
+      find.text(
+        'Nhóm chưa có đủ 2 chuyên ngành. Bộ môn sẽ kiểm tra khi chốt nhóm.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Thêm Sinh viên chuyên ngành khác'));
+    await tester.pump();
+    expect(
+      find.text(
+        'Nhóm chưa có đủ 2 chuyên ngành. Bộ môn sẽ kiểm tra khi chốt nhóm.',
+      ),
+      findsNothing,
     );
   });
 
@@ -342,7 +442,18 @@ void main() {
       ProviderScope(
         overrides: [
           myCourseProvider.overrideWith((ref) async => 'EXE201'),
-          myTeamProvider.overrideWith((ref) async => fixtures.team()),
+          myTeamProvider.overrideWith(
+            (ref) async => TeamDetail(
+              card: const TeamCard(
+                id: 't1',
+                name: 'EduSpark',
+                status: 'ACTIVE',
+                memberCount: 4,
+              ),
+              members: api.changes.baselineMembers,
+              isLeader: true,
+            ),
+          ),
           openChangeRoundProvider.overrideWith((ref) async => true),
           changeRequestsApiProvider.overrideWithValue(api),
         ],

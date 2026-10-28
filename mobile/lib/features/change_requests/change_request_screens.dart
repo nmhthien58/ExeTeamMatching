@@ -297,7 +297,13 @@ class _CreateChangeRequestScreenState
 
   Widget _selectStep(TeamDetail team, PendingChanges data) {
     final items = data.pendingItems;
-    final count = _projectedMemberCount(data, _selected);
+    final projected = _projectedMembers(team, data, _selected);
+    final count = projected.length;
+    final specializationCount = projected.values
+        .map((member) => member.specialization?.id)
+        .whereType<int>()
+        .toSet()
+        .length;
     final scheme = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
@@ -354,7 +360,13 @@ class _CreateChangeRequestScreenState
             color: scheme.error,
             text: 'Nhóm còn dưới 4 người. Không thể gửi yêu cầu.',
           )
-        else if (data.wouldHaveSpecializationCount < 2)
+        else if (count > 6)
+          _Notice(
+            icon: Icons.error_outline,
+            color: scheme.error,
+            text: 'Nhóm vượt quá 6 người. Không thể gửi yêu cầu.',
+          )
+        else if (specializationCount < 2)
           _Notice(
             icon: Icons.warning_amber,
             color: scheme.tertiary,
@@ -366,6 +378,7 @@ class _CreateChangeRequestScreenState
           onPressed:
               _selected.isEmpty && _name.text.trim().isEmpty ||
                   count < 4 ||
+                  count > 6 ||
                   (_name.text.trim().isNotEmpty && _name.text.trim().length < 2)
               ? null
               : () => setState(() => _step = 1),
@@ -738,12 +751,18 @@ String _date(DateTime value) {
   return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
 }
 
-int _projectedMemberCount(PendingChanges data, Set<String> selected) {
-  var count = data.baselineMembers.length;
+Map<String, StudentRef> _projectedMembers(
+  TeamDetail team,
+  PendingChanges data,
+  Set<String> selected,
+) {
+  final members = {for (final member in team.members) member.id: member};
   for (final item in data.pendingItems) {
     if (!selected.contains(item.id)) continue;
-    if (item.action == 'ADD') count++;
-    if (item.action == 'REMOVE') count--;
+    final student = item.student;
+    if (student == null) continue;
+    if (item.action == 'ADD') members[student.id] = student;
+    if (item.action == 'REMOVE') members.remove(student.id);
   }
-  return count;
+  return members;
 }
