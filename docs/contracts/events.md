@@ -28,7 +28,7 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 | `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic (outbox) | Identity (tạo sẵn tài khoản), Notification (contacts), Matching (read model) |
 | `exe.registration` | RoundOpened, RoundClosed | Academic (outbox) | Notification, Job (lên lịch đóng đợt) |
 | `exe.registration` | DeadlineApproaching | Job (publish trực tiếp) | Notification |
-| `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject | Team (outbox) | Matching, Notification, Collaboration |
+| `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject, UnmatchedStudentsReminded | Team (outbox) | Matching, Notification, Collaboration |
 | `exe.invitation` | InvitationSent, InvitationAccepted, InvitationDeclined, InvitationExpired, JoinRequestSubmitted, JoinRequestAccepted, JoinRequestDeclined | Team (outbox) | Notification |
 | `exe.change-request` | ChangeRequestSubmitted, ChangeRequestApproved, ChangeRequestRejected | Team (outbox) | Notification |
 | `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerPreferencesUpdated, LecturerAssigned, MentorAssigned, MentorUnassigned, AdvisorMatchingCompleted | Team (outbox) | Notification, Matching (số quan tâm, nhóm đã có giảng viên), Collaboration (quyền workspace) |
@@ -89,7 +89,8 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 { "teamId": "uuid", "semesterId": "uuid", "courseCode": "EXE101", "name": "Nhóm A", "leaderStudentId": "uuid",
   "leaderName": "Nguyễn Văn A", "projectId": "uuid|null", "isAutoAssigned": false, "isInherited": false,
   "sourceTeamId": "uuid|null" }
-// MemberJoined
+// MemberJoined – joinSource: INVITATION | JOIN_REQUEST | CHANGE_REQUEST | AUTO_ASSIGN | INHERITED | ADMIN (trưởng nhóm vào qua TeamCreated).
+// INHERITED: import mốc EXE101 phát TeamCreated rồi MemberJoined cho từng thành viên còn lại, để Collaboration / Matching có đủ thành viên.
 { "teamId": "uuid", "semesterId": "uuid", "studentId": "uuid", "fullName": "Trần Văn C", "specializationId": 1,
   "joinSource": "INVITATION", "memberCount": 5 }
 // MemberLeft
@@ -108,6 +109,8 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 // TeamLinkedToProject – nhóm EXE201 gắn với đề tài EXE101 (import mốc hoặc Admin gắn tay).
 // Collaboration đặt previous_workspace_id = workspace của previousTeamId.
 { "teamId": "uuid", "projectId": "uuid", "previousTeamId": "uuid", "linkedBy": "IMPORT" }   // IMPORT | ADMIN
+// UnmatchedStudentsReminded – key = semesterId. Admin bấm "Nhắc" ở W20; Notification báo trong app và gửi email
+{ "semesterId": "uuid", "courseCode": "EXE101", "studentIds": ["uuid"], "remindedByAccountId": "uuid" }
 ```
 
 ### exe.invitation
@@ -125,7 +128,7 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 { "joinRequestId": "uuid", "teamId": "uuid", "studentId": "uuid" }
 ```
 
-Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt (rule 7); `MemberJoined` chỉ phát khi yêu cầu đổi nhóm được duyệt.
+Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt (rule 7); sau khi import mốc, `MemberJoined` của nhóm này chỉ phát khi yêu cầu đổi nhóm được duyệt.
 
 ### exe.change-request (key = changeRequestId)
 
@@ -144,7 +147,7 @@ Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt
 // TopicInterestOpened – giảng viên / mentor quan tâm nhóm (rule 19); Matching tăng số quan tâm.
 // Notification chỉ báo nhóm khi advisorKind = LECTURER (sinh viên không chọn mentor).
 { "interestId": "uuid", "teamId": "uuid", "projectId": "uuid", "advisorKind": "LECTURER", "advisorId": "uuid",
-  "advisorName": "...", "wasPreviousInstructor": false }
+  "advisorName": "...", "wasPreviousInstructor": false, "memberStudentIds": ["uuid"] }
 // TopicInterestClosed – reason: WITHDRAWN | THIS_ADVISOR_MATCHED | OTHER_ADVISOR_MATCHED | TEAM_DISBANDED
 { "interestId": "uuid", "teamId": "uuid", "advisorKind": "LECTURER", "advisorId": "uuid", "reason": "OTHER_ADVISOR_MATCHED" }
 // LecturerPreferencesUpdated – trưởng nhóm đổi nguyện vọng 1–3 (rule 9); Matching cập nhật, Notification báo giảng viên mới được chọn

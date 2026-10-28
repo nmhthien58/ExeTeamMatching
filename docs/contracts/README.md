@@ -48,6 +48,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `archive-read-only` | Ghi vào thư mục / việc EXE101 kỳ trước (rule 26) |
 | `instructor-only` (403) | Chỉ giảng viên hướng dẫn tạo / duyệt bài nộp (rule 23) |
 | `file-too-large` (413), `file-type-not-allowed` (415) | File quá 25 MB / sai định dạng (rule 24) |
+| `matching-unavailable` (503) | Team gọi Matching (gRPC) lỗi hoặc quá 5 giây: chốt nhóm, ghép tự động, gợi ý |
 
 ## Dùng dữ liệu giả khi API chưa xong
 

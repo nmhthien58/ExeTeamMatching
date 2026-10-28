@@ -324,6 +324,12 @@ paths:
                 semesterId: { type: string, format: uuid }
                 studentIds: { type: array, items: { type: string, format: uuid }, maxItems: 500 }
       responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/StudentSnapshot' } } } } } }
+  /internal/students:
+    get:
+      tags: [Internal]
+      summary: Toàn bộ sinh viên của học kỳ theo môn (Team tính sinh viên chưa có nhóm cho W20, W21)
+      parameters: [ { name: semesterId, in: query, required: true, schema: { type: string, format: uuid } }, { $ref: '#/components/parameters/CourseCode' } ]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/StudentSnapshot' } } } } } }
   /internal/students/by-code:
     post:
       tags: [Internal]
@@ -454,7 +460,7 @@ components:
             currentTeamId: { type: string, format: uuid, nullable: true }
     StudentSnapshot:
       type: object
-      properties: { id: { type: string, format: uuid }, studentCode: { type: string }, fullName: { type: string }, specializationId: { type: integer }, courseCode: { type: string }, isEnrolled: { type: boolean } }
+      properties: { id: { type: string, format: uuid }, studentCode: { type: string }, fullName: { type: string }, specializationId: { type: integer }, classCode: { type: string }, courseCode: { type: string }, isEnrolled: { type: boolean } }
     Lecturer:
       type: object
       properties:
