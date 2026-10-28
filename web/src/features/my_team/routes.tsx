@@ -1,17 +1,20 @@
 import type { RouteObject } from 'react-router-dom'
 import { TeamFormationOnly } from '@/shared/phase/PhaseGuard'
 import { DiscoverPage } from '@/features/discover/DiscoverPage'
+import { SeekingPostFormPage } from '@/features/discover/SeekingPosts'
 import { TeamDetailPage } from '@/features/discover/TeamDetailPage'
 import { HomePage } from '@/features/home/HomePage'
 import { InvitationsPage } from '@/features/invitations/InvitationsPage'
 import { MembersPage } from './MembersPage'
 import { MyTeamPage } from './MyTeamPage'
+import { RecruitmentPostPage } from './RecruitmentPostPage'
 import { RequestsPage } from './RequestsPage'
+import { TeamHistoryPage } from './TeamHistoryPage'
 import { EditTeamPage, TeamFormPage } from './TeamFormPage'
 
 /**
  * Route sinh viên của Cường (FE-37), tương đối với `/sv`: S01, S05/S06, S08/S09 (Khám phá chỉ trong đợt lập nhóm – rule 18),
- * S12, S13–S17, S20. App.tsx chỉ tự bọc TeamFormationOnly cho màn giữ chỗ nên Khám phá tự bọc ở đây.
+ * S10, S11, S12, S13–S17, S20–S22. App.tsx chỉ tự bọc TeamFormationOnly cho màn giữ chỗ nên Khám phá tự bọc ở đây.
  */
 export const studentTeamRoutes: RouteObject[] = [
   { index: true, element: <HomePage /> },
@@ -23,4 +26,7 @@ export const studentTeamRoutes: RouteObject[] = [
   { path: 'nhom/sua', element: <EditTeamPage /> },
   { path: 'nhom/thanh-vien', element: <MembersPage /> },
   { path: 'nhom/yeu-cau', element: <RequestsPage /> },
+  { path: 'kham-pha/tim-nhom', element: <TeamFormationOnly><SeekingPostFormPage /></TeamFormationOnly> },
+  { path: 'nhom/bai-tuyen', element: <TeamFormationOnly><RecruitmentPostPage /></TeamFormationOnly> },
+  { path: 'nhom/lich-su', element: <TeamHistoryPage /> },
 ]

@@ -143,7 +143,15 @@ class _TeamOverview extends StatelessWidget {
               _Shortcut(icon: Icons.groups_outlined, label: 'Thành viên', detail: '${team.memberCount}/${team.maxSize}', path: '/sv/nhom/thanh-vien'),
               if (team.isLeader) const _Shortcut(icon: Icons.mark_email_unread_outlined, label: 'Yêu cầu và lời mời', path: '/sv/nhom/yeu-cau'),
               if (canEdit && !team.isFull) const _Shortcut(icon: Icons.person_search_outlined, label: 'Gợi ý thành viên', path: '/sv/nhom/goi-y'),
+              if (canEdit)
+                _Shortcut(
+                  icon: Icons.campaign_outlined,
+                  label: 'Bài tuyển thành viên',
+                  detail: team.recruitmentPost == null ? null : 'Đang mở',
+                  path: '/sv/nhom/bai-tuyen',
+                ),
               if (canEdit) const _Shortcut(icon: Icons.edit_outlined, label: 'Sửa thông tin', path: '/sv/nhom/sua'),
+              const _Shortcut(icon: Icons.history, label: 'Lịch sử hoạt động', path: '/sv/nhom/lich-su'),
             ],
           ),
         ),

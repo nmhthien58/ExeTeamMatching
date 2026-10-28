@@ -146,6 +146,67 @@ describe('student team screens (FE-37)', () => {
     expect(screen.queryByRole('button', { name: 'Xin tham gia' })).not.toBeInTheDocument()
   })
 
+  it('S10 lists students looking for a team and lets a leader with seats invite them', async () => {
+    const seeking = { id: 'p1', title: 'Frontend', description: 'Làm giao diện', domainIds: [5], skills: [], status: 'OPEN', updatedAt: '',
+      student: { id: 's7', studentCode: 'SE180007', fullName: 'Nguyễn An', specialization: { id: 2, code: 'MKT', name: 'Marketing' } } }
+    routes = {
+      '/api/seeking-posts': { items: [seeking], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 },
+      '/api/teams/me': team('LEADER'),
+      '/api/specializations': [{ id: 2, code: 'MKT', name: 'Marketing' }],
+      '/api/domains': [{ id: 5, code: 'D05', name: 'Giáo dục' }],
+    }
+    renderAt('/sv/kham-pha?tab=sinh-vien')
+    expect(await screen.findByText('Nguyễn An')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Sinh viên tìm nhóm' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('SE180007 · Marketing')).toBeInTheDocument()
+    expect(await screen.findByText('D05')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mời vào nhóm' })).toBeInTheDocument()
+  })
+
+  it('S11 needs a role before posting, then saves domains and returns to Discover', async () => {
+    routes = { '/api/seeking-posts/me': notFound, '/api/domains': [{ id: 5, code: 'D05', name: 'Giáo dục' }] }
+    post.mockResolvedValue({ data: {} })
+    const router = renderAt('/sv/kham-pha/tim-nhom')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Đăng bài' }))
+    expect(screen.getByText('Nhập vai trò mong muốn.')).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Vai trò mong muốn'), 'Backend')
+    await user.click(await screen.findByRole('button', { name: 'D05' }))
+    await user.click(screen.getByRole('button', { name: 'Đăng bài' }))
+
+    expect(post).toHaveBeenCalledWith('/api/seeking-posts/me', { title: 'Backend', description: undefined, domainIds: [5] })
+    expect(router.state.location.pathname).toBe('/sv/kham-pha')
+  })
+
+  it('S21 shows seats left and saves the needed specializations of the open post', async () => {
+    routes = {
+      '/api/teams/me': { ...team('LEADER'), recruitmentPost: { id: 'r1', title: 'Cần BA', specializationIds: [] } },
+      '/api/specializations': [{ id: 2, code: 'MKT', name: 'Marketing' }],
+    }
+    post.mockResolvedValue({ data: {} })
+    renderAt('/sv/nhom/bai-tuyen')
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('Còn 4 chỗ trống')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Marketing' }))
+    await user.click(screen.getByRole('button', { name: 'Lưu' }))
+    expect(post).toHaveBeenCalledWith('/api/teams/t1/recruitment-post', { title: 'Cần BA', description: undefined, specializationIds: [2] })
+  })
+
+  it('S22 lists the team history with who and when', async () => {
+    routes = {
+      '/api/teams/me': team('MEMBER'),
+      '/api/teams/t1/audit-logs': {
+        items: [{ id: 2, teamId: 't1', action: 'MEMBER_JOINED', actorName: 'Sinh viên', actorRole: 'Student', summary: 'SE180002 vào nhóm', occurredAt: '2026-10-27T03:05:00Z' }],
+        page: 1, pageSize: 20, totalCount: 1, totalPages: 1,
+      },
+    }
+    renderAt('/sv/nhom/lich-su')
+    expect(await screen.findByText('SE180002 vào nhóm')).toBeInTheDocument()
+    expect(screen.getByText(/^Sinh viên · /)).toBeInTheDocument()
+  })
+
   it('S12 accepts an invitation after confirming and opens the team', async () => {
     const expiresAt = new Date(Date.now() + 30 * 3600_000).toISOString()
     routes = {

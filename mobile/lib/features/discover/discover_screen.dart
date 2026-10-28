@@ -11,17 +11,34 @@ import '../my_team/my_team_api.dart' show domainsProvider;
 import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../suggestions/suggestions_api.dart' show TeamCard, specializationsProvider;
 import 'discover_api.dart';
+import 'seeking_posts_screen.dart';
 
-/// S05 – Khám phá, nhóm đang tuyển (MB-14): tìm kiếm, bộ lọc S06, lối vào "Gợi ý cho bạn" (S07), danh sách thẻ nhóm phân trang.
-/// Thẻ người ngoài xem không có chip trạng thái; nhóm đủ 6 không xuất hiện (API lọc). Tab "Sinh viên tìm nhóm" (S10) làm ở MB-17.
-class DiscoverScreen extends ConsumerStatefulWidget {
+/// Khám phá: tab "Nhóm đang tuyển" (S05) và "Sinh viên tìm nhóm" (S10 – MB-17).
+class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
 
   @override
-  ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
+  Widget build(BuildContext context) => const DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            TabBar(tabs: [Tab(text: 'Nhóm đang tuyển'), Tab(text: 'Sinh viên tìm nhóm')]),
+            Expanded(child: TabBarView(children: [TeamsTab(), SeekingPostsTab()])),
+          ],
+        ),
+      );
 }
 
-class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
+/// S05 – nhóm đang tuyển (MB-14): tìm kiếm, bộ lọc S06, lối vào "Gợi ý cho bạn" (S07), danh sách thẻ nhóm phân trang.
+/// Thẻ người ngoài xem không có chip trạng thái; nhóm đủ 6 không xuất hiện (API lọc).
+class TeamsTab extends ConsumerStatefulWidget {
+  const TeamsTab({super.key});
+
+  @override
+  ConsumerState<TeamsTab> createState() => _TeamsTabState();
+}
+
+class _TeamsTabState extends ConsumerState<TeamsTab> {
   final _searchController = TextEditingController();
   TeamFilter _filter = const TeamFilter();
   final List<TeamCard> _items = [];
