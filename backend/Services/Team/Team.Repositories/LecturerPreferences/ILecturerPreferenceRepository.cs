@@ -12,6 +12,8 @@ public interface ILecturerPreferenceRepository
     Task<bool> HasAssignedInstructorAsync(Guid teamId, CancellationToken ct);
     Task<IReadOnlyList<TopicInterest>> ListOpenLecturerInterestsByTeamIdAsync(Guid teamId, CancellationToken ct);
     Task<bool> IsLecturerInterestedAsync(Guid teamId, Guid lecturerId, CancellationToken ct);
+    Task<HashSet<Guid>> GetInterestedTeamIdsAsync(Guid lecturerId, IEnumerable<Guid> teamIds, CancellationToken ct);
     Task<LecturerPreferencePreviousInstructor?> GetPreviousInstructorAsync(Guid teamId, CancellationToken ct);
-    Task ReplacePreferencesAsync(Guid teamId, IReadOnlyList<LecturerPreference> preferences, IEnumerable<OutboxMessage> outboxMessages, CancellationToken ct);
+    void AddEvent<TPayload>(string eventType, Guid teamId, TPayload payload);
+    Task ReplacePreferencesAsync(Guid teamId, IReadOnlyList<LecturerPreference> preferences, CancellationToken ct);
 }

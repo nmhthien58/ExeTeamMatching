@@ -2,7 +2,6 @@ namespace Team.Services.LecturerPreferences;
 
 public static class AssignmentEventTypes
 {
-    public const string Topic = "exe.assignment";
     public const string LecturerPreferencesUpdated = "LecturerPreferencesUpdated";
 }
 

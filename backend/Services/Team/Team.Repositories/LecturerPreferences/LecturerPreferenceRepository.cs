@@ -1,3 +1,4 @@
+using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.Context;
@@ -37,6 +38,20 @@ public sealed class LecturerPreferenceRepository(TeamDbContext db) : ILecturerPr
     public async Task<bool> IsLecturerInterestedAsync(Guid teamId, Guid lecturerId, CancellationToken ct) =>
         await db.Set<TopicInterest>()
             .AnyAsync(t => t.TeamId == teamId && t.AdvisorId == lecturerId && t.Status == "OPEN" && t.AdvisorKind == "LECTURER", ct);
+
+    public async Task<HashSet<Guid>> GetInterestedTeamIdsAsync(Guid lecturerId, IEnumerable<Guid> teamIds, CancellationToken ct)
+    {
+        var idList = teamIds.Distinct().ToList();
+        if (idList.Count == 0) return [];
+
+        var matched = await db.Set<TopicInterest>()
+            .AsNoTracking()
+            .Where(t => idList.Contains(t.TeamId) && t.AdvisorId == lecturerId && t.Status == "OPEN" && t.AdvisorKind == "LECTURER")
+            .Select(t => t.TeamId)
+            .ToListAsync(ct);
+
+        return matched.ToHashSet();
+    }
 
     public async Task<LecturerPreferencePreviousInstructor?> GetPreviousInstructorAsync(Guid teamId, CancellationToken ct)
     {
@@ -80,10 +95,12 @@ public sealed class LecturerPreferenceRepository(TeamDbContext db) : ILecturerPr
         return null;
     }
 
+    public void AddEvent<TPayload>(string eventType, Guid teamId, TPayload payload) =>
+        db.AddOutboxMessage(Topics.Assignment, eventType, "Team", teamId, payload);
+
     public async Task ReplacePreferencesAsync(
         Guid teamId,
         IReadOnlyList<LecturerPreference> preferences,
-        IEnumerable<OutboxMessage> outboxMessages,
         CancellationToken ct)
     {
         var existing = await db.Set<LecturerPreference>().Where(p => p.TeamId == teamId).ToListAsync(ct);
@@ -97,7 +114,6 @@ public sealed class LecturerPreferenceRepository(TeamDbContext db) : ILecturerPr
             await db.Set<LecturerPreference>().AddRangeAsync(preferences, ct);
         }
 
-        await db.Set<OutboxMessage>().AddRangeAsync(outboxMessages, ct);
         await db.SaveChangesAsync(ct);
     }
 }

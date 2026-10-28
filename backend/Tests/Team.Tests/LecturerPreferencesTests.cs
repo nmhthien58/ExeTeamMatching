@@ -45,15 +45,33 @@ public sealed class LecturerPreferencesTests
         public Task<LecturerPreferencePreviousInstructor?> GetPreviousInstructorAsync(Guid teamId, CancellationToken ct) =>
             Task.FromResult(PreviousInstructor);
 
+        public Task<HashSet<Guid>> GetInterestedTeamIdsAsync(Guid lecturerId, IEnumerable<Guid> teamIds, CancellationToken ct) =>
+            Task.FromResult(Interests
+                .Where(t => teamIds.Contains(t.TeamId) && t.AdvisorId == lecturerId && t.Status == "OPEN" && t.AdvisorKind == "LECTURER")
+                .Select(t => t.TeamId)
+                .ToHashSet());
+
+        public void AddEvent<TPayload>(string eventType, Guid teamId, TPayload payload)
+        {
+            OutboxMessages.Add(new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                Topic = BuildingBlocks.Messaging.Topics.Assignment,
+                EventType = eventType,
+                AggregateType = "Team",
+                AggregateId = teamId,
+                Payload = System.Text.Json.JsonSerializer.Serialize(payload, BuildingBlocks.Messaging.EventEnvelope.JsonOptions),
+                OccurredAt = DateTimeOffset.UtcNow
+            });
+        }
+
         public Task ReplacePreferencesAsync(
             Guid teamId,
             IReadOnlyList<LecturerPreference> preferences,
-            IEnumerable<OutboxMessage> outboxMessages,
             CancellationToken ct)
         {
             Preferences.RemoveAll(p => p.TeamId == teamId);
             Preferences.AddRange(preferences);
-            OutboxMessages.AddRange(outboxMessages);
             return Task.CompletedTask;
         }
     }
@@ -505,10 +523,17 @@ public sealed class LecturerPreferencesTests
         // Check Outbox
         Assert.Single(prefRepo.OutboxMessages);
         var msg = prefRepo.OutboxMessages[0];
-        Assert.Equal(AssignmentEventTypes.Topic, msg.Topic);
+        Assert.Equal(BuildingBlocks.Messaging.Topics.Assignment, msg.Topic);
         Assert.Equal(AssignmentEventTypes.LecturerPreferencesUpdated, msg.EventType);
 
-        var payload = System.Text.Json.JsonSerializer.Deserialize<LecturerPreferencesUpdated>(msg.Payload);
+        // Verify camelCase JSON serialization (contract requirement in events.md)
+        Assert.Contains("\"addedLecturerIds\":", msg.Payload);
+        Assert.Contains("\"lecturerIds\":", msg.Payload);
+        Assert.Contains("\"teamId\":", msg.Payload);
+
+        var payload = System.Text.Json.JsonSerializer.Deserialize<LecturerPreferencesUpdated>(
+            msg.Payload,
+            BuildingBlocks.Messaging.EventEnvelope.JsonOptions);
         Assert.NotNull(payload);
         Assert.Equal(team.Id, payload.TeamId);
         Assert.Equal([newLec1, oldLec, newLec2], payload.LecturerIds);

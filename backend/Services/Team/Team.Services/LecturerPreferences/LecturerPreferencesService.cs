@@ -1,8 +1,6 @@
 using System.Security.Claims;
-using System.Text.Json;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
-using BuildingBlocks.Outbox;
 using Team.Repositories.AuditLog;
 using Team.Repositories.LecturerPreferences;
 using Team.Repositories.Members;
@@ -134,20 +132,14 @@ public sealed class LecturerPreferencesService(
             });
         }
 
-        var outbox = new OutboxMessage
-        {
-            Id = Guid.NewGuid(),
-            Topic = AssignmentEventTypes.Topic,
-            EventType = AssignmentEventTypes.LecturerPreferencesUpdated,
-            AggregateType = "Team",
-            AggregateId = teamId,
-            Payload = JsonSerializer.Serialize(new LecturerPreferencesUpdated(
+        preferences.AddEvent(
+            AssignmentEventTypes.LecturerPreferencesUpdated,
+            teamId,
+            new LecturerPreferencesUpdated(
                 teamId,
                 graph.Team.Name,
                 input.LecturerIds,
-                addedLecturerIds)),
-            OccurredAt = now
-        };
+                addedLecturerIds));
 
         audit.Add(
             teamId,
@@ -158,7 +150,7 @@ public sealed class LecturerPreferencesService(
             oldValues: new { LecturerIds = currentPrefs.OrderBy(p => p.Rank).Select(p => p.LecturerId).ToList() },
             newValues: new { LecturerIds = input.LecturerIds });
 
-        await preferences.ReplacePreferencesAsync(teamId, newPrefs, [outbox], ct);
+        await preferences.ReplacePreferencesAsync(teamId, newPrefs, ct);
 
         return await GetPreferencesAsync(teamId, user, ct);
     }
@@ -175,13 +167,21 @@ public sealed class LecturerPreferencesService(
         }
 
         var prefs = await preferences.ListByLecturerIdAsync(lecturerId.Value, ct);
-        var catalogs = await reader.LoadCatalogsAsync(ct);
-        var items = new List<LecturerPreferenceMeItem>();
+        if (prefs.Count == 0)
+        {
+            return [];
+        }
 
+        var teamIds = prefs.Select(p => p.TeamId).Distinct().ToList();
+        var graphs = await teams.ListGraphsAsync(teamIds, ct);
+        var graphsById = graphs.ToDictionary(g => g.Team.Id);
+        var interestedTeamIds = await preferences.GetInterestedTeamIdsAsync(lecturerId.Value, teamIds, ct);
+        var catalogs = await reader.LoadCatalogsAsync(ct);
+
+        var items = new List<LecturerPreferenceMeItem>();
         foreach (var pref in prefs)
         {
-            var graph = await teams.GetGraphAsync(pref.TeamId, ct);
-            if (graph is null) continue;
+            if (!graphsById.TryGetValue(pref.TeamId, out var graph)) continue;
 
             if (!string.IsNullOrWhiteSpace(courseCode) &&
                 !string.Equals(graph.Team.CourseCode, courseCode.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -189,7 +189,7 @@ public sealed class LecturerPreferencesService(
                 continue;
             }
 
-            var isInterested = await preferences.IsLecturerInterestedAsync(pref.TeamId, lecturerId.Value, ct);
+            var isInterested = interestedTeamIds.Contains(pref.TeamId);
             var card = TeamMapper.ToCard(graph, catalogs);
             items.Add(new LecturerPreferenceMeItem(card, pref.Rank, isInterested));
         }
