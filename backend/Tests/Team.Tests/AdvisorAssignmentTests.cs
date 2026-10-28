@@ -166,6 +166,50 @@ public sealed class AdvisorAssignmentTests
     }
 
     [Fact]
+    public async Task GetTeamLecturer_allowed_for_assigned_mentor()
+    {
+        var teamId = Guid.NewGuid();
+        var lecturerId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
+
+        var teamRepo = new FakeTeamRepo();
+        teamRepo.Graphs[teamId] = CreateGraph(teamId, "Nhóm A", "EXE101", Guid.NewGuid());
+
+        var lecturerRepo = new FakeLecturerRepo();
+        lecturerRepo.ByTeam[teamId] = new LecturerAssignment
+        {
+            Id = Guid.NewGuid(),
+            TeamId = teamId,
+            LecturerId = lecturerId,
+            LecturerName = "TS. Nguyễn Văn A",
+            Status = "ASSIGNED",
+            Reason = "MUTUAL",
+            AssignedAt = DateTimeOffset.UtcNow
+        };
+
+        var mentorRepo = new FakeMentorRepo();
+        mentorRepo.ByTeam[teamId] = new MentorAssignment
+        {
+            Id = Guid.NewGuid(),
+            TeamId = teamId,
+            MentorId = mentorId,
+            MentorName = "Anh Trần Mentor",
+            Status = "ASSIGNED",
+            AssignedAt = DateTimeOffset.UtcNow
+        };
+
+        var reader = new TeamReader(teamRepo, new FakeAcademic());
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+
+        // Caller is assigned mentor
+        var user = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+        var result = await service.GetTeamLecturerAsync(teamId, user, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("TS. Nguyễn Văn A", result.LecturerName);
+    }
+
+    [Fact]
     public async Task GetTeamMentor_returns_assignment_when_assigned()
     {
         var teamId = Guid.NewGuid();
@@ -199,6 +243,54 @@ public sealed class AdvisorAssignmentTests
         Assert.NotNull(result);
         Assert.Equal("Anh Trần Mentor", result.MentorName);
         Assert.Equal("MENTOR_INTEREST", result.Reason);
+        Assert.False(result.IsInternal);
+        Assert.Null(result.MentorOrganization);
+    }
+
+    [Fact]
+    public async Task GetTeamMentor_allowed_for_assigned_lecturer()
+    {
+        var teamId = Guid.NewGuid();
+        var lecturerId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
+
+        var teamRepo = new FakeTeamRepo();
+        teamRepo.Graphs[teamId] = CreateGraph(teamId, "Nhóm A", "EXE201", Guid.NewGuid());
+
+        var lecturerRepo = new FakeLecturerRepo();
+        lecturerRepo.ByTeam[teamId] = new LecturerAssignment
+        {
+            Id = Guid.NewGuid(),
+            TeamId = teamId,
+            LecturerId = lecturerId,
+            LecturerName = "TS. Nguyễn Văn A",
+            Status = "ASSIGNED",
+            AssignedAt = DateTimeOffset.UtcNow
+        };
+
+        var mentorRepo = new FakeMentorRepo();
+        mentorRepo.ByTeam[teamId] = new MentorAssignment
+        {
+            Id = Guid.NewGuid(),
+            TeamId = teamId,
+            MentorId = mentorId,
+            MentorName = "Anh Trần Mentor",
+            Status = "ASSIGNED",
+            Reason = "MENTOR_INTEREST",
+            AssignedAt = DateTimeOffset.UtcNow
+        };
+
+        var reader = new TeamReader(teamRepo, new FakeAcademic());
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+
+        // Caller is assigned lecturer
+        var user = UserWith(lecturerId: lecturerId, roles: Roles.Lecturer);
+        var result = await service.GetTeamMentorAsync(teamId, user, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("Anh Trần Mentor", result.MentorName);
+        Assert.False(result.IsInternal);
+        Assert.Null(result.MentorOrganization);
     }
 
     [Fact]
@@ -244,6 +336,49 @@ public sealed class AdvisorAssignmentTests
         Assert.Single(res3.Instructing);
         Assert.Equal("Nhóm Alpha", res3.Instructing[0].Team.Name);
         Assert.Empty(res3.Mentoring);
+    }
+
+    [Fact]
+    public async Task GetLecturerTeamsMe_when_user_has_no_mentor_id_returns_empty_mentoring()
+    {
+        var lecturerId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        var teamRepo = new FakeTeamRepo();
+        teamRepo.Graphs[teamId] = CreateGraph(teamId, "Nhóm Alpha", "EXE101", Guid.NewGuid());
+
+        var lecturerRepo = new FakeLecturerRepo();
+        lecturerRepo.All.Add(new LecturerAssignment { TeamId = teamId, LecturerId = lecturerId, Status = "ASSIGNED", Reason = "MUTUAL" });
+
+        var mentorRepo = new FakeMentorRepo();
+        var reader = new TeamReader(teamRepo, new FakeAcademic());
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+
+        // Lecturer has no mentorId claim
+        var user = UserWith(lecturerId: lecturerId, mentorId: null, roles: Roles.Lecturer);
+        var result = await service.GetLecturerTeamsMeAsync(null, null, null, user, CancellationToken.None);
+
+        Assert.Single(result.Instructing);
+        Assert.Empty(result.Mentoring);
+        Assert.Null(result.MaxTeams);
+    }
+
+    [Fact]
+    public async Task GetMentorTeamsMe_when_user_has_no_mentor_id_returns_empty()
+    {
+        var lecturerId = Guid.NewGuid();
+
+        var teamRepo = new FakeTeamRepo();
+        var lecturerRepo = new FakeLecturerRepo();
+        var mentorRepo = new FakeMentorRepo();
+        var reader = new TeamReader(teamRepo, new FakeAcademic());
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+
+        // User is lecturer without mentorId claim calling mentor-teams/me
+        var user = UserWith(lecturerId: lecturerId, mentorId: null, roles: Roles.Lecturer);
+        var result = await service.GetMentorTeamsMeAsync(user, CancellationToken.None);
+
+        Assert.Empty(result);
     }
 
     [Fact]

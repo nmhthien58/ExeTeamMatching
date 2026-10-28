@@ -19,7 +19,7 @@ public sealed class AdvisorAssignmentService(
         var graph = await teams.GetGraphAsync(teamId, ct) ?? throw TeamErrors.TeamNotFound(teamId);
         var assignment = await lecturerRepo.GetActiveByTeamIdAsync(teamId, ct);
 
-        EnsureCanReadTeamAdvisors(graph, assignment?.LecturerId, null, user);
+        await EnsureCanReadTeamAdvisorsAsync(graph, assignment?.LecturerId, null, user, ct);
 
         if (assignment is null) return null;
 
@@ -41,17 +41,19 @@ public sealed class AdvisorAssignmentService(
         var graph = await teams.GetGraphAsync(teamId, ct) ?? throw TeamErrors.TeamNotFound(teamId);
         var assignment = await mentorRepo.GetActiveByTeamIdAsync(teamId, ct);
 
-        EnsureCanReadTeamAdvisors(graph, null, assignment?.MentorId, user);
+        await EnsureCanReadTeamAdvisorsAsync(graph, null, assignment?.MentorId, user, ct);
 
         if (assignment is null) return null;
 
+        // mentorOrganization và isInternal sẽ lấy từ GET /internal/mentors/{id} khi Academic hoàn thiện.
+        // Tạm thời để mentorOrganization = null và isInternal = false (không mặc định true để tránh hiển thị sai).
         return new MentorAssignmentResponse(
             assignment.Id,
             assignment.TeamId,
             assignment.MentorId,
             assignment.MentorName,
             MentorOrganization: null,
-            IsInternal: true,
+            IsInternal: false,
             assignment.Status,
             assignment.Reason,
             assignment.Source,
@@ -69,11 +71,21 @@ public sealed class AdvisorAssignmentService(
         var lecturerId = user.GetLecturerId();
         if (lecturerId is null)
         {
-            throw new ForbiddenException("lecturer-only", "Chỉ giảng viên mới có quyền xem danh sách nhóm hướng dẫn.");
+            throw new ForbiddenException(detail: "Chỉ giảng viên mới có quyền xem danh sách nhóm hướng dẫn.");
         }
 
+        // Tạm thời bỏ qua classCode trước khi có dữ liệu từ Academic Service (PR #51).
+        // Khi Academic có sẵn classCode, gọi /internal/students/lookup một lần cho danh sách thành viên các nhóm
+        // của giảng viên, rồi chỉ giữ nhóm có ít nhất một thành viên thuộc lớp đó.
+        _ = classCode;
+
         var instructingAssignments = await lecturerRepo.ListActiveByLecturerIdAsync(lecturerId.Value, ct);
-        var mentoringAssignments = await mentorRepo.ListActiveByMentorIdAsync(user.GetMentorId() ?? lecturerId.Value, ct);
+
+        // Giảng viên kiêm mentor mới có claim mentor_id. Nếu không có, danh sách mentoring trả rỗng.
+        var mentorId = user.GetMentorId();
+        var mentoringAssignments = mentorId is not null
+            ? await mentorRepo.ListActiveByMentorIdAsync(mentorId.Value, ct)
+            : (IReadOnlyList<MentorAssignment>) [];
 
         var allTeamIds = instructingAssignments.Select(a => a.TeamId)
             .Concat(mentoringAssignments.Select(a => a.TeamId))
@@ -113,15 +125,17 @@ public sealed class AdvisorAssignmentService(
                 null));
         }
 
+        // maxTeams tạm để null. Khi API lecturer phù hợp có sẵn từ Academic, lấy sức chứa theo courseCode.
         return new LecturerTeamsResponse(null, instructingList, mentoringList);
     }
 
     public async Task<IReadOnlyList<AdvisedTeamResponse>> GetMentorTeamsMeAsync(ClaimsPrincipal user, CancellationToken ct)
     {
-        var mentorId = user.GetMentorId() ?? user.GetLecturerId();
+        var mentorId = user.GetMentorId();
         if (mentorId is null)
         {
-            throw new ForbiddenException("mentor-only", "Chỉ mentor mới có quyền xem danh sách nhóm mentor.");
+            // Nếu không có claim mentor_id, danh sách mentoring trả rỗng.
+            return [];
         }
 
         var mentoringAssignments = await mentorRepo.ListActiveByMentorIdAsync(mentorId.Value, ct);
@@ -149,11 +163,12 @@ public sealed class AdvisorAssignmentService(
         return list;
     }
 
-    private static void EnsureCanReadTeamAdvisors(
+    private async Task EnsureCanReadTeamAdvisorsAsync(
         TeamGraph graph,
-        Guid? lecturerId,
-        Guid? mentorId,
-        ClaimsPrincipal user)
+        Guid? knownLecturerId,
+        Guid? knownMentorId,
+        ClaimsPrincipal user,
+        CancellationToken ct)
     {
         if (user.IsInRole(Roles.Admin)) return;
 
@@ -164,18 +179,38 @@ public sealed class AdvisorAssignmentService(
         }
 
         var currentLecturerId = user.GetLecturerId();
-        if (currentLecturerId is not null && lecturerId is not null && currentLecturerId.Value == lecturerId.Value)
+        if (currentLecturerId is not null)
         {
-            return;
+            var assignedLecturerId = knownLecturerId;
+            if (assignedLecturerId is null)
+            {
+                var lecturerAssignment = await lecturerRepo.GetActiveByTeamIdAsync(graph.Team.Id, ct);
+                assignedLecturerId = lecturerAssignment?.LecturerId;
+            }
+
+            if (assignedLecturerId is not null && assignedLecturerId.Value == currentLecturerId.Value)
+            {
+                return;
+            }
         }
 
         var currentMentorId = user.GetMentorId();
-        if (currentMentorId is not null && mentorId is not null && currentMentorId.Value == mentorId.Value)
+        if (currentMentorId is not null)
         {
-            return;
+            var assignedMentorId = knownMentorId;
+            if (assignedMentorId is null)
+            {
+                var mentorAssignment = await mentorRepo.GetActiveByTeamIdAsync(graph.Team.Id, ct);
+                assignedMentorId = mentorAssignment?.MentorId;
+            }
+
+            if (assignedMentorId is not null && assignedMentorId.Value == currentMentorId.Value)
+            {
+                return;
+            }
         }
 
-        throw new ForbiddenException("advisor-access-denied", "Không có quyền xem thông tin cố vấn của nhóm này.");
+        throw new ForbiddenException(detail: "Không có quyền xem thông tin cố vấn của nhóm này.");
     }
 
     private static bool MatchesFilters(TeamGraph g, string? courseCode, string? search)
