@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/change_requests/routes.dart';
 import '../features/discover/discover_screen.dart';
 import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
@@ -43,6 +44,7 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.student => [
           ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
           ..._studentTeamRoutes,
+          ...changeRequestRoutes,
         ],
       Shell.lecturer => [_advisorWorkspace('/gv/du-an'), _channelRoute('/gv/tin-nhan')],
       Shell.mentor => [_advisorWorkspace('/mentor/du-an'), _channelRoute('/mentor/tin-nhan')],
