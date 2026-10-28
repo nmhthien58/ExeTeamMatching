@@ -486,6 +486,41 @@ public sealed class LecturerPreferencesTests
     }
 
     [Fact]
+    public async Task UpdatePreferences_WhenLecturerInactive_ThrowsValidationBeforeWriting()
+    {
+        var (service, prefRepo, _, academic, team, leaderId) = CreateTestSetup();
+        var lecturerId = Guid.NewGuid();
+        academic.Lecturers[lecturerId] = new LecturerSnapshot(
+            lecturerId, "TS. Không hoạt động", "inactive@fpt.edu.vn", [], 10, 10, false);
+
+        await Assert.ThrowsAsync<RequestValidationException>(() =>
+            service.UpdatePreferencesAsync(
+                team.Id,
+                new UpdateLecturerPreferencesInput([lecturerId]),
+                StudentUser(leaderId),
+                CancellationToken.None));
+
+        Assert.Empty(prefRepo.Preferences);
+        Assert.Empty(prefRepo.OutboxMessages);
+    }
+
+    [Fact]
+    public async Task UpdatePreferences_WhenAcademicLecturerIsUnavailable_TemporarilyAllowsPreference()
+    {
+        var (service, prefRepo, _, _, team, leaderId) = CreateTestSetup();
+        var lecturerId = Guid.NewGuid();
+
+        var result = await service.UpdatePreferencesAsync(
+            team.Id,
+            new UpdateLecturerPreferencesInput([lecturerId]),
+            StudentUser(leaderId),
+            CancellationToken.None);
+
+        Assert.Contains(result.Preferences, preference => preference.LecturerId == lecturerId);
+        Assert.Single(prefRepo.OutboxMessages);
+    }
+
+    [Fact]
     public async Task UpdatePreferences_Succeeds_AndPublishesOutbox_WithAddedLecturers()
     {
         var (service, prefRepo, _, academic, team, leaderId) = CreateTestSetup();

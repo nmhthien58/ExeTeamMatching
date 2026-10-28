@@ -107,6 +107,15 @@ public sealed class LecturerPreferencesService(
             throw TeamErrors.Invalid("lecturerIds", "Danh sách nguyện vọng không được trùng giảng viên.");
         }
 
+        foreach (var lecturerId in input.LecturerIds)
+        {
+            var lecturer = await academic.GetLecturerAsync(lecturerId, ct);
+            if (lecturer is { IsActive: false })
+            {
+                throw TeamErrors.Invalid("lecturerIds", $"Giảng viên '{lecturerId}' không còn hoạt động.");
+            }
+        }
+
         var currentPrefs = await preferences.ListByTeamIdAsync(teamId, ct);
         var currentLecturerIds = currentPrefs.Select(p => p.LecturerId).ToHashSet();
         var addedLecturerIds = input.LecturerIds.Where(id => !currentLecturerIds.Contains(id)).ToList();
