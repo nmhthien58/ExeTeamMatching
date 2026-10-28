@@ -539,7 +539,7 @@ paths:
     get:
       tags: [Admin]
       summary: Sinh viên chưa có nhóm (W20)
-      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { name: specializationId, in: query, schema: { type: integer } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      parameters: [ { $ref: '#/components/parameters/CourseCode' }, { name: specializationId, in: query, schema: { type: integer } }, { name: search, in: query, schema: { type: string }, description: Tên hoặc MSSV }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/StudentRef' } } } } ] } } } } }
   /api/unmatched-students/remind:
     post: { tags: [Admin], summary: Gửi nhắc sinh viên chưa có nhóm (W20), requestBody: { content: { application/json: { schema: { type: object, properties: { courseCode: { type: string } } } } } }, responses: { '202': { description: Đã gửi } } }
