@@ -10,7 +10,7 @@ public interface IBaselineImportRepository
 
     Task<HashSet<string>> GetExistingTeamNamesAsync(Guid semesterId, string courseCode, IEnumerable<string> teamNames, CancellationToken ct);
 
-    Task<Dictionary<string, TeamEntity>> GetExe101TeamsByNamesAsync(IEnumerable<string> teamNames, CancellationToken ct);
+    Task<IReadOnlyList<Exe101CandidateTeam>> GetExe101CandidateTeamsAsync(IEnumerable<string> teamNames, CancellationToken ct);
 
     Task SaveImportedTeamsAsync(
         IReadOnlyList<TeamEntity> teams,

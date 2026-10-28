@@ -142,13 +142,55 @@ public sealed class BaselineImportService(
         }
 
         // 7. EXE101 Project linking
-        var exe101Teams = await repository.GetExe101TeamsByNamesAsync(allTeamNames, ct);
+        var candidateTeams = await repository.GetExe101CandidateTeamsAsync(allTeamNames, ct);
+        var candidatesByName = candidateTeams
+            .GroupBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+        var resolvedExe101Teams = new Dictionary<string, Exe101CandidateTeam>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in teamGroups)
+        {
+            var teamName = group.Key;
+            if (!candidatesByName.TryGetValue(teamName, out var candidates) || candidates.Count == 0)
+            {
+                continue;
+            }
+
+            if (candidates.Count == 1)
+            {
+                resolvedExe101Teams[teamName] = candidates[0];
+                continue;
+            }
+
+            // Multiple candidates with same name across semesters: disambiguate by student code overlap
+            var fileStudentCodes = group.Select(r => r.StudentCode).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var scoredCandidates = candidates.Select(c => new
+            {
+                Candidate = c,
+                OverlapCount = c.MemberStudentCodes.Count(code => fileStudentCodes.Contains(code))
+            }).ToList();
+
+            var maxOverlap = scoredCandidates.Max(sc => sc.OverlapCount);
+            if (maxOverlap > 0)
+            {
+                var topCandidates = scoredCandidates.Where(sc => sc.OverlapCount == maxOverlap).ToList();
+                if (topCandidates.Count == 1)
+                {
+                    resolvedExe101Teams[teamName] = topCandidates[0].Candidate;
+                }
+                // If topCandidates.Count > 1: tie -> do not link, leave for Admin
+            }
+            // If maxOverlap == 0: no overlap -> do not link, leave for Admin
+        }
+
         var linkedProjectCount = 0;
         var unlinkedTeamCount = 0;
 
         foreach (var teamName in allTeamNames)
         {
-            if (exe101Teams.ContainsKey(teamName))
+            if (resolvedExe101Teams.ContainsKey(teamName))
             {
                 linkedProjectCount++;
             }
@@ -178,7 +220,7 @@ public sealed class BaselineImportService(
         {
             var teamName = group.Key;
             var teamId = Guid.NewGuid();
-            exe101Teams.TryGetValue(teamName, out var exe101Team);
+            resolvedExe101Teams.TryGetValue(teamName, out var exe101Team);
 
             var teamEntity = new TeamEntity
             {

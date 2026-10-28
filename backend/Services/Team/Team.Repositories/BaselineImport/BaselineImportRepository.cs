@@ -34,25 +34,38 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
         return existing.ToHashSet();
     }
 
-    public async Task<Dictionary<string, TeamEntity>> GetExe101TeamsByNamesAsync(IEnumerable<string> teamNames, CancellationToken ct)
+    public async Task<IReadOnlyList<Exe101CandidateTeam>> GetExe101CandidateTeamsAsync(IEnumerable<string> teamNames, CancellationToken ct)
     {
         var names = teamNames.Select(n => n.ToLower()).Distinct().ToList();
         if (names.Count == 0) return [];
 
         var teams = await db.Set<TeamEntity>().AsNoTracking()
             .Where(t => t.CourseCode == "EXE101" && names.Contains(t.Name.ToLower()) && t.ProjectId != null)
+            .Select(t => new { t.Id, t.Name, t.SemesterId, t.ProjectId })
             .ToListAsync(ct);
 
-        var dict = new Dictionary<string, TeamEntity>(StringComparer.OrdinalIgnoreCase);
-        foreach (var group in teams.GroupBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
-        {
-            // Cùng tên ở nhiều kỳ thì để Admin gắn đề tài thủ công, tránh chọn nhầm nguồn.
-            if (group.Count() == 1)
-            {
-                dict.Add(group.Key, group.Single());
-            }
-        }
-        return dict;
+        if (teams.Count == 0) return [];
+
+        var teamIds = teams.Select(t => t.Id).ToList();
+
+        var members = await db.Set<TeamMember>().AsNoTracking()
+            .Where(m => teamIds.Contains(m.TeamId))
+            .Select(m => new { m.TeamId, m.StudentCode })
+            .ToListAsync(ct);
+
+        var membersByTeam = members
+            .GroupBy(m => m.TeamId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<string>)g.Select(m => m.StudentCode).ToList());
+
+        return teams.Select(t => new Exe101CandidateTeam(
+            t.Id,
+            t.Name,
+            t.SemesterId,
+            t.ProjectId,
+            membersByTeam.TryGetValue(t.Id, out var codes) ? codes : []
+        )).ToList();
     }
 
     public async Task SaveImportedTeamsAsync(

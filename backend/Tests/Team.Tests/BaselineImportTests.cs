@@ -19,6 +19,7 @@ public sealed class BaselineImportTests
         public HashSet<Guid> ExistingMemberStudentIds { get; } = [];
         public HashSet<string> ExistingTeamNames { get; } = [];
         public Dictionary<string, TeamEntity> Exe101Teams { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<Exe101CandidateTeam> Exe101Candidates { get; } = [];
 
         public List<TeamEntity> SavedTeams { get; } = [];
         public List<TeamMember> SavedMembers { get; } = [];
@@ -31,14 +32,22 @@ public sealed class BaselineImportTests
         public Task<HashSet<string>> GetExistingTeamNamesAsync(Guid semesterId, string courseCode, IEnumerable<string> teamNames, CancellationToken ct) =>
             Task.FromResult(teamNames.Where(n => ExistingTeamNames.Contains(n.ToLower())).Select(n => n.ToLower()).ToHashSet());
 
-        public Task<Dictionary<string, TeamEntity>> GetExe101TeamsByNamesAsync(IEnumerable<string> teamNames, CancellationToken ct)
+        public Task<IReadOnlyList<Exe101CandidateTeam>> GetExe101CandidateTeamsAsync(IEnumerable<string> teamNames, CancellationToken ct)
         {
-            var res = new Dictionary<string, TeamEntity>(StringComparer.OrdinalIgnoreCase);
-            foreach (var name in teamNames)
+            var names = teamNames.Select(n => n.ToLower()).ToHashSet();
+            var list = new List<Exe101CandidateTeam>();
+            foreach (var c in Exe101Candidates)
             {
-                if (Exe101Teams.TryGetValue(name, out var t)) res[name] = t;
+                if (names.Contains(c.Name.ToLower())) list.Add(c);
             }
-            return Task.FromResult(res);
+            foreach (var (name, entity) in Exe101Teams)
+            {
+                if (names.Contains(name.ToLower()) && !list.Any(c => c.Id == entity.Id))
+                {
+                    list.Add(new Exe101CandidateTeam(entity.Id, entity.Name, entity.SemesterId, entity.ProjectId, []));
+                }
+            }
+            return Task.FromResult<IReadOnlyList<Exe101CandidateTeam>>(list);
         }
 
         public Task SaveImportedTeamsAsync(
@@ -169,6 +178,122 @@ public sealed class BaselineImportTests
         Assert.Equal(TeamEventTypes.TeamLinkedToProject, repo.SavedOutboxMessages[^1].EventType);
         Assert.True(repo.SavedOutboxMessages.Zip(repo.SavedOutboxMessages.Skip(1))
             .All(pair => pair.First.OccurredAt < pair.Second.OccurredAt));
+    }
+
+    [Fact]
+    public async Task Duplicate_EXE101_team_names_across_semesters_picks_highest_student_overlap()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        var s1 = fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
+        var s2 = fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
+        var s3 = fakeAcademic.EnrollWithCode("SE160003", "Sinh viên 3");
+        var s4 = fakeAcademic.EnrollWithCode("SE160004", "Sinh viên 4");
+
+        var teamName = "Nhóm 1";
+        var sem1Id = Guid.NewGuid();
+        var sem2Id = Guid.NewGuid();
+        var candidateAId = Guid.NewGuid();
+        var candidateBId = Guid.NewGuid();
+        var projectAId = Guid.NewGuid();
+        var projectBId = Guid.NewGuid();
+
+        // Candidate A (Semester 1): 3 matching students
+        repo.Exe101Candidates.Add(new Exe101CandidateTeam(
+            candidateAId, teamName, sem1Id, projectAId, ["SE160001", "SE160002", "SE160003"]));
+
+        // Candidate B (Semester 2): 1 matching student
+        repo.Exe101Candidates.Add(new Exe101CandidateTeam(
+            candidateBId, teamName, sem2Id, projectBId, ["SE160001", "SE160098", "SE160099"]));
+
+        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm 1,EduPlatform,SE160001,\"SE160002, SE160003, SE160004\"";
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.TeamCount);
+        Assert.Equal(1, result.LinkedProjectCount);
+        Assert.Equal(0, result.UnlinkedTeamCount);
+
+        var savedTeam = repo.SavedTeams.Single();
+        Assert.Equal(projectAId, savedTeam.ProjectId);
+        Assert.Equal(candidateAId, savedTeam.SourceTeamId);
+    }
+
+    [Fact]
+    public async Task Duplicate_EXE101_team_names_with_zero_overlap_leaves_unlinked()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
+        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
+        fakeAcademic.EnrollWithCode("SE160003", "Sinh viên 3");
+        fakeAcademic.EnrollWithCode("SE160004", "Sinh viên 4");
+
+        var teamName = "Nhóm 1";
+        var sem1Id = Guid.NewGuid();
+        var sem2Id = Guid.NewGuid();
+
+        // Candidates with 0 overlapping student codes
+        repo.Exe101Candidates.Add(new Exe101CandidateTeam(
+            Guid.NewGuid(), teamName, sem1Id, Guid.NewGuid(), ["SE160091", "SE160092", "SE160093"]));
+        repo.Exe101Candidates.Add(new Exe101CandidateTeam(
+            Guid.NewGuid(), teamName, sem2Id, Guid.NewGuid(), ["SE160094", "SE160095", "SE160096"]));
+
+        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm 1,EduPlatform,SE160001,\"SE160002, SE160003, SE160004\"";
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.TeamCount);
+        Assert.Equal(0, result.LinkedProjectCount);
+        Assert.Equal(1, result.UnlinkedTeamCount);
+
+        var savedTeam = repo.SavedTeams.Single();
+        Assert.Null(savedTeam.ProjectId);
+        Assert.Null(savedTeam.SourceTeamId);
+    }
+
+    [Fact]
+    public async Task Duplicate_EXE101_team_names_with_tie_overlap_leaves_unlinked()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
+        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
+        fakeAcademic.EnrollWithCode("SE160003", "Sinh viên 3");
+        fakeAcademic.EnrollWithCode("SE160004", "Sinh viên 4");
+
+        var teamName = "Nhóm 1";
+        var sem1Id = Guid.NewGuid();
+        var sem2Id = Guid.NewGuid();
+
+        // Candidate A: 2 matching students (SE160001, SE160002)
+        repo.Exe101Candidates.Add(new Exe101CandidateTeam(
+            Guid.NewGuid(), teamName, sem1Id, Guid.NewGuid(), ["SE160001", "SE160002", "SE160093"]));
+
+        // Candidate B: 2 matching students (SE160001, SE160003) - TIE
+        repo.Exe101Candidates.Add(new Exe101CandidateTeam(
+            Guid.NewGuid(), teamName, sem2Id, Guid.NewGuid(), ["SE160001", "SE160003", "SE160096"]));
+
+        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm 1,EduPlatform,SE160001,\"SE160002, SE160003, SE160004\"";
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.TeamCount);
+        Assert.Equal(0, result.LinkedProjectCount);
+        Assert.Equal(1, result.UnlinkedTeamCount);
+
+        var savedTeam = repo.SavedTeams.Single();
+        Assert.Null(savedTeam.ProjectId);
+        Assert.Null(savedTeam.SourceTeamId);
     }
 
     [Fact]
