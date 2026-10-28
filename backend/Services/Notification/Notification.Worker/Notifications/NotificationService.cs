@@ -63,12 +63,117 @@ public sealed class NotificationService(NotificationDbContext db)
     public async Task SetPreferencesAsync(ClaimsPrincipal user, EmailPreferences request, CancellationToken ct)
     {
         var contacts = await ContactsAsync(user, ct);
+        var now = DateTimeOffset.UtcNow;
         foreach (var contact in contacts)
         {
             contact.EmailEnabled = request.EmailEnabled;
-            contact.UpdatedAt = DateTimeOffset.UtcNow;
+            contact.UpdatedAt = now;
         }
         await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<AnnouncementResponse> SendAnnouncementAsync(AnnouncementRequest request, CancellationToken ct)
+    {
+        ValidateAnnouncement(request);
+
+        IQueryable<Contact> query = db.Contacts.AsQueryable();
+        switch (request.Audience)
+        {
+            case AnnouncementAudience.AllStudents:
+                query = query.Where(c => c.PersonType == "STUDENT");
+                break;
+            case AnnouncementAudience.AllLecturers:
+                query = query.Where(c => c.PersonType == "LECTURER");
+                break;
+            case AnnouncementAudience.AllMentors:
+                query = query.Where(c => c.PersonType == "MENTOR");
+                break;
+            case AnnouncementAudience.Everyone:
+                // All contacts
+                break;
+            case AnnouncementAudience.StudentsWithoutTeam:
+            case AnnouncementAudience.TeamsWithoutMentor:
+                // Blocker: Cần API nội bộ từ Team Service để xác định danh sách recipient mà không đọc chéo database.
+                return new AnnouncementResponse(0);
+            default:
+                return new AnnouncementResponse(0);
+        }
+
+        var contacts = await query.ToListAsync(ct);
+        if (contacts.Count == 0)
+        {
+            return new AnnouncementResponse(0);
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var sourceEventId = Guid.NewGuid();
+
+        foreach (var contact in contacts)
+        {
+            var notification = new UserNotification
+            {
+                Id = Guid.NewGuid(),
+                RecipientType = contact.PersonType,
+                RecipientId = contact.Id,
+                Type = "Announcement",
+                Title = request.Title.Trim(),
+                Content = request.Content.Trim(),
+                LinkUrl = null,
+                SourceEventId = sourceEventId,
+                IsRead = false,
+                CreatedAt = now
+            };
+            db.Notifications.Add(notification);
+
+            if (request.SendEmail && contact.EmailEnabled && !string.IsNullOrWhiteSpace(contact.Email))
+            {
+                db.EmailLogs.Add(new EmailLog
+                {
+                    Id = Guid.NewGuid(),
+                    NotificationId = notification.Id,
+                    SourceEventId = sourceEventId,
+                    ToEmail = contact.Email,
+                    Subject = request.Title.Trim(),
+                    TemplateCode = "Announcement",
+                    Status = "PENDING",
+                    Attempts = 0,
+                    CreatedAt = now
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+        return new AnnouncementResponse(contacts.Count);
+    }
+
+    private static void ValidateAnnouncement(AnnouncementRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (string.IsNullOrWhiteSpace(request.Audience) || !AnnouncementAudience.All.Contains(request.Audience))
+        {
+            errors["audience"] = ["Đối tượng nhận thông báo không hợp lệ."];
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 200)
+        {
+            errors["title"] = ["Tiêu đề phải từ 1 đến 200 ký tự."];
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Content) || request.Content.Length > 2000)
+        {
+            errors["content"] = ["Nội dung phải từ 1 đến 2000 ký tự."];
+        }
+
+        if (request.CourseCode is not null && request.CourseCode != "EXE101" && request.CourseCode != "EXE201")
+        {
+            errors["courseCode"] = ["Môn học phải là EXE101 hoặc EXE201."];
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new RequestValidationException(errors);
+        }
     }
 
     private IQueryable<UserNotification> Mine(ClaimsPrincipal user)
