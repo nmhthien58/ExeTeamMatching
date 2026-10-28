@@ -95,9 +95,18 @@ export function AnnouncementPage() {
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 rounded-md border border-border bg-surface p-6 shadow-xs">
             {errorMessage && (
-              <Banner tone="error" onClose={() => setErrorMessage(null)}>
-                {errorMessage}
-              </Banner>
+              <Banner
+                tone="error"
+                title={errorMessage}
+                action={
+                  <Button variant="text" onClick={() => setErrorMessage(null)}>
+                    Đóng
+                  </Button>
+                }
+              />
+
+
+
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
