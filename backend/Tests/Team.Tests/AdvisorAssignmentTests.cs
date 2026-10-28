@@ -205,6 +205,7 @@ public sealed class AdvisorAssignmentTests
     public async Task GetLecturerTeamsMe_filters_by_course_and_search()
     {
         var lecturerId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
         var team1Id = Guid.NewGuid();
         var team2Id = Guid.NewGuid();
         var team3Id = Guid.NewGuid();
@@ -219,13 +220,13 @@ public sealed class AdvisorAssignmentTests
         lecturerRepo.All.Add(new LecturerAssignment { TeamId = team2Id, LecturerId = lecturerId, Status = "ASSIGNED", Reason = "DOMAIN", PreferenceRank = null });
 
         var mentorRepo = new FakeMentorRepo();
-        mentorRepo.All.Add(new MentorAssignment { TeamId = team3Id, MentorId = lecturerId, Status = "ASSIGNED", Reason = "MENTOR_INTEREST" });
+        mentorRepo.All.Add(new MentorAssignment { TeamId = team3Id, MentorId = mentorId, Status = "ASSIGNED", Reason = "MENTOR_INTEREST" });
 
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
         var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
 
-        var user = UserWith(lecturerId: lecturerId, roles: Roles.Lecturer);
+        var user = UserWith(lecturerId: lecturerId, mentorId: mentorId, roles: [Roles.Lecturer, Roles.Mentor]);
 
         // 1. Without filter
         var res1 = await service.GetLecturerTeamsMeAsync(null, null, null, user, CancellationToken.None);

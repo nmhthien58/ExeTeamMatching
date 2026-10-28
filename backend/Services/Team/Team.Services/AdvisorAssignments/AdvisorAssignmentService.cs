@@ -73,7 +73,7 @@ public sealed class AdvisorAssignmentService(
         }
 
         var instructingAssignments = await lecturerRepo.ListActiveByLecturerIdAsync(lecturerId.Value, ct);
-        var mentoringAssignments = await mentorRepo.ListActiveByMentorIdAsync(lecturerId.Value, ct);
+        var mentoringAssignments = await mentorRepo.ListActiveByMentorIdAsync(user.GetMentorId() ?? lecturerId.Value, ct);
 
         var allTeamIds = instructingAssignments.Select(a => a.TeamId)
             .Concat(mentoringAssignments.Select(a => a.TeamId))
