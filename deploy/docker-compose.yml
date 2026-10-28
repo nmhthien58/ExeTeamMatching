@@ -177,12 +177,17 @@ services:
     environment:
       <<: *jwt-env
       ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__TeamDb: Host=postgres;Port=5432;Database=team_db;Username=team_svc;Password=${TEAM_DB_PASSWORD:-team_dev_pw}
       Kafka__BootstrapServers: kafka:29092
+      Academic__BaseUrl: http://academic-api:8080
+      Matching__BaseUrl: http://matching-grpc:8080   # gRPC: chốt nhóm, ghép tự động, gợi ý (BE-48, BE-49, BE-39)
     ports:
       - "5003:8080"
     healthcheck: *dotnet-healthcheck
     depends_on:
       postgres:
+        condition: service_healthy
+      matching-grpc:
         condition: service_healthy
 
   # Chỉ HTTP/2 (gRPC, không TLS): healthcheck dùng --http2-prior-knowledge. Không có route qua Gateway.
