@@ -120,6 +120,15 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.s3),
+          if (widget.team?.isInherited ?? false)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => context.push('/sv/yeu-cau-doi-nhom'),
+                icon: const Icon(Icons.published_with_changes_outlined, size: 18),
+                label: const Text('Mở yêu cầu đổi nhóm'),
+              ),
+            ),
           TextField(
             controller: _idea,
             maxLength: 4000,
