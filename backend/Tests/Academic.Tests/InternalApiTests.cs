@@ -197,6 +197,11 @@ public sealed class InternalApiTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        if (_semesters.Count + _students.Count == 0)
+        {
+            await _api.DisposeAsync(); // test tích hợp tắt: không mở kết nối DB
+            return;
+        }
         await _api.QueryDbAsync(async db =>
         {
             await db.SemesterEnrollments.Where(e => _students.Contains(e.StudentId) || _semesters.Contains(e.SemesterId)).ExecuteDeleteAsync();
