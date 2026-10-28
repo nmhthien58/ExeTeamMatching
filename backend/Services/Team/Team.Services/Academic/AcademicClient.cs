@@ -24,6 +24,9 @@ public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullNam
 /// <summary>Schema <c>CatalogItem</c> (domain, chuyên ngành).</summary>
 public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive);
 
+/// <summary>Snapshot giảng viên từ Academic (academic.yaml).</summary>
+public sealed record LecturerSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int? MaxTeamsExe101, int? MaxTeamsExe201, bool IsActive);
+
 public interface IAcademicClient
 {
     /// <summary>Học kỳ hiện hành; null nếu chưa có (404).</summary>
@@ -37,6 +40,9 @@ public interface IAcademicClient
 
     /// <summary>Snapshot MSSV, tên, chuyên ngành; sinh viên không thuộc học kỳ không có trong kết quả hoặc <c>IsEnrolled = false</c>.</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
+
+    /// <summary>Snapshot giảng viên từ Academic; null nếu chưa có hoặc 404.</summary>
+    Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) => Task.FromResult<LecturerSnapshot?>(null);
 
     /// <summary>Danh mục domain D01–D18 (cache 10 phút).</summary>
     Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct);
@@ -63,6 +69,18 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
         using var response = await http.PostAsJsonAsync("/internal/students/lookup", new { semesterId, studentIds }, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<StudentSnapshot>>(ct) ?? [];
+    }
+
+    public async Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct)
+    {
+        try
+        {
+            return await GetOrNullAsync<LecturerSnapshot>($"/internal/lecturers/{lecturerId}", ct);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
     }
 
     public Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct) => GetCatalogAsync("/api/domains", ct);
