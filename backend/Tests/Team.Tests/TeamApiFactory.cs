@@ -13,11 +13,12 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Team.Repositories.Context;
 using Team.Services.Academic;
+using Team.Services.Matching;
 
 namespace Team.Tests;
 
 /// <summary>
-/// Team.Api trong bộ nhớ với team_db thật (cần trigger, xmin – xem <see cref="TeamDbIntegrationTests"/>) và Academic giả.
+/// Team.Api trong bộ nhớ với team_db thật (cần trigger, xmin – xem <see cref="TeamDbIntegrationTests"/>), Academic và Matching giả.
 /// Không chạy Outbox dispatcher: sự kiện nằm lại trong outbox để test đọc.
 /// </summary>
 public sealed class TeamApiFactory : WebApplicationFactory<Program>
@@ -25,6 +26,8 @@ public sealed class TeamApiFactory : WebApplicationFactory<Program>
     public const string SigningKey = "test-only-signing-key-0123456789abcdef-xyz";
 
     public FakeAcademic Academic { get; } = new();
+
+    public FakeMatching Matching { get; } = new();
 
     public static string ConnectionString => Environment.GetEnvironmentVariable("EXE_TEAM_DB")
         ?? "Host=localhost;Port=5432;Database=team_db;Username=team_svc;Password=team_dev_pw";
@@ -38,6 +41,8 @@ public sealed class TeamApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<IAcademicClient>();
             services.AddSingleton<IAcademicClient>(Academic);
+            services.RemoveAll<IMatchingClient>();
+            services.AddSingleton<IMatchingClient>(Matching);
             foreach (var hosted in services.Where(d => d.ImplementationType == typeof(OutboxDispatcher<TeamDbContext>)).ToList())
             {
                 services.Remove(hosted);
