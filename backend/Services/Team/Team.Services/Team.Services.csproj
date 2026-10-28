@@ -5,6 +5,17 @@
     <ProjectReference Include="..\..\..\BuildingBlocks\BuildingBlocks.csproj" />
   </ItemGroup>
 
+  <!-- gRPC client gọi Matching (BE-48 ValidateComposition, BE-49 PlanAutoAssignment, BE-39 gợi ý). -->
+  <ItemGroup>
+    <Protobuf Include="..\..\..\Protos\matching.proto" GrpcServices="Client" Link="Protos\matching.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.23.1" />
+    <PackageReference Include="Grpc.Net.ClientFactory" Version="2.57.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.57.0" PrivateAssets="All" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
