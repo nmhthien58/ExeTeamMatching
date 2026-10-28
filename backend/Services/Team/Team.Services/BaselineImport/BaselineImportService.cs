@@ -74,9 +74,9 @@ public sealed class BaselineImportService(
             {
                 errors.Add(new BaselineImportRowError(firstRow, $"Nhóm '{group.Key}' vượt quá 6 thành viên (có {distinctMembers.Count} người)."));
             }
-            if (distinctMembers.Count < 1)
+            if (distinctMembers.Count < 4)
             {
-                errors.Add(new BaselineImportRowError(firstRow, $"Nhóm '{group.Key}' không có thành viên."));
+                errors.Add(new BaselineImportRowError(firstRow, $"Nhóm '{group.Key}' cần ít nhất 4 thành viên (có {distinctMembers.Count} người)."));
             }
 
             var leaders = distinctMembers.Where(m => m.Any(r => r.IsLeader)).ToList();

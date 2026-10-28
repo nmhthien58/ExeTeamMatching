@@ -295,6 +295,26 @@ public sealed class BaselineImportTests
     }
 
     [Fact]
+    public async Task Team_with_fewer_than_4_members_is_not_imported()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        for (var i = 1; i <= 3; i++)
+        {
+            academic.EnrollWithCode($"SE16000{i}", $"Sinh viên {i}");
+        }
+
+        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002 SE160003";
+        var service = new BaselineImportService(repo, academic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+
+        var result = await service.ImportAsync(academic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Contains(result.Errors, e => e.Message.Contains("ít nhất 4 thành viên"));
+        Assert.Empty(repo.SavedTeams);
+    }
+
+    [Fact]
     public async Task Student_calling_baseline_import_api_gets_403_forbidden()
     {
         var api = new TeamApiFactory();

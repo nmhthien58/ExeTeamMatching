@@ -44,9 +44,13 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
             .ToListAsync(ct);
 
         var dict = new Dictionary<string, TeamEntity>(StringComparer.OrdinalIgnoreCase);
-        foreach (var t in teams)
+        foreach (var group in teams.GroupBy(t => t.Name, StringComparer.OrdinalIgnoreCase))
         {
-            dict.TryAdd(t.Name, t);
+            // Cùng tên ở nhiều kỳ thì để Admin gắn đề tài thủ công, tránh chọn nhầm nguồn.
+            if (group.Count() == 1)
+            {
+                dict.Add(group.Key, group.Single());
+            }
         }
         return dict;
     }
