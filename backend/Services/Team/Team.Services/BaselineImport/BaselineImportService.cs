@@ -5,6 +5,7 @@ using Team.Repositories.BaselineImport;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
+using Team.Services.Members;
 using Team.Services.Teams;
 
 namespace Team.Services.BaselineImport;
@@ -253,8 +254,26 @@ public sealed class BaselineImportService(
                     IsAutoAssigned: false,
                     IsInherited: true,
                     SourceTeamId: teamEntity.SourceTeamId)),
-                OccurredAt = now,
+                OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
             });
+
+            var memberCount = 1; // TeamCreated đã đưa leader vào read model của Collaboration và Matching.
+            foreach (var member in memberGroups.Where(m => !m.Any(r => r.IsLeader)))
+            {
+                var snapshot = snapshotByCode[member.Key];
+                outboxMessages.Add(new OutboxMessage
+                {
+                    Id = Guid.NewGuid(),
+                    Topic = "exe.team",
+                    EventType = MemberEventTypes.MemberJoined,
+                    AggregateType = "Team",
+                    AggregateId = teamId,
+                    Payload = JsonSerializer.Serialize(new MemberJoined(
+                        teamId, semesterId, snapshot.Id, snapshot.FullName,
+                        snapshot.SpecializationId, "INHERITED", ++memberCount)),
+                    OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
+                });
+            }
 
             if (exe101Team is not null && teamEntity.ProjectId is { } pId)
             {
@@ -270,7 +289,7 @@ public sealed class BaselineImportService(
                         pId,
                         exe101Team.Id,
                         "IMPORT")),
-                    OccurredAt = now,
+                    OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
                 });
             }
         }

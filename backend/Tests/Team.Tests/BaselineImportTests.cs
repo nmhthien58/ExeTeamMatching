@@ -7,6 +7,7 @@ using Team.Repositories.Members;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
 using Team.Services.BaselineImport;
+using Team.Services.Members;
 using Team.Services.Teams;
 
 namespace Team.Tests;
@@ -157,9 +158,17 @@ public sealed class BaselineImportTests
         var leaderBaseline = repo.SavedBaselineMembers.Single(m => m.Role == "LEADER");
         Assert.Equal(s1.Id, leaderBaseline.StudentId);
 
-        Assert.Equal(2, repo.SavedOutboxMessages.Count);
-        Assert.Contains(repo.SavedOutboxMessages, m => m.EventType == TeamEventTypes.TeamCreated);
-        Assert.Contains(repo.SavedOutboxMessages, m => m.EventType == TeamEventTypes.TeamLinkedToProject);
+        Assert.Equal(5, repo.SavedOutboxMessages.Count);
+        Assert.Equal(TeamEventTypes.TeamCreated, repo.SavedOutboxMessages[0].EventType);
+        var joined = repo.SavedOutboxMessages.Where(m => m.EventType == MemberEventTypes.MemberJoined)
+            .Select(m => JsonSerializer.Deserialize<MemberJoined>(m.Payload)!).ToList();
+        Assert.Equal(3, joined.Count);
+        Assert.Equal(new[] { s2.Id, s3.Id, s4.Id }, joined.Select(e => e.StudentId));
+        Assert.Equal(new[] { 2, 3, 4 }, joined.Select(e => e.MemberCount));
+        Assert.All(joined, e => Assert.Equal("INHERITED", e.JoinSource));
+        Assert.Equal(TeamEventTypes.TeamLinkedToProject, repo.SavedOutboxMessages[^1].EventType);
+        Assert.True(repo.SavedOutboxMessages.Zip(repo.SavedOutboxMessages.Skip(1))
+            .All(pair => pair.First.OccurredAt < pair.Second.OccurredAt));
     }
 
     [Fact]
