@@ -7,6 +7,7 @@ using BuildingBlocks.Auth;
 using BuildingBlocks.Outbox;
 using Collab.Repositories.Context;
 using Collab.Repositories.Workspaces;
+using Collab.Services.Checkpoints;
 using Collab.Services.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -34,6 +35,8 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
 
     public InMemoryObjectStorage Storage { get; } = new();
 
+    public FakeAcademicSemesterClient AcademicSemesters { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -46,6 +49,8 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<CollabDbContext>(options => options.UseInMemoryDatabase(_databaseName));
             services.RemoveAll<IObjectStorage>();
             services.AddSingleton<IObjectStorage>(Storage);
+            services.RemoveAll<IAcademicSemesterClient>();
+            services.AddSingleton<IAcademicSemesterClient>(AcademicSemesters);
             foreach (var hosted in services.Where(d => d.ServiceType == typeof(IHostedService)
                          && (d.ImplementationType == typeof(OutboxDispatcher<CollabDbContext>) || d.ImplementationType == typeof(EnsureBucketHostedService))).ToList())
             {
@@ -102,6 +107,35 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
         return workspaceId;
     }
 
+    public async Task<Guid> SeedWorkspaceWithSemesterAsync(string teamName, string course, Guid semesterId, Guid? previousWorkspaceId, params TestPerson[] people)
+    {
+        var workspaceId = Guid.NewGuid();
+        await WithDbAsync(db =>
+        {
+            db.Set<Workspace>().Add(new Workspace
+            {
+                Id = workspaceId,
+                TeamId = Guid.NewGuid(),
+                SemesterId = semesterId,
+                CourseCode = course,
+                TeamName = teamName,
+                PreviousWorkspaceId = previousWorkspaceId,
+                CreatedAt = DateTimeOffset.UtcNow,
+            });
+            db.Set<WorkspaceMember>().AddRange(people.Select(p => new WorkspaceMember
+            {
+                WorkspaceId = workspaceId,
+                PersonType = p.PersonType,
+                PersonId = p.Id,
+                DisplayName = p.Name,
+                Role = p.Role!,
+                JoinedAt = DateTimeOffset.UtcNow,
+            }));
+            return Task.CompletedTask;
+        });
+        return workspaceId;
+    }
+
     public HttpClient ClientFor(TestPerson person)
     {
         var client = CreateClient();
@@ -138,6 +172,14 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
     /// <summary>Mã lỗi cuối của <c>type</c> trong ProblemDetails.</summary>
     public static async Task<string> ErrorCodeAsync(HttpResponseMessage response) =>
         (await ReadAsync<JsonElement>(response)).GetProperty("type").GetString()!.Split('/')[^1];
+}
+
+public sealed class FakeAcademicSemesterClient : IAcademicSemesterClient
+{
+    public Dictionary<Guid, SemesterCheckpointConfig> Configs { get; } = [];
+
+    public Task<SemesterCheckpointConfig?> GetConfigAsync(Guid semesterId, CancellationToken ct) =>
+        Task.FromResult(Configs.GetValueOrDefault(semesterId));
 }
 
 /// <summary>Người dùng test: vai trò JWT, claim id, vai trò trong workspace.</summary>
