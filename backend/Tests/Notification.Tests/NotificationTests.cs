@@ -226,6 +226,25 @@ public sealed class NotificationTests
     }
 
     [Fact]
+    public async Task New_mentor_keeps_disabled_email_preference_of_same_account()
+    {
+        await using var db = Database();
+        db.Contacts.Add(new Contact { Id = Guid.NewGuid(), PersonType = "LECTURER",
+            Email = "advisor@example.test", FullName = "Cố vấn", EmailEnabled = false });
+        await db.SaveChangesAsync();
+        var mentorId = Guid.NewGuid();
+        var envelope = EventEnvelope.Create("MentorRegistered",
+            new { mentorId, email = "advisor@example.test", fullName = "Cố vấn" }, "academic", null);
+
+        await new NotificationEventHandler(db).HandleAsync(envelope, default);
+        await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
+
+        Assert.False((await db.Contacts.SingleAsync(x => x.Id == mentorId)).EmailEnabled);
+        Assert.Equal(mentorId, Assert.Single(db.Notifications).RecipientId);
+        Assert.Empty(db.EmailLogs);
+    }
+
+    [Fact]
     public async Task Profile_update_without_contact_fields_preserves_existing_email_and_name()
     {
         await using var db = Database();
@@ -367,7 +386,7 @@ public sealed class NotificationTests
     }
 
     [Fact]
-    public async Task Due_soon_reminder_emails_assignees_but_not_unrelated_contacts()
+    public async Task Due_soon_reminder_notifies_assignees_in_app_only()
     {
         await using var db = Database();
         var assignee = Guid.NewGuid();
@@ -386,8 +405,7 @@ public sealed class NotificationTests
         await new NotificationProcessedEventStore(db).MarkProcessedAsync(envelope, default);
 
         Assert.Equal(assignee, Assert.Single(db.Notifications).RecipientId);
-        Assert.Equal("assignee@example.test", Assert.Single(db.EmailLogs).ToEmail);
-        Assert.Equal("TaskDueSoon", db.EmailLogs.Single().TemplateCode);
+        Assert.Empty(db.EmailLogs);
     }
 
     [Fact]
@@ -413,14 +431,14 @@ public sealed class NotificationTests
     }
 
     [Theory]
-    [InlineData("LecturerAssigned", "MUTUAL", "hai phía cùng chọn")]
-    [InlineData("LecturerAssigned", "PREFERENCE", "nguyện vọng của nhóm")]
-    [InlineData("LecturerAssigned", "LECTURER_INTEREST", "giảng viên quan tâm")]
-    [InlineData("LecturerAssigned", "PREVIOUS_INSTRUCTOR", "giảng viên hướng dẫn kỳ trước")]
-    [InlineData("LecturerAssigned", "DOMAIN", "phù hợp chuyên môn")]
+    [InlineData("LecturerAssigned", "MUTUAL", "Hai bên cùng chọn")]
+    [InlineData("LecturerAssigned", "PREFERENCE", "Nguyện vọng 2")]
+    [InlineData("LecturerAssigned", "LECTURER_INTEREST", "Giảng viên quan tâm")]
+    [InlineData("LecturerAssigned", "PREVIOUS_INSTRUCTOR", "Giảng viên kỳ trước")]
+    [InlineData("LecturerAssigned", "DOMAIN", "Theo chuyên môn")]
     [InlineData("LecturerAssigned", "MANUAL", "Bộ môn phân công")]
-    [InlineData("MentorAssigned", "MENTOR_INTEREST", "mentor quan tâm")]
-    [InlineData("MentorAssigned", "DOMAIN", "phù hợp chuyên môn")]
+    [InlineData("MentorAssigned", "MENTOR_INTEREST", "Mentor quan tâm")]
+    [InlineData("MentorAssigned", "DOMAIN", "Theo chuyên môn")]
     [InlineData("MentorAssigned", "MANUAL", "Bộ môn phân công")]
     public async Task Advisor_assignment_explains_reason_to_advisor_and_students(
         string eventType, string reason, string explanation)
@@ -430,7 +448,7 @@ public sealed class NotificationTests
         var studentId = Guid.NewGuid();
         var payload = eventType == "LecturerAssigned"
             ? (object)new { lecturerId = advisorId, lecturerName = "Giảng viên A",
-                reason, memberStudentIds = new[] { studentId } }
+                reason, preferenceRank = 2, memberStudentIds = new[] { studentId } }
             : new { mentorId = advisorId, mentorName = "Mentor A",
                 reason, memberStudentIds = new[] { studentId } };
         var envelope = EventEnvelope.Create(eventType, payload, "assignment", null);
@@ -468,7 +486,7 @@ public sealed class NotificationTests
     }
 
     [Fact]
-    public async Task Task_and_deliverable_events_notify_only_intended_people_and_email_overdue()
+    public async Task Task_and_deliverable_events_notify_only_intended_people_in_app()
     {
         await using var db = Database();
         var firstStudent = Guid.NewGuid();
@@ -499,7 +517,7 @@ public sealed class NotificationTests
                 [firstStudent, secondStudent], 0),
             ("DeliverableOverdue", new { workspaceId, title = "Bài nộp trễ",
                 memberStudentIds = new[] { firstStudent, secondStudent }, lecturerId = lecturer },
-                [firstStudent, secondStudent, lecturer], 3),
+                [firstStudent, secondStudent, lecturer], 0),
         };
         var handler = new NotificationEventHandler(db);
         var processed = new NotificationProcessedEventStore(db);

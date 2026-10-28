@@ -35,7 +35,7 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
                 await db.Contacts.FindAsync([mentorId], ct) is null;
             await UpdateContactAsync(envelope.EventType, data, ct);
             if (newMentor && Id(data, "mentorId") is { } recipientId &&
-                await db.Contacts.FindAsync([recipientId], ct) is { } contact && contact.EmailEnabled)
+                await db.Contacts.FindAsync([recipientId], ct) is { } contact)
             {
                 var welcome = new UserNotification
                 {
@@ -45,7 +45,7 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
                     LinkUrl = "app://login", SourceEventId = envelope.EventId, CreatedAt = DateTimeOffset.UtcNow,
                 };
                 db.Notifications.Add(welcome);
-                db.EmailLogs.Add(new EmailLog
+                if (contact.EmailEnabled) db.EmailLogs.Add(new EmailLog
                 {
                     Id = Guid.NewGuid(), NotificationId = welcome.Id, SourceEventId = envelope.EventId,
                     ToEmail = contact.Email, Subject = welcome.Title, TemplateCode = "MentorRegistered",
@@ -88,7 +88,7 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         "JoinRequestSubmitted" or "JoinRequestAccepted" or "JoinRequestDeclined" or
         "ChangeRequestApproved" or "ChangeRequestRejected" or "TopicInterestClosed" or
         "DeadlineApproaching" or "LecturerAssigned" or "MentorAssigned" or
-        "MeetingReminder" or "TaskDueSoon" or "DeliverableOverdue";
+        "MeetingReminder";
 
     private async Task UpdateContactAsync(string eventType, JsonElement data, CancellationToken ct)
     {
@@ -107,7 +107,9 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
         if (existing is null)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(name)) return;
-            db.Contacts.Add(new Contact { Id = id.Value, PersonType = type, Email = email, FullName = name, UpdatedAt = DateTimeOffset.UtcNow });
+            var emailEnabled = !await db.Contacts.AnyAsync(x => x.Email == email && !x.EmailEnabled, ct);
+            db.Contacts.Add(new Contact { Id = id.Value, PersonType = type, Email = email, FullName = name,
+                EmailEnabled = emailEnabled, UpdatedAt = DateTimeOffset.UtcNow });
         }
         else
         {
@@ -162,10 +164,6 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
                 break;
             case "DeadlineApproaching":
                 foreach (var r in Students(data, "studentIdsWithoutTeam")) yield return r;
-                break;
-            case "TopicInterestClosed":
-                if (String(data, "advisorKind") is "LECTURER" or "MENTOR" && Id(data, "advisorId") is { } advisorId)
-                    yield return (String(data, "advisorKind")!, advisorId);
                 break;
             case "AdvisorQuestionAsked": case "AdvisorQuestionAnswered":
             case "MeetingSlotsPublished": case "MeetingSlotBooked":
