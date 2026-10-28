@@ -3,10 +3,14 @@ using Team.Services.Teams;
 
 namespace Team.Tests;
 
-/// <summary>Matching giả: kiểm tra cơ cấu theo rule 1, 2 như Matching thật; phương án ghép tự động do test đặt trong <see cref="Plan"/>.</summary>
+/// <summary>Matching giả: kiểm tra cơ cấu theo rule 1, 2 như Matching thật; phương án ghép và gợi ý do test đặt sẵn.</summary>
 public sealed class FakeMatching : IMatchingClient
 {
     public AutoAssignPlan Plan { get; set; } = new([], [], []);
+
+    public SuggestedMembers Members { get; set; } = new([], []);
+
+    public IReadOnlyList<SuggestedTeam> Teams { get; set; } = [];
 
     public Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct)
     {
@@ -27,4 +31,10 @@ public sealed class FakeMatching : IMatchingClient
     }
 
     public Task<AutoAssignPlan> PlanAutoAssignmentAsync(Guid semesterId, string courseCode, CancellationToken ct) => Task.FromResult(Plan);
+
+    public Task<SuggestedMembers> SuggestMembersAsync(Guid semesterId, string courseCode, Guid teamId, int limit, CancellationToken ct) =>
+        Task.FromResult(Members);
+
+    public Task<IReadOnlyList<SuggestedTeam>> SuggestTeamsAsync(Guid semesterId, string courseCode, Guid studentId, int limit, CancellationToken ct) =>
+        Task.FromResult(Teams);
 }

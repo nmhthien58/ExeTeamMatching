@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Team.Repositories.Invitations;
+using Team.Repositories.JoinRequests;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
 using Team.Services.Teams;
@@ -46,12 +48,16 @@ public static class TestData
         return team;
     }
 
-    /// <summary>Xóa nhóm (cascade thành viên, domain…) và sự kiện outbox của học kỳ giả.</summary>
+    /// <summary>Xóa nhóm (cascade thành viên, lời mời…) và sự kiện outbox của nhóm, lời mời, yêu cầu trong học kỳ giả.</summary>
     public static Task DeleteSemesterAsync(TeamApiFactory api, Guid semesterId) => api.QueryDbAsync(async db =>
     {
         var teamIds = await db.Set<TeamEntity>().Where(t => t.SemesterId == semesterId).Select(t => t.Id).ToListAsync();
+        var keys = teamIds
+            .Concat(await db.Set<Invitation>().Where(i => teamIds.Contains(i.TeamId)).Select(i => i.Id).ToListAsync())
+            .Concat(await db.Set<JoinRequest>().Where(r => teamIds.Contains(r.TeamId)).Select(r => r.Id).ToListAsync())
+            .ToList();
         await db.Set<TeamEntity>().Where(t => teamIds.Contains(t.Id)).ExecuteDeleteAsync();
-        return await db.Set<OutboxMessage>().Where(m => teamIds.Contains(m.AggregateId)).ExecuteDeleteAsync();
+        return await db.Set<OutboxMessage>().Where(m => keys.Contains(m.AggregateId)).ExecuteDeleteAsync();
     });
 
     /// <summary>Kiểm tra mã HTTP và (nếu có) mã lỗi ProblemDetails <c>…/errors/&lt;code&gt;</c>.</summary>
