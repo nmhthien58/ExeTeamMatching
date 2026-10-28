@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Team.Repositories.BaselineImport;
 using Team.Repositories.Members;
@@ -295,7 +296,7 @@ public sealed class BaselineImportService(
                     teamEntity.ProjectId,
                     IsAutoAssigned: false,
                     IsInherited: true,
-                    SourceTeamId: teamEntity.SourceTeamId)),
+                    SourceTeamId: teamEntity.SourceTeamId), EventEnvelope.JsonOptions),
                 OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
             });
 
@@ -312,7 +313,7 @@ public sealed class BaselineImportService(
                     AggregateId = teamId,
                     Payload = JsonSerializer.Serialize(new MemberJoined(
                         teamId, semesterId, snapshot.Id, snapshot.FullName,
-                        snapshot.SpecializationId, "INHERITED", ++memberCount)),
+                        snapshot.SpecializationId, "INHERITED", ++memberCount), EventEnvelope.JsonOptions),
                     OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
                 });
             }
@@ -330,7 +331,7 @@ public sealed class BaselineImportService(
                         teamId,
                         pId,
                         exe101Team.Id,
-                        "IMPORT")),
+                        "IMPORT"), EventEnvelope.JsonOptions),
                     OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
                 });
             }

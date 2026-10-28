@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
+using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Team.Repositories.BaselineImport;
 using Team.Repositories.Members;
@@ -169,8 +170,13 @@ public sealed class BaselineImportTests
 
         Assert.Equal(5, repo.SavedOutboxMessages.Count);
         Assert.Equal(TeamEventTypes.TeamCreated, repo.SavedOutboxMessages[0].EventType);
+        using (var teamCreatedPayload = JsonDocument.Parse(repo.SavedOutboxMessages[0].Payload))
+        {
+            Assert.True(teamCreatedPayload.RootElement.TryGetProperty("teamId", out _));
+            Assert.False(teamCreatedPayload.RootElement.TryGetProperty("TeamId", out _));
+        }
         var joined = repo.SavedOutboxMessages.Where(m => m.EventType == MemberEventTypes.MemberJoined)
-            .Select(m => JsonSerializer.Deserialize<MemberJoined>(m.Payload)!).ToList();
+            .Select(m => JsonSerializer.Deserialize<MemberJoined>(m.Payload, EventEnvelope.JsonOptions)!).ToList();
         Assert.Equal(3, joined.Count);
         Assert.Equal(new[] { s2.Id, s3.Id, s4.Id }, joined.Select(e => e.StudentId));
         Assert.Equal(new[] { 2, 3, 4 }, joined.Select(e => e.MemberCount));
