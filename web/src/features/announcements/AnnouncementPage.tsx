@@ -98,15 +98,8 @@ export function AnnouncementPage() {
               <Banner
                 tone="error"
                 title={errorMessage}
-                action={
-                  <Button variant="text" onClick={() => setErrorMessage(null)}>
-                    Đóng
-                  </Button>
-                }
+                action={<Button variant="text" onClick={() => setErrorMessage(null)}>Đóng</Button>}
               />
-
-
-
             )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
