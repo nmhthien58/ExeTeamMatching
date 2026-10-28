@@ -1,6 +1,7 @@
 using Academic.Repositories.Context;
 using Academic.Services.Caching;
 using Academic.Services.Catalogs;
+using Academic.Services.Imports;
 using Academic.Services.Semesters;
 using Academic.Services.Students;
 using BuildingBlocks.Messaging;
@@ -31,8 +32,8 @@ public static class ServiceCollectionExtensions
         services.AddAcademicCache(configuration);
         services.TryAddSingleton(TimeProvider.System);
 
-        // Module: Catalogs (BE-21), Semesters + Rounds (BE-16), Students – tra cứu nội bộ (BE-22); Imports, Lecturers, Mentors, Settings (các task sau).
-        services.AddCatalogsModule().AddSemestersModule().AddStudentsModule();
+        // Module: Catalogs (BE-21), Semesters + Rounds (BE-16), Students – tra cứu nội bộ (BE-22), Imports (BE-17); Lecturers, Mentors, Settings (các task sau).
+        services.AddCatalogsModule().AddSemestersModule().AddStudentsModule().AddImportsModule();
         return services;
     }
 
