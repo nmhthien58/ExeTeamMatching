@@ -98,6 +98,9 @@ public sealed class FakeAcademic : IAcademicClient
 
     public HashSet<string> OpenCourses { get; } = ["EXE101", "EXE201"];
 
+    /// <summary>Môn đang có đợt đổi nhóm mở (CHANGE_REQUEST – chỉ EXE201).</summary>
+    public HashSet<string> OpenChangeRequestCourses { get; } = [];
+
     /// <summary>false = Academic chưa có <c>GET /internal/students</c> (404), Team dùng read model của Matching.</summary>
     public bool RosterAvailable { get; set; }
 
@@ -123,7 +126,7 @@ public sealed class FakeAcademic : IAcademicClient
         Task.FromResult<IReadOnlyList<SemesterDto>>([Semester]);
 
     public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
-        Task.FromResult(OpenCourses.Contains(courseCode) && roundType == RoundTypes.TeamFormation
+        Task.FromResult((roundType == RoundTypes.TeamFormation ? OpenCourses : OpenChangeRequestCourses).Contains(courseCode)
             ? new RoundDto(Guid.NewGuid(), Semester.Id, courseCode, roundType, DateTimeOffset.UtcNow.AddDays(7), "OPEN")
             : null);
 
