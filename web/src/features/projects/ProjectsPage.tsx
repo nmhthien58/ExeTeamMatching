@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useSearchParams } from 'react-router-dom'
+import { useAuth } from '@/shared/auth/AuthProvider'
 import { DataTable } from '@/shared/components/DataTable'
 import { EmptyState, ErrorState, TableSkeleton } from '@/shared/components/States'
 import { Banner, Button, Dialog, Icon, StatusChip } from '@/shared/components/ui'
@@ -27,8 +28,11 @@ function formatDate(value: string) {
 }
 
 export function ProjectsPage() {
+  const { hasRole } = useAuth()
+  const isAdmin = hasRole('Admin')
   const [params, setParams] = useSearchParams()
-  const activeTab: TabType = (params.get('tab') as TabType) || 'all'
+  const rawTab = params.get('tab') as TabType
+  const activeTab: TabType = rawTab === 'unlinked' && !isAdmin ? 'all' : rawTab || 'all'
   const selectedSemesterId = params.get('semesterId') || ''
 
   const semestersQuery = useSemesters()
@@ -57,6 +61,7 @@ export function ProjectsPage() {
   }
 
   const handleOpenLinkModal = (team: TeamCardResponse) => {
+    if (!isAdmin) return
     setTeamToLink(team)
     setTargetProjectId('')
     setLinkError(null)
@@ -64,7 +69,7 @@ export function ProjectsPage() {
   }
 
   const handleConfirmLink = async () => {
-    if (!teamToLink || !targetProjectId) return
+    if (!isAdmin || !teamToLink || !targetProjectId) return
     setLinkError(null)
     try {
       await linkTeamMutation.mutateAsync({
@@ -154,18 +159,29 @@ export function ProjectsPage() {
       id: 'advisors',
       cell: ({ row }) => {
         const teams = row.original.teams || []
-        const latest = teams[teams.length - 1]
-        if (!latest) return <span className="text-caption text-text-secondary">—</span>
+        if (teams.length === 0) return <span className="text-caption text-text-secondary">—</span>
         return (
-          <div className="flex flex-col gap-0.5 text-caption">
-            <div>
-              <span className="text-text-secondary">GVHD: </span>
-              <span className="font-medium text-text-primary">{latest.instructorName || 'Chưa phân công'}</span>
-            </div>
-            <div>
-              <span className="text-text-secondary">Mentor: </span>
-              <span className="font-medium text-text-primary">{latest.mentorName || 'Chưa phân công'}</span>
-            </div>
+          <div className="flex flex-col gap-2 py-1 text-caption">
+            {teams.map((t, idx) => (
+              <div
+                key={t.team?.id || idx}
+                className="flex flex-col gap-0.5 border-b border-border/40 pb-1.5 last:border-b-0 last:pb-0"
+              >
+                <span className="font-medium text-text-secondary">
+                  {t.semesterCode ? `${t.semesterCode} (${t.team?.courseCode || ''})` : t.team?.courseCode}:
+                </span>
+                <div className="flex flex-col gap-0.5 pl-2">
+                  <div>
+                    <span className="text-text-secondary">GVHD: </span>
+                    <span className="font-medium text-text-primary">{t.instructorName || 'Chưa phân công'}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">Mentor: </span>
+                    <span className="font-medium text-text-primary">{t.mentorName || 'Chưa phân công'}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )
       },
@@ -214,19 +230,21 @@ export function ProjectsPage() {
           >
             Đổi hướng đề tài
           </Button>
-          <Button
-            role="tab"
-            aria-selected={activeTab === 'unlinked'}
-            variant={activeTab === 'unlinked' ? 'outline' : 'text'}
-            onClick={() => setTab('unlinked')}
-          >
-            Chưa gắn đề tài
-            {unlinkedTeamsQuery.data && unlinkedTeamsQuery.data.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-warning-container px-2 py-0.5 text-xs font-semibold text-warning">
-                {unlinkedTeamsQuery.data.length}
-              </span>
-            )}
-          </Button>
+          {isAdmin && (
+            <Button
+              role="tab"
+              aria-selected={activeTab === 'unlinked'}
+              variant={activeTab === 'unlinked' ? 'outline' : 'text'}
+              onClick={() => setTab('unlinked')}
+            >
+              Chưa gắn đề tài
+              {unlinkedTeamsQuery.data && unlinkedTeamsQuery.data.length > 0 && (
+                <span className="ml-1.5 rounded-full bg-warning-container px-2 py-0.5 text-xs font-semibold text-warning">
+                  {unlinkedTeamsQuery.data.length}
+                </span>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Học kỳ Selector */}

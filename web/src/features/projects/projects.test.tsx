@@ -13,6 +13,8 @@ vi.mock('@/shared/api/apiClient', async (original) => ({
 
 const { projectRoutes } = await import('./routes')
 const { PageHeaderProvider } = await import('@/shared/layout/PageHeader')
+const { AuthProvider } = await import('@/shared/auth/AuthProvider')
+const { tokenStore } = await import('@/shared/api/tokenStore')
 
 const sampleProject = {
   id: 'proj-1',
@@ -59,8 +61,8 @@ const sampleProject = {
       },
       semesterCode: 'SP26',
       keptMemberPercent: null,
-      instructorName: 'TS. Nguyễn Hướng Dẫn',
-      mentorName: 'ThS. Trần Mentor',
+      instructorName: 'TS. Nguyễn Hướng Dẫn 101',
+      mentorName: 'ThS. Trần Mentor 101',
     },
     {
       team: {
@@ -75,8 +77,8 @@ const sampleProject = {
       },
       semesterCode: 'FA26',
       keptMemberPercent: 80,
-      instructorName: 'TS. Nguyễn Hướng Dẫn',
-      mentorName: 'ThS. Trần Mentor',
+      instructorName: 'TS. Lê Hướng Dẫn 201',
+      mentorName: 'ThS. Phạm Mentor 201',
     },
   ],
 }
@@ -139,15 +141,20 @@ function renderAt(path: string) {
         })
       }
     >
-      <PageHeaderProvider>
-        <RouterProvider router={router} />
-      </PageHeaderProvider>
+      <AuthProvider>
+        <PageHeaderProvider>
+          <RouterProvider router={router} />
+        </PageHeaderProvider>
+      </AuthProvider>
     </QueryClientProvider>,
   )
 }
 
 describe('W29 - Projects across semesters', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    tokenStore.clear()
+  })
 
   beforeEach(() => {
     // Node Request signal fix for jsdom
@@ -163,6 +170,19 @@ describe('W29 - Projects across semesters', () => {
 
     get.mockReset()
     post.mockReset()
+
+    tokenStore.save({
+      accessToken: 'test-admin-token',
+      accessTokenExpiresAt: '2027-01-01T00:00:00Z',
+      refreshToken: 'test-refresh-token',
+      refreshTokenExpiresAt: '2027-01-01T00:00:00Z',
+      user: {
+        id: 'admin-1',
+        email: 'admin@fpt.edu.vn',
+        fullName: 'Quản trị viên',
+        roles: ['Admin'],
+      },
+    })
 
     HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
       this.setAttribute('open', '')
@@ -182,7 +202,7 @@ describe('W29 - Projects across semesters', () => {
     })
   })
 
-  it('renders projects table with lineage and version tags', async () => {
+  it('renders projects table with lineage and distinct advisors for each semester', async () => {
     renderAt('/admin/de-tai')
 
     await waitFor(() => {
@@ -197,8 +217,11 @@ describe('W29 - Projects across semesters', () => {
     expect(screen.getByText('DormTech201')).toBeInTheDocument()
     expect(screen.getByText('Giữ 80% TV')).toBeInTheDocument()
 
-    // Instructors and Mentors
-    expect(screen.getByText('TS. Nguyễn Hướng Dẫn')).toBeInTheDocument()
+    // Instructors and Mentors for BOTH semesters are displayed
+    expect(screen.getByText('TS. Nguyễn Hướng Dẫn 101')).toBeInTheDocument()
+    expect(screen.getByText('TS. Lê Hướng Dẫn 201')).toBeInTheDocument()
+    expect(screen.getByText('ThS. Trần Mentor 101')).toBeInTheDocument()
+    expect(screen.getByText('ThS. Phạm Mentor 201')).toBeInTheDocument()
   })
 
   it('opens history modal and shows project versions', async () => {
@@ -217,7 +240,7 @@ describe('W29 - Projects across semesters', () => {
     expect(screen.getByText(/Bổ sung module nhận diện khuôn mặt/i)).toBeInTheDocument()
   })
 
-  it('switches to unlinked teams tab and links team to project', async () => {
+  it('switches to unlinked teams tab and links team to project for Admin', async () => {
     const user = userEvent.setup()
     renderAt('/admin/de-tai?semesterId=sem-fa26')
 
@@ -241,5 +264,25 @@ describe('W29 - Projects across semesters', () => {
         teamId: 'team-unlinked-1',
       })
     })
+  })
+
+  it('hides unlinked teams tab for non-admin users', async () => {
+    tokenStore.save({
+      accessToken: 'test-student-token',
+      accessTokenExpiresAt: '2027-01-01T00:00:00Z',
+      refreshToken: 'test-refresh-token',
+      refreshTokenExpiresAt: '2027-01-01T00:00:00Z',
+      user: {
+        id: 'student-1',
+        email: 'student@fpt.edu.vn',
+        fullName: 'Sinh viên A',
+        roles: ['Student'],
+      },
+    })
+
+    renderAt('/admin/de-tai')
+
+    await screen.findByText('Hệ thống Quản lý Ký túc xá Thông minh')
+    expect(screen.queryByRole('tab', { name: /Chưa gắn đề tài/i })).not.toBeInTheDocument()
   })
 })
