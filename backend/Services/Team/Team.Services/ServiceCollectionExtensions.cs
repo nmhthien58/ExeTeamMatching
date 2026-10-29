@@ -19,6 +19,7 @@ using Team.Services.LecturerPreferences;
 using Team.Services.Matching;
 using Team.Services.Members;
 using Team.Services.Posts;
+using Team.Services.Projects;
 using Team.Services.Statistics;
 using Team.Services.Suggestions;
 using Team.Services.Teams;
@@ -53,6 +54,7 @@ public static class ServiceCollectionExtensions
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
             .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule()
             .AddAdvisorAssignmentsModule().AddLecturerPreferencesModule();
+        services.AddProjectsModule(configuration);
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
         return services;
