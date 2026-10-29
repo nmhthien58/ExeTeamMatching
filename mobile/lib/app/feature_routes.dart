@@ -8,6 +8,7 @@ import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/messages/channel_screen.dart';
 import '../features/messages/conversations_screen.dart';
+import '../features/notifications/notifications_screen.dart';
 import '../features/invitations/invitations_screen.dart';
 import '../features/my_team/members_screen.dart';
 import '../features/my_team/my_team_screen.dart';
@@ -33,6 +34,9 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/nhom': (_) => const MyTeamScreen(),
   '/sv': (_) => const HomeScreen(),
   '/sv/kham-pha': (_) => const DiscoverScreen(),
+  '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
+  '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
+  '/mentor/thong-bao': (_) => const NotificationsScreen(roleRoot: '/mentor'),
   // C02 của cố vấn – MB-39 (Cường).
   '/gv/tin-nhan': (_) => const AdvisorConversationsScreen(basePath: '/gv/tin-nhan'),
   '/mentor/tin-nhan': (_) => const AdvisorConversationsScreen(basePath: '/mentor/tin-nhan'),
