@@ -15,9 +15,10 @@ using Team.Services.Export;
 using Team.Services.Finalization;
 using Team.Services.Invitations;
 using Team.Services.JoinRequests;
+using Team.Services.LecturerPreferences;
 using Team.Services.Matching;
-using Team.Services.Posts;
 using Team.Services.Members;
+using Team.Services.Posts;
 using Team.Services.Statistics;
 using Team.Services.Suggestions;
 using Team.Services.Teams;
@@ -28,7 +29,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Khung Team Service (BE-24): DbContext <c>team_db</c>, Kafka + Outbox, client gọi Academic.
-    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments…) tự đăng ký service của mình bên dưới.
+    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences…) tự đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddTeamServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -48,10 +49,10 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<CorrelationIdHandler>()
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
-        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport, AdvisorAssignments… (Thành).
+        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences… (Thành).
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
             .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule()
-            .AddAdvisorAssignmentsModule();
+            .AddAdvisorAssignmentsModule().AddLecturerPreferencesModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
         return services;
