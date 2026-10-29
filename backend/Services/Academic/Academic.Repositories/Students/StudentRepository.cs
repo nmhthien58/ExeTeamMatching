@@ -4,10 +4,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Academic.Repositories.Students;
 
 /// <summary>
-/// Snapshot sinh viên trong một học kỳ. <see cref="CourseCode"/> lấy từ <c>semester_enrollments</c> của học kỳ đó;
+/// Snapshot sinh viên trong một học kỳ. <see cref="CourseCode"/>, <see cref="ClassCode"/> lấy từ <c>semester_enrollments</c> của học kỳ đó;
 /// null khi sinh viên không có trong danh sách học kỳ.
 /// </summary>
-public sealed record StudentSnapshotRow(Guid Id, string StudentCode, string FullName, int SpecializationId, string? CourseCode);
+public sealed record StudentSnapshotRow(Guid Id, string StudentCode, string FullName, int SpecializationId, string? CourseCode, string? ClassCode);
 
 public interface IStudentRepository
 {
@@ -16,6 +16,9 @@ public interface IStudentRepository
 
     /// <summary>Sinh viên theo MSSV (đã viết hoa); MSSV không tồn tại thì không có trong kết quả.</summary>
     Task<IReadOnlyList<StudentSnapshotRow>> LookupByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct);
+
+    /// <summary>Mọi sinh viên trong danh sách học kỳ, lọc theo môn nếu có; sắp theo MSSV.</summary>
+    Task<IReadOnlyList<StudentSnapshotRow>> ListEnrolledAsync(Guid semesterId, string? courseCode, CancellationToken ct);
 }
 
 public sealed class StudentRepository(AcademicDbContext db) : IStudentRepository
@@ -26,11 +29,21 @@ public sealed class StudentRepository(AcademicDbContext db) : IStudentRepository
     public Task<IReadOnlyList<StudentSnapshotRow>> LookupByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct) =>
         SnapshotsAsync(db.Students.Where(s => studentCodes.Contains(s.StudentCode)), semesterId, ct);
 
-    /// <summary>Một câu SQL: sinh viên kèm môn của họ trong học kỳ (subquery trên <c>uq_semester_enrollments_semester_student</c>).</summary>
+    public Task<IReadOnlyList<StudentSnapshotRow>> ListEnrolledAsync(Guid semesterId, string? courseCode, CancellationToken ct) =>
+        SnapshotsAsync(db.Students.Where(s => db.SemesterEnrollments.Any(e => e.StudentId == s.Id && e.SemesterId == semesterId
+            && (courseCode == null || e.CourseCode == courseCode))), semesterId, ct);
+
+    /// <summary>
+    /// Một câu SQL: sinh viên kèm môn và mã lớp trong học kỳ (left join trên <c>uq_semester_enrollments_semester_student</c>,
+    /// mỗi sinh viên tối đa một dòng mỗi học kỳ).
+    /// </summary>
     private async Task<IReadOnlyList<StudentSnapshotRow>> SnapshotsAsync(IQueryable<Student> students, Guid? semesterId, CancellationToken ct) =>
-        await students.AsNoTracking()
-            .OrderBy(s => s.StudentCode)
-            .Select(s => new StudentSnapshotRow(s.Id, s.StudentCode, s.FullName, s.SpecializationId,
-                db.SemesterEnrollments.Where(e => e.StudentId == s.Id && e.SemesterId == semesterId).Select(e => e.CourseCode).FirstOrDefault()))
+        await (from s in students.AsNoTracking()
+               join e in db.SemesterEnrollments.Where(e => e.SemesterId == semesterId) on s.Id equals e.StudentId into enrollments
+               from e in enrollments.DefaultIfEmpty()
+               join c in db.ClassCodes on e.ClassCodeId equals c.Id into classes
+               from c in classes.DefaultIfEmpty()
+               orderby s.StudentCode
+               select new StudentSnapshotRow(s.Id, s.StudentCode, s.FullName, s.SpecializationId, e.CourseCode, c.Code))
             .ToListAsync(ct);
 }

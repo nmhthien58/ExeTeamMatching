@@ -101,9 +101,11 @@ public sealed class InternalApiTests : IAsyncLifetime
         var result = await LookupAsync(semester.Id, [enrolled.Id, notEnrolled.Id, Guid.NewGuid()]);
         Assert.Equal(2, result.Count); // id không tồn tại bị bỏ
         var e = result.Single(s => s.Id == enrolled.Id);
-        Assert.Equal((enrolled.StudentCode, enrolled.FullName, enrolled.SpecializationId, "EXE201", true),
-            (e.StudentCode, e.FullName, e.SpecializationId, e.CourseCode, e.IsEnrolled));
-        Assert.Equal((null, false), (result.Single(s => s.Id == notEnrolled.Id).CourseCode, result.Single(s => s.Id == notEnrolled.Id).IsEnrolled));
+        var classCode = await _api.QueryDbAsync(db => db.ClassCodes.OrderBy(c => c.Id).Select(c => c.Code).FirstAsync());
+        Assert.Equal((enrolled.StudentCode, enrolled.FullName, enrolled.SpecializationId, classCode, "EXE201", true),
+            (e.StudentCode, e.FullName, e.SpecializationId, e.ClassCode, e.CourseCode, e.IsEnrolled));
+        var n = result.Single(s => s.Id == notEnrolled.Id);
+        Assert.Equal(((string?)null, (string?)null, false), (n.ClassCode, n.CourseCode, n.IsEnrolled));
 
         Assert.False((await LookupAsync(other.Id, [enrolled.Id])).Single().IsEnrolled);
         Assert.Empty(await LookupAsync(semester.Id, []));
@@ -130,6 +132,31 @@ public sealed class InternalApiTests : IAsyncLifetime
 
         var noSemester = await Service.PostAsJsonAsync("/internal/students/by-code", new { studentCodes = new[] { student.StudentCode } });
         Assert.False((await noSemester.Content.ReadFromJsonAsync<List<StudentSnapshot>>())!.Single().IsEnrolled);
+    }
+
+    [Fact]
+    public async Task Semester_students_lists_enrolled_students_by_course()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var semester = await CreateSemesterAsync();
+        var exe101 = await CreateStudentAsync(semester.Id, "EXE101");
+        var exe201 = await CreateStudentAsync(semester.Id, "EXE201");
+        await CreateStudentAsync(null, null);
+
+        var all = await Service.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semester.Id}");
+        Assert.Equal(new[] { exe101.StudentCode, exe201.StudentCode }.Order(), all!.Select(s => s.StudentCode));
+        Assert.All(all, s => Assert.True(s.IsEnrolled && s.ClassCode is not null));
+
+        var only201 = await Service.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semester.Id}&courseCode=EXE201");
+        Assert.Equal((exe201.Id, "EXE201"), (only201!.Single().Id, only201.Single().CourseCode));
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await Service.GetAsync("/internal/students")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Service.GetAsync($"/internal/students?semesterId={semester.Id}&courseCode=EXE301")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Admin.GetAsync($"/internal/students?semesterId={semester.Id}")).StatusCode);
     }
 
     private async Task<List<StudentSnapshot>> LookupAsync(Guid semesterId, Guid[] ids)
@@ -173,7 +200,7 @@ public sealed class InternalApiTests : IAsyncLifetime
             db.Students.Add(s);
             if (semesterId is { } id)
             {
-                db.SemesterEnrollments.Add(new SemesterEnrollment { SemesterId = id, StudentId = s.Id, CourseCode = course!, ClassCodeId = (await db.ClassCodes.FirstAsync()).Id });
+                db.SemesterEnrollments.Add(new SemesterEnrollment { SemesterId = id, StudentId = s.Id, CourseCode = course!, ClassCodeId = (await db.ClassCodes.OrderBy(c => c.Id).FirstAsync()).Id });
             }
             await db.SaveChangesAsync();
             return s;

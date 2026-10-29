@@ -42,6 +42,11 @@ public sealed class InternalController(IRoundService rounds, IStudentLookupServi
     public Task<IReadOnlyList<StudentSnapshot>> LookupStudents(StudentLookupRequest request, CancellationToken ct) =>
         students.LookupAsync(request, ct);
 
+    /// <summary>Toàn bộ sinh viên của học kỳ, lọc theo môn nếu có; sắp theo MSSV.</summary>
+    [HttpGet("students")]
+    public Task<IReadOnlyList<StudentSnapshot>> SemesterStudents([FromQuery] SemesterStudentsQuery query, CancellationToken ct) =>
+        students.ListSemesterAsync(query, ct);
+
     /// <summary>Đổi MSSV sang snapshot (import mốc EXE101).</summary>
     [HttpPost("students/by-code")]
     public Task<IReadOnlyList<StudentSnapshot>> StudentsByCode(StudentByCodeRequest request, CancellationToken ct) =>
