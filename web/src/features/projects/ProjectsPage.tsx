@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/shared/auth/AuthProvider'
@@ -42,6 +43,20 @@ export function ProjectsPage() {
   const [selectedProjectForHistory, setSelectedProjectForHistory] = useState<ProjectDetail | null>(null)
   const [teamToLink, setTeamToLink] = useState<TeamCardResponse | null>(null)
   const [targetProjectId, setTargetProjectId] = useState<string>('')
+  const [projectSearchInput, setProjectSearchInput] = useState('')
+  const [projectSearch, setProjectSearch] = useState('')
+  const [projectPage, setProjectPage] = useState(1)
+  const candidatesQuery = useQuery({
+    queryKey: [...projectKeys.all, 'link-candidates', projectSearch, projectPage],
+    queryFn: () => fetchProjects({ page: projectPage, pageSize: 20, search: projectSearch, filters: {} }),
+    enabled: isAdmin && teamToLink !== null,
+  })
+  const targetSemesterCode = semestersQuery.data?.find((semester) => semester.id === selectedSemesterId)?.code
+  const candidates = (candidatesQuery.data?.items ?? []).filter((project) => {
+    const source = project.teams.find((item) => item.team.courseCode === 'EXE101' && (!project.originSemesterCode || item.semesterCode === project.originSemesterCode))
+    const alreadyLinked = targetSemesterCode && project.teams.some((item) => item.semesterCode === targetSemesterCode && item.team.status !== 'DISBANDED')
+    return project.originCourseCode === 'EXE101' && source && (!targetSemesterCode || project.originSemesterCode !== targetSemesterCode) && !alreadyLinked
+  })
   const [linkError, setLinkError] = useState<string | null>(null)
   const [linkSuccess, setLinkSuccess] = useState<string | null>(null)
 
@@ -64,6 +79,9 @@ export function ProjectsPage() {
     if (!isAdmin) return
     setTeamToLink(team)
     setTargetProjectId('')
+    setProjectSearchInput('')
+    setProjectSearch('')
+    setProjectPage(1)
     setLinkError(null)
     setLinkSuccess(null)
   }
@@ -489,23 +507,44 @@ export function ProjectsPage() {
           }
         >
           <div className="space-y-4">
-            <p className="text-body text-text-secondary">
-              Nhập hoặc chọn ID đề tài xuyên kỳ mà nhóm này kế thừa:
-            </p>
-
-            <div>
-              <label htmlFor="target-project-id" className="block text-caption font-medium text-text-primary">
-                Mã ID Đề tài (GUID):
-              </label>
-              <input
-                id="target-project-id"
-                type="text"
-                placeholder="Ví dụ: b1234567-89ab-cdef-0123-456789abcdef"
-                value={targetProjectId}
-                onChange={(e) => setTargetProjectId(e.target.value.trim())}
-                className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-body text-text-primary focus:border-primary focus:outline-none"
-              />
-            </div>
+            <p className="text-body text-text-secondary">Tìm và chọn đề tài EXE101 mà nhóm này kế thừa.</p>
+            <form className="flex gap-2" onSubmit={(event) => {
+              event.preventDefault()
+              setProjectSearch(projectSearchInput.trim())
+              setProjectPage(1)
+              setTargetProjectId('')
+            }}>
+              <label htmlFor="project-search" className="sr-only">Tìm đề tài</label>
+              <input id="project-search" type="search" placeholder="Tìm theo tên đề tài" value={projectSearchInput}
+                onChange={(event) => setProjectSearchInput(event.target.value)}
+                className="min-w-0 flex-1 rounded-md border border-border bg-surface px-3 py-2 text-body text-text-primary" />
+              <Button type="submit" variant="outline">Tìm</Button>
+            </form>
+            {candidatesQuery.isLoading ? (
+              <p role="status">Đang tải đề tài...</p>
+            ) : candidatesQuery.isError ? (
+              <ErrorState error={candidatesQuery.error} onRetry={() => void candidatesQuery.refetch()} />
+            ) : (
+              <div>
+                <label htmlFor="target-project" className="block text-caption font-medium text-text-primary">Chọn đề tài</label>
+                <select id="target-project" value={targetProjectId} onChange={(event) => setTargetProjectId(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-body text-text-primary">
+                  <option value="">Chọn đề tài phù hợp</option>
+                  {candidates.map((project) => {
+                    const source = project.teams.find((item) => item.team.courseCode === 'EXE101' && (!project.originSemesterCode || item.semesterCode === project.originSemesterCode))
+                    return <option key={project.id} value={project.id}>{project.name} · {project.originSemesterCode || 'Chưa rõ học kỳ'} · {source?.team.name}</option>
+                  })}
+                </select>
+                {candidates.length === 0 && <p className="mt-2 text-caption text-text-secondary">Không có đề tài phù hợp ở trang này.</p>}
+                {(candidatesQuery.data?.totalPages ?? 0) > 1 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Button variant="outline" disabled={projectPage <= 1} onClick={() => { setProjectPage(projectPage - 1); setTargetProjectId('') }}>Trang trước</Button>
+                    <span>Trang {projectPage} / {candidatesQuery.data?.totalPages}</span>
+                    <Button variant="outline" disabled={projectPage >= (candidatesQuery.data?.totalPages ?? 1)} onClick={() => { setProjectPage(projectPage + 1); setTargetProjectId('') }}>Trang sau</Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {linkError && (
               <Banner tone="error" title="Lỗi gắn đề tài">

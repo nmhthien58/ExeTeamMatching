@@ -83,6 +83,8 @@ const sampleProject = {
   ],
 }
 
+const candidateProject = { ...sampleProject, id: 'proj-linkable', name: 'Đề tài chưa gắn', teams: [sampleProject.teams[0]] }
+
 const sampleUnlinkedTeam = {
   id: 'team-unlinked-1',
   name: 'SmartRetail',
@@ -195,7 +197,7 @@ describe('W29 - Projects across semesters', () => {
 
     get.mockImplementation(getResponse)
     post.mockImplementation(async (url: string) => {
-      if (url === `/api/projects/proj-1/link-team`) {
+      if (url === `/api/projects/proj-linkable/link-team`) {
         return { data: sampleProject }
       }
       throw new Error(`Unhandled POST: ${url}`)
@@ -241,6 +243,9 @@ describe('W29 - Projects across semesters', () => {
   })
 
   it('switches to unlinked teams tab and links team to project for Admin', async () => {
+    get.mockImplementation(async (url: string) => url === '/api/projects'
+      ? { data: { page: 1, pageSize: 20, totalCount: 2, totalPages: 1, items: [sampleProject, candidateProject] } }
+      : getResponse(url))
     const user = userEvent.setup()
     renderAt('/admin/de-tai?semesterId=sem-fa26')
 
@@ -253,14 +258,15 @@ describe('W29 - Projects across semesters', () => {
     const linkBtn = screen.getByRole('button', { name: 'Gắn vào đề tài' })
     await user.click(linkBtn)
 
-    const input = await screen.findByLabelText(/Mã ID Đề tài/i)
-    await user.type(input, 'proj-1')
+    const select = await screen.findByLabelText('Chọn đề tài')
+    await user.selectOptions(select, 'proj-linkable')
+    expect(screen.getByRole('option', { name: /Đề tài chưa gắn.*SP26.*DormTech101/i })).toBeInTheDocument()
 
     const confirmBtn = screen.getByRole('button', { name: 'Xác nhận gắn' })
     await user.click(confirmBtn)
 
     await waitFor(() => {
-      expect(post).toHaveBeenCalledWith('/api/projects/proj-1/link-team', {
+      expect(post).toHaveBeenCalledWith('/api/projects/proj-linkable/link-team', {
         teamId: 'team-unlinked-1',
       })
     })
