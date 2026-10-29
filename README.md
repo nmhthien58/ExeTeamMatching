@@ -31,6 +31,8 @@ docker compose -f deploy/docker-compose.yml up -d --build
 
 Mọi service .NET dùng chung `deploy/docker/dotnet.Dockerfile`. Bảng cổng đầy đủ: [PROJECT_CONTEXT.md](docs/ux/PROJECT_CONTEXT.md) mục 9. Lấy JWT thử không cần Google: `POST http://localhost:8080/api/dev/token` ([docs/setup/google-sign-in.md](docs/setup/google-sign-in.md) mục 6).
 
+Kịch bản demo end-to-end (Postman collection, tự tạo dữ liệu, chạy bằng `npx newman`) và bảng đối chiếu yêu cầu PRN232: [docs/demo/README.md](docs/demo/README.md).
+
 DB script chỉ chạy khi volume Postgres còn trống. Nếu volume tạo từ script cũ (ví dụ thiếu `collab_db`), tạo lại (mất dữ liệu local): `docker compose -f deploy/docker-compose.yml down -v` rồi `up -d --build`.
 
 ## Artifact Lab 2 (`docs/ux/`)
