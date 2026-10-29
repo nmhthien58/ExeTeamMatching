@@ -29,9 +29,9 @@ class LecturerSummary {
 
   factory LecturerSummary.fromJson(Map<String, dynamic> j) {
     return LecturerSummary(
-      id: j['id'] as String,
-      fullName: j['fullName'] as String? ?? '',
-      email: j['email'] as String? ?? '',
+      id: (j['id'] ?? j['lecturerId'] ?? '') as String,
+      fullName: (j['fullName'] ?? '') as String,
+      email: (j['email'] ?? '') as String,
       domains: [
         for (final d in j['domains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
@@ -46,31 +46,91 @@ class LecturerSummary {
   }
 }
 
-class LecturerPreferenceItem {
-  const LecturerPreferenceItem({
-    required this.priority,
-    required this.lecturer,
-    required this.isActive,
-    required this.currentAssignedTeamCount,
-    required this.maxTeams,
-    required this.isFull,
+class LecturerRef {
+  const LecturerRef({
+    required this.lecturerId,
+    required this.fullName,
+    this.domains = const [],
   });
 
-  final int priority;
-  final LecturerSummary lecturer;
-  final bool isActive;
-  final int currentAssignedTeamCount;
-  final int maxTeams;
-  final bool isFull;
+  final String lecturerId;
+  final String fullName;
+  final List<CatalogRef> domains;
+
+  factory LecturerRef.fromJson(Map<String, dynamic> j) {
+    return LecturerRef(
+      lecturerId: (j['lecturerId'] ?? j['id'] ?? '') as String,
+      fullName: (j['fullName'] ?? '') as String,
+      domains: [
+        for (final d in j['domains'] ?? const [])
+          CatalogRef.fromJson(_map(d)),
+      ],
+    );
+  }
+}
+
+class LecturerPreferenceItem {
+  const LecturerPreferenceItem({
+    required this.lecturerId,
+    required this.fullName,
+    this.domains = const [],
+    required this.rank,
+    this.isInterested = false,
+  });
+
+  final String lecturerId;
+  final String fullName;
+  final List<CatalogRef> domains;
+  final int rank;
+  final bool isInterested;
 
   factory LecturerPreferenceItem.fromJson(Map<String, dynamic> j) {
     return LecturerPreferenceItem(
-      priority: j['priority'] as int? ?? 1,
-      lecturer: LecturerSummary.fromJson(_map(j['lecturer'])),
-      isActive: j['isActive'] as bool? ?? true,
-      currentAssignedTeamCount: j['currentAssignedTeamCount'] as int? ?? 0,
-      maxTeams: j['maxTeams'] as int? ?? 0,
-      isFull: j['isFull'] as bool? ?? false,
+      lecturerId: (j['lecturerId'] ?? j['id'] ?? '') as String,
+      fullName: (j['fullName'] ?? '') as String,
+      domains: [
+        for (final d in j['domains'] ?? const [])
+          CatalogRef.fromJson(_map(d)),
+      ],
+      rank: j['rank'] as int? ?? 1,
+      isInterested: j['isInterested'] as bool? ?? false,
+    );
+  }
+}
+
+class LecturerPreferenceListResponse {
+  const LecturerPreferenceListResponse({
+    this.maxPreferences = 3,
+    this.locked = false,
+    this.lockAt,
+    this.preferences = const [],
+    this.interestedLecturers = const [],
+    this.previousInstructor,
+  });
+
+  final int maxPreferences;
+  final bool locked;
+  final DateTime? lockAt;
+  final List<LecturerPreferenceItem> preferences;
+  final List<LecturerRef> interestedLecturers;
+  final LecturerRef? previousInstructor;
+
+  factory LecturerPreferenceListResponse.fromJson(Map<String, dynamic> j) {
+    return LecturerPreferenceListResponse(
+      maxPreferences: j['maxPreferences'] as int? ?? 3,
+      locked: j['locked'] as bool? ?? false,
+      lockAt: j['lockAt'] != null ? DateTime.tryParse(j['lockAt'] as String) : null,
+      preferences: [
+        for (final p in j['preferences'] ?? const [])
+          LecturerPreferenceItem.fromJson(_map(p)),
+      ],
+      interestedLecturers: [
+        for (final l in j['interestedLecturers'] ?? const [])
+          LecturerRef.fromJson(_map(l)),
+      ],
+      previousInstructor: j['previousInstructor'] != null
+          ? LecturerRef.fromJson(_map(j['previousInstructor']))
+          : null,
     );
   }
 }
@@ -99,17 +159,17 @@ class TopicInterestItem {
   factory TopicInterestItem.fromJson(Map<String, dynamic> j) {
     final advisor = j['advisor'] != null ? _map(j['advisor']) : <String, dynamic>{};
     return TopicInterestItem(
-      id: j['id'] as String,
-      teamId: j['teamId'] as String? ?? '',
-      advisorId: advisor['id'] as String? ?? '',
-      advisorName: advisor['fullName'] as String? ?? '',
-      advisorEmail: advisor['email'] as String? ?? '',
-      advisorRole: advisor['role'] as String? ?? 'LECTURER',
+      id: (j['id'] ?? '') as String,
+      teamId: (j['teamId'] ?? '') as String,
+      advisorId: (j['advisorId'] ?? advisor['id'] ?? '') as String,
+      advisorName: (j['advisorName'] ?? advisor['fullName'] ?? '') as String,
+      advisorEmail: (j['advisorEmail'] ?? advisor['email'] ?? '') as String,
+      advisorRole: (j['advisorKind'] ?? advisor['role'] ?? 'LECTURER') as String,
       domains: [
-        for (final d in advisor['domains'] ?? const [])
+        for (final d in j['domains'] ?? advisor['domains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
       ],
-      status: j['status'] as String? ?? 'OPEN',
+      status: (j['status'] ?? 'OPEN') as String,
     );
   }
 }

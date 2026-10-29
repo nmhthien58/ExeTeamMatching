@@ -5,7 +5,6 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../my_team/my_team_api.dart' show myTeamDetailProvider;
 import 'lecturers_api.dart';
-import 'lecturers_models.dart';
 
 class LecturerDetailScreen extends ConsumerWidget {
   const LecturerDetailScreen({super.key, required this.lecturerId});
@@ -73,22 +72,26 @@ class LecturerDetailScreen extends ConsumerWidget {
           final teamId = team?.id;
           final isLeader = team?.isLeader ?? false;
 
-          final preferences = teamId != null
-              ? ref.watch(lecturerPreferencesProvider(teamId)).value ?? const []
-              : const <LecturerPreferenceItem>[];
+          final prefResponse = teamId != null
+              ? ref.watch(lecturerPreferencesProvider(teamId)).value
+              : null;
 
-          final topicInterests = teamId != null
-              ? ref.watch(teamTopicInterestsProvider(teamId)).value ?? const []
-              : const <TopicInterestItem>[];
+          final isLocked = prefResponse?.locked ?? false;
+          final maxPreferences = prefResponse?.maxPreferences ?? 3;
+          final preferences = prefResponse?.preferences ?? const [];
 
-          final isInterestedInMyTeam = topicInterests.any(
-            (item) => item.advisorId == lecturer.id && item.status == 'OPEN',
-          );
+          final isInterestedInMyTeam = prefResponse?.interestedLecturers.any(
+                (item) => item.lecturerId == lecturer.id,
+              ) ??
+              false;
 
-          final currentIds = preferences.map((p) => p.lecturer.id).toList();
+          final isPreviousInstructor = prefResponse?.previousInstructor?.lecturerId == lecturer.id;
+
+          final currentIds = preferences.map((p) => p.lecturerId).toList();
           final prefIndex = currentIds.indexOf(lecturer.id);
           final isSelected = prefIndex >= 0;
-          final canAdd = isLeader && !isSelected && !lecturer.isFull && currentIds.length < 3;
+          final canAdd = isLeader && !isLocked && !isSelected && !lecturer.isFull && currentIds.length < maxPreferences;
+          final canRemove = isLeader && !isLocked && isSelected;
 
           return Column(
             children: [
@@ -128,10 +131,12 @@ class LecturerDetailScreen extends ConsumerWidget {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.s3),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: AppSpacing.s2,
+                            runSpacing: AppSpacing.s2,
                             children: [
-                              if (isInterestedInMyTeam) ...[
+                              if (isPreviousInstructor)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
@@ -141,10 +146,10 @@ class LecturerDetailScreen extends ConsumerWidget {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.favorite, size: 16, color: Palette.infoDark),
+                                      const Icon(Icons.history_edu, size: 16, color: Palette.infoDark),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Quan tâm nhóm bạn',
+                                        'GVHD EXE101',
                                         style: theme.textTheme.labelMedium?.copyWith(
                                           color: Palette.infoDark,
                                           fontWeight: FontWeight.bold,
@@ -153,8 +158,28 @@ class LecturerDetailScreen extends ConsumerWidget {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: AppSpacing.s2),
-                              ],
+                              if (isInterestedInMyTeam)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Palette.successContainer,
+                                    borderRadius: BorderRadius.circular(AppRadius.full),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.favorite, size: 16, color: Palette.success),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Quan tâm nhóm bạn',
+                                        style: theme.textTheme.labelMedium?.copyWith(
+                                          color: Palette.success,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
@@ -169,8 +194,7 @@ class LecturerDetailScreen extends ConsumerWidget {
                                   ),
                                 ),
                               ),
-                              if (isSelected) ...[
-                                const SizedBox(width: AppSpacing.s2),
+                              if (isSelected)
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
@@ -185,7 +209,6 @@ class LecturerDetailScreen extends ConsumerWidget {
                                     ),
                                   ),
                                 ),
-                              ],
                             ],
                           ),
                         ],
@@ -245,7 +268,7 @@ class LecturerDetailScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: AppSpacing.s2),
                             Text(
-                              'Hệ thống tự động ưu tiên các trường hợp hai bên cùng quan tâm và xếp nguyện vọng. Bạn có thể chọn tối đa 3 nguyện vọng và sắp xếp thứ tự ưu tiên.',
+                              'Hệ thống tự động ưu tiên các trường hợp hai bên cùng quan tâm và xếp nguyện vọng. Bạn có thể chọn tối đa $maxPreferences nguyện vọng và sắp xếp thứ tự ưu tiên.',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -280,7 +303,18 @@ class LecturerDetailScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!isLeader)
+                        if (isLocked)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                            child: Text(
+                              'Nguyện vọng đã khóa sau khi ghép cố vấn / hết hạn chốt',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Palette.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        else if (!isLeader)
                           Padding(
                             padding: const EdgeInsets.only(bottom: AppSpacing.s2),
                             child: Text(
@@ -290,11 +324,11 @@ class LecturerDetailScreen extends ConsumerWidget {
                               ),
                             ),
                           )
-                        else if (!isSelected && currentIds.length >= 3)
+                        else if (!isSelected && currentIds.length >= maxPreferences)
                           Padding(
                             padding: const EdgeInsets.only(bottom: AppSpacing.s2),
                             child: Text(
-                              'Đã chọn đủ 3 nguyện vọng. Hãy bỏ bớt một nguyện vọng ở danh sách để thêm',
+                              'Đã chọn đủ $maxPreferences nguyện vọng. Hãy bỏ bớt một nguyện vọng ở danh sách để thêm',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: Palette.warning,
                               ),
@@ -322,7 +356,7 @@ class LecturerDetailScreen extends ConsumerWidget {
                                   ),
                                   icon: const Icon(Icons.remove_circle_outline),
                                   label: const Text('Bỏ khỏi nguyện vọng'),
-                                  onPressed: isLeader
+                                  onPressed: canRemove
                                       ? () {
                                           final nextIds = List<String>.from(currentIds)..remove(lecturer.id);
                                           _updatePreferencesWithUndo(

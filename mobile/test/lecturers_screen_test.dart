@@ -13,12 +13,19 @@ import 'package:exe_team_matching/features/suggestions/suggestions_api.dart'
 
 class FakeLecturersApi extends LecturersApi {
   FakeLecturersApi({
-    this.preferences = const [],
+    LecturerPreferenceListResponse? preferencesResponse,
     this.interests = const [],
     this.lecturers = const [],
-  }) : super(Dio());
+  })  : preferencesResponse = preferencesResponse ??
+            const LecturerPreferenceListResponse(
+              maxPreferences: 3,
+              locked: false,
+              preferences: [],
+              interestedLecturers: [],
+            ),
+        super(Dio());
 
-  List<LecturerPreferenceItem> preferences;
+  LecturerPreferenceListResponse preferencesResponse;
   List<TopicInterestItem> interests;
   List<LecturerSummary> lecturers;
 
@@ -26,36 +33,52 @@ class FakeLecturersApi extends LecturersApi {
   int updateCallCount = 0;
 
   @override
-  Future<List<LecturerPreferenceItem>> getPreferences(String teamId) async =>
-      preferences;
+  Future<LecturerPreferenceListResponse> getPreferences(String teamId) async =>
+      preferencesResponse;
 
   @override
-  Future<List<LecturerPreferenceItem>> updatePreferences(
+  Future<LecturerPreferenceListResponse> updatePreferences(
     String teamId,
     List<String> lecturerIds,
   ) async {
     updateCallCount++;
     lastUpdatedIds = lecturerIds;
-    // Update local preferences list
+
     final newPrefs = <LecturerPreferenceItem>[];
     for (int i = 0; i < lecturerIds.length; i++) {
       final id = lecturerIds[i];
       final l = lecturers.firstWhere((x) => x.id == id, orElse: () {
-        return preferences.firstWhere((p) => p.lecturer.id == id).lecturer;
+        final existing = preferencesResponse.preferences
+            .where((p) => p.lecturerId == id)
+            .firstOrNull;
+        return LecturerSummary(
+          id: id,
+          fullName: existing?.fullName ?? 'Giảng viên $id',
+          email: 'email@fpt.edu.vn',
+          domains: existing?.domains ?? [],
+        );
       });
       newPrefs.add(
         LecturerPreferenceItem(
-          priority: i + 1,
-          lecturer: l,
-          isActive: true,
-          currentAssignedTeamCount: 1,
-          maxTeams: 5,
-          isFull: l.isFull,
+          lecturerId: l.id,
+          fullName: l.fullName,
+          domains: l.domains,
+          rank: i + 1,
+          isInterested: preferencesResponse.interestedLecturers
+              .any((item) => item.lecturerId == l.id),
         ),
       );
     }
-    preferences = newPrefs;
-    return preferences;
+
+    preferencesResponse = LecturerPreferenceListResponse(
+      maxPreferences: preferencesResponse.maxPreferences,
+      locked: preferencesResponse.locked,
+      lockAt: preferencesResponse.lockAt,
+      preferences: newPrefs,
+      interestedLecturers: preferencesResponse.interestedLecturers,
+      previousInstructor: preferencesResponse.previousInstructor,
+    );
+    return preferencesResponse;
   }
 
   @override
@@ -102,269 +125,336 @@ final sampleLecturer2 = LecturerSummary(
   isFull: false,
 );
 
-final sampleLecturerFull = LecturerSummary(
+final sampleLecturer3 = LecturerSummary(
   id: 'lec-3',
-  fullName: 'PGS. TS. Lê Văn C',
-  email: 'clv@fpt.edu.vn',
+  fullName: 'TS. Lê Hoàng C',
+  email: 'clh@fpt.edu.vn',
   domains: const [CatalogRef(id: 3, code: 'D03', name: 'Fintech')],
   isActive: true,
-  isFull: true,
+  isFull: false,
 );
 
-final sampleTeamLeader = MyTeam(
-  id: 'team-1',
-  name: 'Alpha Team',
-  status: 'ACTIVE',
-  courseCode: 'EXE101',
-  members: const [],
-  domains: const [],
-  isLeader: true,
-  memberCount: 5,
-  specializationCount: 3,
+final samplePreviousInstructor = LecturerRef(
+  lecturerId: 'lec-prev',
+  fullName: 'TS. Vũ Đình D',
+  domains: const [CatalogRef(id: 1, code: 'D01', name: 'Trí tuệ nhân tạo')],
 );
 
-final sampleTeamMember = MyTeam(
-  id: 'team-1',
-  name: 'Alpha Team',
-  status: 'ACTIVE',
-  courseCode: 'EXE101',
-  members: const [],
-  domains: const [],
-  isLeader: false,
-  memberCount: 5,
-  specializationCount: 3,
-);
+Widget createPreferencesTestWidget({
+  required FakeLecturersApi api,
+  bool isLeader = true,
+  String teamId = 'team-1',
+}) {
+  return ProviderScope(
+    overrides: [
+      lecturersApiProvider.overrideWithValue(api),
+      myTeamDetailProvider.overrideWith((ref) async {
+        return MyTeam(
+          id: teamId,
+          name: 'Exe Pioneers',
+          status: 'FORMING',
+          courseCode: 'EXE201',
+          members: const [],
+          domains: const [],
+          isLeader: isLeader,
+          memberCount: 4,
+          specializationCount: 2,
+        );
+      }),
+    ],
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: const LecturerPreferencesScreen(),
+    ),
+  );
+}
+
+Widget createDetailTestWidget({
+  required FakeLecturersApi api,
+  required String lecturerId,
+  bool isLeader = true,
+  String teamId = 'team-1',
+}) {
+  return ProviderScope(
+    overrides: [
+      lecturersApiProvider.overrideWithValue(api),
+      myTeamDetailProvider.overrideWith((ref) async {
+        return MyTeam(
+          id: teamId,
+          name: 'Exe Pioneers',
+          status: 'FORMING',
+          courseCode: 'EXE201',
+          members: const [],
+          domains: const [],
+          isLeader: isLeader,
+          memberCount: 4,
+          specializationCount: 2,
+        );
+      }),
+    ],
+    child: MaterialApp(
+      theme: AppTheme.light(),
+      home: LecturerDetailScreen(lecturerId: lecturerId),
+    ),
+  );
+}
 
 void main() {
-  Widget buildApp({
-    required FakeLecturersApi api,
-    required MyTeam team,
-    required Widget child,
-  }) {
-    return ProviderScope(
-      overrides: [
-        lecturersApiProvider.overrideWithValue(api),
-        myTeamDetailProvider.overrideWith((ref) => Future.value(team)),
-      ],
-      child: MaterialApp(
-        theme: AppTheme.light(),
-        home: child,
-      ),
-    );
-  }
-
   group('S23 - LecturerPreferencesScreen', () {
-    testWidgets('renders preference slots, empty slots, and banner',
-        (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [
-          LecturerPreferenceItem(
-            priority: 1,
-            lecturer: sampleLecturer1,
-            isActive: true,
-            currentAssignedTeamCount: 1,
-            maxTeams: 5,
-            isFull: false,
-          ),
+    testWidgets('deserializes real backend JSON structure correctly', (tester) async {
+      final realBackendJson = {
+        'maxPreferences': 3,
+        'locked': false,
+        'lockAt': '2026-11-05T12:00:00Z',
+        'preferences': [
+          {
+            'lecturerId': 'lec-1',
+            'fullName': 'TS. Nguyễn Văn A',
+            'domains': [
+              {'id': 1, 'code': 'D01', 'name': 'Trí tuệ nhân tạo'}
+            ],
+            'rank': 1,
+            'isInterested': true,
+          }
         ],
-        interests: [],
-        lecturers: [sampleLecturer1, sampleLecturer2, sampleLecturerFull],
+        'interestedLecturers': [
+          {
+            'lecturerId': 'lec-2',
+            'fullName': 'ThS. Trần Thị B',
+            'domains': [
+              {'id': 2, 'code': 'D02', 'name': 'IoT'}
+            ],
+          }
+        ],
+        'previousInstructor': {
+          'lecturerId': 'lec-prev',
+          'fullName': 'TS. Vũ Đình D',
+          'domains': [
+            {'id': 1, 'code': 'D01', 'name': 'Trí tuệ nhân tạo'}
+          ],
+        }
+      };
+
+      final parsed = LecturerPreferenceListResponse.fromJson(realBackendJson);
+      expect(parsed.maxPreferences, 3);
+      expect(parsed.locked, false);
+      expect(parsed.lockAt, isNotNull);
+      expect(parsed.preferences.length, 1);
+      expect(parsed.preferences.first.fullName, 'TS. Nguyễn Văn A');
+      expect(parsed.preferences.first.isInterested, true);
+      expect(parsed.interestedLecturers.length, 1);
+      expect(parsed.interestedLecturers.first.fullName, 'ThS. Trần Thị B');
+      expect(parsed.previousInstructor?.fullName, 'TS. Vũ Đình D');
+    });
+
+    testWidgets('shows preferences, deadline, and previous instructor for leader', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: false,
+          lockAt: DateTime(2026, 11, 5, 12, 0),
+          preferences: [
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer1.id,
+              fullName: sampleLecturer1.fullName,
+              domains: sampleLecturer1.domains,
+              rank: 1,
+            ),
+          ],
+          interestedLecturers: [
+            LecturerRef(
+              lecturerId: sampleLecturer2.id,
+              fullName: sampleLecturer2.fullName,
+              domains: sampleLecturer2.domains,
+            ),
+          ],
+          previousInstructor: samplePreviousInstructor,
+        ),
+        lecturers: [sampleLecturer1, sampleLecturer2, sampleLecturer3],
       );
 
-      await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamLeader,
-          child: const LecturerPreferencesScreen(),
-        ),
-      );
+      await tester.pumpWidget(createPreferencesTestWidget(api: api, isLeader: true));
       await tester.pumpAndSettle();
 
-      // Title & Banner
+      // Title & Preference 1
       expect(find.text('Nguyện vọng giảng viên'), findsOneWidget);
-      expect(
-        find.text('Đã tự lưu · Trưởng nhóm sửa được tới hạn chốt đợt lập nhóm'),
-        findsOneWidget,
-      );
-
-      // Slot 1 has lecturer 1
       expect(find.text('TS. Nguyễn Văn A'), findsWidgets);
-      expect(find.text('anv@fpt.edu.vn'), findsWidgets);
 
       // Slots 2 and 3 are empty
       expect(find.text('Chưa chọn nguyện vọng 2'), findsOneWidget);
       expect(find.text('Chưa chọn nguyện vọng 3'), findsOneWidget);
-    });
 
-    testWidgets('shows interested lecturers with add button', (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [],
-        interests: [
-          TopicInterestItem(
-            id: 'ti-1',
-            teamId: 'team-1',
-            advisorId: sampleLecturer2.id,
-            advisorName: sampleLecturer2.fullName,
-            advisorEmail: sampleLecturer2.email,
-            advisorRole: 'LECTURER',
-            status: 'OPEN',
-          ),
-        ],
-        lecturers: [sampleLecturer1, sampleLecturer2],
-      );
+      // Previous instructor
+      expect(find.text('Đã hướng dẫn ở EXE101'), findsOneWidget);
+      expect(find.text('TS. Vũ Đình D'), findsOneWidget);
 
-      await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamLeader,
-          child: const LecturerPreferencesScreen(),
-        ),
-      );
-      await tester.pumpAndSettle();
-
+      // Interested lecturers
       expect(find.text('Quan tâm nhóm bạn'), findsOneWidget);
       expect(find.text('ThS. Trần Thị B'), findsWidgets);
 
-      // Click add to NV1
-      final addBtn = find.widgetWithText(FilledButton, 'Thêm vào NV1');
-      expect(addBtn, findsOneWidget);
-      await tester.tap(addBtn);
-      await tester.pumpAndSettle();
-
-      expect(fakeApi.updateCallCount, 1);
-      expect(fakeApi.lastUpdatedIds, [sampleLecturer2.id]);
-      expect(find.text('Đã thêm ThS. Trần Thị B vào NV1'), findsOneWidget);
-      expect(find.text('Hoàn tác'), findsOneWidget);
+      // Deadline in banner
+      expect(find.textContaining('Hạn chốt: 05/11/2026'), findsOneWidget);
     });
 
-    testWidgets('allows leader to remove preference and undo', (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [
-          LecturerPreferenceItem(
-            priority: 1,
-            lecturer: sampleLecturer1,
-            isActive: true,
-            currentAssignedTeamCount: 1,
-            maxTeams: 5,
-            isFull: false,
-          ),
-        ],
-        interests: [],
+    testWidgets('reorders preferences when moving down', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: false,
+          preferences: [
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer1.id,
+              fullName: sampleLecturer1.fullName,
+              domains: sampleLecturer1.domains,
+              rank: 1,
+            ),
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer2.id,
+              fullName: sampleLecturer2.fullName,
+              domains: sampleLecturer2.domains,
+              rank: 2,
+            ),
+          ],
+          interestedLecturers: [],
+        ),
+        lecturers: [sampleLecturer1, sampleLecturer2],
+      );
+
+      await tester.pumpWidget(createPreferencesTestWidget(api: api, isLeader: true));
+      await tester.pumpAndSettle();
+
+      final downButtons = find.byTooltip('Giảm ưu tiên');
+      expect(downButtons, findsWidgets);
+
+      // Tap down on the first item
+      await tester.tap(downButtons.first);
+      await tester.pumpAndSettle();
+
+      expect(api.lastUpdatedIds, ['lec-2', 'lec-1']);
+      expect(find.text('Đã giảm ưu tiên của TS. Nguyễn Văn A'), findsOneWidget);
+    });
+
+    testWidgets('removes preference with undo option', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: false,
+          preferences: [
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer1.id,
+              fullName: sampleLecturer1.fullName,
+              domains: sampleLecturer1.domains,
+              rank: 1,
+            ),
+          ],
+          interestedLecturers: [],
+        ),
         lecturers: [sampleLecturer1],
       );
 
-      await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamLeader,
-          child: const LecturerPreferencesScreen(),
-        ),
-      );
+      await tester.pumpWidget(createPreferencesTestWidget(api: api, isLeader: true));
       await tester.pumpAndSettle();
 
-      // Click delete button
-      final deleteBtn = find.byTooltip('Bỏ khỏi nguyện vọng');
-      expect(deleteBtn, findsOneWidget);
-      await tester.tap(deleteBtn);
+      final removeBtn = find.byTooltip('Xóa nguyện vọng');
+      expect(removeBtn, findsOneWidget);
+
+      await tester.tap(removeBtn);
       await tester.pumpAndSettle();
 
-      expect(fakeApi.updateCallCount, 1);
-      expect(fakeApi.lastUpdatedIds, isEmpty);
+      expect(api.lastUpdatedIds, <String>[]);
+      expect(find.text('Đã bỏ TS. Nguyễn Văn A khỏi nguyện vọng'), findsOneWidget);
 
-      // Tap Undo
+      // Tap undo
       final undoBtn = find.text('Hoàn tác');
       expect(undoBtn, findsOneWidget);
       await tester.tap(undoBtn);
       await tester.pumpAndSettle();
 
-      expect(fakeApi.updateCallCount, 2);
-      expect(fakeApi.lastUpdatedIds, [sampleLecturer1.id]);
+      expect(api.lastUpdatedIds, ['lec-1']);
     });
 
-    testWidgets('shows Da du chip and does not dim card when lecturer is full',
-        (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [
-          LecturerPreferenceItem(
-            priority: 1,
-            lecturer: sampleLecturerFull,
-            isActive: true,
-            currentAssignedTeamCount: 5,
-            maxTeams: 5,
-            isFull: true,
-          ),
-        ],
-        interests: [],
-        lecturers: [sampleLecturerFull],
-      );
-
-      await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamLeader,
-          child: const LecturerPreferencesScreen(),
+    testWidgets('displays locked banner and disables edits when locked', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: true,
+          preferences: [
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer1.id,
+              fullName: sampleLecturer1.fullName,
+              domains: sampleLecturer1.domains,
+              rank: 1,
+            ),
+          ],
+          interestedLecturers: [],
         ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Đã đủ'), findsWidgets);
-    });
-
-    testWidgets('disables edit controls for non-leader', (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [
-          LecturerPreferenceItem(
-            priority: 1,
-            lecturer: sampleLecturer1,
-            isActive: true,
-            currentAssignedTeamCount: 1,
-            maxTeams: 5,
-            isFull: false,
-          ),
-        ],
-        interests: [],
         lecturers: [sampleLecturer1],
       );
 
-      await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamMember,
-          child: const LecturerPreferencesScreen(),
-        ),
+      await tester.pumpWidget(createPreferencesTestWidget(api: api, isLeader: true));
+      await tester.pumpAndSettle();
+
+      // Lock banner
+      expect(
+        find.text('Nguyện vọng đã khóa · Hệ thống đã chốt hoặc hoàn tất ghép giảng viên.'),
+        findsOneWidget,
       );
+
+      // No reorder or remove buttons
+      expect(find.byTooltip('Xóa nguyện vọng'), findsNothing);
+      expect(find.byTooltip('Tăng ưu tiên'), findsNothing);
+      expect(find.byTooltip('Giảm ưu tiên'), findsNothing);
+    });
+
+    testWidgets('non-leader cannot edit preferences', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: false,
+          preferences: [
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer1.id,
+              fullName: sampleLecturer1.fullName,
+              domains: sampleLecturer1.domains,
+              rank: 1,
+            ),
+          ],
+          interestedLecturers: [],
+        ),
+        lecturers: [sampleLecturer1],
+      );
+
+      await tester.pumpWidget(createPreferencesTestWidget(api: api, isLeader: false));
       await tester.pumpAndSettle();
 
       expect(
         find.text('Chỉ trưởng nhóm mới có quyền chọn và đổi thứ tự nguyện vọng'),
         findsOneWidget,
       );
-      expect(find.byTooltip('Bỏ khỏi nguyện vọng'), findsNothing);
+      expect(find.byTooltip('Xóa nguyện vọng'), findsNothing);
     });
   });
 
   group('S24 - LecturerDetailScreen', () {
-    testWidgets('shows details and allows leader to add to preferences',
-        (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [],
-        interests: [],
+    testWidgets('leader can add lecturer to preferences', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: const LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: false,
+          preferences: [],
+          interestedLecturers: [],
+        ),
         lecturers: [sampleLecturer1],
       );
 
       await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamLeader,
-          child: LecturerDetailScreen(lecturerId: sampleLecturer1.id),
-        ),
+        createDetailTestWidget(api: api, lecturerId: sampleLecturer1.id, isLeader: true),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Chi tiết giảng viên'), findsOneWidget);
       expect(find.text('TS. Nguyễn Văn A'), findsOneWidget);
       expect(find.text('anv@fpt.edu.vn'), findsOneWidget);
-      expect(find.text('Trí tuệ nhân tạo'), findsOneWidget);
+      expect(find.text('Đang nhận nhóm'), findsOneWidget);
 
       final addBtn = find.widgetWithText(FilledButton, 'Thêm vào NV1');
       expect(addBtn, findsOneWidget);
@@ -372,46 +462,33 @@ void main() {
       await tester.tap(addBtn);
       await tester.pumpAndSettle();
 
-      expect(fakeApi.updateCallCount, 1);
-      expect(fakeApi.lastUpdatedIds, [sampleLecturer1.id]);
+      expect(api.lastUpdatedIds, ['lec-1']);
+      expect(find.text('Đã thêm TS. Nguyễn Văn A vào NV1'), findsOneWidget);
     });
 
-    testWidgets('shows remove button when already in preferences',
-        (tester) async {
-      final fakeApi = FakeLecturersApi(
-        preferences: [
-          LecturerPreferenceItem(
-            priority: 1,
-            lecturer: sampleLecturer1,
-            isActive: true,
-            currentAssignedTeamCount: 1,
-            maxTeams: 5,
-            isFull: false,
-          ),
-        ],
-        interests: [],
+    testWidgets('shows locked message and disables button when preferences are locked', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: const LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: true,
+          preferences: [],
+          interestedLecturers: [],
+        ),
         lecturers: [sampleLecturer1],
       );
 
       await tester.pumpWidget(
-        buildApp(
-          api: fakeApi,
-          team: sampleTeamLeader,
-          child: LecturerDetailScreen(lecturerId: sampleLecturer1.id),
-        ),
+        createDetailTestWidget(api: api, lecturerId: sampleLecturer1.id, isLeader: true),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Nguyện vọng 1'), findsOneWidget);
-      final removeBtn =
-          find.widgetWithText(OutlinedButton, 'Bỏ khỏi nguyện vọng');
-      expect(removeBtn, findsOneWidget);
+      expect(
+        find.text('Nguyện vọng đã khóa sau khi ghép cố vấn / hết hạn chốt'),
+        findsOneWidget,
+      );
 
-      await tester.tap(removeBtn);
-      await tester.pumpAndSettle();
-
-      expect(fakeApi.updateCallCount, 1);
-      expect(fakeApi.lastUpdatedIds, isEmpty);
+      final addBtn = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Thêm vào NV1'));
+      expect(addBtn.onPressed, isNull);
     });
   });
 }

@@ -18,29 +18,23 @@ class LecturersApi {
     }
   }
 
-  Future<List<LecturerPreferenceItem>> getPreferences(String teamId) => _call(() async {
-        final response = await _dio.get<List<dynamic>>(
+  Future<LecturerPreferenceListResponse> getPreferences(String teamId) => _call(() async {
+        final response = await _dio.get<Map<String, dynamic>>(
           '/api/teams/$teamId/lecturer-preferences',
         );
-        return [
-          for (final item in response.data ?? const [])
-            LecturerPreferenceItem.fromJson(Map<String, dynamic>.from(item as Map)),
-        ];
+        return LecturerPreferenceListResponse.fromJson(response.data!);
       });
 
-  Future<List<LecturerPreferenceItem>> updatePreferences(
+  Future<LecturerPreferenceListResponse> updatePreferences(
     String teamId,
     List<String> lecturerIds,
   ) =>
       _call(() async {
-        final response = await _dio.put<List<dynamic>>(
+        final response = await _dio.put<Map<String, dynamic>>(
           '/api/teams/$teamId/lecturer-preferences',
           data: {'lecturerIds': lecturerIds},
         );
-        return [
-          for (final item in response.data ?? const [])
-            LecturerPreferenceItem.fromJson(Map<String, dynamic>.from(item as Map)),
-        ];
+        return LecturerPreferenceListResponse.fromJson(response.data!);
       });
 
   Future<List<TopicInterestItem>> getTopicInterests(String teamId) => _call(() async {
@@ -88,7 +82,7 @@ final lecturersApiProvider = Provider<LecturersApi>(
 );
 
 final lecturerPreferencesProvider = FutureProvider.autoDispose
-    .family<List<LecturerPreferenceItem>, String>(
+    .family<LecturerPreferenceListResponse, String>(
   (ref, teamId) => ref.watch(lecturersApiProvider).getPreferences(teamId),
 );
 
@@ -98,11 +92,11 @@ final teamTopicInterestsProvider = FutureProvider.autoDispose
 );
 
 final lecturersListProvider = FutureProvider.autoDispose
-    .family<List<LecturerSummary>, String?>(
+    .family<List<LecturerSummary>, String>(
   (ref, search) => ref.watch(lecturersApiProvider).listLecturers(search: search),
 );
 
 final lecturerDetailProvider = FutureProvider.autoDispose
     .family<LecturerSummary, String>(
-  (ref, id) => ref.watch(lecturersApiProvider).getLecturer(id),
+  (ref, lecturerId) => ref.watch(lecturersApiProvider).getLecturer(lecturerId),
 );
