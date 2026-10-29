@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/change_requests/change_request_screens.dart';
+import '../features/change_requests/routes.dart';
+
 import '../features/discover/discover_screen.dart';
 import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
@@ -47,6 +50,12 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.student => [
           ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
           ..._studentTeamRoutes,
+          ...changeRequestRoutes,
+          GoRoute(path: '/sv/doi-nhom', redirect: (_, _) => changeRequestListPath),
+          GoRoute(path: '/sv/nhom/doi-nhom', redirect: (_, _) => changeRequestListPath),
+          GoRoute(path: '/sv/change-requests', redirect: (_, _) => changeRequestListPath),
+          GoRoute(path: '/sv/change-requests/:id', redirect: (_, s) => '$changeRequestListPath/${s.pathParameters['id']}'),
+          GoRoute(path: '/app://change-requests', redirect: (_, _) => changeRequestListPath),
         ],
       Shell.lecturer => [_advisorWorkspace('/gv/du-an'), _channelRoute('/gv/tin-nhan')],
       Shell.mentor => [_advisorWorkspace('/mentor/du-an'), _channelRoute('/mentor/tin-nhan')],

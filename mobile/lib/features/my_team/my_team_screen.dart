@@ -132,7 +132,7 @@ class _TeamOverview extends StatelessWidget {
               title: const Text('Thay đổi chờ duyệt'),
               subtitle: const Text('Có hiệu lực khi Bộ môn duyệt yêu cầu đổi nhóm.'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/sv/nhom/thanh-vien'),
+              onTap: () => context.push('/sv/yeu-cau-doi-nhom'),
             ),
           ),
         ],
@@ -151,6 +151,12 @@ class _TeamOverview extends StatelessWidget {
                   path: '/sv/nhom/bai-tuyen',
                 ),
               if (canEdit) const _Shortcut(icon: Icons.edit_outlined, label: 'Sửa thông tin', path: '/sv/nhom/sua'),
+              if (team.isInherited && team.isLeader)
+                const _Shortcut(
+                  icon: Icons.published_with_changes_outlined,
+                  label: 'Yêu cầu đổi nhóm',
+                  path: '/sv/yeu-cau-doi-nhom',
+                ),
               const _Shortcut(icon: Icons.history, label: 'Lịch sử hoạt động', path: '/sv/nhom/lich-su'),
             ],
           ),
