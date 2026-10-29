@@ -144,13 +144,14 @@ class _ChannelList extends StatelessWidget {
                         for (final c in list)
                           ListTile(
                             leading: CircleAvatar(child: Icon(c.isTeam ? Icons.groups_outlined : Icons.support_agent_outlined)),
-                            title: Row(
+                            // Wrap: tên dài hoặc chữ 130% thì nhãn "Cần trả lời" xuống dòng thay vì tràn (flutter-handoff §5).
+                            title: Wrap(
+                              spacing: AppSpacing.s2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Flexible(child: Text(titleOf(c), overflow: TextOverflow.ellipsis)),
-                                if (waiting.contains(c.id)) ...[
-                                  const SizedBox(width: AppSpacing.s2),
+                                Text(titleOf(c), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                if (waiting.contains(c.id))
                                   Chip(visualDensity: VisualDensity.compact, label: const Text('Cần trả lời'), backgroundColor: context.appColors.warningContainer),
-                                ],
                               ],
                             ),
                             subtitle: Text(
