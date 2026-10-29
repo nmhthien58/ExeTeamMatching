@@ -120,10 +120,17 @@ void main() {
     required FakeLecturerHomeApi api,
     required bool isTeamFormation,
     UserInfo? user,
+    List<CoursePhase>? phases,
   }) {
     return ProviderScope(
       overrides: [
         lecturerHomeApiProvider.overrideWithValue(api),
+        phasesProvider.overrideWith((ref) async =>
+            phases ??
+            [
+              CoursePhase(courseCode: 'EXE201', isTeamFormation: isTeamFormation),
+              CoursePhase(courseCode: 'EXE101', isTeamFormation: isTeamFormation),
+            ]),
         shellPhaseProvider.overrideWithValue(
           ShellPhase(
             isTeamFormation: isTeamFormation,
@@ -299,13 +306,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Rule 21 for EXE101: 3rd metric card changes to 'Chưa xong CP', Weekly schedule prompt is hidden
-      expect(find.text('Chưa xong CP'), findsOneWidget);
+      expect(find.text('Chưa trình bày checkpoint'), findsOneWidget);
       expect(find.text('4'), findsOneWidget);
       expect(find.text('Họp hôm nay'), findsNothing);
       expect(find.text('Đăng lịch họp hằng tuần (C09)'), findsNothing);
     });
 
-    testWidgets('shows warning banner when stats service is unavailable',
+    testWidgets('shows warning banner when stats service is unavailable and hides zero cards',
         (tester) async {
       final fakeApi = FakeLecturerHomeApi(
         shouldStatsThrow: true,
@@ -331,11 +338,71 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Error banner is displayed
-      expect(find.text('Dữ liệu tương tác & checkpoint đang đồng bộ từ Collaboration Service.'), findsOneWidget);
+      // Error banner is displayed with dependency details
+      expect(find.text('Chưa tải được số liệu tương tác học kỳ'), findsOneWidget);
+      expect(
+        find.text('Chức năng phụ thuộc Collaboration Service (API /api/advisors/me/semester-stats chưa sẵn sàng).'),
+        findsOneWidget,
+      );
+
+      // Metric cards with 0 are NOT displayed
+      expect(find.text('Cần trả lời'), findsNothing);
+      expect(find.text('Trễ hạn nộp'), findsNothing);
+      expect(find.text('Họp hôm nay'), findsNothing);
 
       // Advised teams are still displayed safely
       expect(find.text('Team Beta'), findsOneWidget);
+    });
+
+    testWidgets('handles course phase mismatch (EXE201 in semester vs EXE101 in team formation)',
+        (tester) async {
+      final fakeApi = FakeLecturerHomeApi(
+        preferencesMe: [samplePref1],
+        teamsMeResponse: const LecturerTeamsMeResponse(
+          instructing: [
+            AdvisedTeamItem(
+              teamId: 'team-alpha',
+              teamName: 'Team Alpha',
+              courseCode: 'EXE201',
+              projectName: 'Hệ thống quản lý điểm',
+              memberCount: 5,
+              reason: 'Nguyện vọng 1',
+            ),
+          ],
+        ),
+        semesterStats: const LecturerSemesterStats(
+          needsReplyCount: 2,
+          overdueSubmissionsCount: 1,
+          meetingsTodayCount: 1,
+          hasPostedWeeklySchedule: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        buildApp(
+          api: fakeApi,
+          isTeamFormation: true, // Shell is team formation because EXE101 is still open
+          phases: const [
+            CoursePhase(courseCode: 'EXE201', isTeamFormation: false),
+            CoursePhase(courseCode: 'EXE101', isTeamFormation: true),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // On default selected course EXE201: In-semester view is shown even if shell is team formation
+      expect(find.text('Học kỳ đang diễn ra · Theo dõi & hướng dẫn'), findsOneWidget);
+      expect(find.text('Họp hôm nay'), findsOneWidget);
+      expect(find.text('Team Alpha'), findsOneWidget);
+
+      // Switch to EXE101: Team formation view is shown
+      await tester.tap(find.text('EXE101').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Đợt lập nhóm · Chọn nguyện vọng & quan tâm'), findsOneWidget);
+      expect(find.text('Nhóm chọn tôi'), findsWidgets);
+      expect(find.text('Team Alpha'), findsOneWidget);
+      expect(find.text('NV1'), findsOneWidget);
     });
   });
 }

@@ -128,8 +128,10 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(authControllerProvider).value;
+    final phases = ref.watch(phasesProvider).value;
     final shellPhase = ref.watch(shellPhaseProvider);
-    final isTeamFormation = shellPhase.isTeamFormation;
+    final currentCoursePhase = phases?.where((p) => p.courseCode.toUpperCase() == _selectedCourse.toUpperCase()).firstOrNull;
+    final isTeamFormation = currentCoursePhase?.isTeamFormation ?? shellPhase.isTeamFormation;
 
     return Scaffold(
       appBar: AppBar(
@@ -445,59 +447,20 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     final theme = Theme.of(context);
     final statsAsync = ref.watch(lecturerSemesterStatsProvider);
     final teamsMeAsync = ref.watch(lecturerTeamsMeProvider(_selectedCourse));
-
-    final stats = statsAsync.value ?? const LecturerSemesterStats();
     final isExe201 = _selectedCourse == 'EXE201';
+    final stats = statsAsync.value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Ba thẻ số liệu bấm được (Rule 22, 23, 25, 27)
-        // Thẻ 3 chọn theo môn EXE201 ("Họp hôm nay") vs EXE101 ("Chưa xong Checkpoint")
-        Row(
-          children: [
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                title: 'Cần trả lời',
-                value: '${stats.needsReplyCount}',
-                subtitle: 'Câu hỏi / tin nhắn',
-                icon: Icons.question_answer_outlined,
-                color: Palette.warning,
-                bgColor: Palette.warningContainer,
-                onTap: () => context.push('/gv/tin-nhan'),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s2),
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                title: 'Trễ hạn nộp',
-                value: '${stats.overdueSubmissionsCount}',
-                subtitle: 'Việc / bài tập',
-                icon: Icons.assignment_late_outlined,
-                color: Palette.error,
-                bgColor: Palette.errorContainer,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s2),
-            Expanded(
-              child: _buildMetricCard(
-                context,
-                title: isExe201 ? 'Họp hôm nay' : 'Chưa xong CP',
-                value: isExe201 ? '${stats.meetingsTodayCount}' : '${stats.missingCheckpointsCount}',
-                subtitle: isExe201 ? 'Buổi họp' : 'Nhóm chưa CP',
-                icon: isExe201 ? Icons.event_available : Icons.flag_outlined,
-                color: isExe201 ? Palette.success : Palette.warning,
-                bgColor: isExe201 ? Palette.successContainer : Palette.warningContainer,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.s4),
-
-        // Thông báo nếu stats API từ Collaboration Service lỗi/chưa có
-        if (statsAsync.hasError) ...[
+        // Thống kê tương tác (phụ thuộc Collaboration Service / API /api/advisors/me/semester-stats)
+        if (statsAsync.isLoading) ...[
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s4),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          const SizedBox(height: AppSpacing.s2),
+        ] else if (statsAsync.hasError) ...[
           Container(
             padding: const EdgeInsets.all(AppSpacing.s3),
             decoration: BoxDecoration(
@@ -507,14 +470,27 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.sync_problem, size: 20, color: Palette.textSecondary),
-                const SizedBox(width: AppSpacing.s2),
+                const Icon(Icons.sync_problem, size: 24, color: Palette.textSecondary),
+                const SizedBox(width: AppSpacing.s3),
                 Expanded(
-                  child: Text(
-                    'Dữ liệu tương tác & checkpoint đang đồng bộ từ Collaboration Service.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Palette.textSecondary,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Chưa tải được số liệu tương tác học kỳ',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Chức năng phụ thuộc Collaboration Service (API /api/advisors/me/semester-stats chưa sẵn sàng).',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Palette.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 TextButton(
@@ -525,54 +501,98 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
             ),
           ),
           const SizedBox(height: AppSpacing.s4),
-        ],
-
-        // Thẻ nhắc "Đăng lịch họp hằng tuần" (chỉ cho EXE201, Rule 27)
-        if (isExe201 && !stats.hasPostedWeeklySchedule) ...[
-          Card(
-            elevation: 0,
-            color: Palette.infoContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              side: const BorderSide(color: Palette.info),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.s4),
-              child: Row(
-                children: [
-                  const Icon(Icons.event_note, size: 36, color: Palette.infoDark),
-                  const SizedBox(width: AppSpacing.s3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Đăng lịch họp hằng tuần (C09)',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Palette.infoDark,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Thêm các khung giờ rảnh để các nhóm EXE201 đăng ký lịch hướng dẫn hằng tuần.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.s2),
-                  FilledButton.tonal(
-                    onPressed: () => context.push('/gv/lich'),
-                    child: const Text('Đăng lịch'),
-                  ),
-                ],
+        ] else if (stats != null) ...[
+          // Ba thẻ số liệu bấm được (Rule 22, 23, 25, 27)
+          // Thẻ 3 chọn theo môn EXE201 ("Họp hôm nay") vs EXE101 ("Chưa trình bày checkpoint")
+          Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  context,
+                  title: 'Cần trả lời',
+                  value: '${stats.needsReplyCount}',
+                  subtitle: 'Câu hỏi / tin nhắn',
+                  icon: Icons.question_answer_outlined,
+                  color: Palette.warning,
+                  bgColor: Palette.warningContainer,
+                  onTap: () => context.push('/gv/tin-nhan'),
+                ),
               ),
-            ),
+              const SizedBox(width: AppSpacing.s2),
+              Expanded(
+                child: _buildMetricCard(
+                  context,
+                  title: 'Trễ hạn nộp',
+                  value: '${stats.overdueSubmissionsCount}',
+                  subtitle: 'Việc / bài tập',
+                  icon: Icons.assignment_late_outlined,
+                  color: Palette.error,
+                  bgColor: Palette.errorContainer,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s2),
+              Expanded(
+                child: _buildMetricCard(
+                  context,
+                  title: isExe201 ? 'Họp hôm nay' : 'Chưa trình bày checkpoint',
+                  value: isExe201 ? '${stats.meetingsTodayCount}' : '${stats.missingCheckpointsCount}',
+                  subtitle: isExe201 ? 'Buổi họp' : 'Nhóm chưa CP',
+                  icon: isExe201 ? Icons.event_available : Icons.flag_outlined,
+                  color: isExe201 ? Palette.success : Palette.warning,
+                  bgColor: isExe201 ? Palette.successContainer : Palette.warningContainer,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.s4),
+
+          // Thẻ nhắc "Đăng lịch họp hằng tuần" (chỉ cho EXE201, Rule 27)
+          if (isExe201 && !stats.hasPostedWeeklySchedule) ...[
+            Card(
+              elevation: 0,
+              color: Palette.infoContainer,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                side: const BorderSide(color: Palette.info),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.s4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.event_note, size: 36, color: Palette.infoDark),
+                    const SizedBox(width: AppSpacing.s3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Đăng lịch họp hằng tuần (C09)',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Palette.infoDark,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Thêm các khung giờ rảnh để các nhóm EXE201 đăng ký lịch hướng dẫn hằng tuần.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.s2),
+                    FilledButton.tonal(
+                      onPressed: () => context.push('/gv/lich'),
+                      child: const Text('Đăng lịch'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s4),
+          ],
         ],
 
         // Section: Nhóm đang hướng dẫn (từ API thật GET /api/lecturer-teams/me)
