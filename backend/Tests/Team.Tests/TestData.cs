@@ -48,11 +48,11 @@ public static class TestData
         return team;
     }
 
-    /// <summary>Xóa nhóm (cascade thành viên, lời mời…) và sự kiện outbox của nhóm, lời mời, yêu cầu trong học kỳ giả.</summary>
+    /// <summary>Xóa nhóm (cascade thành viên, lời mời…) và sự kiện outbox của học kỳ giả, nhóm, lời mời, yêu cầu.</summary>
     public static Task DeleteSemesterAsync(TeamApiFactory api, Guid semesterId) => api.QueryDbAsync(async db =>
     {
         var teamIds = await db.Set<TeamEntity>().Where(t => t.SemesterId == semesterId).Select(t => t.Id).ToListAsync();
-        var keys = teamIds
+        var keys = teamIds.Append(semesterId)
             .Concat(await db.Set<Invitation>().Where(i => teamIds.Contains(i.TeamId)).Select(i => i.Id).ToListAsync())
             .Concat(await db.Set<JoinRequest>().Where(r => teamIds.Contains(r.TeamId)).Select(r => r.Id).ToListAsync())
             .ToList();
