@@ -40,13 +40,6 @@ public sealed record ImportPreviewInput(Stream? File, string? FileName, long Fil
 /// <summary>Query của <c>GET /api/imports</c>.</summary>
 public sealed record ImportQuery(Guid? SemesterId, int Page = 1, int PageSize = 20);
 
-/// <summary>Kết quả phân trang (docs/contracts/README.md): <c>{ items, page, pageSize, totalCount, totalPages }</c>.</summary>
-public sealed record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount, int TotalPages)
-{
-    public static PagedResponse<T> Create(IReadOnlyList<T> items, int page, int pageSize, int totalCount) =>
-        new(items, page, pageSize, totalCount, (totalCount + pageSize - 1) / pageSize);
-}
-
 public sealed class ImportQueryValidator : AbstractValidator<ImportQuery>
 {
     public ImportQueryValidator()

@@ -147,12 +147,12 @@ public sealed class InternalApiTests : IAsyncLifetime
         var exe201 = await CreateStudentAsync(semester.Id, "EXE201");
         await CreateStudentAsync(null, null);
 
-        var all = await Service.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semester.Id}");
-        Assert.Equal(new[] { exe101.StudentCode, exe201.StudentCode }.Order(), all!.Select(s => s.StudentCode));
+        var all = (await Service.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semester.Id}"))!;
+        Assert.Equal(new[] { exe101.StudentCode, exe201.StudentCode }.Order(), all.Select(s => s.StudentCode));
         Assert.All(all, s => Assert.True(s.IsEnrolled && s.ClassCode is not null));
 
-        var only201 = await Service.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semester.Id}&courseCode=EXE201");
-        Assert.Equal((exe201.Id, "EXE201"), (only201!.Single().Id, only201.Single().CourseCode));
+        var only201 = (await Service.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semester.Id}&courseCode=EXE201"))!;
+        Assert.Equal((exe201.Id, "EXE201"), (only201.Single().Id, only201.Single().CourseCode));
 
         Assert.Equal(HttpStatusCode.BadRequest, (await Service.GetAsync("/internal/students")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Service.GetAsync($"/internal/students?semesterId={semester.Id}&courseCode=EXE301")).StatusCode);

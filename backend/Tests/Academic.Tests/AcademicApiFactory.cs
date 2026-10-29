@@ -40,10 +40,13 @@ public sealed class AcademicApiFactory : WebApplicationFactory<Program>
         });
     }
 
-    public HttpClient ClientAs(params string[] roles)
+    public HttpClient ClientAs(params string[] roles) => ClientWith(new Dictionary<string, object>(), roles);
+
+    /// <summary>Token có thêm claim, ví dụ <c>lecturer_id</c>, <c>email</c>.</summary>
+    public HttpClient ClientWith(IDictionary<string, object> claims, params string[] roles)
     {
         var client = CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(roles));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token(claims, roles));
         return client;
     }
 
@@ -53,11 +56,11 @@ public sealed class AcademicApiFactory : WebApplicationFactory<Program>
         return await query(scope.ServiceProvider.GetRequiredService<AcademicDbContext>());
     }
 
-    private static string Token(string[] roles) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
+    private static string Token(IDictionary<string, object> claims, string[] roles) => new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
     {
         Issuer = "exe-identity",
         Audience = "exe-team-matching",
-        Claims = new Dictionary<string, object>
+        Claims = new Dictionary<string, object>(claims)
         {
             [ClaimNames.Subject] = Guid.NewGuid().ToString(),
             [ClaimNames.Name] = "Người thử",
