@@ -1,6 +1,7 @@
 using BuildingBlocks.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Team.Services.Statistics;
 using Team.Services.Teams;
 
@@ -20,11 +21,12 @@ public sealed class StatisticsController(IStatisticsService statistics) : Contro
     public async Task<ActionResult<PagedResponse<StudentRef>>> Unmatched([FromQuery] UnmatchedStudentsQuery query, CancellationToken ct) =>
         Ok(await statistics.ListUnmatchedAsync(query, ct));
 
-    /// <summary>Phát UnmatchedStudentsReminded; Notification gửi thông báo và email cho từng sinh viên.</summary>
+    /// <summary>Phát UnmatchedStudentsReminded; Notification gửi thông báo và email cho từng sinh viên. Body tùy chọn: không có = cả hai môn.</summary>
     [HttpPost("unmatched-students/remind")]
-    public async Task<IActionResult> RemindUnmatched(RemindUnmatchedRequest request, CancellationToken ct)
+    public async Task<IActionResult> RemindUnmatched(
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RemindUnmatchedRequest? request, CancellationToken ct)
     {
-        await statistics.RemindUnmatchedAsync(request, User, ct);
+        await statistics.RemindUnmatchedAsync(request ?? new RemindUnmatchedRequest(null), User, ct);
         return Accepted();
     }
 }
