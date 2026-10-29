@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,10 +32,19 @@ class FakeLecturersApi extends LecturersApi {
 
   List<String>? lastUpdatedIds;
   int updateCallCount = 0;
+  bool shouldThrowPreferences = false;
+  Completer<LecturerPreferenceListResponse>? preferencesCompleter;
 
   @override
-  Future<LecturerPreferenceListResponse> getPreferences(String teamId) async =>
-      preferencesResponse;
+  Future<LecturerPreferenceListResponse> getPreferences(String teamId) async {
+    if (shouldThrowPreferences) {
+      throw Exception('Failed to load preferences');
+    }
+    if (preferencesCompleter != null) {
+      return preferencesCompleter!.future;
+    }
+    return preferencesResponse;
+  }
 
   @override
   Future<LecturerPreferenceListResponse> updatePreferences(
@@ -436,7 +446,102 @@ void main() {
   });
 
   group('S24 - LecturerDetailScreen', () {
-    testWidgets('leader can add lecturer to preferences', (tester) async {
+    testWidgets('shows loading state and hides action buttons when preferences are loading', (tester) async {
+      final completer = Completer<LecturerPreferenceListResponse>();
+      final api = FakeLecturersApi(
+        lecturers: [sampleLecturer1],
+      )..preferencesCompleter = completer;
+
+      await tester.pumpWidget(
+        createDetailTestWidget(api: api, lecturerId: sampleLecturer1.id, isLeader: true),
+      );
+      await tester.pump();
+
+      expect(find.text('TS. Nguyễn Văn A'), findsOneWidget);
+      expect(find.text('Đang tải danh sách nguyện vọng...'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+
+      // Complete loading
+      completer.complete(const LecturerPreferenceListResponse(
+        maxPreferences: 3,
+        locked: false,
+        preferences: [],
+        interestedLecturers: [],
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Đang tải danh sách nguyện vọng...'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Thêm vào NV1'), findsOneWidget);
+    });
+
+    testWidgets('shows error state with retry button when preferences fail to load', (tester) async {
+      final api = FakeLecturersApi(
+        lecturers: [sampleLecturer1],
+      )..shouldThrowPreferences = true;
+
+      await tester.pumpWidget(
+        createDetailTestWidget(api: api, lecturerId: sampleLecturer1.id, isLeader: true),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Không thể tải danh sách nguyện vọng'), findsOneWidget);
+      expect(find.text('Thử lại'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+
+      // Tap retry after fixing error
+      api.shouldThrowPreferences = false;
+      await tester.tap(find.text('Thử lại'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Không thể tải danh sách nguyện vọng'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Thêm vào NV1'), findsOneWidget);
+    });
+
+    testWidgets('adding new lecturer preserves existing preferences and supports undo', (tester) async {
+      final api = FakeLecturersApi(
+        preferencesResponse: LecturerPreferenceListResponse(
+          maxPreferences: 3,
+          locked: false,
+          preferences: [
+            LecturerPreferenceItem(
+              lecturerId: sampleLecturer2.id,
+              fullName: sampleLecturer2.fullName,
+              domains: sampleLecturer2.domains,
+              rank: 1,
+            ),
+          ],
+          interestedLecturers: [],
+        ),
+        lecturers: [sampleLecturer1, sampleLecturer2],
+      );
+
+      await tester.pumpWidget(
+        createDetailTestWidget(api: api, lecturerId: sampleLecturer1.id, isLeader: true),
+      );
+      await tester.pumpAndSettle();
+
+      // Because 1 preference already exists, the button must be "Thêm vào NV2"
+      final addBtn = find.widgetWithText(FilledButton, 'Thêm vào NV2');
+      expect(addBtn, findsOneWidget);
+
+      await tester.tap(addBtn);
+      await tester.pumpAndSettle();
+
+      // Verifies that existing preferences are preserved! [lec-2, lec-1]
+      expect(api.lastUpdatedIds, ['lec-2', 'lec-1']);
+      expect(find.text('Đã thêm TS. Nguyễn Văn A vào NV2'), findsOneWidget);
+
+      // Verifies undo restores previous preferences [lec-2]
+      final undoBtn = find.text('Hoàn tác');
+      expect(undoBtn, findsOneWidget);
+      await tester.tap(undoBtn);
+      await tester.pumpAndSettle();
+
+      expect(api.lastUpdatedIds, ['lec-2']);
+    });
+
+    testWidgets('leader can add lecturer to preferences when empty', (tester) async {
       final api = FakeLecturersApi(
         preferencesResponse: const LecturerPreferenceListResponse(
           maxPreferences: 3,

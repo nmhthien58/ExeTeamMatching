@@ -72,11 +72,9 @@ class LecturerDetailScreen extends ConsumerWidget {
           final teamId = team?.id;
           final isLeader = team?.isLeader ?? false;
 
-          final prefResponse = teamId != null
-              ? ref.watch(lecturerPreferencesProvider(teamId)).value
-              : null;
+          final prefAsync = teamId != null ? ref.watch(lecturerPreferencesProvider(teamId)) : null;
+          final prefResponse = prefAsync?.value;
 
-          final isLocked = prefResponse?.locked ?? false;
           final maxPreferences = prefResponse?.maxPreferences ?? 3;
           final preferences = prefResponse?.preferences ?? const [];
 
@@ -90,8 +88,6 @@ class LecturerDetailScreen extends ConsumerWidget {
           final currentIds = preferences.map((p) => p.lecturerId).toList();
           final prefIndex = currentIds.indexOf(lecturer.id);
           final isSelected = prefIndex >= 0;
-          final canAdd = isLeader && !isLocked && !isSelected && !lecturer.isFull && currentIds.length < maxPreferences;
-          final canRemove = isLeader && !isLocked && isSelected;
 
           return Column(
             children: [
@@ -300,101 +296,155 @@ class LecturerDetailScreen extends ConsumerWidget {
                   ),
                   child: SafeArea(
                     top: false,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isLocked)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
-                            child: Text(
-                              'Nguyện vọng đã khóa sau khi ghép cố vấn / hết hạn chốt',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Palette.error,
-                                fontWeight: FontWeight.w600,
+                    child: prefAsync == null
+                        ? const SizedBox.shrink()
+                        : prefAsync.when(
+                            loading: () => const Padding(
+                              padding: EdgeInsets.symmetric(vertical: AppSpacing.s2),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                  SizedBox(width: AppSpacing.s2),
+                                  Text('Đang tải danh sách nguyện vọng...'),
+                                ],
                               ),
                             ),
-                          )
-                        else if (!isLeader)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
-                            child: Text(
-                              'Chỉ trưởng nhóm mới có quyền chọn nguyện vọng',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                            error: (err, _) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline, size: 20, color: Palette.error),
+                                  const SizedBox(width: AppSpacing.s2),
+                                  Expanded(
+                                    child: Text(
+                                      'Không thể tải danh sách nguyện vọng',
+                                      style: theme.textTheme.bodySmall?.copyWith(color: Palette.error),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => ref.invalidate(lecturerPreferencesProvider(teamId)),
+                                    child: const Text('Thử lại'),
+                                  ),
+                                ],
                               ),
                             ),
-                          )
-                        else if (!isSelected && currentIds.length >= maxPreferences)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
-                            child: Text(
-                              'Đã chọn đủ $maxPreferences nguyện vọng. Hãy bỏ bớt một nguyện vọng ở danh sách để thêm',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Palette.warning,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        else if (!isSelected && lecturer.isFull)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
-                            child: Text(
-                              'Giảng viên này đã nhận đủ số nhóm tối đa',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Palette.textSecondary,
-                              ),
-                            ),
+                            data: (loadedPrefResponse) {
+                              final isLocked = loadedPrefResponse.locked;
+                              final limit = loadedPrefResponse.maxPreferences;
+                              final currentList = loadedPrefResponse.preferences;
+                              final activeIds = currentList.map((p) => p.lecturerId).toList();
+                              final indexInList = activeIds.indexOf(lecturer.id);
+                              final itemSelected = indexInList >= 0;
+
+                              final canAdd = isLeader &&
+                                  !isLocked &&
+                                  !itemSelected &&
+                                  !lecturer.isFull &&
+                                  activeIds.length < limit;
+                              final canRemove = isLeader && !isLocked && itemSelected;
+
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isLocked)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                                      child: Text(
+                                        'Nguyện vọng đã khóa sau khi ghép cố vấn / hết hạn chốt',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: Palette.error,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    )
+                                  else if (!isLeader)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                                      child: Text(
+                                        'Chỉ trưởng nhóm mới có quyền chọn nguyện vọng',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    )
+                                  else if (!itemSelected && activeIds.length >= limit)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                                      child: Text(
+                                        'Đã chọn đủ $limit nguyện vọng. Hãy bỏ bớt một nguyện vọng ở danh sách để thêm',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: Palette.warning,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    )
+                                  else if (!itemSelected && lecturer.isFull)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+                                      child: Text(
+                                        'Giảng viên này đã nhận đủ số nhóm tối đa',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: Palette.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 48,
+                                    child: itemSelected
+                                        ? OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: theme.colorScheme.error,
+                                              side: BorderSide(color: theme.colorScheme.error),
+                                            ),
+                                            icon: const Icon(Icons.remove_circle_outline),
+                                            label: const Text('Bỏ khỏi nguyện vọng'),
+                                            onPressed: canRemove
+                                                ? () {
+                                                    final nextIds = List<String>.from(activeIds)..remove(lecturer.id);
+                                                    _updatePreferencesWithUndo(
+                                                      context,
+                                                      ref,
+                                                      teamId,
+                                                      nextIds,
+                                                      activeIds,
+                                                      'Đã bỏ ${lecturer.fullName} khỏi nguyện vọng',
+                                                    );
+                                                  }
+                                                : null,
+                                          )
+                                        : FilledButton.icon(
+                                            icon: const Icon(Icons.add),
+                                            label: Text(
+                                              activeIds.isEmpty
+                                                  ? 'Thêm vào NV1'
+                                                  : 'Thêm vào NV${activeIds.length + 1}',
+                                            ),
+                                            onPressed: canAdd
+                                                ? () {
+                                                    final nextSlot = activeIds.length + 1;
+                                                    final nextIds = List<String>.from(activeIds)..add(lecturer.id);
+                                                    _updatePreferencesWithUndo(
+                                                      context,
+                                                      ref,
+                                                      teamId,
+                                                      nextIds,
+                                                      activeIds,
+                                                      'Đã thêm ${lecturer.fullName} vào NV$nextSlot',
+                                                    );
+                                                  }
+                                                : null,
+                                          ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: isSelected
-                              ? OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.error,
-                                    side: BorderSide(color: theme.colorScheme.error),
-                                  ),
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                  label: const Text('Bỏ khỏi nguyện vọng'),
-                                  onPressed: canRemove
-                                      ? () {
-                                          final nextIds = List<String>.from(currentIds)..remove(lecturer.id);
-                                          _updatePreferencesWithUndo(
-                                            context,
-                                            ref,
-                                            teamId,
-                                            nextIds,
-                                            currentIds,
-                                            'Đã bỏ ${lecturer.fullName} khỏi nguyện vọng',
-                                          );
-                                        }
-                                      : null,
-                                )
-                              : FilledButton.icon(
-                                  icon: const Icon(Icons.add),
-                                  label: Text(
-                                    currentIds.isEmpty
-                                        ? 'Thêm vào NV1'
-                                        : 'Thêm vào NV${currentIds.length + 1}',
-                                  ),
-                                  onPressed: canAdd
-                                      ? () {
-                                          final nextSlot = currentIds.length + 1;
-                                          final nextIds = List<String>.from(currentIds)..add(lecturer.id);
-                                          _updatePreferencesWithUndo(
-                                            context,
-                                            ref,
-                                            teamId,
-                                            nextIds,
-                                            currentIds,
-                                            'Đã thêm ${lecturer.fullName} vào NV$nextSlot',
-                                          );
-                                        }
-                                      : null,
-                                ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
             ],
