@@ -32,6 +32,9 @@ public interface IAcademicClient
     /// <summary>Học kỳ hiện hành; null nếu chưa có (404).</summary>
     Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct);
 
+    Task<IReadOnlyList<SemesterDto>> ListSemestersAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SemesterDto>>([]);
+
     /// <summary>Đợt đang mở của môn và loại đợt; null nếu không có (404).</summary>
     Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct);
 
@@ -66,6 +69,9 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromMinutes(10);
 
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => GetOrNullAsync<SemesterDto>("/api/semesters/current", ct);
+
+    public async Task<IReadOnlyList<SemesterDto>> ListSemestersAsync(CancellationToken ct) =>
+        await http.GetFromJsonAsync<List<SemesterDto>>("/api/semesters", ct) ?? [];
 
     public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
         GetOrNullAsync<RoundDto>($"/internal/registration-rounds/open?courseCode={courseCode}&roundType={roundType}", ct);

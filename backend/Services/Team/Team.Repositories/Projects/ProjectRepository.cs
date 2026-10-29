@@ -1,5 +1,3 @@
-using BuildingBlocks.Messaging;
-using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.Context;
 using Team.Repositories.LecturerAssignments;
@@ -14,15 +12,17 @@ public sealed record ProjectAdvisors(string? InstructorName, string? MentorName)
 public interface IProjectRepository
 {
     Task<Project?> GetAsync(Guid id, CancellationToken ct);
+    Task<List<Project>> ListAsync(IReadOnlyList<Guid> ids, CancellationToken ct);
     Task<List<ProjectVersion>> VersionsAsync(Guid id, CancellationToken ct);
+    Task<List<ProjectVersion>> VersionsAsync(IReadOnlyList<Guid> ids, CancellationToken ct);
     Task<List<Guid>> TeamIdsAsync(Guid id, CancellationToken ct);
+    Task<List<Guid>> TeamIdsAsync(IReadOnlyList<Guid> ids, CancellationToken ct);
     Task<(List<Guid> Ids, int Total)> SearchAsync(ProjectSearch search, CancellationToken ct);
     Task<List<Guid>> UnlinkedTeamIdsAsync(Guid semesterId, CancellationToken ct);
     Task<TeamEntity?> GetTeamForUpdateAsync(Guid id, CancellationToken ct);
     Task<TeamEntity?> SourceTeamAsync(Project project, CancellationToken ct);
     Task<bool> AlreadyLinkedAsync(Guid projectId, Guid sourceTeamId, Guid semesterId, CancellationToken ct);
     Task<IReadOnlyDictionary<Guid, ProjectAdvisors>> AdvisorHistoryAsync(IReadOnlyList<Guid> teamIds, CancellationToken ct);
-    void AddLinkedEvent(Guid teamId, Guid projectId, Guid previousTeamId);
     Task SaveAsync(CancellationToken ct);
 }
 
@@ -31,13 +31,23 @@ public sealed class ProjectRepository(TeamDbContext db) : IProjectRepository
     public Task<Project?> GetAsync(Guid id, CancellationToken ct) =>
         db.Set<Project>().AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
 
+    public Task<List<Project>> ListAsync(IReadOnlyList<Guid> ids, CancellationToken ct) =>
+        db.Set<Project>().AsNoTracking().Where(p => ids.Contains(p.Id)).ToListAsync(ct);
+
     public Task<List<ProjectVersion>> VersionsAsync(Guid id, CancellationToken ct) =>
         db.Set<ProjectVersion>().AsNoTracking().Where(v => v.ProjectId == id)
             .OrderByDescending(v => v.Version).ToListAsync(ct);
 
+    public Task<List<ProjectVersion>> VersionsAsync(IReadOnlyList<Guid> ids, CancellationToken ct) =>
+        db.Set<ProjectVersion>().AsNoTracking().Where(v => ids.Contains(v.ProjectId)).ToListAsync(ct);
+
     public Task<List<Guid>> TeamIdsAsync(Guid id, CancellationToken ct) =>
         db.Set<TeamEntity>().AsNoTracking().Where(t => t.ProjectId == id)
             .OrderBy(t => t.CreatedAt).ThenBy(t => t.Id).Select(t => t.Id).ToListAsync(ct);
+
+    public Task<List<Guid>> TeamIdsAsync(IReadOnlyList<Guid> ids, CancellationToken ct) =>
+        db.Set<TeamEntity>().AsNoTracking().Where(t => t.ProjectId != null && ids.Contains(t.ProjectId.Value))
+            .Select(t => t.Id).ToListAsync(ct);
 
     public async Task<(List<Guid> Ids, int Total)> SearchAsync(ProjectSearch s, CancellationToken ct)
     {
@@ -95,10 +105,6 @@ public sealed class ProjectRepository(TeamDbContext db) : IProjectRepository
         return teamIds.ToDictionary(id => id, id => new ProjectAdvisors(
             instructors.GetValueOrDefault(id), mentors.GetValueOrDefault(id)));
     }
-
-    public void AddLinkedEvent(Guid teamId, Guid projectId, Guid previousTeamId) =>
-        db.AddOutboxMessage(Topics.Team, "TeamLinkedToProject", "Team", teamId,
-            new { teamId, projectId, previousTeamId, linkedBy = "ADMIN" });
 
     public Task SaveAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

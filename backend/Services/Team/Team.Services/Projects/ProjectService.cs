@@ -4,6 +4,7 @@ using BuildingBlocks.Errors;
 using Team.Repositories.AuditLog;
 using Team.Repositories.Projects;
 using Team.Repositories.Teams;
+using Team.Services.Academic;
 using Team.Services.Teams;
 
 namespace Team.Services.Projects;
@@ -17,7 +18,7 @@ public interface IProjectService
 }
 
 public sealed class ProjectService(IProjectRepository projects, ITeamRepository teams, TeamReader reader,
-    IProjectSemesterClient semesters, AuditLogWriter audit) : IProjectService
+    IAcademicClient academic, AuditLogWriter audit) : IProjectService
 {
     public async Task<ProjectDetailResponse> GetForTeamAsync(Guid teamId, CancellationToken ct)
     {
@@ -33,8 +34,12 @@ public sealed class ProjectService(IProjectRepository projects, ITeamRepository 
             query.Domain, query.PivotedOnly, query.Page, query.PageSize), ct);
         var codes = await SemesterCodesAsync(ct);
         var catalogs = await reader.LoadCatalogsAsync(ct);
-        var items = new List<ProjectDetailResponse>(ids.Count);
-        foreach (var id in ids) items.Add(await DetailAsync(id, codes, catalogs, ct));
+        var pageProjects = (await projects.ListAsync(ids, ct)).ToDictionary(p => p.Id);
+        var versions = (await projects.VersionsAsync(ids, ct)).ToLookup(v => v.ProjectId);
+        var graphs = await teams.ListGraphsAsync(await projects.TeamIdsAsync(ids, ct), ct);
+        var graphGroups = graphs.ToLookup(g => g.Team.ProjectId);
+        var advisors = await projects.AdvisorHistoryAsync(graphs.Select(g => g.Team.Id).ToList(), ct);
+        var items = ids.Select(id => ToDetail(pageProjects[id], versions[id], graphGroups[id], advisors, codes, catalogs)).ToList();
         return new PagedResponse<ProjectDetailResponse>(items, query.Page, query.PageSize, total,
             (total + query.PageSize - 1) / query.PageSize);
     }
@@ -62,7 +67,8 @@ public sealed class ProjectService(IProjectRepository projects, ITeamRepository 
         var catalogs = await reader.LoadCatalogsAsync(ct);
         team.ProjectId = project.Id;
         team.SourceTeamId = source.Id;
-        projects.AddLinkedEvent(team.Id, project.Id, source.Id);
+        teams.AddEvent(TeamEventTypes.TeamLinkedToProject, team.Id,
+            new TeamLinkedToProject(team.Id, project.Id, source.Id, "ADMIN"));
         audit.Add(team.Id, "Team", team.Id, "TEAM_LINKED_TO_PROJECT", user.ToAuditActor(),
             newValues: new { projectId = project.Id, sourceTeamId = source.Id });
         await projects.SaveAsync(ct);
@@ -77,6 +83,14 @@ public sealed class ProjectService(IProjectRepository projects, ITeamRepository 
         var teamIds = await projects.TeamIdsAsync(projectId, ct);
         var graphs = await teams.ListGraphsAsync(teamIds, ct);
         var advisors = await projects.AdvisorHistoryAsync(teamIds, ct);
+        return ToDetail(project, versions, graphs, advisors, codes, catalogs);
+    }
+
+    private static ProjectDetailResponse ToDetail(Project project, IEnumerable<ProjectVersion> versions,
+        IEnumerable<TeamGraph> teamGraphs, IReadOnlyDictionary<Guid, ProjectAdvisors> advisors,
+        IReadOnlyDictionary<Guid, string> codes, Catalogs catalogs)
+    {
+        var graphs = teamGraphs.ToList();
         var byId = graphs.ToDictionary(g => g.Team.Id);
         var history = graphs.OrderBy(g => g.Team.CreatedAt).ThenBy(g => g.Team.Id).Select(g =>
         {
@@ -89,12 +103,12 @@ public sealed class ProjectService(IProjectRepository projects, ITeamRepository 
         }).ToList();
         return new ProjectDetailResponse(project.Id, project.Name, project.Description, project.CurrentVersion,
             project.OriginCourseCode, codes.GetValueOrDefault(project.OriginSemesterId),
-            versions.Select(v => new ProjectVersionResponse(v.Version, v.Name, v.Description, v.ChangeType,
+            versions.OrderByDescending(v => v.Version).Select(v => new ProjectVersionResponse(v.Version, v.Name, v.Description, v.ChangeType,
                 v.Reason, codes.GetValueOrDefault(v.SemesterId), v.CourseCode, null, v.CreatedAt)).ToList(), history);
     }
 
     private async Task<IReadOnlyDictionary<Guid, string>> SemesterCodesAsync(CancellationToken ct) =>
-        (await semesters.ListAsync(ct)).ToDictionary(s => s.Id, s => s.Code);
+        (await academic.ListSemestersAsync(ct)).ToDictionary(s => s.Id, s => s.Code);
 }
 
 public static class ProjectLineage

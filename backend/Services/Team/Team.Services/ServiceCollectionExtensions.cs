@@ -54,7 +54,7 @@ public static class ServiceCollectionExtensions
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
             .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule()
             .AddAdvisorAssignmentsModule().AddLecturerPreferencesModule();
-        services.AddProjectsModule(configuration);
+        services.AddProjectsModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
         return services;
