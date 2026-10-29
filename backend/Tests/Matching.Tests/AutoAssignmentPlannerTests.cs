@@ -36,6 +36,25 @@ public sealed class AutoAssignmentPlannerTests
     }
 
     [Fact]
+    public async Task Invalid_team_not_yet_marked_needs_review_is_filled_but_valid_open_team_is_not()
+    {
+        // Read model chưa nhận TeamNeedsReview / TeamFinalized: cả hai nhóm còn OPEN khi Jobs gọi ngay sau finalize-round.
+        var s = new Scenario();
+        var small = await s.TeamAsync("Hai người", await s.StudentAsync(Scenario.SE), [await s.StudentAsync(Scenario.GD)]);
+        await s.TeamAsync("Đủ người", await s.StudentAsync(Scenario.SE), await s.StudentsAsync(3, Scenario.GD));
+        await s.StudentsAsync(2, Scenario.DM);
+        await s.StudentsAsync(2, Scenario.SE);
+
+        var plan = await PlanAsync(s);
+
+        var fill = Assert.Single(plan.Fills);
+        Assert.Equal(small, fill.TeamId);
+        Assert.Equal(4, fill.StudentIds.Count);
+        Assert.Empty(plan.NewTeams);
+        Assert.Empty(plan.UnassignedStudentIds);
+    }
+
+    [Fact]
     public async Task Ten_students_become_two_teams_of_five_each_with_two_specializations()
     {
         var s = new Scenario();

@@ -155,6 +155,11 @@ public sealed class RedisMatchingReadModel(IConnectionMultiplexer redis, IOption
     public async Task SaveStudentAsync(Guid studentId, Guid semesterId, string courseCode, string? fullName, int specializationId, CancellationToken ct)
     {
         var db = Db;
+        // Id sinh viên dùng chung giữa các học kỳ (EXE101 → EXE201, học lại): vào học kỳ mới thì nhóm của học kỳ cũ không còn tính.
+        if (ParseGuid(await db.HashGetAsync(StudentKey(studentId), F.SemesterId)) is { } previous && previous != semesterId)
+        {
+            await db.HashDeleteAsync(StudentKey(studentId), F.TeamId);
+        }
         var entries = new List<HashEntry>
         {
             new(F.SemesterId, semesterId.ToString()),

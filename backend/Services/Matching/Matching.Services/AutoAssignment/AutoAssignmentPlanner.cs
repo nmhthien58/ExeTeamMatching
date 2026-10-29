@@ -30,12 +30,16 @@ public sealed class AutoAssignmentPlanner(IMatchingReadModel model)
     {
         var students = await model.GetStudentsAsync(semesterId, courseCode, ct);
         var teams = await model.GetTeamsAsync(semesterId, courseCode, ct);
-        var reviewTeams = teams.Where(t => t.Status == TeamStatuses.NeedsReview).ToList();
-        var membersById = (await model.GetStudentsByIdsAsync(reviewTeams.SelectMany(t => t.MemberIds), ct)).ToDictionary(s => s.Id);
+        // Nhóm cần lấp = nhóm NEEDS_REVIEW, hoặc nhóm chưa chốt mà chưa hợp lệ: AutoAssignUnmatchedJob gọi ngay sau finalize-round,
+        // có thể trước khi read model nhận TeamNeedsReview từ Kafka, nên không chỉ dựa vào trạng thái.
+        var openTeams = teams.Where(t => t.Status != TeamStatuses.Finalized).ToList();
+        var membersById = (await model.GetStudentsByIdsAsync(openTeams.SelectMany(t => t.MemberIds), ct)).ToDictionary(s => s.Id);
 
         var pool = students.Where(s => s.TeamId is null).OrderBy(s => s.Id).ToList();
-        var existing = reviewTeams
-            .Select(t => new WorkingTeam(t.Id, t.MemberIds.Select(id => membersById.GetValueOrDefault(id)).OfType<StudentView>()))
+        var existing = openTeams
+            .Select(t => (t.Status, Team: new WorkingTeam(t.Id, t.MemberIds.Select(id => membersById.GetValueOrDefault(id)).OfType<StudentView>())))
+            .Where(x => x.Status == TeamStatuses.NeedsReview || !x.Team.IsValid(rules))
+            .Select(x => x.Team)
             .ToList();
 
         FillReviewTeams(existing, pool, rules);
