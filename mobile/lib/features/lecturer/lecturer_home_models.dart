@@ -8,10 +8,11 @@ class TopicInterestItem {
     required this.teamId,
     required this.advisorId,
     required this.advisorName,
-    required this.advisorEmail,
-    required this.advisorRole,
+    this.advisorEmail = '',
+    this.advisorRole = 'LECTURER',
     this.domains = const [],
     required this.status,
+    this.wasPreviousInstructor = false,
   });
 
   final String id;
@@ -22,21 +23,23 @@ class TopicInterestItem {
   final String advisorRole;
   final List<CatalogRef> domains;
   final String status;
+  final bool wasPreviousInstructor;
 
   factory TopicInterestItem.fromJson(Map<String, dynamic> j) {
     final advisor = j['advisor'] != null ? _map(j['advisor']) : <String, dynamic>{};
     return TopicInterestItem(
-      id: j['id'] as String? ?? '',
-      teamId: j['teamId'] as String? ?? (j['team'] != null ? _map(j['team'])['id'] as String : ''),
-      advisorId: advisor['id'] as String? ?? '',
-      advisorName: advisor['fullName'] as String? ?? (j['team'] != null ? _map(j['team'])['name'] as String : ''),
-      advisorEmail: advisor['email'] as String? ?? '',
-      advisorRole: advisor['role'] as String? ?? 'LECTURER',
+      id: (j['id'] ?? '') as String,
+      teamId: (j['teamId'] ?? (j['team'] != null ? _map(j['team'])['id'] : '')) as String,
+      advisorId: (j['advisorId'] ?? advisor['id'] ?? '') as String,
+      advisorName: (j['advisorName'] ?? advisor['fullName'] ?? (j['team'] != null ? _map(j['team'])['name'] : '')) as String,
+      advisorEmail: (j['advisorEmail'] ?? advisor['email'] ?? '') as String,
+      advisorRole: (j['advisorKind'] ?? advisor['role'] ?? 'LECTURER') as String,
       domains: [
         for (final d in advisor['domains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
       ],
-      status: j['status'] as String? ?? 'OPEN',
+      status: (j['status'] ?? 'OPEN') as String,
+      wasPreviousInstructor: j['wasPreviousInstructor'] as bool? ?? false,
     );
   }
 }
@@ -65,9 +68,9 @@ class LecturerPreferenceMe {
   factory LecturerPreferenceMe.fromJson(Map<String, dynamic> j) {
     final team = j['team'] != null ? _map(j['team']) : j;
     return LecturerPreferenceMe(
-      teamId: team['id'] as String? ?? '',
-      teamName: team['name'] as String? ?? '',
-      courseCode: team['courseCode'] as String? ?? 'EXE101',
+      teamId: (team['id'] ?? '') as String,
+      teamName: (team['name'] ?? '') as String,
+      courseCode: (team['courseCode'] ?? 'EXE101') as String,
       memberCount: team['memberCount'] as int? ?? 0,
       projectName: team['projectName'] as String?,
       domains: [
@@ -89,8 +92,13 @@ class TopicRecommendationItem {
     this.projectDescription,
     this.domains = const [],
     required this.memberCount,
-    required this.matchingDomainCount,
-    this.isInheritedFromExe101 = false,
+    this.matchingDomains = const [],
+    this.otherInterestedCount = 0,
+    this.myPreferenceRank,
+    this.myInterestId,
+    this.isInterested = false,
+    this.wasMyEXE101Team = false,
+    this.hasAdvisor = false,
   });
 
   final String teamId;
@@ -100,23 +108,135 @@ class TopicRecommendationItem {
   final String? projectDescription;
   final List<CatalogRef> domains;
   final int memberCount;
-  final int matchingDomainCount;
-  final bool isInheritedFromExe101;
+  final List<CatalogRef> matchingDomains;
+  final int otherInterestedCount;
+  final int? myPreferenceRank;
+  final String? myInterestId;
+  final bool isInterested;
+  final bool wasMyEXE101Team;
+  final bool hasAdvisor;
 
   factory TopicRecommendationItem.fromJson(Map<String, dynamic> j) {
+    final team = j['team'] != null ? _map(j['team']) : j;
+    final myInterest = j['myInterest'] != null ? _map(j['myInterest']) : null;
     return TopicRecommendationItem(
-      teamId: j['teamId'] as String? ?? (j['team'] != null ? _map(j['team'])['id'] as String : ''),
-      teamName: j['teamName'] as String? ?? (j['team'] != null ? _map(j['team'])['name'] as String : ''),
-      courseCode: j['courseCode'] as String? ?? 'EXE101',
-      projectName: j['projectName'] as String?,
-      projectDescription: j['projectDescription'] as String?,
+      teamId: (team['id'] ?? '') as String,
+      teamName: (team['name'] ?? '') as String,
+      courseCode: (team['courseCode'] ?? 'EXE101') as String,
+      projectName: team['projectName'] as String?,
+      projectDescription: team['projectDescription'] as String?,
       domains: [
-        for (final d in j['domains'] ?? const [])
+        for (final d in team['domains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
       ],
-      memberCount: j['memberCount'] as int? ?? 0,
-      matchingDomainCount: j['matchingDomainCount'] as int? ?? 0,
-      isInheritedFromExe101: j['isInheritedFromExe101'] as bool? ?? false,
+      memberCount: team['memberCount'] as int? ?? 0,
+      matchingDomains: [
+        for (final d in j['matchedDomains'] ?? const [])
+          CatalogRef.fromJson(_map(d)),
+      ],
+      otherInterestedCount: j['otherInterestedCount'] as int? ?? 0,
+      myPreferenceRank: j['myPreferenceRank'] as int?,
+      myInterestId: myInterest?['id'] as String?,
+      isInterested: myInterest != null && myInterest['status'] == 'OPEN',
+      wasMyEXE101Team: j['wasMyEXE101Team'] as bool? ?? false,
+      hasAdvisor: j['hasAdvisor'] as bool? ?? false,
+    );
+  }
+}
+
+class TopicRecommendationsResponse {
+  const TopicRecommendationsResponse({
+    this.openInterestCount = 0,
+    this.interestLimit = 10,
+    this.remainingCapacity,
+    this.interestOpen = true,
+    this.matchingAt,
+    this.items = const [],
+  });
+
+  final int openInterestCount;
+  final int interestLimit;
+  final int? remainingCapacity;
+  final bool interestOpen;
+  final DateTime? matchingAt;
+  final List<TopicRecommendationItem> items;
+
+  factory TopicRecommendationsResponse.fromJson(Map<String, dynamic> j) {
+    return TopicRecommendationsResponse(
+      openInterestCount: j['openInterestCount'] as int? ?? 0,
+      interestLimit: j['interestLimit'] as int? ?? 10,
+      remainingCapacity: j['remainingCapacity'] as int?,
+      interestOpen: j['interestOpen'] as bool? ?? true,
+      matchingAt: j['matchingAt'] != null ? DateTime.tryParse(j['matchingAt'] as String) : null,
+      items: [
+        for (final item in j['items'] ?? const [])
+          TopicRecommendationItem.fromJson(_map(item)),
+      ],
+    );
+  }
+}
+
+class AdvisedTeamItem {
+  const AdvisedTeamItem({
+    required this.teamId,
+    required this.teamName,
+    required this.courseCode,
+    this.projectName,
+    required this.memberCount,
+    required this.reason,
+    this.preferenceRank,
+    this.domains = const [],
+  });
+
+  final String teamId;
+  final String teamName;
+  final String courseCode;
+  final String? projectName;
+  final int memberCount;
+  final String reason;
+  final int? preferenceRank;
+  final List<CatalogRef> domains;
+
+  factory AdvisedTeamItem.fromJson(Map<String, dynamic> j) {
+    final team = j['team'] != null ? _map(j['team']) : j;
+    return AdvisedTeamItem(
+      teamId: (team['id'] ?? '') as String,
+      teamName: (team['name'] ?? '') as String,
+      courseCode: (team['courseCode'] ?? 'EXE101') as String,
+      projectName: team['projectName'] as String?,
+      memberCount: team['memberCount'] as int? ?? 0,
+      reason: (j['reason'] ?? '') as String,
+      preferenceRank: j['preferenceRank'] as int?,
+      domains: [
+        for (final d in team['domains'] ?? const [])
+          CatalogRef.fromJson(_map(d)),
+      ],
+    );
+  }
+}
+
+class LecturerTeamsMeResponse {
+  const LecturerTeamsMeResponse({
+    this.maxTeams,
+    this.instructing = const [],
+    this.mentoring = const [],
+  });
+
+  final int? maxTeams;
+  final List<AdvisedTeamItem> instructing;
+  final List<AdvisedTeamItem> mentoring;
+
+  factory LecturerTeamsMeResponse.fromJson(Map<String, dynamic> j) {
+    return LecturerTeamsMeResponse(
+      maxTeams: j['maxTeams'] as int?,
+      instructing: [
+        for (final item in j['instructing'] ?? const [])
+          AdvisedTeamItem.fromJson(_map(item)),
+      ],
+      mentoring: [
+        for (final item in j['mentoring'] ?? const [])
+          AdvisedTeamItem.fromJson(_map(item)),
+      ],
     );
   }
 }
@@ -128,7 +248,6 @@ class LecturerSemesterStats {
     this.meetingsTodayCount = 0,
     this.missingCheckpointsCount = 0,
     this.hasPostedWeeklySchedule = true,
-    this.assignedTeams = const [],
   });
 
   final int needsReplyCount;
@@ -136,37 +255,4 @@ class LecturerSemesterStats {
   final int meetingsTodayCount;
   final int missingCheckpointsCount;
   final bool hasPostedWeeklySchedule;
-  final List<LecturerAssignedTeam> assignedTeams;
-}
-
-class LecturerAssignedTeam {
-  const LecturerAssignedTeam({
-    required this.id,
-    required this.name,
-    required this.courseCode,
-    this.projectName,
-    required this.memberCount,
-    this.latestCheckpoint,
-    this.workspaceId,
-  });
-
-  final String id;
-  final String name;
-  final String courseCode;
-  final String? projectName;
-  final int memberCount;
-  final String? latestCheckpoint;
-  final String? workspaceId;
-
-  factory LecturerAssignedTeam.fromJson(Map<String, dynamic> j) {
-    return LecturerAssignedTeam(
-      id: j['id'] as String,
-      name: j['name'] as String? ?? '',
-      courseCode: j['courseCode'] as String? ?? 'EXE101',
-      projectName: j['projectName'] as String?,
-      memberCount: j['memberCount'] as int? ?? 0,
-      latestCheckpoint: j['latestCheckpoint'] as String?,
-      workspaceId: j['workspaceId'] as String?,
-    );
-  }
 }
