@@ -43,7 +43,8 @@ class TeamRequirementBar extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: AppSpacing.s2),
-            Text('$memberCount/$maxMembers thành viên', style: theme.textTheme.bodyMedium),
+            // Flexible: chữ 130% trong thẻ hẹp (S01, S05, S08, S12) xuống dòng thay vì tràn (flutter-handoff §5).
+            Flexible(child: Text('$memberCount/$maxMembers thành viên', style: theme.textTheme.bodyMedium)),
           ],
         ),
       ),
@@ -82,7 +83,7 @@ class _Check extends StatelessWidget {
             children: [
               Icon(ok ? Icons.check_circle : Icons.error, size: 20, color: ok ? colors.success : colors.warning),
               const SizedBox(width: AppSpacing.s2),
-              Text(label, style: Theme.of(context).textTheme.bodyMedium),
+              Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
             ],
           ),
         ),
