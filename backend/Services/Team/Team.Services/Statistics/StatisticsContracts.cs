@@ -41,6 +41,17 @@ public sealed record DeadlineReminderTargetsQuery
 
 public sealed record DeadlineReminderTargets(IReadOnlyList<Guid> StudentIdsWithoutTeam, IReadOnlyList<Guid> TeamIdsUnderMinSize);
 
+/// <summary>Body của <c>POST /api/unmatched-students/remind</c> (W20); không có môn = nhắc cả hai môn.</summary>
+public sealed record RemindUnmatchedRequest(string? CourseCode);
+
+public static class StatisticsEventTypes
+{
+    public const string UnmatchedStudentsReminded = "UnmatchedStudentsReminded";
+}
+
+/// <summary>exe.team, key = semesterId – Notification báo trong app và gửi email cho từng sinh viên.</summary>
+public sealed record UnmatchedStudentsReminded(Guid SemesterId, string CourseCode, IReadOnlyList<Guid> StudentIds, Guid? RemindedByAccountId);
+
 public sealed class StatisticsQueryValidator : AbstractValidator<StatisticsQuery>
 {
     public StatisticsQueryValidator() =>
@@ -56,6 +67,12 @@ public sealed class UnmatchedStudentsQueryValidator : AbstractValidator<Unmatche
         RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
     }
+}
+
+public sealed class RemindUnmatchedRequestValidator : AbstractValidator<RemindUnmatchedRequest>
+{
+    public RemindUnmatchedRequestValidator() =>
+        RuleFor(x => x.CourseCode).Must(c => c is null || CourseCodes.IsValid(c)).WithMessage(CourseCodes.Message);
 }
 
 public sealed class DeadlineReminderTargetsQueryValidator : AbstractValidator<DeadlineReminderTargetsQuery>

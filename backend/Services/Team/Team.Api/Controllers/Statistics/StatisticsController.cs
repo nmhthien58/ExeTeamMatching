@@ -6,7 +6,7 @@ using Team.Services.Teams;
 
 namespace Team.Api.Controllers.Statistics;
 
-/// <summary>Dashboard W02 và sinh viên chưa có nhóm W20 (BE-50) – team.yaml tag Admin.</summary>
+/// <summary>Dashboard W02, sinh viên chưa có nhóm và nhắc W20 (BE-50) – team.yaml tag Admin.</summary>
 [ApiController]
 [Authorize(Policy = Policies.Admin)]
 [Route("api")]
@@ -19,6 +19,14 @@ public sealed class StatisticsController(IStatisticsService statistics) : Contro
     [HttpGet("unmatched-students")]
     public async Task<ActionResult<PagedResponse<StudentRef>>> Unmatched([FromQuery] UnmatchedStudentsQuery query, CancellationToken ct) =>
         Ok(await statistics.ListUnmatchedAsync(query, ct));
+
+    /// <summary>Phát UnmatchedStudentsReminded; Notification gửi thông báo và email cho từng sinh viên.</summary>
+    [HttpPost("unmatched-students/remind")]
+    public async Task<IActionResult> RemindUnmatched(RemindUnmatchedRequest request, CancellationToken ct)
+    {
+        await statistics.RemindUnmatchedAsync(request, User, ct);
+        return Accepted();
+    }
 }
 
 /// <summary>Endpoint nội bộ cho Job Service (token dịch vụ, không qua Gateway).</summary>

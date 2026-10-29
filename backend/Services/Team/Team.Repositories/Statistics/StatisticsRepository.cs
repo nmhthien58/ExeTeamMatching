@@ -1,3 +1,5 @@
+using BuildingBlocks.Messaging;
+using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.ChangeRequests;
 using Team.Repositories.Context;
@@ -18,6 +20,11 @@ public interface IStatisticsRepository
 
     /// <summary>Nhóm đang lập (Nháp / Hoạt động) dưới <paramref name="minSize"/> người – nhắc hạn (DeadlineReminderJob).</summary>
     Task<List<Guid>> ListTeamsUnderSizeAsync(Guid semesterId, string courseCode, int minSize, CancellationToken ct);
+
+    /// <summary>Ghi sự kiện exe.team của học kỳ vào outbox (key = semesterId).</summary>
+    void AddSemesterEvent<TPayload>(string eventType, Guid semesterId, TPayload payload);
+
+    Task SaveChangesAsync(CancellationToken ct);
 }
 
 public sealed class StatisticsRepository(TeamDbContext db) : IStatisticsRepository
@@ -46,4 +53,9 @@ public sealed class StatisticsRepository(TeamDbContext db) : IStatisticsReposito
             .OrderBy(t => t.Name)
             .Select(t => t.Id)
             .ToListAsync(ct);
+
+    public void AddSemesterEvent<TPayload>(string eventType, Guid semesterId, TPayload payload) =>
+        db.AddOutboxMessage(Topics.Team, eventType, "Semester", semesterId, payload);
+
+    public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

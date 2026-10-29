@@ -1,4 +1,7 @@
+using System.Security.Claims;
+using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
+using Team.Repositories.AuditLog;
 using Team.Repositories.Statistics;
 using Team.Services.Academic;
 using Team.Services.AutoAssign;
@@ -16,10 +19,14 @@ public interface IStatisticsService
 
     /// <summary>DeadlineReminderJob – sinh viên chưa có nhóm và nhóm đang lập dưới 4 người.</summary>
     Task<DeadlineReminderTargets> GetDeadlineReminderTargetsAsync(DeadlineReminderTargetsQuery query, CancellationToken ct);
+
+    /// <summary>W20 – Admin nhắc sinh viên chưa có nhóm của học kỳ hiện hành; trả số sinh viên được nhắc.</summary>
+    Task<int> RemindUnmatchedAsync(RemindUnmatchedRequest request, ClaimsPrincipal user, CancellationToken ct);
 }
 
 /// <summary>Module Statistics của Team Service (BE-50).</summary>
-public sealed class StatisticsService(IStatisticsRepository repository, IAcademicClient academic, UnassignedStudents unassigned, TeamReader reader)
+public sealed class StatisticsService(
+    IStatisticsRepository repository, IAcademicClient academic, UnassignedStudents unassigned, TeamReader reader, AuditLogWriter audit)
     : IStatisticsService
 {
     public async Task<StatisticsOverviewResponse> GetOverviewAsync(StatisticsQuery query, CancellationToken ct)
@@ -67,6 +74,27 @@ public sealed class StatisticsService(IStatisticsRepository repository, IAcademi
             teams.AddRange(await repository.ListTeamsUnderSizeAsync(query.SemesterId, course, TeamRules.MinSize, ct));
         }
         return new DeadlineReminderTargets(await UnassignedAsync(query.SemesterId, query.CourseCode, ct), teams);
+    }
+
+    public async Task<int> RemindUnmatchedAsync(RemindUnmatchedRequest request, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var semesterId = await CurrentSemesterIdAsync(ct);
+        var actor = user.ToAuditActor();
+        var reminded = 0;
+        foreach (var course in Courses(request.CourseCode))
+        {
+            var studentIds = await unassigned.ListAsync(semesterId, course, ct);
+            if (studentIds.Count == 0)
+            {
+                continue;
+            }
+            repository.AddSemesterEvent(StatisticsEventTypes.UnmatchedStudentsReminded, semesterId,
+                new UnmatchedStudentsReminded(semesterId, course, studentIds, user.GetUserId()));
+            audit.Add(null, "Semester", semesterId, "UNMATCHED_REMINDED", actor, newValues: new { courseCode = course, studentCount = studentIds.Count });
+            reminded += studentIds.Count;
+        }
+        await repository.SaveChangesAsync(ct);
+        return reminded;
     }
 
     private async Task<List<Guid>> UnassignedAsync(Guid semesterId, string? courseCode, CancellationToken ct)
