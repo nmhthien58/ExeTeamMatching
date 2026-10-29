@@ -119,6 +119,9 @@ public sealed class FakeAcademic : IAcademicClient
 
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => Task.FromResult<SemesterDto?>(Semester);
 
+    public Task<IReadOnlyList<SemesterDto>> ListSemestersAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SemesterDto>>([Semester]);
+
     public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
         Task.FromResult(OpenCourses.Contains(courseCode) && roundType == RoundTypes.TeamFormation
             ? new RoundDto(Guid.NewGuid(), Semester.Id, courseCode, roundType, DateTimeOffset.UtcNow.AddDays(7), "OPEN")
