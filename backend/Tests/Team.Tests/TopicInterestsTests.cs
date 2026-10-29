@@ -176,6 +176,7 @@ public sealed class TopicInterestsTests
         public SemesterDto Semester { get; set; } = new(Guid.NewGuid(), "SP26", "Spring 2026");
         public HashSet<string> OpenCourses { get; } = ["EXE101", "EXE201"];
         public Dictionary<Guid, LecturerSnapshot> Lecturers { get; } = [];
+        public Dictionary<Guid, MentorSnapshot> Mentors { get; } = [];
 
         public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => Task.FromResult<SemesterDto?>(Semester);
 
@@ -189,6 +190,9 @@ public sealed class TopicInterestsTests
 
         public Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) =>
             Task.FromResult(Lecturers.GetValueOrDefault(lecturerId));
+
+        public Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct) =>
+            Task.FromResult(Mentors.GetValueOrDefault(mentorId));
 
         public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<StudentSnapshot>>([]);
@@ -516,6 +520,25 @@ public sealed class TopicInterestsTests
     }
 
     [Fact]
+    public async Task OpenInterest_Fails_When_SemesterConfigMissing_ForMentor()
+    {
+        var (service, _, teamRepo, academic) = CreateService();
+        academic.OpenCourses.Clear(); // Đợt lập nhóm đã đóng
+        academic.Semester = new SemesterDto(Guid.NewGuid(), "SP26", "Spring 2026", null, null); // Thiếu StartDate và MentoringStartWeek
+
+        var mentorId = Guid.NewGuid();
+        var mentorUser = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE101", Name = "Nhóm A", Status = "ACTIVE" };
+        teamRepo.Teams.Add(team);
+
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.OpenInterestAsync(team.Id, new OpenTopicInterestInput("MENTOR"), mentorUser, CancellationToken.None));
+        Assert.Equal("interest-closed", ex.Code);
+        Assert.Contains("chưa cấu hình ngày bắt đầu", ex.Message);
+    }
+
+    [Fact]
     public async Task OpenInterest_Succeeds_When_FormationRoundClosed_And_BeforeMentoringWeek_ForMentor()
     {
         var (service, interestRepo, teamRepo, academic) = CreateService();
@@ -554,6 +577,34 @@ public sealed class TopicInterestsTests
         teamRepo.Teams.Add(team);
 
         for (var i = 0; i < 7; i++)
+        {
+            interestRepo.Interests.Add(new TopicInterest
+            {
+                Id = Guid.NewGuid(), TeamId = Guid.NewGuid(), AdvisorKind = "MENTOR", AdvisorId = mentorId, Status = "OPEN"
+            });
+        }
+
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.OpenInterestAsync(team.Id, new OpenTopicInterestInput("MENTOR"), mentorUser, CancellationToken.None));
+        Assert.Equal("interest-limit", ex.Code);
+    }
+
+    [Fact]
+    public async Task OpenInterest_Uses_Mentor_MaxTeams_From_AcademicSnapshot_When_Available()
+    {
+        var (service, interestRepo, teamRepo, academic) = CreateService();
+        academic.OpenCourses.Clear();
+        academic.Semester = new SemesterDto(Guid.NewGuid(), "SP26", "Spring 2026", DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), 6);
+
+        var mentorId = Guid.NewGuid();
+        var mentorUser = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+        // Mentor có MaxTeams = 2 -> Giới hạn quan tâm = 2 + 2 = 4
+        academic.Mentors[mentorId] = new MentorSnapshot(mentorId, "Mentor X", "mentorx@fpt.edu.vn", [], 2, null, true);
+
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE101", Name = "Nhóm A", Status = "ACTIVE" };
+        teamRepo.Teams.Add(team);
+
+        for (var i = 0; i < 4; i++)
         {
             interestRepo.Interests.Add(new TopicInterest
             {

@@ -32,6 +32,9 @@ public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive
 /// <summary>Snapshot giảng viên từ Academic (academic.yaml).</summary>
 public sealed record LecturerSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int? MaxTeamsExe101, int? MaxTeamsExe201, bool IsActive);
 
+/// <summary>Snapshot mentor từ Academic (BE-66 của Nam); null nếu chưa có hoặc 404.</summary>
+public sealed record MentorSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int MaxTeams, int? PreferredTeams, bool IsActive);
+
 public interface IAcademicClient
 {
     /// <summary>Học kỳ hiện hành; null nếu chưa có (404).</summary>
@@ -58,6 +61,9 @@ public interface IAcademicClient
 
     /// <summary>Snapshot giảng viên từ Academic; null nếu chưa có hoặc 404.</summary>
     Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) => Task.FromResult<LecturerSnapshot?>(null);
+
+    /// <summary>Snapshot mentor từ Academic (BE-66 của Nam); null nếu chưa có hoặc 404.</summary>
+    Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct) => Task.FromResult<MentorSnapshot?>(null);
 
     /// <summary>Đổi danh sách MSSV sang snapshot (import mốc EXE101).</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct);
@@ -100,6 +106,18 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
         try
         {
             return await GetOrNullAsync<LecturerSnapshot>($"/internal/lecturers/{lecturerId}", ct);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct)
+    {
+        try
+        {
+            return await GetOrNullAsync<MentorSnapshot>($"/internal/mentors/{mentorId}", ct);
         }
         catch (HttpRequestException)
         {

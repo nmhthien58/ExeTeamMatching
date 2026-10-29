@@ -188,8 +188,29 @@ public sealed class TopicInterestService(
         var (interestOpen, _) = await ResolvePhaseAsync(advisorKind, graph.Team.CourseCode, semester, ct);
         if (!interestOpen)
         {
-            throw new ConflictException("interest-closed", "Hết thời gian bày tỏ quan tâm",
-                $"Giai đoạn bày tỏ quan tâm của {(advisorKind == AdvisorKinds.Lecturer ? "giảng viên" : "mentor")} đã kết thúc hoặc chưa bắt đầu.");
+            var round = await academic.GetOpenRoundAsync(graph.Team.CourseCode, RoundTypes.TeamFormation, ct);
+            var isFormationOpen = round is not null && (semester is null || round.SemesterId == semester.Id);
+            string detail = $"Giai đoạn bày tỏ quan tâm của {(advisorKind == AdvisorKinds.Lecturer ? "giảng viên" : "mentor")} đã kết thúc hoặc chưa bắt đầu.";
+            if (advisorKind == AdvisorKinds.Mentor)
+            {
+                if (isFormationOpen)
+                {
+                    detail = "Đợt lập nhóm còn mở, mentor chỉ được mở quan tâm đề tài sau khi đợt lập nhóm đã chốt.";
+                }
+                else if (semester?.StartDate is { } startDate && semester.MentoringStartWeek is { } startWeek)
+                {
+                    var mentoringStartsAt = new DateTimeOffset(startDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays((startWeek - 1) * 7);
+                    if (clock.GetUtcNow() >= mentoringStartsAt)
+                    {
+                        detail = $"Đã qua tuần bắt đầu hướng dẫn của mentor (tuần {startWeek}).";
+                    }
+                }
+                else
+                {
+                    detail = "Học kỳ chưa cấu hình ngày bắt đầu hoặc tuần bắt đầu hướng dẫn của mentor.";
+                }
+            }
+            throw new ConflictException("interest-closed", "Hết thời gian bày tỏ quan tâm", detail);
         }
 
         var (limit, _) = await CalculateLimitAsync(advisorKind, advisorId, graph.Team.CourseCode, ct);
@@ -402,8 +423,8 @@ public sealed class TopicInterestService(
             var mentoringStartsAt = new DateTimeOffset(startDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays((startWeek - 1) * 7);
             return (clock.GetUtcNow() < mentoringStartsAt, mentoringStartsAt);
         }
-        var isMentorOpen = true;
-        return (isMentorOpen, null);
+        // Khi thiếu dữ liệu cấu hình học kỳ (StartDate hoặc MentoringStartWeek), không mặc định mở mà đóng cổng quan tâm của mentor để tránh nhận quan tâm ngoài kỳ.
+        return (false, null);
     }
 
     private async Task<(int Limit, int? RemainingCapacity)> CalculateLimitAsync(
@@ -430,9 +451,11 @@ public sealed class TopicInterestService(
         else
         {
             // Rule 19: Giới hạn quan tâm mentor = sức chứa tối đa + 2.
-            // Phụ thuộc BE-66 (Nam): Academic Service chưa có API GetMentorAsync để lấy MaxTeams. Tạm dùng DefaultMentorMax = 5.
-            var remaining = Math.Max(0, DefaultMentorMax - currentAssigned);
-            return (DefaultMentorMax + ExtraSlots, remaining);
+            // Tích hợp IAcademicClient.GetMentorAsync (BE-66 của Nam). Khi Academic chưa có endpoint (404), fallback DefaultMentorMax = 5.
+            var snapshot = await academic.GetMentorAsync(advisorId, ct);
+            var maxTeams = snapshot?.PreferredTeams ?? snapshot?.MaxTeams ?? DefaultMentorMax;
+            var remaining = Math.Max(0, maxTeams - currentAssigned);
+            return (remaining + ExtraSlots, remaining);
         }
     }
 
@@ -441,6 +464,14 @@ public sealed class TopicInterestService(
         if (advisorKind == AdvisorKinds.Lecturer)
         {
             var snapshot = await academic.GetLecturerAsync(advisorId, ct);
+            if (snapshot?.Domains is { } domains)
+            {
+                return domains.Select(d => d.Id).ToHashSet();
+            }
+        }
+        else if (advisorKind == AdvisorKinds.Mentor)
+        {
+            var snapshot = await academic.GetMentorAsync(advisorId, ct);
             if (snapshot?.Domains is { } domains)
             {
                 return domains.Select(d => d.Id).ToHashSet();
