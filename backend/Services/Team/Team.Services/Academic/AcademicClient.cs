@@ -13,7 +13,12 @@ public static class RoundTypes
 }
 
 /// <summary>Schema <c>Semester</c> (phần Team cần).</summary>
-public sealed record SemesterDto(Guid Id, string Code, string Name);
+public sealed record SemesterDto(
+    Guid Id,
+    string Code,
+    string Name,
+    DateOnly? StartDate = null,
+    int? MentoringStartWeek = null);
 
 /// <summary>Schema <c>Round</c>.</summary>
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, string? Name = null);

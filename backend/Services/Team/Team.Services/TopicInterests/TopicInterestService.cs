@@ -37,7 +37,7 @@ public sealed class TopicInterestService(
         var semester = await academic.GetCurrentSemesterAsync(ct) ?? throw TeamErrors.RoundClosed();
         var targetCourse = courseCode ?? "EXE101";
 
-        var (interestOpen, matchingAt) = await ResolvePhaseAsync(advisorKind, targetCourse, semester.Id, ct);
+        var (interestOpen, matchingAt) = await ResolvePhaseAsync(advisorKind, targetCourse, semester, ct);
         var (limit, remainingCapacity) = await CalculateLimitAsync(advisorKind, advisorId, targetCourse, ct);
         var openCount = await repo.CountOpenByAdvisorAsync(advisorKind, advisorId, ct);
 
@@ -184,7 +184,8 @@ public sealed class TopicInterestService(
                 $"Nhóm đã được ghép {(advisorKind == AdvisorKinds.Lecturer ? "giảng viên hướng dẫn" : "mentor")}.");
         }
 
-        var (interestOpen, _) = await ResolvePhaseAsync(advisorKind, graph.Team.CourseCode, graph.Team.SemesterId, ct);
+        var semester = await academic.GetCurrentSemesterAsync(ct);
+        var (interestOpen, _) = await ResolvePhaseAsync(advisorKind, graph.Team.CourseCode, semester, ct);
         if (!interestOpen)
         {
             throw new ConflictException("interest-closed", "Hết thời gian bày tỏ quan tâm",
@@ -383,11 +384,11 @@ public sealed class TopicInterestService(
     private async Task<(bool Open, DateTimeOffset? MatchingAt)> ResolvePhaseAsync(
         string advisorKind,
         string courseCode,
-        Guid semesterId,
+        SemesterDto? semester,
         CancellationToken ct)
     {
         var round = await academic.GetOpenRoundAsync(courseCode, RoundTypes.TeamFormation, ct);
-        var isFormationOpen = round is not null && round.SemesterId == semesterId;
+        var isFormationOpen = round is not null && (semester is null || round.SemesterId == semester.Id);
 
         if (advisorKind == AdvisorKinds.Lecturer)
         {
@@ -395,7 +396,13 @@ public sealed class TopicInterestService(
         }
 
         // Mentor: Mở từ khi đợt lập nhóm đóng cho đến khi bắt đầu tuần mentor (rule 19)
-        var isMentorOpen = !isFormationOpen;
+        if (isFormationOpen) return (false, round?.DeadlineAt);
+        if (semester?.StartDate is { } startDate && semester.MentoringStartWeek is { } startWeek)
+        {
+            var mentoringStartsAt = new DateTimeOffset(startDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays((startWeek - 1) * 7);
+            return (clock.GetUtcNow() < mentoringStartsAt, mentoringStartsAt);
+        }
+        var isMentorOpen = true;
         return (isMentorOpen, null);
     }
 
@@ -422,6 +429,8 @@ public sealed class TopicInterestService(
         }
         else
         {
+            // Rule 19: Giới hạn quan tâm mentor = sức chứa tối đa + 2.
+            // Phụ thuộc BE-66 (Nam): Academic Service chưa có API GetMentorAsync để lấy MaxTeams. Tạm dùng DefaultMentorMax = 5.
             var remaining = Math.Max(0, DefaultMentorMax - currentAssigned);
             return (DefaultMentorMax + ExtraSlots, remaining);
         }

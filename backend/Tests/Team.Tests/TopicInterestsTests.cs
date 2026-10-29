@@ -173,7 +173,7 @@ public sealed class TopicInterestsTests
 
     private sealed class FakeAcademic : IAcademicClient
     {
-        public SemesterDto Semester { get; } = new(Guid.NewGuid(), "SP26", "Spring 2026");
+        public SemesterDto Semester { get; set; } = new(Guid.NewGuid(), "SP26", "Spring 2026");
         public HashSet<string> OpenCourses { get; } = ["EXE101", "EXE201"];
         public Dictionary<Guid, LecturerSnapshot> Lecturers { get; } = [];
 
@@ -479,5 +479,90 @@ public sealed class TopicInterestsTests
 
         Assert.Equal(team3.Id, response.Items[2].Team.Id);
         Assert.Empty(response.Items[2].MatchedDomains);
+    }
+
+    [Fact]
+    public async Task OpenInterest_Fails_When_FormationRoundStillOpen_ForMentor()
+    {
+        var (service, _, teamRepo, academic) = CreateService();
+        academic.OpenCourses.Add("EXE101");
+        var mentorId = Guid.NewGuid();
+        var mentorUser = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE101", Name = "Nhóm A", Status = "ACTIVE" };
+        teamRepo.Teams.Add(team);
+
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.OpenInterestAsync(team.Id, new OpenTopicInterestInput("MENTOR"), mentorUser, CancellationToken.None));
+        Assert.Equal("interest-closed", ex.Code);
+    }
+
+    [Fact]
+    public async Task OpenInterest_Fails_When_MentoringWeekStarted_ForMentor()
+    {
+        var (service, _, teamRepo, academic) = CreateService();
+        academic.OpenCourses.Clear();
+        academic.Semester = new SemesterDto(Guid.NewGuid(), "SP26", "Spring 2026", DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-50)), 6);
+
+        var mentorId = Guid.NewGuid();
+        var mentorUser = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE101", Name = "Nhóm A", Status = "ACTIVE" };
+        teamRepo.Teams.Add(team);
+
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.OpenInterestAsync(team.Id, new OpenTopicInterestInput("MENTOR"), mentorUser, CancellationToken.None));
+        Assert.Equal("interest-closed", ex.Code);
+    }
+
+    [Fact]
+    public async Task OpenInterest_Succeeds_When_FormationRoundClosed_And_BeforeMentoringWeek_ForMentor()
+    {
+        var (service, interestRepo, teamRepo, academic) = CreateService();
+        academic.OpenCourses.Clear();
+        academic.Semester = new SemesterDto(Guid.NewGuid(), "SP26", "Spring 2026", DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), 6);
+
+        var mentorId = Guid.NewGuid();
+        var mentorUser = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE101", Name = "Nhóm A", Status = "ACTIVE" };
+        teamRepo.Teams.Add(team);
+
+        var response = await service.OpenInterestAsync(team.Id, new OpenTopicInterestInput("MENTOR"), mentorUser, CancellationToken.None);
+
+        Assert.Equal("OPEN", response.Status);
+        Assert.Equal("MENTOR", response.AdvisorKind);
+        Assert.Equal(mentorId, response.AdvisorId);
+
+        var outbox = Assert.Single(interestRepo.OutboxMessages);
+        Assert.Equal("TopicInterestOpened", outbox.EventType);
+        using var doc = JsonDocument.Parse(outbox.Payload);
+        Assert.Equal("MENTOR", doc.RootElement.GetProperty("advisorKind").GetString());
+    }
+
+    [Fact]
+    public async Task OpenInterest_Fails_When_LimitReached_ForMentor()
+    {
+        var (service, interestRepo, teamRepo, academic) = CreateService();
+        academic.OpenCourses.Clear();
+        academic.Semester = new SemesterDto(Guid.NewGuid(), "SP26", "Spring 2026", DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)), 6);
+
+        var mentorId = Guid.NewGuid();
+        var mentorUser = UserWith(mentorId: mentorId, roles: Roles.Mentor);
+
+        var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE101", Name = "Nhóm A", Status = "ACTIVE" };
+        teamRepo.Teams.Add(team);
+
+        for (var i = 0; i < 7; i++)
+        {
+            interestRepo.Interests.Add(new TopicInterest
+            {
+                Id = Guid.NewGuid(), TeamId = Guid.NewGuid(), AdvisorKind = "MENTOR", AdvisorId = mentorId, Status = "OPEN"
+            });
+        }
+
+        var ex = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.OpenInterestAsync(team.Id, new OpenTopicInterestInput("MENTOR"), mentorUser, CancellationToken.None));
+        Assert.Equal("interest-limit", ex.Code);
     }
 }
