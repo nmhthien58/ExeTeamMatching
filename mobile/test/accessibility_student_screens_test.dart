@@ -58,7 +58,6 @@ void main() {
       MyRequest(id: 'i1', team: card, status: 'PENDING', expiresAt: DateTime.now().add(const Duration(hours: 30)), message: 'Nhóm đang cần bạn làm thiết kế'),
     ])),
     myTeamApiProvider.overrideWithValue(_FakeMyTeam(team)),
-    myTeamDetailProvider.overrideWith((ref) async => null),
     teamsForMeProvider.overrideWith((ref) async => const []),
     notificationsApiProvider.overrideWithValue(_FakeNotifications([
       AppNotification(id: 'n1', type: 'INVITATION_SENT', title: 'Bạn có lời mời vào nhóm', content: 'Nhóm Bình Minh Sáng Tạo mời bạn tham gia.',
@@ -69,16 +68,18 @@ void main() {
     ])),
   ];
 
-  final screens = <String, Widget>{
-    'S01': const Scaffold(body: HomeScreen()),
-    'S05': const Scaffold(body: DiscoverScreen()),
-    'S07': const SuggestedTeamsScreen(),
-    'S08': const TeamDetailScreen(teamId: 't1'),
-    'S12': const InvitationsScreen(),
-    'S15': const Scaffold(body: MyTeamScreen()),
-    'S17': const MembersScreen(),
-    'S30': const RoundClosedScreen(),
-    'A06': const NotificationsScreen(roleRoot: '/sv'),
+  // Nhóm của tôi (myTeamDetailProvider) theo từng màn: S15, S17 là trưởng nhóm để kiểm tổng quan, danh sách thành viên
+  // và nút của trưởng nhóm; các màn còn lại xem như sinh viên chưa có nhóm (S08 hiện nút xin vào nhóm).
+  final screens = <String, (Widget, MyTeam?)>{
+    'S01': (const Scaffold(body: HomeScreen()), null),
+    'S05': (const Scaffold(body: DiscoverScreen()), null),
+    'S07': (const SuggestedTeamsScreen(), null),
+    'S08': (const TeamDetailScreen(teamId: 't1'), null),
+    'S12': (const InvitationsScreen(), null),
+    'S15': (const Scaffold(body: MyTeamScreen()), team),
+    'S17': (const MembersScreen(), team),
+    'S30': (const RoundClosedScreen(), null),
+    'A06': (const NotificationsScreen(roleRoot: '/sv'), null),
   };
 
   for (final size in const [Size(360, 800), Size(412, 915)]) {
@@ -87,31 +88,38 @@ void main() {
         tester.view.physicalSize = size * 3;
         tester.view.devicePixelRatio = 3;
         addTearDown(tester.view.reset);
-        final semantics = tester.ensureSemantics();
 
         // Màn mở như màn cấp 2 để nút Back / pop có chỗ quay về như trong app.
+        final (screen, myTeam) = entry.value;
         final router = GoRouter(initialLocation: '/sv/man', routes: [
-          GoRoute(path: '/sv', builder: (_, _) => const Text('S01'), routes: [GoRoute(path: 'man', builder: (_, _) => entry.value)]),
+          GoRoute(path: '/sv', builder: (_, _) => const Text('S01'), routes: [GoRoute(path: 'man', builder: (_, _) => screen)]),
         ]);
-        await tester.pumpWidget(ProviderScope(
-          overrides: overrides,
-          child: MaterialApp.router(
-            theme: AppTheme.light(),
-            routerConfig: router,
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.3)),
-              child: child!,
+        // Không dùng addTearDown: flutter_test kiểm SemanticsHandle trước khi chạy tear-down.
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(ProviderScope(
+            overrides: [...overrides, myTeamDetailProvider.overrideWith((ref) async => myTeam)],
+            child: MaterialApp.router(
+              theme: AppTheme.light(),
+              routerConfig: router,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.3)),
+                child: child!,
+              ),
             ),
-          ),
-        ));
-        await tester.pumpAndSettle();
+          ));
+          await tester.pumpAndSettle();
+          // Màn có nhóm phải dựng nội dung nhóm thật, không rơi về trạng thái "Bạn chưa có nhóm".
+          if (myTeam != null) expect(find.text('Bạn chưa có nhóm'), findsNothing);
 
-        // Không tràn bố cục (RenderFlex overflow sẽ là exception).
-        expect(tester.takeException(), isNull);
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(textContrastGuideline));
-        semantics.dispose();
+          // Không tràn bố cục (RenderFlex overflow sẽ là exception).
+          expect(tester.takeException(), isNull);
+          await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+          await expectLater(tester, meetsGuideline(textContrastGuideline));
+        } finally {
+          semantics.dispose();
+        }
       });
     }
   }
