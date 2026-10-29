@@ -44,6 +44,9 @@ public interface IAcademicClient
     /// <summary>Snapshot giảng viên từ Academic; null nếu chưa có hoặc 404.</summary>
     Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) => Task.FromResult<LecturerSnapshot?>(null);
 
+    /// <summary>Đổi danh sách MSSV sang snapshot (import mốc EXE101).</summary>
+    Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct);
+
     /// <summary>Danh mục domain D01–D18 (cache 10 phút).</summary>
     Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct);
 
@@ -81,6 +84,13 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
         {
             return null;
         }
+    }
+
+    public async Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct)
+    {
+        using var response = await http.PostAsJsonAsync("/internal/students/by-code", new { semesterId, studentCodes }, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<StudentSnapshot>>(ct) ?? [];
     }
 
     public Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct) => GetCatalogAsync("/api/domains", ct);

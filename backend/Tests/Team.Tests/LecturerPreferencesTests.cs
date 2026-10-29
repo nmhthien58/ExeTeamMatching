@@ -178,6 +178,9 @@ public sealed class LecturerPreferencesTests
         public Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) =>
             Task.FromResult(Lecturers.GetValueOrDefault(lecturerId));
 
+        public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<StudentSnapshot>>([]);
+
         public Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<CatalogItem>>([
                 new CatalogItem(1, "D01", "Fintech", true),
