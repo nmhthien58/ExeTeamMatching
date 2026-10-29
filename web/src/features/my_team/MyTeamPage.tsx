@@ -8,6 +8,7 @@ import { useMyTeam } from '@/features/suggestions/api'
 import { DomainChips, TeamRequirementBar } from '@/features/suggestions/components'
 import { teamStatusLabel, type FullTeam } from './api'
 import { linkClass, ListSkeleton } from './components'
+import { ProjectCard } from './ProjectCard'
 
 /**
  * S15 – Nhóm của tôi (FE-37, cùng spec MB-20): tên + trạng thái, điều kiện nhóm, cố vấn, thay đổi chờ duyệt (EXE201 kế thừa),
@@ -72,7 +73,7 @@ function Overview({ team }: { team: FullTeam }) {
               {status.text}
             </StatusChip>
           </div>
-          {team.projectName && <p className="mt-1 text-title">{team.projectName}</p>}
+          <ProjectCard team={team} />
           {team.ideaDescription && <p className="mt-2 text-text-secondary">{team.ideaDescription}</p>}
           <div className="mt-3">
             <DomainChips domains={team.domains} />

@@ -207,6 +207,27 @@ describe('student team screens (FE-37)', () => {
     expect(screen.getByText(/^Sinh viên · /)).toBeInTheDocument()
   })
 
+  it('S15 shows the inherited project card and its timeline, newest first', async () => {
+    routes = {
+      '/api/teams/me': { ...team('MEMBER'), courseCode: 'EXE201', projectName: 'EduSpark AI' },
+      '/api/teams/t1/project': {
+        id: 'p1', name: 'EduSpark AI', originCourseCode: 'EXE101', originSemesterCode: 'SP26',
+        versions: [
+          { version: 2, name: 'EduSpark AI', changeType: 'PIVOT', reason: 'Thị trường nhỏ', semesterCode: 'SU26', courseCode: 'EXE201', createdAt: '2026-06-10T03:00:00Z' },
+          { version: 1, name: 'EduSpark', changeType: 'CREATED', semesterCode: 'SP26', courseCode: 'EXE101', createdAt: '2026-01-10T03:00:00Z' },
+        ],
+      },
+    }
+    renderAt('/sv/nhom')
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('Tiếp tục từ EXE101 · SP26')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lịch sử' }))
+    const items = within(screen.getByRole('list', { name: 'Dòng thời gian đề tài' })).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Đổi đề tài: EduSpark → EduSpark AI · Thị trường nhỏ')
+    expect(items[1]).toHaveTextContent('Tạo đề tài: EduSpark')
+  })
+
   it('S12 accepts an invitation after confirming and opens the team', async () => {
     const expiresAt = new Date(Date.now() + 30 * 3600_000).toISOString()
     routes = {

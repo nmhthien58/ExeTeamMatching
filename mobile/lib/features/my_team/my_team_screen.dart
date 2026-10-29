@@ -6,9 +6,9 @@ import '../../core/phase.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
-import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../workspace/workspace_widgets.dart';
 import 'my_team_api.dart';
+import 'project_card.dart';
 
 /// Nhãn và màu chip trạng thái nhóm (quy tắc 15) – luôn có chữ, không chỉ màu.
 (String, StatusTone, IconData) teamStatusChip(String status) => switch (status) {
@@ -28,7 +28,10 @@ class MyTeamScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final team = ref.watch(myTeamDetailProvider);
     return RefreshIndicator(
-      onRefresh: () async => refreshMyTeam(ref),
+      onRefresh: () async {
+        refreshMyTeam(ref);
+        ref.invalidate(teamProjectProvider);
+      },
       child: team.when(
         loading: () => const SkeletonList(),
         error: (e, _) => ErrorState(error: e, onRetry: () => refreshMyTeam(ref)),
@@ -88,11 +91,8 @@ class _TeamOverview extends StatelessWidget {
             StatusChip(label: label, tone: tone, icon: icon),
           ],
         ),
-        if (team.projectName != null) ...[
-          const SizedBox(height: AppSpacing.s2),
-          Text(team.projectName!, style: theme.textTheme.titleMedium),
-        ],
-        if (team.domains.isNotEmpty) ...[const SizedBox(height: AppSpacing.s2), DomainChips(domains: team.domains)],
+        const SizedBox(height: AppSpacing.s3),
+        ProjectCard(team: team),
         const SizedBox(height: AppSpacing.s4),
         Card.outlined(
           child: Padding(
