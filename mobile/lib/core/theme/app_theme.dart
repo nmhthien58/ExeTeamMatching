@@ -107,7 +107,11 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        labelStyle: text.labelLarge,
+        // Material 3 lấy màu chữ chip đang chọn từ labelStyle (không dùng secondaryLabelStyle): chữ đậm trên nền cam chỉ đạt
+        // tương phản 3,5:1, nên đổi sang trắng khi chọn (4,6:1).
+        labelStyle: text.labelLarge?.copyWith(
+          color: WidgetStateColor.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : Palette.textPrimary),
+        ),
         shape: const StadiumBorder(),
         side: const BorderSide(color: Palette.border),
         selectedColor: Palette.primary,
