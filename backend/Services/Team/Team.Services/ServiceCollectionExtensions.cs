@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Team.Repositories.Context;
 using Team.Services.Academic;
+using Team.Services.AdvisorAssignments;
 using Team.Services.AuditLog;
 using Team.Services.AutoAssign;
 using Team.Services.BaselineImport;
@@ -27,7 +28,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Khung Team Service (BE-24): DbContext <c>team_db</c>, Kafka + Outbox, client gọi Academic.
-    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport…) tự đăng ký service của mình bên dưới.
+    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments…) tự đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddTeamServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -47,9 +48,10 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<CorrelationIdHandler>()
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
-        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport… (Thành).
+        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport, AdvisorAssignments… (Thành).
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
-            .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule();
+            .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule()
+            .AddAdvisorAssignmentsModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
         return services;
