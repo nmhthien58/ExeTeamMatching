@@ -120,16 +120,19 @@ class _ReceivedState extends ConsumerState<_Received> {
                       if (i.status == 'PENDING') ...[
                         Text(timeLeft(i.expiresAt), style: theme.textTheme.bodyMedium),
                         const SizedBox(height: AppSpacing.s2),
-                        Row(
+                        // OverflowBar: đủ chỗ thì một hàng; 360 dp + chữ 130% thì xếp dọc thay vì tràn (flutter-handoff §5).
+                        OverflowBar(
+                          alignment: MainAxisAlignment.end,
+                          spacing: AppSpacing.s2,
+                          overflowAlignment: OverflowBarAlignment.end,
+                          overflowSpacing: AppSpacing.s1,
                           children: [
                             if (i.team != null)
                               TextButton(onPressed: () => context.push('/sv/kham-pha/nhom/${i.team!.id}'), child: const Text('Xem nhóm')),
-                            const Spacer(),
                             TextButton(
                               onPressed: _busyId == null ? () => _run(i, () => ref.read(invitationsApiProvider).decline(i.id)) : null,
                               child: const Text('Từ chối'),
                             ),
-                            const SizedBox(width: AppSpacing.s2),
                             LoadingButton(label: 'Chấp nhận', expand: false, loading: _busyId == i.id, onPressed: _busyId == null ? () => _accept(i) : null),
                           ],
                         ),
