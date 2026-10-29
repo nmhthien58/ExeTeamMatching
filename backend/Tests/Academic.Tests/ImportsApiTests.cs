@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Academic.Repositories.Catalogs;
 using Academic.Repositories.Students;
+using Academic.Services;
 using Academic.Services.Imports;
 using Academic.Services.Semesters;
 using BuildingBlocks.Auth;
