@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../features/change_requests/change_request_screens.dart';
 import '../features/change_requests/routes.dart';
 import '../features/lecturers/routes.dart';
+import '../features/lecturer/lecturer_home_screen.dart';
 
 import '../features/discover/discover_screen.dart';
 import '../features/discover/seeking_posts_screen.dart';
@@ -48,6 +49,7 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/ho-so': (_) => const ProfileGate(child: MyProfileScreen()),
   '/sv/kham-pha': (_) => const DiscoverScreen(),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
+  '/gv': (_) => const LecturerHomeScreen(),
   '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
   '/mentor/thong-bao': (_) => const NotificationsScreen(roleRoot: '/mentor'),
   // C02 của cố vấn – MB-39 (Cường).
