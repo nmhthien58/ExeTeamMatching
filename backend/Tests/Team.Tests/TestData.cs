@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Team.Repositories.ChangeRequests;
 using Team.Repositories.Invitations;
 using Team.Repositories.JoinRequests;
 using Team.Repositories.Members;
@@ -55,7 +56,10 @@ public static class TestData
         var keys = teamIds.Append(semesterId)
             .Concat(await db.Set<Invitation>().Where(i => teamIds.Contains(i.TeamId)).Select(i => i.Id).ToListAsync())
             .Concat(await db.Set<JoinRequest>().Where(r => teamIds.Contains(r.TeamId)).Select(r => r.Id).ToListAsync())
+            .Concat(await db.Set<ChangeRequest>().Where(r => teamIds.Contains(r.TeamId)).Select(r => r.Id).ToListAsync())
             .ToList();
+        // change_requests chặn xóa nhóm (ON DELETE RESTRICT); mục thay đổi xóa theo cascade.
+        await db.Set<ChangeRequest>().Where(r => teamIds.Contains(r.TeamId)).ExecuteDeleteAsync();
         await db.Set<TeamEntity>().Where(t => teamIds.Contains(t.Id)).ExecuteDeleteAsync();
         return await db.Set<OutboxMessage>().Where(m => keys.Contains(m.AggregateId)).ExecuteDeleteAsync();
     });
