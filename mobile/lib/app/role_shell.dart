@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/phase.dart';
 import '../core/theme/app_tokens.dart';
 import '../shared/widgets/states.dart';
+import '../features/notifications/notification_tab_icon.dart';
 import 'navigation.dart';
 
 /// Shell theo vai trò (MB-05, MB-37): tab bar dưới, mục đổi theo giai đoạn. Màn cấp 1 không có nút Back.
@@ -31,7 +32,11 @@ class RoleShell extends ConsumerWidget {
         onDestinationSelected: (i) => context.go(items[i].path),
         destinations: [
           for (final item in items)
-            NavigationDestination(icon: Icon(item.icon), selectedIcon: Icon(item.selectedIcon), label: item.label),
+            NavigationDestination(
+              icon: item.screen == 'A06' ? NotificationTabIcon(icon: item.icon) : Icon(item.icon),
+              selectedIcon: item.screen == 'A06' ? NotificationTabIcon(icon: item.selectedIcon) : Icon(item.selectedIcon),
+              label: item.label,
+            ),
         ],
       ),
     );
