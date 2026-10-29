@@ -38,6 +38,9 @@ public interface IAcademicClient
     /// <summary>Snapshot MSSV, tên, chuyên ngành; sinh viên không thuộc học kỳ không có trong kết quả hoặc <c>IsEnrolled = false</c>.</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
 
+    /// <summary>Đổi danh sách MSSV sang snapshot (import mốc EXE101).</summary>
+    Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct);
+
     /// <summary>Danh mục domain D01–D18 (cache 10 phút).</summary>
     Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct);
 
@@ -61,6 +64,13 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
     public async Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct)
     {
         using var response = await http.PostAsJsonAsync("/internal/students/lookup", new { semesterId, studentIds }, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<StudentSnapshot>>(ct) ?? [];
+    }
+
+    public async Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct)
+    {
+        using var response = await http.PostAsJsonAsync("/internal/students/by-code", new { semesterId, studentCodes }, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<StudentSnapshot>>(ct) ?? [];
     }
