@@ -70,6 +70,39 @@ public sealed class StatisticsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Academic_roster_feeds_unmatched_list_and_remind_publishes_one_event_per_course()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        Academic.RosterAvailable = true; // Matching giả trả phương án rỗng: chỉ danh sách học kỳ của Academic có sinh viên.
+        await TestData.CreateTeamAsync(_api, "Nhóm Đã Có", extraMembers: 1);
+        var exe101 = new[] { Academic.Enroll(2), Academic.Enroll(3) };
+        var exe201 = Academic.Enroll(4, course: "EXE201");
+
+        var unmatched = (await Admin.GetFromJsonAsync<PagedResponse<StudentRef>>("/api/unmatched-students?courseCode=EXE101"))!;
+        Assert.Equal(exe101.Select(s => s.Id).Order(), unmatched.Items.Select(s => s.Id).Order());
+
+        await TestData.AssertProblemAsync(await _api.ClientFor(exe201.Id).PostAsJsonAsync("/api/unmatched-students/remind", new { courseCode = "EXE101" }), 403, null);
+        // Body tùy chọn (team.yaml): không gửi body = nhắc cả hai môn.
+        var reminded = await Admin.PostAsync("/api/unmatched-students/remind", null);
+        Assert.Equal(HttpStatusCode.Accepted, reminded.StatusCode);
+
+        var events = await _api.QueryDbAsync(db => db.Set<OutboxMessage>()
+            .Where(m => m.AggregateId == Academic.Semester.Id && m.EventType == StatisticsEventTypes.UnmatchedStudentsReminded).ToListAsync());
+        var byCourse = events.Select(e => JsonDocument.Parse(e.Payload).RootElement)
+            .ToDictionary(p => p.GetProperty("courseCode").GetString()!, p => p.GetProperty("studentIds").GetArrayLength());
+        Assert.Equal(new Dictionary<string, int> { ["EXE101"] = 2, ["EXE201"] = 1 }, byCourse);
+
+        // Gửi body chỉ một môn.
+        Assert.Equal(HttpStatusCode.Accepted, (await Admin.PostAsJsonAsync("/api/unmatched-students/remind", new RemindUnmatchedRequest("EXE201"))).StatusCode);
+        Assert.Equal(3, await _api.QueryDbAsync(db => db.Set<OutboxMessage>()
+            .CountAsync(m => m.AggregateId == Academic.Semester.Id && m.EventType == StatisticsEventTypes.UnmatchedStudentsReminded)));
+    }
+
+    [Fact]
     public async Task Deadline_targets_list_students_without_team_and_small_teams()
     {
         if (!Enabled)
