@@ -23,6 +23,7 @@ using Team.Services.Projects;
 using Team.Services.Statistics;
 using Team.Services.Suggestions;
 using Team.Services.Teams;
+using Team.Services.TopicInterests;
 
 namespace Team.Services;
 
@@ -30,7 +31,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Khung Team Service (BE-24): DbContext <c>team_db</c>, Kafka + Outbox, client gọi Academic.
-    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences…) tự đăng ký service của mình bên dưới.
+    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences, TopicInterests…) tự đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddTeamServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -50,10 +51,10 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<CorrelationIdHandler>()
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
-        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences… (Thành).
+        // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences, TopicInterests… (Thành).
         services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
             .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule()
-            .AddAdvisorAssignmentsModule().AddLecturerPreferencesModule();
+            .AddAdvisorAssignmentsModule().AddLecturerPreferencesModule().AddTopicInterestsModule();
         services.AddProjectsModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
