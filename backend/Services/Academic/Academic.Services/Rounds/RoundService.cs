@@ -167,7 +167,7 @@ public sealed class RoundService(IRoundRepository rounds, ISemesterRepository se
         }
     }
 
-    /// <summary>Lưu rồi xóa cache đợt đang mở. Hai Admin tạo đợt chồng nhau cùng lúc thì DB chặn bằng EXCLUDE.</summary>
+    /// <summary>Lưu rồi xóa cache đợt đang mở và nguồn tính giai đoạn môn. Hai Admin tạo đợt chồng nhau cùng lúc thì DB chặn bằng EXCLUDE.</summary>
     private async Task SaveAsync(CancellationToken ct)
     {
         try
@@ -179,6 +179,7 @@ public sealed class RoundService(IRoundRepository rounds, ISemesterRepository se
             throw RoundErrors.Overlap();
         }
         await cache.InvalidateAsync(AcademicCacheKeys.OpenRounds, ct);
+        await cache.InvalidateAsync(AcademicCacheKeys.CurrentPhaseSource, ct);
     }
 }
 

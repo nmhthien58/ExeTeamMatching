@@ -12,6 +12,9 @@ public static class AcademicCacheKeys
     /// <summary>Học kỳ hiện hành (Team gọi trước mỗi thao tác lập nhóm).</summary>
     public const string CurrentSemester = "semesters:current";
 
+    /// <summary>Học kỳ hiện hành kèm mọi đợt của nó, để tính giai đoạn môn (BE-67).</summary>
+    public const string CurrentPhaseSource = "semesters:current:phase-source";
+
     /// <summary>Mọi đợt đang mở (trạng thái OPEN) của mọi môn.</summary>
     public const string OpenRounds = "rounds:open";
 }
