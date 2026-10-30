@@ -7,13 +7,14 @@ namespace Academic.Services.Semesters;
 
 public static class SemestersModule
 {
-    /// <summary>Module Semesters và Rounds (BE-16): học kỳ, đợt đăng ký – W03, W04.</summary>
+    /// <summary>Module Semesters và Rounds (BE-16): học kỳ, đợt đăng ký – W03, W04; giai đoạn môn (BE-67).</summary>
     public static IServiceCollection AddSemestersModule(this IServiceCollection services)
     {
         services.AddScoped<ISemesterRepository, SemesterRepository>();
         services.AddScoped<ISemesterService, SemesterService>();
         services.AddScoped<IRoundRepository, RoundRepository>();
         services.AddScoped<IRoundService, RoundService>();
+        services.AddScoped<ICoursePhaseService, CoursePhaseService>();
         return services;
     }
 }

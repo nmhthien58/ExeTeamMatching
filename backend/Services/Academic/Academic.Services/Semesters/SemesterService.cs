@@ -35,6 +35,7 @@ public sealed class SemesterService(ISemesterRepository semesters, AcademicCache
         semesters.Add(semester);
         await semesters.SaveAsync(semester, ct);
         await cache.InvalidateAsync(AcademicCacheKeys.CurrentSemester, ct);
+        await cache.InvalidateAsync(AcademicCacheKeys.CurrentPhaseSource, ct);
         return SemesterResponse.From(semester);
     }
 
@@ -45,6 +46,7 @@ public sealed class SemesterService(ISemesterRepository semesters, AcademicCache
         Apply(semester, input);
         await semesters.SaveAsync(semester, ct);
         await cache.InvalidateAsync(AcademicCacheKeys.CurrentSemester, ct);
+        await cache.InvalidateAsync(AcademicCacheKeys.CurrentPhaseSource, ct);
         return SemesterResponse.From(semester);
     }
 

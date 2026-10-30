@@ -9,7 +9,7 @@ namespace Academic.Api.Controllers.Semesters;
 [ApiController]
 [Authorize]
 [Route("api/semesters")]
-public sealed class SemestersController(ISemesterService semesters) : ControllerBase
+public sealed class SemestersController(ISemesterService semesters, ICoursePhaseService phases) : ControllerBase
 {
     [HttpGet]
     public Task<IReadOnlyList<SemesterResponse>> List(CancellationToken ct) => semesters.ListAsync(ct);
@@ -17,6 +17,10 @@ public sealed class SemestersController(ISemesterService semesters) : Controller
     /// <summary>Học kỳ hiện hành; 404 khi Bộ môn chưa đặt.</summary>
     [HttpGet("current")]
     public Task<SemesterResponse> Current(CancellationToken ct) => semesters.GetCurrentAsync(ct);
+
+    /// <summary>Giai đoạn của EXE101 và EXE201 (rule 18): client đổi tab Khám phá ↔ Dự án (BE-67).</summary>
+    [HttpGet("current/phase")]
+    public Task<IReadOnlyList<CoursePhaseResponse>> CurrentPhase(CancellationToken ct) => phases.GetCurrentAsync(ct);
 
     [HttpPost]
     [Authorize(Policy = Policies.Admin)]
