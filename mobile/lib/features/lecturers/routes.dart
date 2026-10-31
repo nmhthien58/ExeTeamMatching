@@ -2,8 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import 'lecturer_detail_screen.dart';
 import 'lecturer_preferences_screen.dart';
-
-const lecturerPreferencesPath = '/sv/nhom/giang-vien';
+import 'paths.dart';
 
 final lecturerRoutes = [
   GoRoute(

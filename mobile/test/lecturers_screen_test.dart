@@ -3,12 +3,16 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:exe_team_matching/core/theme/app_theme.dart';
 import 'package:exe_team_matching/features/lecturers/lecturer_detail_screen.dart';
 import 'package:exe_team_matching/features/lecturers/lecturer_preferences_screen.dart';
 import 'package:exe_team_matching/features/lecturers/lecturers_api.dart';
 import 'package:exe_team_matching/features/lecturers/lecturers_models.dart';
+import 'package:exe_team_matching/features/lecturers/routes.dart';
 import 'package:exe_team_matching/features/my_team/my_team_api.dart';
+import 'package:exe_team_matching/features/my_team/my_team_screen.dart';
+import 'package:exe_team_matching/features/my_team/project_card.dart';
 import 'package:exe_team_matching/features/suggestions/suggestions_api.dart'
     show CatalogRef;
 
@@ -210,6 +214,35 @@ Widget createDetailTestWidget({
 }
 
 void main() {
+  testWidgets('S15 opens S23 and lecturer detail S24 through registered routes', (tester) async {
+    final api = FakeLecturersApi(lecturers: [sampleLecturer1]);
+    final router = GoRouter(initialLocation: '/sv/nhom', routes: [
+      GoRoute(path: '/sv/nhom', builder: (_, _) => const Scaffold(body: MyTeamScreen())),
+      ...lecturerRoutes,
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        lecturersApiProvider.overrideWithValue(api),
+        myTeamDetailProvider.overrideWith((ref) async => const MyTeam(
+          id: 'team-1', name: 'Nhóm thử', status: 'ACTIVE', courseCode: 'EXE201',
+          members: [], domains: [], isLeader: true, memberCount: 4, specializationCount: 2,
+        )),
+        teamProjectProvider.overrideWith((ref, id) async => null),
+      ],
+      child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Giảng viên'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nguyện vọng giảng viên'), findsOneWidget);
+    await tester.ensureVisible(find.text(sampleLecturer1.fullName).last);
+    await tester.tap(find.text(sampleLecturer1.fullName).last);
+    await tester.pumpAndSettle();
+    expect(find.byType(LecturerDetailScreen), findsOneWidget);
+    expect(find.text(sampleLecturer1.fullName), findsWidgets);
+  });
+
   group('S23 - LecturerPreferencesScreen', () {
     testWidgets('deserializes real backend JSON structure correctly', (tester) async {
       final realBackendJson = {

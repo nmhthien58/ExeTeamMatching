@@ -7,6 +7,7 @@ import '../../shared/widgets/states.dart';
 import '../my_team/my_team_api.dart' show myTeamDetailProvider;
 import 'lecturers_api.dart';
 import 'lecturers_models.dart';
+import 'paths.dart';
 
 class LecturerPreferencesScreen extends ConsumerStatefulWidget {
   const LecturerPreferencesScreen({super.key});
@@ -415,7 +416,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/lecturers/${pref.lecturerId}'),
+        onTap: () => context.push('$lecturerPreferencesPath/${pref.lecturerId}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Row(
@@ -682,7 +683,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/lecturers/${lecturer.lecturerId}'),
+        onTap: () => context.push('$lecturerPreferencesPath/${lecturer.lecturerId}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Row(
@@ -782,7 +783,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/lecturers/${lecturer.id}'),
+        onTap: () => context.push('$lecturerPreferencesPath/${lecturer.id}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Row(
