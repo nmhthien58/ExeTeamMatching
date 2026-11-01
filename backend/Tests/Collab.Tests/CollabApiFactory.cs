@@ -8,6 +8,7 @@ using BuildingBlocks.Outbox;
 using Collab.Repositories.Context;
 using Collab.Repositories.Workspaces;
 using Collab.Services.Checkpoints;
+using Collab.Services.Meetings;
 using Collab.Services.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -51,6 +52,8 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IObjectStorage>(Storage);
             services.RemoveAll<IAcademicSemesterClient>();
             services.AddSingleton<IAcademicSemesterClient>(AcademicSemesters);
+            services.RemoveAll<IMentorSessionTargetClient>();
+            services.AddSingleton<IMentorSessionTargetClient, FakeMentorSessionTargetClient>();
             foreach (var hosted in services.Where(d => d.ServiceType == typeof(IHostedService)
                          && (d.ImplementationType == typeof(OutboxDispatcher<CollabDbContext>) || d.ImplementationType == typeof(EnsureBucketHostedService))).ToList())
             {
@@ -180,6 +183,12 @@ public sealed class FakeAcademicSemesterClient : IAcademicSemesterClient
 
     public Task<SemesterCheckpointConfig?> GetConfigAsync(Guid semesterId, CancellationToken ct) =>
         Task.FromResult(Configs.GetValueOrDefault(semesterId));
+}
+
+/// <summary>Số buổi mentor mặc định, không gọi Academic.</summary>
+public sealed class FakeMentorSessionTargetClient : IMentorSessionTargetClient
+{
+    public Task<int> GetExpectedSessionsAsync(Guid semesterId, CancellationToken ct) => Task.FromResult(MentorSessionTargetClient.DefaultSessions);
 }
 
 /// <summary>Người dùng test: vai trò JWT, claim id, vai trò trong workspace.</summary>
