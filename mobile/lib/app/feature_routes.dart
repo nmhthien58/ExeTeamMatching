@@ -10,6 +10,7 @@ import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/lecturers/team_lecturer_screen.dart';
 import '../features/messages/channel_screen.dart';
 import '../features/messages/conversations_screen.dart';
 import '../features/notifications/notifications_screen.dart';
@@ -49,6 +50,7 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
 List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.student => [
+          GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
           ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
           ..._studentTeamRoutes,
           ...changeRequestRoutes,
