@@ -10,6 +10,9 @@ public interface IStudentProfileService
 {
     Task<StudentProfileResponse> GetMeAsync(ClaimsPrincipal user, CancellationToken ct);
 
+    /// <summary>Hồ sơ sinh viên bất kỳ (W10, S04). SĐT, email chỉ trả cho Admin và chính sinh viên đó.</summary>
+    Task<StudentProfileResponse> GetAsync(Guid id, ClaimsPrincipal user, CancellationToken ct);
+
     Task<StudentProfileResponse> UpdateMeAsync(StudentProfileInput input, ClaimsPrincipal user, CancellationToken ct);
 }
 
@@ -21,7 +24,17 @@ public interface IStudentProfileService
 public sealed class StudentProfileService(IStudentProfileRepository students, TimeProvider clock) : IStudentProfileService
 {
     public async Task<StudentProfileResponse> GetMeAsync(ClaimsPrincipal user, CancellationToken ct) =>
-        await ToResponseAsync(await FindMeAsync(user, ct), ct);
+        await ToResponseAsync(await FindMeAsync(user, ct), showContact: true, ct);
+
+    /// <remarks>
+    /// Rule 11 cho thêm đồng đội, giảng viên, mentor của nhóm xem liên lạc, nhưng thông tin nhóm thuộc Team Service
+    /// và Team chưa có API này, nên tạm thời chỉ Admin và chính sinh viên đó (xem BE-18).
+    /// </remarks>
+    public async Task<StudentProfileResponse> GetAsync(Guid id, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var student = await students.FindAsync(id, ct) ?? throw new NotFoundException("sinh viên", id);
+        return await ToResponseAsync(student, user.IsInRole(Roles.Admin) || user.GetStudentId() == id, ct);
+    }
 
     public async Task<StudentProfileResponse> UpdateMeAsync(StudentProfileInput input, ClaimsPrincipal user, CancellationToken ct)
     {
@@ -47,7 +60,7 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
         students.AddEvent(StudentProfileEventTypes.StudentProfileUpdated, student.Id, new StudentProfileUpdatedEvent(
             student.Id, student.FullName, student.Email, student.SpecializationId, ratings, student.IsSeekingTeam, ProfileCompleted: true));
         await students.SaveAsync(ct);
-        return await ToResponseAsync(student, ct, ratings);
+        return await ToResponseAsync(student, showContact: true, ct, ratings);
     }
 
     /// <summary>Theo claim <c>student_id</c>; token chưa có claim thì theo email. Không có hồ sơ → 404.</summary>
@@ -59,15 +72,15 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
         return student ?? throw new NotFoundException("hồ sơ sinh viên của tài khoản này");
     }
 
-    private async Task<StudentProfileResponse> ToResponseAsync(Student s, CancellationToken ct, IReadOnlyList<SkillRating>? ratings = null)
+    private async Task<StudentProfileResponse> ToResponseAsync(Student s, bool showContact, CancellationToken ct, IReadOnlyList<SkillRating>? ratings = null)
     {
         var specialization = await students.FindSpecializationAsync(s.SpecializationId, ct);
         var enrollment = await students.FindCurrentEnrollmentAsync(s.Id, ct);
         ratings ??= StudentProfileRules.Ordered((await students.ListSkillsAsync(s.Id, ct)).Select(k => new SkillRating(k.Skill, k.Level)));
         return new StudentProfileResponse(
-            s.Id, s.StudentCode, s.FullName, s.Email,
+            s.Id, s.StudentCode, s.FullName, showContact ? s.Email : string.Empty,
             new CatalogRef(s.SpecializationId, specialization?.Code ?? string.Empty, specialization?.Name ?? string.Empty),
-            enrollment?.ClassCode, enrollment?.CourseCode, HasTeam: false, s.IsSeekingTeam, s.Phone, ContactEmailVisible: true,
+            enrollment?.ClassCode, enrollment?.CourseCode, HasTeam: false, s.IsSeekingTeam, showContact ? s.Phone : null, ContactEmailVisible: showContact,
             ratings, s.Description, s.ProfileCompletedAt is not null, CurrentTeamId: null);
     }
 }

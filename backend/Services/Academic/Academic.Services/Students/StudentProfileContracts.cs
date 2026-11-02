@@ -1,3 +1,4 @@
+using Academic.Repositories.Rounds;
 using Academic.Services.Lecturers;
 using FluentValidation;
 
@@ -18,6 +19,22 @@ public sealed record StudentProfileResponse(
     bool HasTeam, bool IsSeekingTeam, string? Phone, bool ContactEmailVisible, IReadOnlyList<SkillRating> Skills,
     string? Description, bool ProfileCompleted, Guid? CurrentTeamId);
 
+/// <summary>
+/// Schema <c>StudentSummary</c>. <see cref="Email"/> rỗng với người không được xem liên lạc (rule 11).
+/// <see cref="HasTeam"/> thuộc Team Service – tạm thời false (xem BE-18).
+/// </summary>
+public sealed record StudentSummaryResponse(
+    Guid Id, string StudentCode, string FullName, string Email, CatalogRef Specialization, string ClassCode, string CourseCode,
+    bool HasTeam, bool IsSeekingTeam);
+
+/// <summary>
+/// Query của <c>GET /api/students</c>. <see cref="SemesterId"/> bỏ trống thì lấy học kỳ hiện hành.
+/// <see cref="HasTeam"/> nhận theo contract nhưng chưa có tác dụng cho tới khi Team có API trạng thái nhóm.
+/// </summary>
+public sealed record StudentQuery(
+    Guid? SemesterId, string? CourseCode, string? Search, string? ClassCode, int? SpecializationId, bool? HasTeam,
+    string? Sort, int Page = 1, int PageSize = 20);
+
 /// <summary>Body của <c>PUT /api/students/me</c>: chỉ 5 kỹ năng, mô tả, công tắc tìm nhóm (rule 16). <see cref="IsSeekingTeam"/> bỏ trống thì giữ nguyên.</summary>
 public sealed record StudentProfileInput(IReadOnlyList<SkillRating>? Skills, string? Description, bool? IsSeekingTeam);
 
@@ -25,6 +42,19 @@ public sealed record StudentProfileInput(IReadOnlyList<SkillRating>? Skills, str
 public static class SkillNames
 {
     public static readonly IReadOnlyList<string> All = ["TECHNOLOGY", "UI_UX_DESIGN", "MANAGEMENT", "MARKETING", "COMMUNICATION_PLANNING"];
+}
+
+public sealed class StudentQueryValidator : AbstractValidator<StudentQuery>
+{
+    private static readonly string[] Sorts = ["name", "-name", "studentCode", "-studentCode"];
+
+    public StudentQueryValidator()
+    {
+        RuleFor(x => x.CourseCode).Must(c => c is null or CourseCodes.Exe101 or CourseCodes.Exe201).WithMessage("Môn là EXE101 hoặc EXE201.");
+        RuleFor(x => x.Sort).Must(s => s is null || Sorts.Contains(s)).WithMessage("sort là name, -name, studentCode hoặc -studentCode.");
+        RuleFor(x => x.Page).GreaterThanOrEqualTo(1).WithMessage("page bắt đầu từ 1.");
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 100).WithMessage("pageSize từ 1 đến 100.");
+    }
 }
 
 public sealed class StudentProfileInputValidator : AbstractValidator<StudentProfileInput>
