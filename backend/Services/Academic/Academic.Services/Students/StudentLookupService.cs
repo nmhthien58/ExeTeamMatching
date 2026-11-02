@@ -40,13 +40,14 @@ public sealed class StudentLookupService(IStudentRepository students) : IStudent
 
 public static class StudentsModule
 {
-    /// <summary>Module Students: tra cứu nội bộ (BE-22), hồ sơ của tôi (BE-19, BE-67); danh sách, chi tiết (BE-18) thêm sau.</summary>
+    /// <summary>Module Students: tra cứu nội bộ (BE-22), hồ sơ của tôi (BE-19, BE-67), danh sách, chi tiết (BE-18).</summary>
     public static IServiceCollection AddStudentsModule(this IServiceCollection services)
     {
         services.AddScoped<IStudentRepository, StudentRepository>();
         services.AddScoped<IStudentLookupService, StudentLookupService>();
         services.AddScoped<IStudentProfileRepository, StudentProfileRepository>();
         services.AddScoped<IStudentProfileService, StudentProfileService>();
+        services.AddScoped<IStudentDirectoryService, StudentDirectoryService>();
         return services;
     }
 }
