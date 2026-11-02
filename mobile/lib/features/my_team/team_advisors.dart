@@ -72,10 +72,10 @@ final teamMentorProvider = FutureProvider.autoDispose.family<TeamAdvisor?, Strin
 
 final checkpointsDoneProvider = FutureProvider.autoDispose.family<int, String>((ref, workspaceId) => ref.watch(teamAdvisorsApiProvider).checkpointsDone(workspaceId));
 
-/// Mục Cố vấn ở S15 (flutter-handoff S15): giảng viên và mentor kèm lý do ghép; chưa ghép → "Chốt giảng viên lúc 18:00 · 17/09/2026"
-/// / "Ghép từ tuần 6". API lỗi hoặc đang tải thì dùng tên có sẵn trong thẻ nhóm.
-class AdvisorsCard extends ConsumerWidget {
-  const AdvisorsCard({super.key, required this.team});
+/// Ghi chú dưới mục Cố vấn ở S15 (flutter-handoff S15): lý do ghép giảng viên, mentor; chưa ghép giảng viên → "Chốt giảng viên lúc
+/// 18:00 · 17/09/2026". Đang tải hoặc API lỗi thì không hiện gì.
+class AdvisorNotes extends ConsumerWidget {
+  const AdvisorNotes({super.key, required this.team});
 
   final MyTeam team;
 
@@ -84,19 +84,17 @@ class AdvisorsCard extends ConsumerWidget {
     final lecturer = ref.watch(teamLecturerProvider(team.id)).value;
     final mentor = ref.watch(teamMentorProvider(team.id)).value;
     final deadline = ref.watch(shellPhaseProvider).studentPhase?.teamFormationDeadlineAt;
-    Widget row(IconData icon, String title, String? name, String? reason, String empty) => ListTile(
-          leading: Icon(icon),
-          title: Text(title),
-          subtitle: Text(name ?? empty),
-          trailing: reason == null ? null : ConstrainedBox(constraints: const BoxConstraints(maxWidth: 150), child: Chip(label: Text(reason, overflow: TextOverflow.ellipsis))),
-        );
-    return Card.outlined(
+    final notes = [
+      if (lecturer?.reason != null) '${lecturer!.name} · ${lecturer.reason}',
+      if (mentor?.reason != null) '${mentor!.name} · ${mentor.reason}',
+      if (lecturer == null && team.lecturerName == null && deadline != null) 'Chốt giảng viên lúc ${formatDateTime(deadline)}',
+    ];
+    if (notes.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s2, AppSpacing.s4, 0),
       child: Column(
-        children: [
-          row(Icons.school_outlined, 'Giảng viên', lecturer?.name ?? team.lecturerName, lecturer?.reason,
-              deadline == null ? 'Chưa ghép' : 'Chốt giảng viên lúc ${formatDateTime(deadline)}'),
-          row(Icons.support_agent_outlined, 'Mentor', mentor?.name ?? team.mentorName, mentor?.reason, 'Ghép từ tuần 6'),
-        ],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [for (final note in notes) Text(note, style: Theme.of(context).textTheme.bodySmall)],
       ),
     );
   }

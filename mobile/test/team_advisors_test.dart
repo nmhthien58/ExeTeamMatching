@@ -65,8 +65,8 @@ void main() {
   testWidgets('S15: giảng viên kèm lý do ghép, Checkpoint n/4 ở EXE101, Mở dự án sang C01', (tester) async {
     await _pump(tester, api: _Api(lecturerResult: const TeamAdvisor(name: 'Cô Hạnh', reason: 'Nguyện vọng 1')));
 
-    expect(find.text('Cô Hạnh'), findsOneWidget);
-    expect(find.text('Nguyện vọng 1'), findsOneWidget);
+    expect(find.text('Giảng viên'), findsOneWidget);
+    expect(find.text('Cô Hạnh · Nguyện vọng 1'), findsOneWidget);
     expect(find.text('Ghép từ tuần 6'), findsOneWidget);
     expect(find.text('Checkpoint 2/4'), findsOneWidget);
 

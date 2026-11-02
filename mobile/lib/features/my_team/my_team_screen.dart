@@ -113,7 +113,23 @@ class _TeamOverview extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.s3),
-        AdvisorsCard(team: team),
+        Card.outlined(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.school_outlined),
+                title: const Text('Giảng viên'),
+                subtitle: Text(team.lecturerName ?? 'Chưa ghép'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.support_agent_outlined),
+                title: const Text('Mentor'),
+                subtitle: Text(team.mentorName ?? 'Ghép từ tuần 6'),
+              ),
+            ],
+          ),
+        ),
+        AdvisorNotes(team: team),
         CheckpointCard(team: team),
         if (team.hasPendingChanges) ...[
           const SizedBox(height: AppSpacing.s3),
