@@ -256,9 +256,11 @@ class LecturerDetailScreen extends ConsumerWidget {
                               children: [
                                 Icon(Icons.info_outline, size: 20, color: theme.colorScheme.primary),
                                 const SizedBox(width: AppSpacing.s2),
-                                Text(
-                                  'Quy tắc ghép cố vấn',
-                                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                Expanded(
+                                  child: Text(
+                                    'Quy tắc ghép cố vấn',
+                                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ],
                             ),
@@ -310,7 +312,7 @@ class LecturerDetailScreen extends ConsumerWidget {
                                     child: CircularProgressIndicator(strokeWidth: 2),
                                   ),
                                   SizedBox(width: AppSpacing.s2),
-                                  Text('Đang tải danh sách nguyện vọng...'),
+                                  Flexible(child: Text('Đang tải danh sách nguyện vọng...')),
                                 ],
                               ),
                             ),
