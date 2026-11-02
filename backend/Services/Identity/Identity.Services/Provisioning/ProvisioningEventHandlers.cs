@@ -11,14 +11,16 @@ public sealed class ProvisioningEventHandler<TPayload>(AccountProvisioningServic
         {
             StudentImported e => service.HandleAsync(e, cancellationToken),
             LecturerRegistered e => service.HandleAsync(e, cancellationToken),
+            MentorRegistered e => service.HandleAsync(e, cancellationToken),
             _ => throw new NotSupportedException(typeof(TPayload).Name),
         };
 }
 
 public static class ProvisioningEventRegistration
 {
-    /// <summary>Consumer exe.student (BE-13).</summary>
+    /// <summary>Consumer exe.student (BE-13, BE-64).</summary>
     public static IServiceCollection AddProvisioningConsumers(this IServiceCollection services) => services
         .AddEventHandler<ProvisioningEventHandler<StudentImported>>(Topics.Student, nameof(StudentImported))
-        .AddEventHandler<ProvisioningEventHandler<LecturerRegistered>>(Topics.Student, nameof(LecturerRegistered));
+        .AddEventHandler<ProvisioningEventHandler<LecturerRegistered>>(Topics.Student, nameof(LecturerRegistered))
+        .AddEventHandler<ProvisioningEventHandler<MentorRegistered>>(Topics.Student, nameof(MentorRegistered));
 }

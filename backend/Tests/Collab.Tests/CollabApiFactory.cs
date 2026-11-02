@@ -168,17 +168,23 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
     }
 
     /// <summary>JWT giống Identity phát: sub, name, roles và id theo vai trò.</summary>
-    public static string Token(TestPerson person)
+    public static string Token(TestPerson person) =>
+        person.ClaimName is { } claim
+            ? Token(person.Name, [person.JwtRole], (claim, person.Id))
+            : Token(person.Name, [person.JwtRole]);
+
+    /// <summary>JWT nhiều vai trò, ví dụ giảng viên kiêm mentor: roles [Lecturer, Mentor] kèm lecturer_id và mentor_id (BE-64).</summary>
+    public static string Token(string name, string[] roles, params (string Claim, Guid Id)[] ids)
     {
         var claims = new Dictionary<string, object>
         {
             [ClaimNames.Subject] = Guid.NewGuid().ToString(),
-            [ClaimNames.Name] = person.Name,
-            [ClaimNames.Roles] = new[] { person.JwtRole },
+            [ClaimNames.Name] = name,
+            [ClaimNames.Roles] = roles,
         };
-        if (person.ClaimName is { } claim)
+        foreach (var (claim, id) in ids)
         {
-            claims[claim] = person.Id.ToString();
+            claims[claim] = id.ToString();
         }
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {

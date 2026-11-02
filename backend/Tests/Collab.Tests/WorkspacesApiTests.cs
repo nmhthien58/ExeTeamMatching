@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Headers;
+using BuildingBlocks.Auth;
 using Collab.Api.Controllers.Workspaces;
 using Collab.Repositories.Workspaces;
 using Microsoft.EntityFrameworkCore;
@@ -46,5 +48,30 @@ public sealed class WorkspacesApiTests : IDisposable
         var response = await client.GetAsync($"/api/workspaces/{workspaceId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    /// <summary>
+    /// BE-64: giảng viên kiêm mentor có một token với cả lecturer_id và mentor_id. Policy workspace nhận ra họ là giảng viên
+    /// hướng dẫn ở nhóm này và mentor ở nhóm khác, không cần đổi vai trò.
+    /// </summary>
+    [Fact]
+    public async Task Lecturer_who_is_mentor_reaches_both_workspaces_with_the_right_role()
+    {
+        var instructor = TestPerson.Instructor("Cô Hà");
+        var mentor = TestPerson.Mentor("Cô Hà");
+        var instructed = await _factory.SeedWorkspaceAsync("Nhóm hướng dẫn", "EXE201", null, TestPerson.Leader(), instructor);
+        var mentored = await _factory.SeedWorkspaceAsync("Nhóm mentor", "EXE201", null, TestPerson.Leader(), mentor);
+        var other = await _factory.SeedWorkspaceAsync("Nhóm khác", "EXE201", null, TestPerson.Leader());
+
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", CollabApiFactory.Token(
+            "Cô Hà", [Roles.Lecturer, Roles.Mentor], (ClaimNames.LecturerId, instructor.Id), (ClaimNames.MentorId, mentor.Id)));
+
+        var mine = await CollabApiFactory.ReadAsync<List<WorkspaceSummaryResponse>>(await client.GetAsync("/api/workspaces/me"));
+        Assert.Equal([(instructed, WorkspaceRoles.Instructor), (mentored, WorkspaceRoles.Mentor)],
+            mine.OrderBy(w => w.TeamName).Select(w => (w.Id, w.MyRole)).OrderBy(x => x.MyRole == WorkspaceRoles.Mentor));
+        Assert.Equal(WorkspaceRoles.Mentor,
+            (await CollabApiFactory.ReadAsync<WorkspaceOverviewResponse>(await client.GetAsync($"/api/workspaces/{mentored}"))).MyRole);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync($"/api/workspaces/{other}")).StatusCode);
     }
 }
