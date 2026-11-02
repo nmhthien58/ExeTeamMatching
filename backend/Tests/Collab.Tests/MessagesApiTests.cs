@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Collab.Repositories.Messages;
+using Collab.Services.Files;
 using Collab.Services.Messages;
 
 namespace Collab.Tests;
@@ -108,6 +109,35 @@ public sealed class MessagesApiTests : IClassFixture<CollabApiFactory>
         Assert.Contains(_instructor.Id.ToString(), asked.Payload);
         Assert.Contains(_mentor.Id.ToString(), asked.Payload);
         Assert.Contains(await _factory.EventsAsync(MessageEventTypes.AdvisorQuestionAnswered), e => e.Payload.Contains(question.Id.ToString()));
+    }
+
+    private async Task<Guid> UploadAsync(Guid workspace, string name)
+    {
+        var form = new MultipartFormDataContent { { new ByteArrayContent("nội dung"u8.ToArray()), "file", name } };
+        var response = await _factory.ClientFor(_leader).PostAsync($"/api/workspaces/{workspace}/files", form);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await CollabApiFactory.ReadAsync<UploadFileResponse>(response)).File.Id;
+    }
+
+    [Fact]
+    public async Task Attachments_show_on_message_and_must_belong_to_the_workspace()
+    {
+        await SeedAsync();
+        var file = await UploadAsync(_workspace, "ke-hoach.pdf");
+        var otherWorkspace = await _factory.SeedWorkspaceAsync("Nhóm Khác", "EXE201", null, _leader);
+        var foreign = await UploadAsync(otherWorkspace, "khac.pdf");
+        object Attach(params Guid[] ids) => new { clientMessageId = Guid.NewGuid(), body = "Xem file", attachmentFileIds = ids };
+
+        var sent = await SendAsync(_leader, _teamChannel, Attach(file));
+        var history = await CollabApiFactory.ReadAsync<MessagePageResponse>(await _factory.ClientFor(_member).GetAsync($"/api/channels/{_teamChannel}/messages"));
+        var wrong = await _factory.ClientFor(_leader).PostAsJsonAsync($"/api/channels/{_teamChannel}/messages", Attach(foreign));
+        var tooMany = await _factory.ClientFor(_leader).PostAsJsonAsync($"/api/channels/{_teamChannel}/messages",
+            Attach(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.Equal("ke-hoach.pdf", Assert.Single(sent.Attachments).Name);
+        Assert.Equal(file, Assert.Single(Assert.Single(history.Items).Attachments).Id);
+        Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
     }
 
     [Fact]

@@ -109,7 +109,8 @@ public sealed class ImportsApiTests : IAsyncLifetime
         // Bản xem trước chỉ xác nhận một lần.
         Assert.Equal(HttpStatusCode.NotFound, (await Admin.PostAsync($"/api/imports/students/{preview.PreviewId}/confirm", null)).StatusCode);
 
-        var history = await Admin.GetFromJsonAsync<PagedResponse<ImportBatchResponse>>($"/api/imports?semesterId={semester.Id}");
+        // Admin khác xem lịch sử vẫn thấy tên người đã import.
+        var history = await _api.ClientAs(Roles.Admin).GetFromJsonAsync<PagedResponse<ImportBatchResponse>>($"/api/imports?semesterId={semester.Id}");
         Assert.Equal((1, batch.Id, "Người thử"), (history!.TotalCount, history.Items.Single().Id, history.Items.Single().ImportedByName));
     }
 

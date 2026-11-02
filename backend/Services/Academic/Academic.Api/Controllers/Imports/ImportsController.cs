@@ -33,7 +33,7 @@ public sealed class ImportsController(IImportService imports) : ControllerBase
 
     /// <summary>Lịch sử import, mới nhất trước.</summary>
     [HttpGet]
-    public Task<PagedResponse<ImportBatchResponse>> List([FromQuery] ImportQuery query, CancellationToken ct) => imports.ListAsync(query, User, ct);
+    public Task<PagedResponse<ImportBatchResponse>> List([FromQuery] ImportQuery query, CancellationToken ct) => imports.ListAsync(query, ct);
 }
 
 /// <summary>Form <c>multipart/form-data</c>: <c>file</c>, <c>semesterId</c>, <c>courseCode</c>.</summary>

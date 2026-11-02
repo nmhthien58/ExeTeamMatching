@@ -104,6 +104,8 @@ public sealed class FakeAcademic : IAcademicClient
     /// <summary>false = Academic chưa có <c>GET /internal/students</c> (404), Team dùng read model của Matching.</summary>
     public bool RosterAvailable { get; set; }
 
+    public Guid? ChangeRequestRoundId { get; set; }
+
     public StudentSnapshot Enroll(int specializationId = 1, string course = "EXE101", bool enrolled = true)
     {
         var id = Guid.NewGuid();
@@ -125,10 +127,18 @@ public sealed class FakeAcademic : IAcademicClient
     public Task<IReadOnlyList<SemesterDto>> ListSemestersAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<SemesterDto>>([Semester]);
 
-    public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
-        Task.FromResult((roundType == RoundTypes.TeamFormation ? OpenCourses : OpenChangeRequestCourses).Contains(courseCode)
+        public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct)
+    {
+        if (courseCode == "EXE201" && roundType == RoundTypes.ChangeRequest && ChangeRequestRoundId is { } changeRoundId)
+        {
+            return Task.FromResult<RoundDto?>(new RoundDto(changeRoundId, Semester.Id, courseCode, roundType, DateTimeOffset.UtcNow.AddDays(7), "OPEN"));
+        }
+
+        var isRoundOpen = (roundType == RoundTypes.TeamFormation ? OpenCourses : OpenChangeRequestCourses).Contains(courseCode);
+        return Task.FromResult<RoundDto?>(isRoundOpen
             ? new RoundDto(Guid.NewGuid(), Semester.Id, courseCode, roundType, DateTimeOffset.UtcNow.AddDays(7), "OPEN")
             : null);
+    }
 
     public Task<IReadOnlyList<StudentSnapshot>?> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<StudentSnapshot>?>(RosterAvailable && semesterId == Semester.Id

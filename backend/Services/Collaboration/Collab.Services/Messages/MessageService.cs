@@ -51,6 +51,7 @@ public sealed class MessageService(
     IWorkspaceRepository workspaces,
     IWorkspaceLookup lookup,
     IWorkspaceAccessService access,
+    IFileRepository files,
     IRealtimeNotifier realtime,
     TimeProvider clock) : IMessageService
 {
@@ -107,6 +108,16 @@ public sealed class MessageService(
             throw MessageErrors.Invalid("isAdvisorQuestion", "Chỉ thành viên nhóm hỏi cố vấn, trong kênh Cố vấn.");
         }
 
+        var attachmentIds = (request.AttachmentFileIds ?? []).Distinct().ToList();
+        if (attachmentIds.Count > 0)
+        {
+            var found = await files.ListWithLatestAsync(attachmentIds, ct);
+            if (found.Count != attachmentIds.Count || found.Any(f => f.File.WorkspaceId != channel.WorkspaceId || f.File.DeletedAt is not null))
+            {
+                throw MessageErrors.Invalid("attachmentFileIds", "Chỉ đính kèm được file của dự án này.");
+            }
+        }
+
         var workspace = (await workspaces.GetByIdAsync(channel.WorkspaceId, ct))!;
         var now = clock.GetUtcNow();
         var message = new Message
@@ -116,6 +127,10 @@ public sealed class MessageService(
             IsAdvisorQuestion = request.IsAdvisorQuestion, CreatedAt = now,
         };
         messages.Add(message);
+        foreach (var fileId in attachmentIds)
+        {
+            messages.Add(new MessageAttachment { MessageId = message.Id, FileId = fileId });
+        }
 
         var senderKey = new PersonKey(sender.PersonType, sender.PersonId);
         if (request.IsAdvisorQuestion)
@@ -287,10 +302,16 @@ public sealed class MessageService(
         var ids = rows.Select(m => m.Id).ToList();
         var replies = await messages.CountRepliesAsync(ids, ct);
         var questions = await messages.ListQuestionsAsync(ids, ct);
+        var attachments = await messages.ListAttachmentIdsAsync(ids, ct);
+        var fileIds = attachments.SelectMany(a => a).Distinct().ToList();
+        var attached = (fileIds.Count == 0 ? [] : await files.ListWithLatestAsync(fileIds, ct))
+            .Where(f => f.File.DeletedAt is null).ToDictionary(f => f.File.Id); // file đã xóa ở C06 thì thôi không hiện
         return rows.ToDictionary(m => m.Id, m => new MessageResponse(
             m.Id, m.Id, m.ChannelId, m.ParentMessageId, people.Ref(m.AuthorPersonType, m.AuthorPersonId, m.AuthorName),
             m.DeletedAt is null ? m.Body : string.Empty, m.DeletedAt is not null, m.IsAdvisorQuestion, questions.GetValueOrDefault(m.Id)?.Status,
-            replies.GetValueOrDefault(m.Id), [], m.CreatedAt, m.EditedAt));
+            replies.GetValueOrDefault(m.Id),
+            m.DeletedAt is null ? [.. attachments[m.Id].Where(attached.ContainsKey).Select(id => FileService.ToResponse(attached[id], isArchive: false))] : [],
+            m.CreatedAt, m.EditedAt));
     }
 
     private static string Preview(string body) => body.Length <= 120 ? body : body[..120];
