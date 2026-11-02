@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text;
+using System.Text.Json;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Messaging;
 using ExeTeamMatching.Protos.Matching.V1;
@@ -15,7 +17,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Jobs.Tests;
 
-/// <summary>BE-51 → BE-55, BE-72: logic từng job với client, Kafka và Hangfire giả.</summary>
+/// <summary>BE-51 → BE-55, BE-72, BE-81: logic từng job với client, Kafka và Hangfire giả.</summary>
 public sealed class JobTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 22, 1, 0, 0, TimeSpan.Zero); // 08:00 giờ Việt Nam
@@ -104,7 +106,7 @@ public sealed class JobTests
 
         await job.FinalizeAsync(roundId, semesterId, "EXE101", Ct);
         Assert.Equal([roundId], team.Finalized);
-        Assert.Equal(typeof(AutoAssignUnmatchedJob), jobs.Created[^1].Job.Type);
+        Assert.Equal([typeof(AutoAssignUnmatchedJob), typeof(LecturerMatchingJob)], jobs.Created[^2..].Select(c => c.Job.Type));
         Assert.Equal([roundId, roundId], academic.Closed);
     }
 
@@ -148,6 +150,106 @@ public sealed class JobTests
             NullLogger<AutoAssignUnmatchedJob>.Instance).RunAsync(Guid.NewGuid(), "EXE101", Ct);
 
         Assert.Empty(team.Applied);
+    }
+
+    // ---------- LecturerMatchingJob (BE-81) ----------
+
+    [Theory]
+    [InlineData("EXE101")]
+    [InlineData("EXE201")]
+    public async Task Lecturer_matching_runs_as_continuation_of_auto_assign(string courseCode)
+    {
+        var jobs = new FakeJobClient();
+        var job = new RoundAutoCloseJob(new FakeAcademic(), new FakeTeam(), jobs, NullLogger<RoundAutoCloseJob>.Instance);
+        var semesterId = Guid.NewGuid();
+
+        await job.FinalizeAsync(Guid.NewGuid(), semesterId, courseCode, Ct);
+
+        Assert.Equal(2, jobs.Created.Count);
+        var (autoAssign, autoAssignState) = jobs.Created[0];
+        Assert.Equal(typeof(AutoAssignUnmatchedJob), autoAssign.Type);
+        Assert.IsType<EnqueuedState>(autoAssignState);
+
+        var (lecturer, lecturerState) = jobs.Created[1];
+        Assert.Equal(typeof(LecturerMatchingJob), lecturer.Type);
+        Assert.Equal([semesterId, courseCode, CancellationToken.None], lecturer.Args);
+        // Chờ job ghép sinh viên (id "1") thành công mới chạy.
+        var awaiting = Assert.IsType<AwaitingState>(lecturerState);
+        Assert.Equal("1", awaiting.ParentId);
+        Assert.Equal(Hangfire.JobContinuationOptions.OnlyOnSucceededState, awaiting.Options);
+    }
+
+    [Theory]
+    [InlineData("EXE101")]
+    [InlineData("EXE201")]
+    public async Task Change_request_round_never_runs_lecturer_matching(string courseCode)
+    {
+        var jobs = new FakeJobClient();
+        var team = new FakeTeam();
+
+        await new RoundAutoCloseJob(new FakeAcademic(), team, jobs, NullLogger<RoundAutoCloseJob>.Instance)
+            .CloseAsync(Guid.NewGuid(), Guid.NewGuid(), courseCode, RoundTypes.ChangeRequest, Ct);
+
+        Assert.DoesNotContain(jobs.Created, c => c.Job.Type == typeof(LecturerMatchingJob));
+        Assert.Empty(team.Finalized);
+        Assert.Empty(team.AdvisorRuns);
+    }
+
+    [Fact]
+    public async Task Lecturer_matching_calls_team_for_lecturers_of_the_course()
+    {
+        var team = new FakeTeam();
+        var semesterId = Guid.NewGuid();
+
+        await new LecturerMatchingJob(team, NullLogger<LecturerMatchingJob>.Instance).RunAsync(semesterId, "EXE201", Ct);
+
+        Assert.Equal([(AdvisorKinds.Lecturer, semesterId, "EXE201")], team.AdvisorRuns);
+    }
+
+    [Fact]
+    public async Task Lecturer_matching_rethrows_team_errors_so_hangfire_retries()
+    {
+        var team = new FakeTeam { AdvisorMatchingError = new HttpRequestException("matching-unavailable", null, HttpStatusCode.ServiceUnavailable) };
+
+        var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            new LecturerMatchingJob(team, NullLogger<LecturerMatchingJob>.Instance).RunAsync(Guid.NewGuid(), "EXE101", Ct));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, error.StatusCode);
+    }
+
+    [Fact]
+    public async Task Team_client_posts_semester_and_course_to_internal_advisor_matching()
+    {
+        var runId = Guid.NewGuid();
+        var handler = new StubHandler(HttpStatusCode.OK,
+            $$"""{"id":"{{runId}}","advisorKind":"LECTURER","courseCode":"EXE101","trigger":"SCHEDULED","status":"APPLIED","matchedCount":12,"unmatchedCount":2,"createdAt":"2026-10-22T01:00:00Z","appliedAt":"2026-10-22T01:00:00Z","plan":[]}""");
+        var client = new TeamClient(new HttpClient(handler) { BaseAddress = new Uri("http://team") });
+        var semesterId = Guid.NewGuid();
+
+        var run = await client.RunAdvisorMatchingAsync(AdvisorKinds.Lecturer, semesterId, "EXE101", Ct);
+
+        Assert.Equal(HttpMethod.Post, handler.Request!.Method);
+        Assert.Equal("/internal/advisor-matching/LECTURER", handler.Request.RequestUri!.AbsolutePath);
+        using var body = JsonDocument.Parse(handler.RequestBody!);
+        Assert.Equal(["semesterId", "courseCode"], body.RootElement.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(semesterId, body.RootElement.GetProperty("semesterId").GetGuid());
+        Assert.Equal("EXE101", body.RootElement.GetProperty("courseCode").GetString());
+        Assert.Equal((runId, 12, 2), (run.Id, run.MatchedCount, run.UnmatchedCount));
+    }
+
+    [Theory]
+    [InlineData("matching-unavailable")]
+    [InlineData("academic-unavailable")]
+    public async Task Team_client_throws_on_service_unavailable(string code)
+    {
+        var handler = new StubHandler(HttpStatusCode.ServiceUnavailable, $$"""{"status":503,"code":"{{code}}"}""");
+        var client = new TeamClient(new HttpClient(handler) { BaseAddress = new Uri("http://team") });
+
+        var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            client.RunAdvisorMatchingAsync(AdvisorKinds.Lecturer, Guid.NewGuid(), "EXE201", Ct));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, error.StatusCode);
+        Assert.Contains(code, error.Message);
     }
 
     // ---------- MeetingReminderJob, TaskDueReminderJob (BE-72) ----------

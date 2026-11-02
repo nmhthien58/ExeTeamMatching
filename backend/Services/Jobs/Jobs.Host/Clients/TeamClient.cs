@@ -17,6 +17,16 @@ public sealed record AutoAssignFill(Guid TeamId, IReadOnlyList<Guid> StudentIds)
 
 public sealed record AutoAssignNewTeam(string Name, Guid LeaderStudentId, IReadOnlyList<Guid> StudentIds);
 
+/// <summary>Loại cố vấn của <c>/internal/advisor-matching/{kind}</c>.</summary>
+public static class AdvisorKinds
+{
+    public const string Lecturer = "LECTURER";
+    public const string Mentor = "MENTOR";
+}
+
+/// <summary>Phần job cần của schema <c>AdvisorMatchingRun</c> (team.yaml).</summary>
+public sealed record AdvisorMatchingRunResult(Guid Id, string AdvisorKind, string CourseCode, string Trigger, string Status, int MatchedCount, int UnmatchedCount);
+
 public interface ITeamClient
 {
     /// <summary>Chốt nhóm hợp lệ, còn lại NEEDS_REVIEW (rule 13).</summary>
@@ -30,6 +40,9 @@ public interface ITeamClient
 
     /// <summary>Sinh viên chưa có nhóm và nhóm dưới 4 người của một đợt.</summary>
     Task<DeadlineReminderTargets> GetDeadlineReminderTargetsAsync(Guid semesterId, string courseCode, CancellationToken ct);
+
+    /// <summary>Ghép cố vấn và áp dụng ngay (trigger SCHEDULED, rule 9 / 20). Gọi lại trả lần đã áp dụng, không tạo trùng.</summary>
+    Task<AdvisorMatchingRunResult> RunAdvisorMatchingAsync(string kind, Guid semesterId, string courseCode, CancellationToken ct);
 }
 
 public sealed class TeamClient(HttpClient http) : ITeamClient
@@ -56,4 +69,17 @@ public sealed class TeamClient(HttpClient http) : ITeamClient
 
     public async Task<DeadlineReminderTargets> GetDeadlineReminderTargetsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
         (await http.GetFromJsonAsync<DeadlineReminderTargets>($"/internal/deadline-reminder-targets?semesterId={semesterId}&courseCode={courseCode}", ct))!;
+
+    public async Task<AdvisorMatchingRunResult> RunAdvisorMatchingAsync(string kind, Guid semesterId, string courseCode, CancellationToken ct)
+    {
+        using var response = await http.PostAsJsonAsync($"/internal/advisor-matching/{kind}", new { semesterId, courseCode }, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            // Giữ ProblemDetails (vd. 503 matching-unavailable) trong lỗi để thấy lý do trên /hangfire.
+            var problem = await response.Content.ReadAsStringAsync(ct);
+            throw new HttpRequestException(
+                $"Team advisor-matching/{kind} trả {(int)response.StatusCode}: {problem}", null, response.StatusCode);
+        }
+        return (await response.Content.ReadFromJsonAsync<AdvisorMatchingRunResult>(ct))!;
+    }
 }
