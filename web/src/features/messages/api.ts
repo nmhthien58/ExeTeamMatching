@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/apiClient'
 import type { Paged } from '@/shared/components/DataTable'
+import type { ProjectFile } from '@/features/files/api'
 import type { PersonRef } from '@/features/workspace/api'
 
 // Kiểu theo docs/contracts/openapi/collab.yaml (tag Messages) – C02, C03, quy tắc 22.
@@ -18,6 +19,7 @@ export interface Message {
   isAdvisorQuestion: boolean
   questionStatus?: QuestionStatus | null
   replyCount: number
+  attachments?: ProjectFile[]
   createdAt: string
   editedAt?: string | null
 }
@@ -103,6 +105,8 @@ export interface SendInput {
   body: string
   parentMessageId?: string
   isAdvisorQuestion?: boolean
+  attachmentFileIds?: string[]
+  mentionPersonIds?: string[]
 }
 
 export function useSendMessage(channelId: string) {

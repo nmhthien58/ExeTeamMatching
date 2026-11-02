@@ -100,6 +100,40 @@ describe('Tin nhắn C02, C03 (FE-38)', () => {
     expect(post.mock.calls[1][1].clientMessageId).toBe(first[1].clientMessageId)
   })
 
+  it('C03: chọn file C06 và @nhắc tên rồi gửi; tin có file bấm vào để tải', async () => {
+    const pdf = { id: 'f1', name: 'ke-hoach.pdf', currentVersion: 1, sizeBytes: 2048, contentType: 'application/pdf', updatedByName: 'Vy', updatedAt: '2026-10-27T03:00:00Z', isArchive: false }
+    const archived = { ...pdf, id: 'f2', name: 'exe101.pdf', isArchive: true }
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+    get.mockImplementation(async (url: string) => {
+      if (url === '/api/workspaces/w1') return { data: { id: 'w1', people: [leader, lecturer] } }
+      if (url === '/api/workspaces/w1/files') return { data: { breadcrumb: [], folders: [], files: [pdf, archived], canUpload: true } }
+      if (url === '/api/files/f1/download-url') return { data: { url: 'https://s3/f1' } }
+      return { data: { items: [msg('m1', 'Xem file', leader, { attachments: [pdf] })], nextCursor: null } }
+    })
+    post.mockResolvedValue({ data: msg('m2', 'gửi') })
+    renderWith(<ChannelView channel={channel} title="Cố vấn" readOnly={false} isStudent />)
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Tải xuống ke-hoach.pdf' }))
+    expect(open).toHaveBeenCalledWith('https://s3/f1', '_blank', 'noopener')
+
+    await user.click(screen.getByRole('button', { name: 'Đính kèm' }))
+    await user.click(await screen.findByRole('checkbox', { name: /ke-hoach\.pdf/ }))
+    expect(screen.queryByRole('checkbox', { name: /exe101/ })).not.toBeInTheDocument()
+    const box = screen.getByRole('textbox', { name: 'Tin nhắn' })
+    await user.type(box, 'Cô @Tr')
+    expect(screen.queryByRole('list', { name: 'Nhắc tên' })).not.toBeInTheDocument() // không tự nhắc mình
+    await user.clear(box)
+    await user.type(box, 'Cô @h')
+    expect(await screen.findByRole('list', { name: 'Nhắc tên' })).toBeInTheDocument()
+    await user.type(box, '{Enter}xem giúp em{Enter}')
+
+    const sent = post.mock.calls.find((c) => c[0] === '/api/channels/c1/messages')?.[1]
+    expect(sent).toMatchObject({ body: 'Cô @Cô Hạnh xem giúp em', attachmentFileIds: ['f1'], mentionPersonIds: ['l1'] })
+    expect(screen.queryByRole('list', { name: 'File đính kèm' })).not.toBeInTheDocument()
+    open.mockRestore()
+  })
+
   it('C03: Bộ môn chỉ xem, không có khung soạn tin', async () => {
     get.mockResolvedValue({ data: { items: [msg('m1', 'Chào cô')], nextCursor: null } })
     renderWith(<ChannelView channel={channel} title="Cố vấn" readOnly isStudent={false} />)
