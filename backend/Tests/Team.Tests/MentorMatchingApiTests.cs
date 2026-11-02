@@ -6,6 +6,7 @@ using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.AdvisorMatching;
 using Team.Repositories.AuditLog;
+using Team.Repositories.LecturerAssignments;
 using Team.Repositories.MentorAssignments;
 using Team.Repositories.Teams;
 using Team.Repositories.TopicInterests;
@@ -204,6 +205,114 @@ public sealed class MentorMatchingApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Admin_cannot_make_the_team_instructor_its_mentor()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturerId = Guid.NewGuid();
+        var an = Academic.AddMentor("Mentor An", maxTeams: 3, lecturerId: lecturerId);
+        var own = await TeamAsync("A Do An Hướng Dẫn");
+        var other = await TeamAsync("B Giảng Viên Khác");
+        await AssignInstructorDirectlyAsync(own.Id, lecturerId);
+        await AssignInstructorDirectlyAsync(other.Id, Guid.NewGuid());
+
+        // Rule 20: một người không vừa hướng dẫn vừa mentor cùng một nhóm → 409, không ghi gì.
+        await AssertProblemAsync(await ChangeAsync(own.Id, an.Id, "Phân công"), 409, "mentor-is-instructor");
+        Assert.Equal(0, await _api.QueryDbAsync(db => db.Set<MentorAssignment>().CountAsync(x => x.TeamId == own.Id)));
+        Assert.DoesNotContain(await _api.EventsAsync(own.Id), e => e.EventType == "MentorAssigned");
+
+        // Nhóm khác (giảng viên hướng dẫn là người khác) vẫn nhận An làm mentor.
+        Assert.Equal(an.Id, (await ReadChangeAsync(await ChangeAsync(other.Id, an.Id, "Phân công"))).Assignment.MentorId);
+
+        // Mentor đang gán từ trước (dữ liệu cũ) rồi chọn lại đúng người đó cũng bị chặn.
+        var legacy = await TeamAsync("C Dữ Liệu Cũ");
+        await AssignDirectlyAsync(legacy.Id, an);
+        await AssignInstructorDirectlyAsync(legacy.Id, lecturerId);
+        await AssertProblemAsync(await ChangeAsync(legacy.Id, an.Id, "Lặp lại"), 409, "mentor-is-instructor");
+    }
+
+    [Fact]
+    public async Task Job_run_replans_team_matched_to_its_own_instructor_with_another_mentor()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturerId = Guid.NewGuid();
+        var an = Academic.AddMentor("Mentor An", maxTeams: 3, domains: [1], lecturerId: lecturerId);
+        var binh = Academic.AddMentor("Mentor Bình", maxTeams: 3, domains: [1]);
+        var own = await TeamAsync("A Do An Hướng Dẫn");
+        var other = await TeamAsync("B Nhóm Khác");
+        await AssignInstructorDirectlyAsync(own.Id, lecturerId);
+        await InterestAsync(own.Id, an);
+        await InterestAsync(other.Id, an);
+
+        var run = await RunJobAsync();
+
+        Assert.Equal((2, 0), (run.MatchedCount, run.UnmatchedCount));
+        var rows = await AssignmentsAsync();
+        Assert.Equal(("DOMAIN", binh.Id), Row(rows, own.Id));
+        Assert.Equal(("MENTOR_INTEREST", an.Id), Row(rows, other.Id));
+        Assert.Equal(binh.Id, run.Plan.Single(p => p.TeamId == own.Id).AdvisorId);
+
+        // Lần đầu Matching ghép An cho nhóm A (An quan tâm); lần tính lại chỉ gửi nhóm A, không có An, tải của Bình như cũ.
+        Assert.Equal(2, _api.Matching.AdvisorRequests.Count);
+        var replan = _api.Matching.AdvisorRequests[1];
+        Assert.Equal(own.Id, Assert.Single(replan.Teams).TeamId);
+        Assert.Empty(replan.Teams.Single().InterestedAdvisorIds);
+        Assert.Equal(binh.Id, Assert.Single(replan.Advisors).AdvisorId);
+    }
+
+    [Fact]
+    public async Task Job_run_leaves_team_unmatched_when_only_its_instructor_is_left()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturerId = Guid.NewGuid();
+        var an = Academic.AddMentor("Mentor An", maxTeams: 3, domains: [1], lecturerId: lecturerId);
+        var own = await TeamAsync("A Do An Hướng Dẫn");
+        await AssignInstructorDirectlyAsync(own.Id, lecturerId);
+        await InterestAsync(own.Id, an);
+
+        var run = await RunJobAsync();
+
+        Assert.Equal((0, 1), (run.MatchedCount, run.UnmatchedCount));
+        Assert.Null(Assert.Single(run.Plan).AdvisorId);
+        Assert.Empty(await AssignmentsAsync());
+        Assert.Single(_api.Matching.AdvisorRequests);
+    }
+
+    [Fact]
+    public async Task Early_matching_skips_mentor_who_became_the_team_instructor_before_confirm()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturerId = Guid.NewGuid();
+        var an = Academic.AddMentor("Mentor An", maxTeams: 3, domains: [1], lecturerId: lecturerId);
+        var team = await TeamAsync("A Nhóm");
+
+        var preview = await PostRunAsync(Admin.PostAsJsonAsync("/api/advisor-matching/MENTOR/preview", new { courseCode = "EXE101" }));
+        Assert.Equal(an.Id, Assert.Single(preview.Plan).AdvisorId);
+
+        // Trong lúc chờ xác nhận, An được đổi thành giảng viên hướng dẫn của nhóm.
+        await AssignInstructorDirectlyAsync(team.Id, lecturerId);
+        var confirmed = await PostRunAsync(Admin.PostAsync($"/api/advisor-matching/runs/{preview.Id}/confirm", null));
+
+        Assert.Equal(("APPLIED", 0, 1), (confirmed.Status, confirmed.MatchedCount, confirmed.UnmatchedCount));
+        Assert.Empty(await AssignmentsAsync());
+    }
+
+    [Fact]
     public async Task Admin_removes_mentor_and_history_stays()
     {
         if (!Enabled)
@@ -336,6 +445,16 @@ public sealed class MentorMatchingApiTests : IAsyncLifetime
         db.Add(new MentorAssignment
         {
             Id = Guid.NewGuid(), TeamId = teamId, MentorId = mentor.Id, MentorName = mentor.FullName, Reason = "MENTOR_INTEREST", Source = "AUTO",
+            AssignedAt = DateTimeOffset.UtcNow,
+        });
+        return db.SaveChangesAsync();
+    });
+
+    private Task AssignInstructorDirectlyAsync(Guid teamId, Guid lecturerId) => _api.QueryDbAsync(db =>
+    {
+        db.Add(new LecturerAssignment
+        {
+            Id = Guid.NewGuid(), TeamId = teamId, LecturerId = lecturerId, LecturerName = "Giảng viên hướng dẫn", Reason = "DOMAIN", Source = "AUTO",
             AssignedAt = DateTimeOffset.UtcNow,
         });
         return db.SaveChangesAsync();

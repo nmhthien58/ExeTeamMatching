@@ -44,6 +44,13 @@ public interface IAdvisorSource
     /// <summary>Cố vấn hiện tại của các nhóm.</summary>
     Task<Dictionary<Guid, CurrentAdvisor>> ListCurrentAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
 
+    /// <summary>
+    /// Giảng viên mà cố vấn loại này không được trùng ở từng nhóm (teamId → lecturerId): mentor – giảng viên hướng dẫn đang gán của nhóm
+    /// (rule 20: một người không vừa hướng dẫn vừa mentor cùng một nhóm, so theo <see cref="AdvisorCandidate.LecturerId"/>);
+    /// giảng viên – rỗng.
+    /// </summary>
+    Task<Dictionary<Guid, Guid>> ListBlockedLecturersAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
+
     /// <summary>Đầu vào PlanAdvisorMatching của các nhóm chưa có cố vấn (domain, nguyện vọng, quan tâm OPEN, giảng viên EXE101).</summary>
     Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct);
 
@@ -71,6 +78,9 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
     public async Task<Dictionary<Guid, CurrentAdvisor>> ListCurrentAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
         (await repo.ListActiveLecturerAssignmentsAsync(teamIds, ct))
         .ToDictionary(x => x.Key, x => new CurrentAdvisor(x.Value.LecturerId, x.Value.LecturerName, x.Value.Reason, x.Value.PreferenceRank));
+
+    public Task<Dictionary<Guid, Guid>> ListBlockedLecturersAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
+        Task.FromResult(new Dictionary<Guid, Guid>());
 
     public async Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct)
     {
@@ -127,6 +137,15 @@ public sealed class MentorAdvisorSource(IAcademicClient academic, IAdvisorMatchi
     public async Task<Dictionary<Guid, CurrentAdvisor>> ListCurrentAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
         (await repo.ListActiveMentorAssignmentsAsync(teamIds, ct))
         .ToDictionary(x => x.Key, x => new CurrentAdvisor(x.Value.MentorId, x.Value.MentorName, x.Value.Reason, null));
+
+    public async Task<Dictionary<Guid, Guid>> ListBlockedLecturersAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
+        teamIds.Count == 0
+            ? []
+            : (await repo.ListActiveLecturerAssignmentsAsync(teamIds, ct)).ToDictionary(x => x.Key, x => x.Value.LecturerId);
+
+    /// <summary>Mentor là giảng viên hướng dẫn đang gán của nhóm (<paramref name="instructors"/>: teamId → lecturerId) – không được ghép (rule 20).</summary>
+    public static bool IsOwnInstructor(AdvisorCandidate mentor, Guid teamId, IReadOnlyDictionary<Guid, Guid> instructors) =>
+        mentor.LecturerId is { } lecturerId && instructors.TryGetValue(teamId, out var instructorId) && instructorId == lecturerId;
 
     public async Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct)
     {

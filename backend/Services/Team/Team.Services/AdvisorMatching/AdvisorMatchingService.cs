@@ -37,7 +37,8 @@ public interface IAdvisorMatchingService
 
     /// <summary>
     /// Admin đổi mentor (rule 20, reason MANUAL, ghi chú bắt buộc): vượt số mong muốn → cảnh báo <c>ABOVE_PREFERRED</c>;
-    /// đã đủ số tối đa → 409 <c>mentor-full</c>. Mentor cũ kết thúc (ENDED), <c>MentorAssigned</c> có <c>replacedMentorId</c>.
+    /// đã đủ số tối đa → 409 <c>mentor-full</c>; mentor là giảng viên hướng dẫn đang gán của nhóm → 409 <c>mentor-is-instructor</c>.
+    /// Mentor cũ kết thúc (ENDED), <c>MentorAssigned</c> có <c>replacedMentorId</c>.
     /// </summary>
     Task<ChangeMentorResponse> ChangeMentorAsync(Guid teamId, ChangeMentorInput input, ClaimsPrincipal user, CancellationToken ct);
 
@@ -248,6 +249,11 @@ public sealed class AdvisorMatchingService(
         return await repo.InTransactionAsync(async () =>
         {
             await repo.LockAsync(AdvisorKinds.Mentor, team.SemesterId, MentorAdvisorSource.AllCourses, ct);
+            // Rule 20: một người không vừa hướng dẫn vừa mentor cùng một nhóm (kiểm tra cả khi chọn lại đúng mentor đang gán).
+            if (MentorAdvisorSource.IsOwnInstructor(mentor, team.Id, await Source(AdvisorKinds.Mentor).ListBlockedLecturersAsync([team.Id], ct)))
+            {
+                throw AdvisorMatchingErrors.MentorIsInstructor(mentor.FullName);
+            }
             var current = await repo.GetActiveMentorAssignmentAsync(team.Id, ct);
             if (current?.MentorId == mentor.Id)
             {
@@ -334,16 +340,16 @@ public sealed class AdvisorMatchingService(
         var loads = await source.CountLoadsAsync(semesterId, courseCode, ct);
         var advisorById = advisors.ToDictionary(a => a.Id);
 
-        IReadOnlyList<PlannedAdvisorMatch> matches = [];
+        var byTeam = new Dictionary<Guid, PlannedAdvisorMatch>();
         if (open.Count > 0 && advisors.Count > 0)
         {
             var inputs = await source.BuildTeamsAsync(open, ct);
-            matches = await matching.PlanAdvisorMatchingAsync(source.Kind, courseCode, inputs,
-                advisors.Select(a => new AdvisorMatchingAdvisor(a.Id, a.Domains.Select(d => d.Id).ToList(), loads.GetValueOrDefault(a.Id),
-                    a.MaxTeams, a.PreferredTeams)).ToList(), ct);
+            var matches = await PlanAsync(source, courseCode, inputs, advisors, loads, ct);
+            byTeam = matches.GroupBy(m => m.TeamId).ToDictionary(g => g.Key, g => g.First());
+            var blocked = await source.ListBlockedLecturersAsync(open.Select(t => t.Id).ToList(), ct);
+            await ReplanOwnInstructorsAsync(source, courseCode, inputs, advisors, advisorById, loads, blocked, byTeam, ct);
         }
 
-        var byTeam = matches.GroupBy(m => m.TeamId).ToDictionary(g => g.Key, g => g.First());
         var plan = open.Select(t =>
         {
             // Matching bỏ sót nhóm hoặc trả cố vấn ngoài danh sách → coi như chưa ghép được.
@@ -355,8 +361,61 @@ public sealed class AdvisorMatchingService(
         return new Proposal(plan, open.ToDictionary(t => t.Id), advisorById, loads);
     }
 
+    private Task<IReadOnlyList<PlannedAdvisorMatch>> PlanAsync(IAdvisorSource source, string courseCode, IReadOnlyList<AdvisorMatchingTeam> teams,
+        IEnumerable<AdvisorCandidate> advisors, IReadOnlyDictionary<Guid, int> loads, CancellationToken ct) =>
+        matching.PlanAdvisorMatchingAsync(source.Kind, courseCode, teams,
+            advisors.Select(a => new AdvisorMatchingAdvisor(a.Id, a.Domains.Select(d => d.Id).ToList(), loads.GetValueOrDefault(a.Id),
+                a.MaxTeams, a.PreferredTeams)).ToList(), ct);
+
     /// <summary>
-    /// Áp dụng phương án trong transaction của người gọi: cố vấn đã nghỉ hoặc đã đủ số tối đa (đổi tay trong lúc chờ) thì nhóm thành chưa ghép.
+    /// Rule 20: mentor không được là giảng viên hướng dẫn của chính nhóm. <c>PlanAdvisorMatching</c> không có trường loại trừ cố vấn theo nhóm
+    /// (giữ nguyên .proto) nên sau lần tính đầu, nhóm bị ghép trùng được tính lại: mỗi giảng viên hướng dẫn một lời gọi, gửi các nhóm đó
+    /// với danh sách cố vấn đã bỏ (các) mentor trùng người, số nhóm đang có cộng cả phần đã ghép trong phương án. Không còn ai phù hợp → chưa ghép.
+    /// Với giảng viên <paramref name="blocked"/> rỗng nên không làm gì.
+    /// </summary>
+    private async Task ReplanOwnInstructorsAsync(IAdvisorSource source, string courseCode, IReadOnlyList<AdvisorMatchingTeam> inputs,
+        IReadOnlyList<AdvisorCandidate> advisors, IReadOnlyDictionary<Guid, AdvisorCandidate> advisorById, Dictionary<Guid, int> loads,
+        IReadOnlyDictionary<Guid, Guid> blocked, Dictionary<Guid, PlannedAdvisorMatch> byTeam, CancellationToken ct)
+    {
+        bool Conflicts(PlannedAdvisorMatch m) => m.AdvisorId is { } id && advisorById.TryGetValue(id, out var a)
+            && MentorAdvisorSource.IsOwnInstructor(a, m.TeamId, blocked);
+
+        var conflicted = byTeam.Values.Where(Conflicts).Select(m => m.TeamId).ToHashSet();
+        if (conflicted.Count == 0)
+        {
+            return;
+        }
+
+        // Tải sau lần tính đầu, không tính các dòng trùng sẽ tính lại.
+        var planned = new Dictionary<Guid, int>(loads);
+        foreach (var m in byTeam.Values.Where(m => m.AdvisorId is not null && !conflicted.Contains(m.TeamId)))
+        {
+            planned[m.AdvisorId!.Value] = planned.GetValueOrDefault(m.AdvisorId!.Value) + 1;
+        }
+
+        foreach (var group in inputs.Where(t => conflicted.Contains(t.TeamId)).GroupBy(t => blocked[t.TeamId]).OrderBy(g => g.Key))
+        {
+            var excluded = advisors.Where(a => a.LecturerId == group.Key).Select(a => a.Id).ToHashSet();
+            var others = advisors.Where(a => !excluded.Contains(a.Id)).ToList();
+            var teams = group.Select(t => t with { InterestedAdvisorIds = t.InterestedAdvisorIds.Where(id => !excluded.Contains(id)).ToList() }).ToList();
+            var replanned = others.Count > 0
+                ? (await PlanAsync(source, courseCode, teams, others, planned, ct)).GroupBy(m => m.TeamId).ToDictionary(g => g.Key, g => g.First())
+                : [];
+            foreach (var team in teams)
+            {
+                byTeam.Remove(team.TeamId);
+                if (replanned.GetValueOrDefault(team.TeamId) is { AdvisorId: { } id } match && !excluded.Contains(id) && advisorById.ContainsKey(id))
+                {
+                    byTeam[team.TeamId] = match;
+                    planned[id] = planned.GetValueOrDefault(id) + 1;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Áp dụng phương án trong transaction của người gọi: cố vấn đã nghỉ, đã đủ số tối đa (đổi tay trong lúc chờ) hoặc mentor đã thành
+    /// giảng viên hướng dẫn của nhóm (rule 20, đổi giảng viên trong lúc chờ Ghép sớm) thì nhóm thành chưa ghép.
     /// Ghi kết quả thực tế vào lần chạy (APPLIED) và thêm <c>AdvisorMatchingCompleted</c>; người gọi lưu lần cuối.
     /// </summary>
     private async Task ApplyAsync(IAdvisorSource source, AdvisorMatchingRun run, IReadOnlyList<AdvisorMatchingPlanItem> plan,
@@ -365,11 +424,13 @@ public sealed class AdvisorMatchingService(
     {
         var matchedTeamIds = plan.Where(p => p.AdvisorId is not null).Select(p => p.TeamId).ToList();
         var members = await repo.ListMemberStudentIdsAsync(matchedTeamIds, ct);
+        var blocked = await source.ListBlockedLecturersAsync(matchedTeamIds, ct);
         var applied = new List<AdvisorMatchingPlanItem>();
         foreach (var item in plan)
         {
             if (item.AdvisorId is not { } advisorId || !advisors.TryGetValue(advisorId, out var advisor) || item.Reason is null
-                || (advisor.MaxTeams is { } max && loads.GetValueOrDefault(advisorId) >= max))
+                || (advisor.MaxTeams is { } max && loads.GetValueOrDefault(advisorId) >= max)
+                || MentorAdvisorSource.IsOwnInstructor(advisor, item.TeamId, blocked))
             {
                 applied.Add(item with { AdvisorId = null, AdvisorName = null, Reason = null, PreferenceRank = null });
                 continue;
