@@ -60,6 +60,33 @@ void main() {
     expect(find.text('S23'), findsOneWidget);
   });
 
+  testWidgets('S25 tải lại nguyện vọng sau khi trở về từ S23', (tester) async {
+    var changed = false;
+    final router = GoRouter(initialLocation: teamLecturerPath, routes: [
+      GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
+      GoRoute(path: '/sv/nhom/giang-vien', builder: (context, _) => Scaffold(
+        body: TextButton(onPressed: () { changed = true; context.pop(); }, child: const Text('Lưu thử')),
+      )),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        myTeamProvider.overrideWith((ref) async => team),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async => TeamLecturerData(preferences: {
+          'locked': false,
+          'preferences': changed ? [{'fullName': 'Giảng viên mới', 'rank': 1}] : [],
+        })),
+      ],
+      child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chỉnh sửa nguyện vọng'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu thử'));
+    await tester.pumpAndSettle();
+    expect(find.text('Giảng viên mới'), findsOneWidget);
+  });
+
   testWidgets('từ S15 mở S25 qua route ứng dụng', (tester) async {
     final router = GoRouter(initialLocation: '/sv/nhom', routes: [
       GoRoute(path: '/sv/nhom', builder: (_, _) => const Scaffold(body: MyTeamScreen())),

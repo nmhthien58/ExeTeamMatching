@@ -58,14 +58,14 @@ class TeamLecturerScreen extends ConsumerWidget {
           return ref.watch(teamLecturerDetailsProvider(teamId)).when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, _) => ErrorState(error: error, onRetry: () => ref.invalidate(teamLecturerDetailsProvider(teamId))),
-                data: (data) => _content(context, data, value.isLeader),
+                data: (data) => _content(context, ref, teamId, data, value.isLeader),
               );
         },
       ),
     );
   }
 
-  Widget _content(BuildContext context, TeamLecturerData data, bool isLeader) {
+  Widget _content(BuildContext context, WidgetRef ref, String teamId, TeamLecturerData data, bool isLeader) {
     final assignment = data.assignment;
     final theme = Theme.of(context);
     if (assignment != null) {
@@ -105,7 +105,10 @@ class TeamLecturerScreen extends ConsumerWidget {
         )),
       if (isLeader && !locked) ...[
         const SizedBox(height: AppSpacing.s4),
-        FilledButton(onPressed: () => context.push(lecturerPreferencesPath), child: const Text('Chỉnh sửa nguyện vọng')),
+        FilledButton(onPressed: () async {
+          await context.push(lecturerPreferencesPath);
+          if (context.mounted) ref.invalidate(teamLecturerDetailsProvider(teamId));
+        }, child: const Text('Chỉnh sửa nguyện vọng')),
       ],
     ]);
   }
