@@ -36,7 +36,8 @@ public sealed class InMemoryMatchingReadModel : IMatchingReadModel
     public Task SaveStudentAsync(Guid studentId, Guid semesterId, string courseCode, string? fullName, int specializationId, CancellationToken ct)
     {
         var row = Student(studentId);
-        if (row.SemesterId != Guid.Empty && row.SemesterId != semesterId)
+        if (row.SemesterId != Guid.Empty && row.SemesterId != semesterId
+            && !(row.TeamId is { } teamId && _teams.TryGetValue(teamId, out var team) && team.SemesterId == semesterId))
         {
             row.TeamId = null;
         }
