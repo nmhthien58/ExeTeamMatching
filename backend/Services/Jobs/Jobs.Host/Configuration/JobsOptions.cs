@@ -20,6 +20,11 @@ public sealed class JobsOptions
     /// <summary>SlotBookingCloseJob – mặc định mỗi 15 phút.</summary>
     public string SlotBookingCloseCron { get; set; } = "*/15 * * * *";
 
+    /// <summary>
+    /// MentorMatchingJob – mặc định 07:00 hằng ngày: lần chạy đầu tiên từ ngày bắt đầu tuần mentor của học kỳ hiện hành sẽ ghép mentor (rule 20).
+    /// </summary>
+    public string MentorMatchingCron { get; set; } = "0 7 * * *";
+
     /// <summary>Quy tắc 1, 2 truyền cho PlanAutoAssignment (0 = mặc định của Matching).</summary>
     public int MinTeamSize { get; set; } = 4;
     public int MaxTeamSize { get; set; } = 6;

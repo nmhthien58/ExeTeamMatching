@@ -223,7 +223,7 @@ service MatchingService {
 | `RoundAutoCloseJob` | Delayed job at deadline | Close round, publish `RoundClosed`, then call Team Service `finalize-round` (internal HTTP) |
 | `AutoAssignUnmatchedJob` | After finalization of the round | gRPC `PlanAutoAssignment`, then call Team Service (internal HTTP, service token) to add students to incomplete teams and create new teams. Admin reviews and adjusts the result on the web app. |
 | `LecturerMatchingJob` | After `AutoAssignUnmatchedJob` | Call Team Service `POST /internal/advisor-matching/LECTURER` (internal HTTP) to match an instructor to every team without one (rule 9); Admin is notified to review W19 |
-| `MentorMatchingJob` | Delayed job at the mentoring start week | Call Team Service `POST /internal/advisor-matching/MENTOR` (rule 20); Admin is notified to review W28 |
+| `MentorMatchingJob` | Recurring daily check (`Jobs:MentorMatchingCron`, 07:00); acts from the start of the mentoring start week of the current semester (re-read each run, so Admin can still move the week) until the semester ends | Call Team Service `POST /internal/advisor-matching/MENTOR` for EXE101 and EXE201 (rule 20; repeated calls return the applied run); Admin is notified to review W28 |
 | `SlotBookingCloseJob` | Delayed job at the meeting-slot booking deadline | Call Collaboration to place teams without a slot into free slots and generate the weekly meetings (rule 25) |
 | `InvitationExpiryJob` | Hourly | Mark invitations/join requests > 72h as expired, publish `InvitationExpired` |
 | `MeetingReminderJob` | Every 15 min | Ask Collaboration (internal HTTP) for meetings starting in 24 h / 1 h, publish `MeetingReminder` once per meeting and offset |

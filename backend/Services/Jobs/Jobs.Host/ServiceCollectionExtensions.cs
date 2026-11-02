@@ -53,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<RoundAutoCloseJob>();
         services.AddScoped<AutoAssignUnmatchedJob>();
         services.AddScoped<LecturerMatchingJob>();
+        services.AddScoped<MentorMatchingJob>();
         services.AddScoped<InvitationExpiryJob>();
         services.AddScoped<MeetingReminderJob>();
         services.AddScoped<SlotBookingCloseJob>();

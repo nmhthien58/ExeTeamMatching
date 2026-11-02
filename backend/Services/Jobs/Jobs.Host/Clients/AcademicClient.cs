@@ -11,6 +11,9 @@ public static class RoundTypes
     public const string ChangeRequest = "CHANGE_REQUEST";
 }
 
+/// <summary>Phần job cần của schema <c>Semester</c> (academic.yaml). <see cref="MentoringStartWeek"/> null = mặc định tuần 6.</summary>
+public sealed record SemesterDto(Guid Id, string Code, DateOnly StartDate, DateOnly EndDate, int? MentoringStartWeek);
+
 /// <summary>Schema <c>Round</c> (academic.yaml).</summary>
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status);
 
@@ -21,6 +24,9 @@ public interface IAcademicClient
 
     /// <summary>Khóa đợt khi tới hạn; Academic phát RoundClosed qua outbox.</summary>
     Task<RoundDto> CloseRoundAsync(Guid roundId, CancellationToken ct);
+
+    /// <summary>Học kỳ hiện hành (<c>GET /api/semesters/current</c>); null khi Bộ môn chưa đặt (404).</summary>
+    Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct);
 }
 
 public sealed class AcademicClient(HttpClient http) : IAcademicClient
@@ -34,6 +40,17 @@ public sealed class AcademicClient(HttpClient http) : IAcademicClient
         }
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<RoundDto>(ct);
+    }
+
+    public async Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct)
+    {
+        using var response = await http.GetAsync("/api/semesters/current", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<SemesterDto>(ct);
     }
 
     public async Task<RoundDto> CloseRoundAsync(Guid roundId, CancellationToken ct)

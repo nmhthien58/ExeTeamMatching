@@ -16,6 +16,7 @@ public static class RecurringJobs
         manager.AddOrUpdate<MeetingReminderJob>("meeting-reminder", j => j.RunAsync(CancellationToken.None), options.MeetingReminderCron, schedule);
         manager.AddOrUpdate<SlotBookingCloseJob>("slot-booking-close", j => j.RunAsync(CancellationToken.None), options.SlotBookingCloseCron, schedule);
         manager.AddOrUpdate<TaskDueReminderJob>("task-due-reminder", j => j.RunAsync(CancellationToken.None), options.DailyCron, schedule);
+        manager.AddOrUpdate<MentorMatchingJob>(MentorMatchingJob.RecurringId, j => j.CheckAsync(CancellationToken.None), options.MentorMatchingCron, schedule);
     }
 }
 
