@@ -19,6 +19,7 @@ public sealed record AuditLogQuery : AuditLogPageQuery
 {
     public Guid? TeamId { get; init; }
     public Guid? ActorAccountId { get; init; }
+    public string? ActorName { get; init; }
     public DateTimeOffset? From { get; init; }
     public DateTimeOffset? To { get; init; }
 }
@@ -37,6 +38,7 @@ public sealed class AuditLogQueryValidator : AbstractValidator<AuditLogQuery>
     public AuditLogQueryValidator()
     {
         Include(new AuditLogPageQueryValidator());
+        RuleFor(x => x.ActorName).MaximumLength(150);
         RuleFor(x => x.To).GreaterThanOrEqualTo(x => x.From).When(x => x.From is not null && x.To is not null)
             .WithMessage("Thời điểm kết thúc phải sau thời điểm bắt đầu.");
     }

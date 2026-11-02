@@ -24,6 +24,15 @@ cp .env.example .env        # sửa ADMIN_EMAIL thành email Google của Admin
 docker compose up -d postgres
 ```
 
+### Volume cũ cần thêm cột
+
+Script không chạy lại trên volume đã có. Thiếu cột thì API trả 500 (lỗi `42703`). Giữ dữ liệu thì chạy:
+
+```bash
+docker exec exe-postgres psql -U postgres -d academic_db -c "SET ROLE academic_svc; ALTER TABLE academic.import_batches ADD COLUMN IF NOT EXISTS imported_by_name varchar(150);"
+docker exec exe-postgres psql -U postgres -d team_db -c "SET ROLE team_svc; ALTER TABLE team.audit_logs ADD COLUMN IF NOT EXISTS actor_name varchar(150);"
+```
+
 Sửa script xong muốn chạy lại từ đầu (xóa hết dữ liệu):
 
 ```bash
