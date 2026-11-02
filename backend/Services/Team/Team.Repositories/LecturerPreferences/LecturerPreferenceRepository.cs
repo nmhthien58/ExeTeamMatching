@@ -39,6 +39,7 @@ public sealed class LecturerPreferenceRepository(TeamDbContext db) : ILecturerPr
         await db.Set<TopicInterest>()
             .AnyAsync(t => t.TeamId == teamId && t.AdvisorId == lecturerId && t.Status == "OPEN" && t.AdvisorKind == "LECTURER", ct);
 
+    // Cùng điều kiện với AdvisorMatchingRepository.CountLecturerLoadsAsync: nhóm đã giải tán không chiếm chỗ của giảng viên.
     public async Task<Dictionary<Guid, int>> CountActiveAssignmentsAsync(Guid semesterId, string courseCode, IReadOnlyList<Guid> lecturerIds, CancellationToken ct)
     {
         if (lecturerIds.Count == 0) return [];
@@ -46,7 +47,7 @@ public sealed class LecturerPreferenceRepository(TeamDbContext db) : ILecturerPr
         return await (from assignment in db.Set<LecturerAssignment>().AsNoTracking()
                 join team in db.Set<TeamEntity>().AsNoTracking() on assignment.TeamId equals team.Id
                 where lecturerIds.Contains(assignment.LecturerId) && assignment.Status == "ASSIGNED"
-                    && team.SemesterId == semesterId && team.CourseCode == courseCode
+                    && team.SemesterId == semesterId && team.CourseCode == courseCode && team.Status != "DISBANDED"
                 group assignment by assignment.LecturerId into groupByLecturer
                 select new { LecturerId = groupByLecturer.Key, Count = groupByLecturer.Count() })
             .ToDictionaryAsync(x => x.LecturerId, x => x.Count, ct);

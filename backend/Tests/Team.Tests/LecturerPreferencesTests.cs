@@ -40,7 +40,7 @@ public sealed class LecturerPreferencesTests
         public Task<Dictionary<Guid, int>> CountActiveAssignmentsAsync(Guid semesterId, string courseCode, IReadOnlyList<Guid> lecturerIds, CancellationToken ct) =>
             Task.FromResult(Assignments
                 .Where(a => a.Status == "ASSIGNED" && lecturerIds.Contains(a.LecturerId)
-                    && AssignmentTeams.Any(t => t.Id == a.TeamId && t.SemesterId == semesterId && t.CourseCode == courseCode))
+                    && AssignmentTeams.Any(t => t.Id == a.TeamId && t.SemesterId == semesterId && t.CourseCode == courseCode && t.Status != "DISBANDED"))
                 .GroupBy(a => a.LecturerId)
                 .ToDictionary(g => g.Key, g => g.Count()));
 
@@ -423,10 +423,10 @@ public sealed class LecturerPreferencesTests
         }
         repo.PreviousInstructor = new LecturerPreferencePreviousInstructor(fullId, "Previous");
 
-        void Assigned(Guid lecturerId, Guid semesterId, string courseCode, string status = "ASSIGNED")
+        void Assigned(Guid lecturerId, Guid semesterId, string courseCode, string status = "ASSIGNED", string teamStatus = "ACTIVE")
         {
             var assignedTeamId = Guid.NewGuid();
-            repo.AssignmentTeams.Add(new TeamEntity { Id = assignedTeamId, SemesterId = semesterId, CourseCode = courseCode });
+            repo.AssignmentTeams.Add(new TeamEntity { Id = assignedTeamId, SemesterId = semesterId, CourseCode = courseCode, Status = teamStatus });
             repo.Assignments.Add(new LecturerAssignment { Id = Guid.NewGuid(), TeamId = assignedTeamId, LecturerId = lecturerId, Status = status });
         }
 
@@ -435,6 +435,8 @@ public sealed class LecturerPreferencesTests
         Assigned(fullId, Guid.NewGuid(), "EXE201");
         Assigned(fullId, team.SemesterId, "EXE201", "ENDED");
         Assigned(availableId, team.SemesterId, "EXE201");
+        // Nhóm đã giải tán nhưng dòng gán chưa kết thúc: không chiếm chỗ (availableId tối đa 2, chỉ còn 1 nhóm đang hướng dẫn).
+        Assigned(availableId, team.SemesterId, "EXE201", teamStatus: "DISBANDED");
 
         var result = await service.GetPreferencesAsync(team.Id, StudentUser(leaderId), CancellationToken.None);
 
