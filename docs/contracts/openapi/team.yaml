@@ -246,7 +246,7 @@ paths:
     get:
       tags: [AuditLog]
       summary: Nhật ký hệ thống (W24 – Admin)
-      parameters: [ { name: teamId, in: query, schema: { type: string, format: uuid } }, { name: actorAccountId, in: query, schema: { type: string, format: uuid } }, { name: from, in: query, schema: { type: string, format: date-time } }, { name: to, in: query, schema: { type: string, format: date-time } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      parameters: [ { name: teamId, in: query, schema: { type: string, format: uuid } }, { name: actorAccountId, in: query, schema: { type: string, format: uuid } }, { name: actorName, in: query, description: Tên người thực hiện chứa chuỗi này (không phân biệt hoa thường), schema: { type: string, maxLength: 150 } }, { name: from, in: query, schema: { type: string, format: date-time } }, { name: to, in: query, schema: { type: string, format: date-time } }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/AuditLog' } } } } ] } } } } }
 
   # ---------------- Baseline EXE101 + change requests (EXE201) ----------------
@@ -725,7 +725,7 @@ components:
           properties: { id: { type: string, format: uuid }, student: { $ref: '#/components/schemas/StudentRef' }, skills: { type: array, items: { $ref: '#/components/schemas/SkillRating' } }, status: { type: string, enum: [OPEN, CLOSED] }, updatedAt: { type: string, format: date-time } }
     AuditLog:
       type: object
-      properties: { id: { type: integer }, teamId: { type: string, format: uuid, nullable: true }, action: { type: string, example: MemberJoined }, actorName: { type: string }, actorRole: { type: string }, summary: { type: string }, reason: { type: string, nullable: true }, occurredAt: { type: string, format: date-time } }
+      properties: { id: { type: integer }, teamId: { type: string, format: uuid, nullable: true }, action: { type: string, example: MemberJoined }, actorName: { type: string, description: Tên lúc thực hiện; log hệ thống và log cũ hiện theo vai trò }, actorRole: { type: string }, summary: { type: string }, reason: { type: string, nullable: true }, occurredAt: { type: string, format: date-time } }
     ChangeItem:
       type: object
       properties: { id: { type: string, format: uuid }, action: { type: string, enum: [ADD, REMOVE, SET_LEADER, PROJECT_CHANGE] }, source: { type: string }, student: { allOf: [ { $ref: '#/components/schemas/StudentRef' } ], type: object, nullable: true, description: null khi PROJECT_CHANGE }, newProjectName: { type: string, nullable: true }, newProjectDescription: { type: string, nullable: true }, createdAt: { type: string, format: date-time } }

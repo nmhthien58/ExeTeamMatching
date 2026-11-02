@@ -34,7 +34,7 @@ public sealed class AuditLogService(IAuditLogRepository logs, ITeamRepository te
     }
 
     public Task<PagedResponse<AuditLogResponse>> SearchAsync(AuditLogQuery query, CancellationToken ct) =>
-        PageAsync(new AuditLogFilter(query.TeamId, query.ActorAccountId, query.From, query.To, query.Page, query.PageSize), ct);
+        PageAsync(new AuditLogFilter(query.TeamId, query.ActorAccountId, query.From, query.To, query.Page, query.PageSize, query.ActorName), ct);
 
     private async Task<PagedResponse<AuditLogResponse>> PageAsync(AuditLogFilter filter, CancellationToken ct)
     {
@@ -44,10 +44,9 @@ public sealed class AuditLogService(IAuditLogRepository logs, ITeamRepository te
     }
 
     private static AuditLogResponse ToResponse(AuditLogEntry e) =>
-        new(e.Id, e.TeamId, e.Action, ActorName(e.ActorRole), e.ActorRole, Summary(e), e.Reason, e.OccurredAt);
+        new(e.Id, e.TeamId, e.Action, e.ActorName ?? ActorName(e.ActorRole), e.ActorRole, Summary(e), e.Reason, e.OccurredAt);
 
-    // shortcut: audit_logs chỉ lưu actor_account_id (Identity), Team không tra được tên người thực hiện nên hiện theo vai trò;
-    // thêm cột actor_name vào DB script (Thiên duyệt) khi màn S22 / W24 cần tên.
+    /// <summary>Log của hệ thống và log trước khi có cột <c>actor_name</c> hiện theo vai trò.</summary>
     private static string ActorName(string role) => role switch
     {
         Roles.Admin => "Bộ môn",

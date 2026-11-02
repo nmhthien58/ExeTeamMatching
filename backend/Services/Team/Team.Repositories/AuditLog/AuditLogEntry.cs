@@ -12,6 +12,9 @@ public class AuditLogEntry
     public Guid? ActorAccountId { get; set; }
     public string ActorRole { get; set; } = string.Empty;
 
+    /// <summary>Tên lúc thực hiện; tên nằm ở Identity nên lưu kèm. Null = hệ thống hoặc log cũ.</summary>
+    public string? ActorName { get; set; }
+
     /// <summary>JSON (cột jsonb).</summary>
     public string? OldValues { get; set; }
 

@@ -43,7 +43,7 @@ public sealed class AuditLogApiTests : IAsyncLifetime
         Assert.Equal(["MEMBER_JOINED", "INVITATION_SENT", "RECRUITMENT_POST_OPENED", "TEAM_CREATED"], history.Items.Select(e => e.Action));
         Assert.Equal([$"{invitee.StudentCode} vào nhóm", $"Mời {invitee.StudentCode} vào nhóm", "Đăng bài tuyển thành viên", "Tạo nhóm Nhóm Nhật Ký"],
             history.Items.Select(e => e.Summary));
-        Assert.All(history.Items, e => Assert.Equal(("Student", "Sinh viên"), (e.ActorRole, e.ActorName)));
+        Assert.All(history.Items, e => Assert.Equal(("Student", "Người thử"), (e.ActorRole, e.ActorName)));
 
         var page = (await leaderClient.GetFromJsonAsync<PagedResponse<AuditLogResponse>>($"/api/teams/{team.Id}/audit-logs?page=2&pageSize=3"))!;
         Assert.Equal((4, 2, "TEAM_CREATED"), (page.TotalCount, page.TotalPages, page.Items.Single().Action));
@@ -73,6 +73,35 @@ public sealed class AuditLogApiTests : IAsyncLifetime
         Assert.Single(adminHistory.Items);
         await AssertProblemAsync(await admin.GetAsync($"/api/audit-logs?from={since}&to={before}"), 400, "validation");
         Assert.Equal(HttpStatusCode.Forbidden, (await _api.ClientFor(Academic.Enroll().Id).GetAsync("/api/audit-logs")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_filters_system_log_by_actor_name_and_old_rows_fall_back_to_role()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var team = await CreateTeamAsync(Academic.Enroll(), "Nhóm Lọc Người");
+        var admin = _api.ClientFor(null, Roles.Admin);
+
+        var found = (await admin.GetFromJsonAsync<PagedResponse<AuditLogResponse>>($"/api/audit-logs?teamId={team.Id}&actorName={Uri.EscapeDataString("người THỬ")}"))!;
+        var none = (await admin.GetFromJsonAsync<PagedResponse<AuditLogResponse>>($"/api/audit-logs?teamId={team.Id}&actorName=khong-co"))!;
+        var wildcard = (await admin.GetFromJsonAsync<PagedResponse<AuditLogResponse>>($"/api/audit-logs?teamId={team.Id}&actorName={Uri.EscapeDataString("%")}"))!;
+
+        Assert.Equal("Người thử", Assert.Single(found.Items).ActorName);
+        Assert.Equal(0, none.TotalCount);
+        Assert.Equal(0, wildcard.TotalCount);
+
+        // Log trước khi có cột actor_name vẫn hiện theo vai trò.
+        await _api.QueryDbAsync(db =>
+        {
+            db.Add(new Team.Repositories.AuditLog.AuditLogEntry { TeamId = team.Id, EntityType = "Team", EntityId = team.Id, Action = "TEAM_UPDATED", ActorRole = Roles.Admin });
+            return db.SaveChangesAsync();
+        });
+        var all = (await admin.GetFromJsonAsync<PagedResponse<AuditLogResponse>>($"/api/audit-logs?teamId={team.Id}"))!;
+        Assert.Equal(["Bộ môn", "Người thử"], all.Items.Select(e => e.ActorName));
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

@@ -6,7 +6,7 @@ using Team.Repositories.MentorAssignments;
 namespace Team.Repositories.AuditLog;
 
 /// <summary>Bộ lọc nhật ký; các trường null không lọc. <c>From</c>, <c>To</c> tính cả hai đầu.</summary>
-public sealed record AuditLogFilter(Guid? TeamId, Guid? ActorAccountId, DateTimeOffset? From, DateTimeOffset? To, int Page, int PageSize);
+public sealed record AuditLogFilter(Guid? TeamId, Guid? ActorAccountId, DateTimeOffset? From, DateTimeOffset? To, int Page, int PageSize, string? ActorName = null);
 
 public interface IAuditLogRepository
 {
@@ -29,6 +29,11 @@ public sealed class AuditLogRepository(TeamDbContext db) : IAuditLogRepository
         if (filter.ActorAccountId is { } actorId)
         {
             query = query.Where(e => e.ActorAccountId == actorId);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.ActorName))
+        {
+            var pattern = "%" + filter.ActorName.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            query = query.Where(e => e.ActorName != null && EF.Functions.ILike(e.ActorName, pattern));
         }
         if (filter.From is { } from)
         {

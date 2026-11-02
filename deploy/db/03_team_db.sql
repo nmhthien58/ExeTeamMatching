@@ -455,6 +455,7 @@ CREATE TABLE team.audit_logs (
     action           varchar(50)   NOT NULL,
     actor_account_id uuid,                                    -- NULL = hệ thống / job
     actor_role       varchar(20)   NOT NULL,
+    actor_name       varchar(150),                           -- snapshot tên người thực hiện (S22, W24); NULL = hệ thống / log cũ
     old_values       jsonb,
     new_values       jsonb,
     reason           varchar(1000),
