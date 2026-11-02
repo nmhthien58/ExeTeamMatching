@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Team.Repositories.Context;
 using Team.Services.Academic;
 using Team.Services.AdvisorAssignments;
+using Team.Services.AdvisorMatching;
 using Team.Services.AuditLog;
 using Team.Services.AutoAssign;
 using Team.Services.BaselineImport;
@@ -31,7 +32,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Khung Team Service (BE-24): DbContext <c>team_db</c>, Kafka + Outbox, client gọi Academic.
-    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences, TopicInterests…) tự đăng ký service của mình bên dưới.
+    /// Mỗi module (Teams, Members, Invitations, JoinRequests, Posts, AuditLog, Finalization, ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences, TopicInterests, AdvisorMatching…) tự đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddTeamServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -58,6 +59,8 @@ public static class ServiceCollectionExtensions
         services.AddProjectsModule();
         services.AddMatchingClient(configuration).AddFinalizationModule().AddAutoAssignModule()
             .AddStatisticsModule().AddExportModule().AddSuggestionsModule();
+        // Module AdvisorMatching (Thiên): ghép giảng viên / mentor, Ghép sớm, đổi giảng viên tay.
+        services.AddAdvisorMatchingModule();
         return services;
     }
 }

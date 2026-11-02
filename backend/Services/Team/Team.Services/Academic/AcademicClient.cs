@@ -62,6 +62,13 @@ public interface IAcademicClient
     /// <summary>Snapshot giảng viên từ Academic; null nếu chưa có hoặc 404.</summary>
     Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) => Task.FromResult<LecturerSnapshot?>(null);
 
+    /// <summary>
+    /// Mọi giảng viên đang hoạt động (<c>GET /api/lecturers</c> với token dịch vụ – Academic chỉ trả giảng viên đang hoạt động
+    /// cho người không phải Admin). Duyệt hết các trang; dùng cho ghép giảng viên (BE-80).
+    /// </summary>
+    Task<IReadOnlyList<LecturerSnapshot>> ListActiveLecturersAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<LecturerSnapshot>>([]);
+
     /// <summary>Snapshot mentor từ Academic (BE-66 của Nam); null nếu chưa có hoặc 404.</summary>
     Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct) => Task.FromResult<MentorSnapshot?>(null);
 
@@ -78,6 +85,12 @@ public interface IAcademicClient
 public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcademicClient
 {
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>pageSize tối đa của Academic (<c>LecturerQueryValidator</c>: 1–100).</summary>
+    internal const int LecturerPageSize = 100;
+
+    /// <summary>Chặn vòng lặp khi Academic trả totalPages sai.</summary>
+    private const int MaxLecturerPages = 100;
 
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => GetOrNullAsync<SemesterDto>("/api/semesters/current", ct);
 
@@ -112,6 +125,24 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
             return null;
         }
     }
+
+    public async Task<IReadOnlyList<LecturerSnapshot>> ListActiveLecturersAsync(CancellationToken ct)
+    {
+        var lecturers = new List<LecturerSnapshot>();
+        for (var page = 1; page <= MaxLecturerPages; page++)
+        {
+            var result = await http.GetFromJsonAsync<LecturerPage>($"/api/lecturers?page={page}&pageSize={LecturerPageSize}", ct)
+                ?? throw new HttpRequestException("Academic trả danh sách giảng viên rỗng.");
+            lecturers.AddRange(result.Items.Where(l => l.IsActive));
+            if (result.Items.Count == 0 || page >= result.TotalPages)
+            {
+                break;
+            }
+        }
+        return lecturers.DistinctBy(l => l.Id).ToList();
+    }
+
+    private sealed record LecturerPage(IReadOnlyList<LecturerSnapshot> Items, int Page, int PageSize, int TotalCount, int TotalPages);
 
     public async Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct)
     {

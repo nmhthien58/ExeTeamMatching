@@ -3,10 +3,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Team.Repositories.AdvisorMatching;
 using Team.Repositories.BaselineImport;
 using Team.Repositories.ChangeRequests;
 using Team.Repositories.Invitations;
 using Team.Repositories.JoinRequests;
+using Team.Repositories.LecturerAssignments;
+using Team.Repositories.MentorAssignments;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
@@ -87,8 +90,16 @@ public static class TestData
             .Concat(await db.Set<JoinRequest>().Where(r => teamIds.Contains(r.TeamId)).Select(r => r.Id).ToListAsync())
             .Concat(await db.Set<ChangeRequest>().Where(r => teamIds.Contains(r.TeamId)).Select(r => r.Id).ToListAsync())
             .ToList();
-        // change_requests chặn xóa nhóm (ON DELETE RESTRICT); mục thay đổi xóa theo cascade.
+        var runIds = await db.Set<AdvisorMatchingRun>().Where(r => r.SemesterId == semesterId).Select(r => r.Id).ToListAsync();
+        keys.AddRange(runIds);
+        // change_requests, lecturer_assignments, mentor_assignments chặn xóa nhóm (ON DELETE RESTRICT); mục thay đổi xóa theo cascade.
         await db.Set<ChangeRequest>().Where(r => teamIds.Contains(r.TeamId)).ExecuteDeleteAsync();
+        await db.Set<LecturerAssignment>().Where(a => teamIds.Contains(a.TeamId)).ExecuteDeleteAsync();
+        await db.Set<MentorAssignment>().Where(a => teamIds.Contains(a.TeamId)).ExecuteDeleteAsync();
+        await db.Set<AdvisorMatchingRun>().Where(r => runIds.Contains(r.Id)).ExecuteDeleteAsync();
+        // Nhóm EXE201 trỏ source_team_id (RESTRICT) tới nhóm EXE101 cùng học kỳ giả.
+        await db.Set<TeamEntity>().Where(t => teamIds.Contains(t.Id) && t.SourceTeamId != null)
+            .ExecuteUpdateAsync(u => u.SetProperty(t => t.SourceTeamId, (Guid?)null));
         await db.Set<TeamEntity>().Where(t => teamIds.Contains(t.Id)).ExecuteDeleteAsync();
         return await db.Set<OutboxMessage>().Where(m => keys.Contains(m.AggregateId)).ExecuteDeleteAsync();
     });

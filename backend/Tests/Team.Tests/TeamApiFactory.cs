@@ -127,6 +127,27 @@ public sealed class FakeAcademic : IAcademicClient
     public Task<IReadOnlyList<SemesterDto>> ListSemestersAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<SemesterDto>>([Semester]);
 
+    /// <summary>Giảng viên của Academic (cả đã khóa); <see cref="ListActiveLecturersAsync"/> chỉ trả người đang hoạt động như GET /api/lecturers.</summary>
+    public List<LecturerSnapshot> Lecturers { get; } = [];
+
+    /// <summary>true = Academic không phản hồi khi lấy danh sách giảng viên.</summary>
+    public bool LecturersDown { get; set; }
+
+    public LecturerSnapshot AddLecturer(string name, int? maxExe101 = null, int? maxExe201 = null, int[]? domains = null, bool active = true)
+    {
+        var lecturer = new LecturerSnapshot(Guid.NewGuid(), name, $"{Guid.NewGuid():N}@example.edu",
+            (domains ?? []).Select(d => new CatalogItem(d, $"D{d:00}", $"Domain {d}", true)).ToList(), maxExe101, maxExe201, active);
+        Lecturers.Add(lecturer);
+        return lecturer;
+    }
+
+    public Task<IReadOnlyList<LecturerSnapshot>> ListActiveLecturersAsync(CancellationToken ct) => LecturersDown
+        ? throw new HttpRequestException("Academic không phản hồi")
+        : Task.FromResult<IReadOnlyList<LecturerSnapshot>>(Lecturers.Where(l => l.IsActive).ToList());
+
+    public Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) =>
+        Task.FromResult(Lecturers.FirstOrDefault(l => l.Id == lecturerId));
+
         public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct)
     {
         if (courseCode == "EXE201" && roundType == RoundTypes.ChangeRequest && ChangeRequestRoundId is { } changeRoundId)

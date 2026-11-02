@@ -237,7 +237,7 @@ public sealed class TopicInterestService(
 
         var memberStudentIds = graph.Members.Select(m => m.StudentId).ToList();
 
-        audit.Add(teamId, "TopicInterest", interest.Id, "TOPIC_INTEREST_OPENED", user.ToAuditActor(),
+        audit.Add(teamId, "TopicInterest", interest.Id, "TOPIC_INTEREST_OPENED", user.ToAuditActor(AuditRoleOf(advisorKind)),
             newValues: new { advisorKind, advisorId, advisorName, wasPreviousInstructor = wasPrevious });
 
         repo.AddOutboxMessage(
@@ -286,7 +286,7 @@ public sealed class TopicInterestService(
         interest.ClosedAt = clock.GetUtcNow();
         interest.ClosedReason = null;
 
-        audit.Add(interest.TeamId, "TopicInterest", interest.Id, "TOPIC_INTEREST_WITHDRAWN", user.ToAuditActor());
+        audit.Add(interest.TeamId, "TopicInterest", interest.Id, "TOPIC_INTEREST_WITHDRAWN", user.ToAuditActor(AuditRoleOf(interest.AdvisorKind)));
 
         repo.AddOutboxMessage(
             Topics.Assignment,
@@ -342,6 +342,30 @@ public sealed class TopicInterestService(
 
         await repo.SaveChangesAsync(ct);
     }
+
+    public async Task CloseInterestsOnTeamDisbandedAsync(Guid teamId, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow();
+        foreach (var advisorKind in new[] { AdvisorKinds.Lecturer, AdvisorKinds.Mentor })
+        {
+            foreach (var interest in await repo.ListOpenByTeamIdAsync(teamId, advisorKind, ct))
+            {
+                interest.Status = TopicInterestStatuses.Closed;
+                interest.ClosedAt = now;
+                interest.ClosedReason = ClosedReasons.TeamDisbanded;
+                repo.AddOutboxMessage(Topics.Assignment, "TopicInterestClosed", "Team", teamId, new
+                {
+                    interestId = interest.Id,
+                    teamId,
+                    advisorKind,
+                    advisorId = interest.AdvisorId,
+                    reason = ClosedReasons.TeamDisbanded,
+                });
+            }
+        }
+    }
+
+    private static string AuditRoleOf(string advisorKind) => advisorKind == AdvisorKinds.Mentor ? Roles.Mentor : Roles.Lecturer;
 
     private static string NormalizeAdvisorKind(string? advisorKind)
     {

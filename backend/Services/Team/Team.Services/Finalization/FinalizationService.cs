@@ -7,6 +7,7 @@ using Team.Repositories.Teams;
 using Team.Services.Academic;
 using Team.Services.Members;
 using Team.Services.Teams;
+using Team.Services.TopicInterests;
 
 namespace Team.Services.Finalization;
 
@@ -26,6 +27,7 @@ public interface IFinalizationService
 
     /// <summary>
     /// W16 – Admin bớt thành viên khỏi nhóm (mọi lúc, kể cả nhóm EXE201 kế thừa – không qua yêu cầu đổi nhóm): sinh viên thành chưa có nhóm.
+    /// Bớt người cuối cùng thì nhóm bị giải tán và quan tâm đề tài đang mở đóng với lý do TEAM_DISBANDED (rule 19).
     /// </summary>
     Task<TeamDetailResponse> RemoveMemberAsync(Guid teamId, Guid studentId, AdminRemoveMemberRequest request, ClaimsPrincipal user, CancellationToken ct);
 
@@ -36,7 +38,7 @@ public interface IFinalizationService
 /// <summary>Module Finalization của Team Service (BE-48, rule 1, 2, 10, 13, 15).</summary>
 public sealed class FinalizationService(
     IFinalizationRepository finalization, ITeamRepository teams, IMemberRepository members, TeamFinalizer finalizer, RoundGuard rounds,
-    AuditLogWriter audit, ITeamService teamService) : IFinalizationService
+    AuditLogWriter audit, ITeamService teamService, ITopicInterestService topicInterests) : IFinalizationService
 {
     private const string AdminSource = "ADMIN";
     private const string RoundClosedReason = "Đóng đợt lập nhóm";
@@ -202,6 +204,7 @@ public sealed class FinalizationService(
         {
             audit.Add(team.Id, "Team", team.Id, "TEAM_DISBANDED", actor, new { status = team.Status }, new { status = TeamStatuses.Disbanded }, disbandReason);
             (team.Status, team.FinalizedAt) = (TeamStatuses.Disbanded, null);
+            await topicInterests.CloseInterestsOnTeamDisbandedAsync(team.Id, ct);
         }
         else
         {
