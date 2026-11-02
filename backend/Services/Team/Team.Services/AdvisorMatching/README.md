@@ -29,6 +29,13 @@ thì nhóm thành chưa ghép. `matchedCount` / `unmatchedCount` của lần ch�
 - `MentorAssignmentWriter` ghi `mentor_assignments`, nhật ký `MENTOR_ASSIGNED` / `MENTOR_UNASSIGNED` và sự kiện theo events.md.
   Thay mentor: dòng cũ `ENDED` (lưu trước, `uq_mentor_assignments_active`), chỉ phát `MentorAssigned` có `replacedMentorId`
   (Collaboration đổi người trong workspace). Gỡ hẳn mới phát `MentorUnassigned`.
-- Đổi tay: mentor đã khóa → 400; đã đủ `maxTeams` → 409 `mentor-full`; vượt `preferredTeams` → 200 kèm `warnings: [ABOVE_PREFERRED]`.
+- Đổi tay: mentor đã khóa → 400; đã đủ `maxTeams` → 409 `mentor-full`; vượt `preferredTeams` → 200 kèm `warnings: [ABOVE_PREFERRED]`;
+  mentor có `lecturerId` trùng giảng viên hướng dẫn đang gán của nhóm → 409 `mentor-is-instructor`.
+- Một người không vừa hướng dẫn vừa mentor cùng một nhóm (so `lecturerId` của mentor với `lecturer_assignments` ASSIGNED,
+  `IAdvisorSource.ListBlockedLecturersAsync`). `PlanAdvisorMatching` không có trường loại trừ theo nhóm (không đổi .proto) nên khi
+  ghép tự động / Ghép sớm, nhóm bị Matching ghép trùng được **tính lại** với danh sách mentor đã bỏ người đó (mỗi giảng viên một lời gọi,
+  tải cộng phần đã ghép của lần đầu); không còn mentor phù hợp thì chưa ghép. Lần tính lại không cạnh tranh công bằng với các nhóm
+  của lần đầu (mentor có thể đã hết chỗ). Lúc xác nhận Ghép sớm, nếu giảng viên vừa được đổi thành mentor trong phương án thì nhóm chưa ghép.
+- Chiều ngược lại (đổi giảng viên hướng dẫn thành người đang mentor nhóm) **chưa chặn**.
 - `matchingAt` của W28 = đầu tuần bắt đầu mentor (`MentoringSchedule.StartsAt`: `startDate + 7·(tuần − 1)` ngày, 00:00 UTC+7).
 - Gỡ mentor khi Bộ môn khóa mentor (consumer `MentorRegistered`) là BE-74 của Thành; có thể dùng `MentorAssignmentWriter.End(..., unassigned: true)`.

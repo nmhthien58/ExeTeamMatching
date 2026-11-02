@@ -41,6 +41,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `ideas-required` | Yêu cầu tham gia thiếu ý tưởng và không tích "Chưa có ý tưởng" (rule 17) |
 | `interest-limit` | Giảng viên đã đạt giới hạn quan tâm đề tài (rule 19) |
 | `team-has-mentor`, `mentor-full` | Nhóm đã có mentor / mentor đã đủ số nhóm tối đa (rule 20) |
+| `mentor-is-instructor` | Đổi mentor tay (`PUT /api/teams/{teamId}/mentor-assignment`) chọn mentor có `lecturerId` trùng giảng viên hướng dẫn đang gán của nhóm – một người không vừa hướng dẫn vừa mentor cùng một nhóm (rule 20) |
 | `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
 | `skills-incomplete` | Hồ sơ chưa đánh giá đủ 5 kỹ năng (rule 16) |
 | `not-workspace-member` (403) | Không thuộc workspace của nhóm (rule 21) |
