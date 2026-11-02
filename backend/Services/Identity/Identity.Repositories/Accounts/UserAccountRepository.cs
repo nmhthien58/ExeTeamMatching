@@ -10,6 +10,9 @@ public interface IUserAccountRepository
 
     Task<UserAccount?> GetByIdAsync(Guid id, CancellationToken ct);
 
+    /// <summary>Tìm theo id ở Academic của vai trò <paramref name="roleId"/>, kèm vai trò.</summary>
+    Task<UserAccount?> FindByExternalRefAsync(short roleId, Guid externalRefId, CancellationToken ct);
+
     /// <summary>Tài khoản khác đang giữ <paramref name="externalRefId"/> cho vai trò <paramref name="roleId"/>.</summary>
     Task<bool> ExternalRefInUseAsync(short roleId, Guid externalRefId, Guid exceptAccountId, CancellationToken ct);
 
@@ -24,6 +27,10 @@ public sealed class UserAccountRepository(IdentityDbContext db) : IUserAccountRe
 
     public Task<UserAccount?> GetByIdAsync(Guid id, CancellationToken ct) =>
         db.UserAccounts.Include(x => x.Roles).FirstOrDefaultAsync(x => x.Id == id, ct);
+
+    public Task<UserAccount?> FindByExternalRefAsync(short roleId, Guid externalRefId, CancellationToken ct) =>
+        db.UserAccounts.Include(x => x.Roles)
+            .FirstOrDefaultAsync(x => x.Roles.Any(r => r.RoleId == roleId && r.ExternalRefId == externalRefId), ct);
 
     public Task<bool> ExternalRefInUseAsync(short roleId, Guid externalRefId, Guid exceptAccountId, CancellationToken ct) =>
         db.UserAccountRoles.AnyAsync(x => x.RoleId == roleId && x.ExternalRefId == externalRefId && x.UserAccountId != exceptAccountId, ct);

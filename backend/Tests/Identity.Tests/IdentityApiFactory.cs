@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using BuildingBlocks.Messaging;
 using Identity.Repositories.Accounts;
 using Identity.Repositories.Context;
 using Identity.Services.Auth;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Identity.Tests;
 
@@ -36,6 +38,11 @@ public sealed class IdentityApiFactory(string environment = "Production") : WebA
             services.AddDbContext<IdentityDbContext>(options => options.UseInMemoryDatabase(_databaseName));
             services.RemoveAll<IGoogleTokenValidator>();
             services.AddSingleton<IGoogleTokenValidator>(Google);
+            foreach (var consumer in services.Where(d => d.ServiceType == typeof(IHostedService)
+                         && d.ImplementationType == typeof(KafkaConsumerService)).ToList())
+            {
+                services.Remove(consumer);
+            }
         });
     }
 
