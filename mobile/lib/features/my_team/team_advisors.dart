@@ -9,6 +9,7 @@ import '../../core/theme/app_tokens.dart';
 import '../workspace/format.dart';
 import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import 'my_team_api.dart';
+import '../lecturers/match_reason.dart';
 
 /// Cố vấn đang gán cho nhóm (LecturerAssignment, MentorAssignment – team.yaml): tên và nhãn lý do ghép (quy tắc 9, 20).
 class TeamAdvisor {
@@ -18,15 +19,6 @@ class TeamAdvisor {
   final String? reason;
 }
 
-String? _lecturerReason(String? reason, int? rank) => switch (reason) {
-      'MUTUAL' => 'Hai bên cùng chọn',
-      'PREFERENCE' => rank == null ? 'Nguyện vọng' : 'Nguyện vọng $rank',
-      'LECTURER_INTEREST' => 'Giảng viên quan tâm',
-      'PREVIOUS_INSTRUCTOR' => 'Đã hướng dẫn ở EXE101',
-      'DOMAIN' => 'Theo chuyên môn',
-      'MANUAL' => 'Bộ môn phân công',
-      _ => null,
-    };
 
 String? _mentorReason(String? reason) => switch (reason) {
       'MENTOR_INTEREST' => 'Mentor quan tâm',
@@ -51,7 +43,7 @@ class TeamAdvisorsApi {
 
   Future<TeamAdvisor?> lecturer(String teamId) => _call(() async {
         final j = (await _dio.get<Map<String, dynamic>>('/api/teams/$teamId/lecturer')).data;
-        return j == null ? null : TeamAdvisor(name: j['lecturerName'] as String? ?? '', reason: _lecturerReason(j['reason'] as String?, j['preferenceRank'] as int?));
+        return j == null ? null : TeamAdvisor(name: j['lecturerName'] as String? ?? '', reason: lecturerMatchReason(j['reason'] as String?, j['preferenceRank'] as int?));
       });
 
   Future<TeamAdvisor?> mentor(String teamId) => _call(() async {

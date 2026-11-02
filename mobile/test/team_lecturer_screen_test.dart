@@ -21,7 +21,7 @@ void main() {
   Widget app(TeamLecturerData data, {TeamDetail? selectedTeam = team}) => ProviderScope(
         overrides: [
           myTeamProvider.overrideWith((ref) async => selectedTeam),
-          teamLecturerProvider('team-1').overrideWith((ref) async => data),
+          teamLecturerDetailsProvider('team-1').overrideWith((ref) async => data),
         ],
         child: MaterialApp(theme: AppTheme.light(), home: const TeamLecturerScreen()),
       );
@@ -37,7 +37,7 @@ void main() {
     expect(find.text('Chưa ghép giảng viên'), findsOneWidget);
     expect(find.text('Giảng viên A'), findsOneWidget);
     expect(find.text('Quan tâm nhóm bạn'), findsOneWidget);
-    expect(find.text('Chỉnh sửa nguyện vọng'), findsNothing);
+    expect(find.text('Chỉnh sửa nguyện vọng'), findsOneWidget);
   });
 
   testWidgets('nút chỉnh sửa mở S23 khi route MB-27 đã được đăng ký', (tester) async {
@@ -49,7 +49,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         myTeamProvider.overrideWith((ref) async => team),
-        teamLecturerProvider('team-1').overrideWith((ref) async =>
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async =>
             const TeamLecturerData(preferences: {'locked': false, 'preferences': []})),
       ],
       child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
@@ -74,7 +74,7 @@ void main() {
             )),
         teamProjectProvider('team-1').overrideWith((ref) async => null),
         myTeamProvider.overrideWith((ref) async => team),
-        teamLecturerProvider('team-1').overrideWith((ref) async =>
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async =>
             const TeamLecturerData(preferences: {'locked': false, 'preferences': []})),
       ],
       child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
@@ -120,7 +120,7 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         myTeamProvider.overrideWith((ref) async => team),
-        teamLecturerProvider('team-1').overrideWith((ref) async => throw Exception('Lỗi tải')),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async => throw Exception('Lỗi tải')),
       ],
       child: MaterialApp(theme: AppTheme.light(), home: const TeamLecturerScreen()),
     ));

@@ -8,14 +8,10 @@ import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../suggestions/suggestions_api.dart';
+import 'paths.dart';
+import 'match_reason.dart';
 
-const teamLecturerPath = '/sv/nhom/giang-vien-cua-nhom';
-const _preferencesPath = '/sv/nhom/giang-vien';
-
-bool _hasPreferencesRoute(List<RouteBase> routes) => routes.any(
-      (route) => (route is GoRoute && route.path == _preferencesPath) || _hasPreferencesRoute(route.routes),
-    );
-
+export 'paths.dart' show teamLecturerPath;
 class TeamLecturerData {
   const TeamLecturerData({this.assignment, this.preferences});
   final Map<String, dynamic>? assignment;
@@ -39,19 +35,11 @@ class TeamLecturerApi {
 }
 
 final teamLecturerApiProvider = Provider<TeamLecturerApi>((ref) => TeamLecturerApi(ref.watch(dioProvider)));
-final teamLecturerProvider = FutureProvider.autoDispose.family<TeamLecturerData, String>(
+final teamLecturerDetailsProvider = FutureProvider.autoDispose.family<TeamLecturerData, String>(
   (ref, teamId) => ref.watch(teamLecturerApiProvider).load(teamId),
 );
 
-String lecturerMatchReason(String? reason, int? rank) => switch (reason) {
-      'MUTUAL' => 'Hai bên cùng chọn',
-      'PREFERENCE' => rank == null ? 'Theo nguyện vọng' : 'Nguyện vọng $rank',
-      'LECTURER_INTEREST' => 'Giảng viên quan tâm',
-      'PREVIOUS_INSTRUCTOR' => 'Đã hướng dẫn ở EXE101',
-      'DOMAIN' => 'Theo chuyên môn',
-      'MANUAL' => 'Bộ môn phân công',
-      _ => 'Đã phân công',
-    };
+
 
 class TeamLecturerScreen extends ConsumerWidget {
   const TeamLecturerScreen({super.key});
@@ -67,9 +55,9 @@ class TeamLecturerScreen extends ConsumerWidget {
         data: (value) {
           if (value == null) return const EmptyState(title: 'Bạn chưa có nhóm');
           final teamId = value.card.id;
-          return ref.watch(teamLecturerProvider(teamId)).when(
+          return ref.watch(teamLecturerDetailsProvider(teamId)).when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => ErrorState(error: error, onRetry: () => ref.invalidate(teamLecturerProvider(teamId))),
+                error: (error, _) => ErrorState(error: error, onRetry: () => ref.invalidate(teamLecturerDetailsProvider(teamId))),
                 data: (data) => _content(context, data, value.isLeader),
               );
         },
@@ -81,7 +69,7 @@ class TeamLecturerScreen extends ConsumerWidget {
     final assignment = data.assignment;
     final theme = Theme.of(context);
     if (assignment != null) {
-      final reason = lecturerMatchReason(assignment['reason'] as String?, assignment['preferenceRank'] as int?);
+      final reason = lecturerMatchReason(assignment['reason'] as String?, assignment['preferenceRank'] as int?) ?? 'Đã phân công';
       return ListView(padding: const EdgeInsets.all(AppSpacing.s4), children: [
         Text('Giảng viên hướng dẫn', style: theme.textTheme.titleLarge),
         const SizedBox(height: AppSpacing.s3),
@@ -117,10 +105,7 @@ class TeamLecturerScreen extends ConsumerWidget {
         )),
       if (isLeader && !locked) ...[
         const SizedBox(height: AppSpacing.s4),
-        if (GoRouter.maybeOf(context) case final router? when _hasPreferencesRoute(router.configuration.routes))
-          FilledButton(onPressed: () => context.push(_preferencesPath), child: const Text('Chỉnh sửa nguyện vọng'))
-        else
-          const Text('Chức năng chỉnh sửa nguyện vọng chưa sẵn sàng.'),
+        FilledButton(onPressed: () => context.push(lecturerPreferencesPath), child: const Text('Chỉnh sửa nguyện vọng')),
       ],
     ]);
   }

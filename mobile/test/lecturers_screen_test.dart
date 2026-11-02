@@ -10,11 +10,12 @@ import 'package:exe_team_matching/features/lecturers/lecturer_preferences_screen
 import 'package:exe_team_matching/features/lecturers/lecturers_api.dart';
 import 'package:exe_team_matching/features/lecturers/lecturers_models.dart';
 import 'package:exe_team_matching/features/lecturers/routes.dart';
+import 'package:exe_team_matching/features/lecturers/team_lecturer_screen.dart';
 import 'package:exe_team_matching/features/my_team/my_team_api.dart';
 import 'package:exe_team_matching/features/my_team/my_team_screen.dart';
 import 'package:exe_team_matching/features/my_team/project_card.dart';
 import 'package:exe_team_matching/features/suggestions/suggestions_api.dart'
-    show CatalogRef;
+    show CatalogRef, TeamDetail, TeamCard, myTeamProvider;
 
 class FakeLecturersApi extends LecturersApi {
   FakeLecturersApi({
@@ -214,16 +215,19 @@ Widget createDetailTestWidget({
 }
 
 void main() {
-  testWidgets('S15 opens S23 and lecturer detail S24 through registered routes', (tester) async {
+  testWidgets('S15 opens S25 then S23 and lecturer detail S24 through registered routes', (tester) async {
     final api = FakeLecturersApi(lecturers: [sampleLecturer1]);
     final router = GoRouter(initialLocation: '/sv/nhom', routes: [
       GoRoute(path: '/sv/nhom', builder: (_, _) => const Scaffold(body: MyTeamScreen())),
+      GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
       ...lecturerRoutes,
     ]);
     addTearDown(router.dispose);
     await tester.pumpWidget(ProviderScope(
       overrides: [
         lecturersApiProvider.overrideWithValue(api),
+        myTeamProvider.overrideWith((ref) async => const TeamDetail(card: TeamCard(id: 'team-1', name: 'Nhóm thử', status: 'ACTIVE', memberCount: 4), members: [], isLeader: true)),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async => const TeamLecturerData(preferences: {'locked': false, 'preferences': []})),
         myTeamDetailProvider.overrideWith((ref) async => const MyTeam(
           id: 'team-1', name: 'Nhóm thử', status: 'ACTIVE', courseCode: 'EXE201',
           members: [], domains: [], isLeader: true, memberCount: 4, specializationCount: 2,
@@ -234,6 +238,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Giảng viên'));
+    await tester.pumpAndSettle();
+    expect(find.text('Giảng viên của nhóm'), findsOneWidget);
+    await tester.tap(find.text('Chỉnh sửa nguyện vọng'));
     await tester.pumpAndSettle();
     expect(find.text('Nguyện vọng giảng viên'), findsOneWidget);
     await tester.ensureVisible(find.text(sampleLecturer1.fullName).last);
