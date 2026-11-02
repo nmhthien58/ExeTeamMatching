@@ -618,6 +618,37 @@ paths:
       summary: DeadlineReminderJob – sinh viên chưa có nhóm và nhóm dưới 4 người
       parameters: [ { name: semesterId, in: query, required: true, schema: { type: string, format: uuid } }, { $ref: '#/components/parameters/CourseCode' } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { studentIdsWithoutTeam: { type: array, items: { type: string, format: uuid } }, teamIdsUnderMinSize: { type: array, items: { type: string, format: uuid } } } } } } } }
+  /internal/mentors/team-counts:
+    post:
+      tags: [Internal]
+      summary: Đếm số nhóm đang mentor cho danh sách mentor (Academic gọi cho W27, lọc hasCapacity, chặn max-below-current)
+      description: Chỉ đếm dòng gán đang hiệu lực (ASSIGNED) của nhóm chưa giải tán (khác DISBANDED), cùng cách đếm với ghép mentor tự động. Mentor không có nhóm trả 0.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mentorIds]
+              properties:
+                mentorIds:
+                  type: array
+                  items: { type: string, format: uuid }
+                  description: Danh sách ID mentor cần đếm
+                semesterId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Lọc theo học kỳ (tùy chọn)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MentorTeamCount'
 
 components:
   securitySchemes:
@@ -933,3 +964,9 @@ components:
         source: { type: string, enum: [AUTO, MANUAL] }
         assignedAt: { type: string, format: date-time }
         endedAt: { type: string, format: date-time, nullable: true }
+    MentorTeamCount:
+      type: object
+      required: [mentorId, currentTeamCount]
+      properties:
+        mentorId: { type: string, format: uuid }
+        currentTeamCount: { type: integer, minimum: 0 }

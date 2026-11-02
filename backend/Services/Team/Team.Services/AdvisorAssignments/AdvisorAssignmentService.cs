@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
+using Team.Repositories.AuditLog;
 using Team.Repositories.LecturerAssignments;
 using Team.Repositories.MentorAssignments;
 using Team.Repositories.Teams;
+using Team.Services.AdvisorMatching;
 using Team.Services.Teams;
 
 namespace Team.Services.AdvisorAssignments;
@@ -12,7 +14,8 @@ public sealed class AdvisorAssignmentService(
     ILecturerAssignmentRepository lecturerRepo,
     IMentorAssignmentRepository mentorRepo,
     ITeamRepository teams,
-    TeamReader reader) : IAdvisorAssignmentService
+    TeamReader reader,
+    MentorAssignmentWriter mentorWriter) : IAdvisorAssignmentService
 {
     public async Task<LecturerAssignmentResponse?> GetTeamLecturerAsync(Guid teamId, ClaimsPrincipal user, CancellationToken ct)
     {
@@ -161,6 +164,60 @@ public sealed class AdvisorAssignmentService(
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// Đếm số nhóm đang mentor cho danh sách mentor (BE-74).
+    /// Mentor không có nhóm trả 0. Tránh N+1 từ Academic W27.
+    /// </summary>
+    public async Task<IReadOnlyList<MentorTeamCountResponse>> GetMentorTeamCountsAsync(
+        IReadOnlyList<Guid> mentorIds,
+        Guid? semesterId,
+        CancellationToken ct)
+    {
+        if (mentorIds.Count == 0)
+        {
+            return [];
+        }
+
+        var counts = await mentorRepo.CountActiveTeamsByMentorIdsAsync(mentorIds, semesterId, ct);
+        return mentorIds.Distinct().Select(id => new MentorTeamCountResponse(
+            MentorId: id,
+            CurrentTeamCount: counts.GetValueOrDefault(id, 0)
+        )).ToList();
+    }
+
+    /// <summary>Lý do kết thúc dòng gán khi Bộ môn khóa mentor (end_reason, payload <c>MentorUnassigned.reason</c>).</summary>
+    public const string MentorDeactivatedReason = "MENTOR_DEACTIVATED";
+
+    /// <summary>
+    /// Gỡ mentor khi Bộ môn khóa (BE-74, rule 20).
+    /// Consume sự kiện MentorRegistered từ exe.student; khi isActive=false thì kết thúc mọi dòng gán đang hiệu lực của mentor
+    /// qua <see cref="MentorAssignmentWriter.End"/>: ghi nhật ký <c>MENTOR_UNASSIGNED</c> (actor hệ thống) và phát
+    /// <c>MentorUnassigned</c> qua Outbox trong CÙNG một SaveChanges (một transaction).
+    /// Idempotent: nhận lại hoặc mentor đã được gỡ thì không còn dòng ASSIGNED nên không ghi thêm. isActive=true không gỡ.
+    /// </summary>
+    public async Task<int> HandleMentorRegisteredAsync(MentorRegisteredEvent @event, CancellationToken ct)
+    {
+        if (@event.IsActive)
+        {
+            return 0;
+        }
+
+        var activeAssignments = await mentorRepo.ListActiveByMentorIdTrackedAsync(@event.MentorId, ct);
+        if (activeAssignments.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var assignment in activeAssignments)
+        {
+            mentorWriter.End(assignment, MentorDeactivatedReason, unassigned: true, AuditActor.System);
+        }
+
+        // Cùng TeamDbContext (scoped) với repository của writer và AuditLogWriter: một lần lưu gồm dòng gán, nhật ký và Outbox.
+        await mentorRepo.SaveChangesAsync(ct);
+        return activeAssignments.Count;
     }
 
     private async Task EnsureCanReadTeamAdvisorsAsync(
