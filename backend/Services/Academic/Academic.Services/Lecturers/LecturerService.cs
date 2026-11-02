@@ -62,7 +62,7 @@ public sealed class LecturerService(ILecturerRepository lecturers) : ILecturerSe
         {
             throw LecturerErrors.EmailTaken(email);
         }
-        var domainIds = await ValidateDomainsAsync(input.DomainIds ?? [], [], ct);
+        var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds ?? [], [], ct);
         var lecturer = new Lecturer { Id = Guid.NewGuid(), IsActive = input.IsActive ?? true };
         Apply(lecturer, input, email);
         lecturers.Add(lecturer);
@@ -85,7 +85,7 @@ public sealed class LecturerService(ILecturerRepository lecturers) : ILecturerSe
             throw LecturerErrors.EmailTaken(email);
         }
         var current = await CurrentDomainIdsAsync(id, ct);
-        var domainIds = await ValidateDomainsAsync(input.DomainIds ?? current, current, ct);
+        var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds ?? current, current, ct);
         var accountChanged = lecturer.FullName != input.FullName!.Trim()
             || !string.Equals(lecturer.Email, email, StringComparison.OrdinalIgnoreCase)
             || lecturer.IsActive != (input.IsActive ?? lecturer.IsActive);
@@ -110,7 +110,7 @@ public sealed class LecturerService(ILecturerRepository lecturers) : ILecturerSe
     {
         var lecturer = await FindMeAsync(user, ct);
         var current = await CurrentDomainIdsAsync(lecturer.Id, ct);
-        var domainIds = await ValidateDomainsAsync(input.DomainIds!, current, ct);
+        var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds!, current, ct);
         await lecturers.ReplaceDomainsAsync(lecturer.Id, domainIds, ct);
         lecturers.AddEvent(LecturerEventTypes.LecturerProfileUpdated, lecturer.Id, ProfileEvent(lecturer, domainIds));
         await lecturers.SaveAsync(ct);
@@ -127,13 +127,13 @@ public sealed class LecturerService(ILecturerRepository lecturers) : ILecturerSe
     }
 
     /// <summary>
-    /// Domain phải có trong danh mục. Domain đã ngừng dùng chỉ được giữ lại nếu giảng viên đang có, không được thêm mới.
+    /// Domain phải có trong danh mục. Domain đã ngừng dùng chỉ được giữ lại nếu giảng viên, mentor đang có, không được thêm mới.
     /// Trả danh sách không trùng, sắp tăng dần.
     /// </summary>
-    private async Task<List<int>> ValidateDomainsAsync(IReadOnlyCollection<int> requested, IReadOnlyCollection<int> current, CancellationToken ct)
+    internal static async Task<List<int>> ValidateDomainsAsync(ILecturerRepository catalog, IReadOnlyCollection<int> requested, IReadOnlyCollection<int> current, CancellationToken ct)
     {
         var ids = requested.Distinct().Order().ToList();
-        var found = (await lecturers.FindCatalogDomainsAsync(ids, ct)).ToDictionary(d => d.Id);
+        var found = (await catalog.FindCatalogDomainsAsync(ids, ct)).ToDictionary(d => d.Id);
         var missing = ids.Where(id => !found.ContainsKey(id)).ToList();
         if (missing.Count > 0)
         {
