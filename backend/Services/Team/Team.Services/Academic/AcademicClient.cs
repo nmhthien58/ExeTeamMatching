@@ -49,12 +49,9 @@ public interface IAcademicClient
     Task<IReadOnlyList<RoundDto>> ListChangeRequestRoundsAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<RoundDto>>([]);
 
-    /// <summary>
-    /// Toàn bộ sinh viên của môn trong học kỳ (<c>GET /internal/students</c>); null khi Academic chưa có endpoint (404) –
-    /// người gọi dùng nguồn khác (xem <c>UnassignedStudents</c>).
-    /// </summary>
-    Task<IReadOnlyList<StudentSnapshot>?> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<StudentSnapshot>?>(null);
+    /// <summary>Toàn bộ sinh viên của môn trong học kỳ (<c>GET /internal/students</c>, BE-22).</summary>
+    Task<IReadOnlyList<StudentSnapshot>> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<StudentSnapshot>>([]);
 
     /// <summary>Snapshot MSSV, tên, chuyên ngành; sinh viên không thuộc học kỳ không có trong kết quả hoặc <c>IsEnrolled = false</c>.</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
@@ -104,8 +101,8 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
         (await http.GetFromJsonAsync<List<RoundDto>>("/api/registration-rounds?courseCode=EXE201", ct) ?? [])
             .Where(r => r.RoundType == RoundTypes.ChangeRequest).ToList();
 
-    public async Task<IReadOnlyList<StudentSnapshot>?> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
-        await GetOrNullAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semesterId}&courseCode={courseCode}", ct);
+    public async Task<IReadOnlyList<StudentSnapshot>> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
+        await http.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semesterId}&courseCode={courseCode}", ct) ?? [];
 
     public async Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct)
     {
