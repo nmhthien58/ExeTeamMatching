@@ -45,6 +45,8 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `instructor-is-mentor` | Đổi giảng viên tay (`PUT /api/teams/{teamId}/instructor`) chọn giảng viên trùng `lecturerId` của mentor đang gán của nhóm (rule 20) |
 | `email-exists` | Email đã thuộc người khác: tạo, sửa mentor trùng mentor, giảng viên, sinh viên; tạo, sửa giảng viên trùng mentor khác (rule 5, 20) |
 | `lecturer-email-taken` | Tạo, sửa giảng viên trùng email giảng viên khác |
+| `max-below-current` | Số nhóm tối đa của mentor nhỏ hơn số nhóm đang mentor trong học kỳ hiện hành |
+| `team-unavailable` | 503: Team Service không trả lời nên chưa kiểm tra được số nhóm đang mentor |
 | `lecturer-locked` | Gắn mentor với giảng viên đang khóa; mở khóa giảng viên rồi mới gắn được (rule 20) |
 | `lecturer-has-mentor` | Giảng viên đã gắn với một hồ sơ mentor khác (rule 20) |
 | `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
