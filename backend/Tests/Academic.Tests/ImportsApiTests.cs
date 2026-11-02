@@ -28,6 +28,7 @@ public sealed class ImportsApiTests : IAsyncLifetime
     private readonly List<Guid> _semesters = [];
     private readonly List<int> _classCodes = [];
     private readonly List<string> _studentCodes = [];
+    private readonly List<string> _mentorEmails = [];
     private HttpClient? _admin;
     private HttpClient Admin => _admin ??= _api.ClientAs(Roles.Admin);
 
@@ -214,6 +215,35 @@ public sealed class ImportsApiTests : IAsyncLifetime
         return stream.ToArray();
     }
 
+    [Fact]
+    public async Task Rows_with_a_mentor_email_are_reported_and_not_imported()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var semester = await CreateSemesterAsync();
+        var classCode = await CreateClassCodeAsync();
+        var specialization = await _api.QueryDbAsync(db => db.Specializations.FirstAsync(s => s.IsActive));
+        var mentorEmail = $"mentor-{Guid.NewGuid():N}@example.test";
+        _mentorEmails.Add(mentorEmail);
+        var created = await Admin.PostAsJsonAsync("/api/mentors", new { fullName = "Mentor thử", email = mentorEmail, maxTeams = 2 });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        string ok = NewCode(), taken = NewCode();
+        var preview = await PreviewAsync(semester.Id, "EXE101",
+            [ok, "Sinh Viên A", $"{ok}@example.test", specialization.Code, classCode.Code, ""],
+            [taken, "Trùng Mentor", mentorEmail.ToUpperInvariant(), specialization.Code, classCode.Code, ""]);
+
+        var row = preview.ErrorRows.Single();
+        Assert.Equal((3, "email", "Email đã thuộc một mentor."), (row.RowNumber, row.Errors.Single().Field, row.Errors.Single().Message));
+
+        var batch = await ConfirmAsync(preview);
+        Assert.Equal((1, 1), (batch.SuccessRows, batch.FailedRows));
+        Assert.False(await _api.QueryDbAsync(db => db.Students.AnyAsync(s => s.StudentCode == taken)));
+    }
+
     private string NewCode()
     {
         var code = $"ZX{Random.Shared.Next(0, 1_000_000):D6}";
@@ -266,7 +296,9 @@ public sealed class ImportsApiTests : IAsyncLifetime
             await _api.QueryDbAsync(async db =>
             {
                 var students = await db.Students.Where(s => _studentCodes.Contains(s.StudentCode)).Select(s => s.Id).ToListAsync();
-                await db.Set<OutboxMessage>().Where(m => students.Contains(m.AggregateId)).ExecuteDeleteAsync();
+                var mentors = await db.Mentors.Where(m => _mentorEmails.Contains(m.Email)).Select(m => m.Id).ToListAsync();
+                await db.Set<OutboxMessage>().Where(m => students.Contains(m.AggregateId) || mentors.Contains(m.AggregateId)).ExecuteDeleteAsync();
+                await db.Mentors.Where(m => mentors.Contains(m.Id)).ExecuteDeleteAsync();
                 await db.SemesterEnrollments.Where(e => students.Contains(e.StudentId) || _semesters.Contains(e.SemesterId)).ExecuteDeleteAsync();
                 await db.ImportBatches.Where(b => _semesters.Contains(b.SemesterId)).ExecuteDeleteAsync();
                 await db.Students.Where(s => students.Contains(s.Id)).ExecuteDeleteAsync();

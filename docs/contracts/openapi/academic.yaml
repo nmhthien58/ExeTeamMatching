@@ -499,10 +499,10 @@ components:
         isActive: { type: boolean }
     MentorInput:
       type: object
-      required: [fullName, email, maxTeams]
+      required: [fullName, maxTeams]
       properties:
         fullName: { type: string, maxLength: 150 }
-        email: { type: string, format: email }
+        email: { type: string, format: email, description: "Bắt buộc khi mentor không gắn giảng viên (thiếu → 400). Mentor gắn giảng viên dùng email giảng viên, trường này bị bỏ qua" }
         organization: { type: string, maxLength: 150, nullable: true }
         isInternal: { type: boolean, default: false }
         lecturerId: { type: string, format: uuid, nullable: true }

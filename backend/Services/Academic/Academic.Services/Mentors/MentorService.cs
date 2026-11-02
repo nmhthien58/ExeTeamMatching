@@ -29,10 +29,11 @@ public interface IMentorService
     Task<MentorResponse> UpdateMeAsync(MentorProfileInput input, ClaimsPrincipal user, CancellationToken ct);
 
     /// <summary>
-    /// Giảng viên đổi email thì hồ sơ mentor gắn với họ đổi theo; chỉ ghi vào phiên làm việc, lưu cùng lần lưu của giảng viên.
-    /// Email đã có mentor khác → 409.
+    /// Áp thay đổi của giảng viên lên hồ sơ mentor gắn với họ; chỉ ghi vào phiên làm việc, lưu cùng transaction outbox của giảng viên.
+    /// <paramref name="newEmail"/> khác null: giảng viên tạo mới hoặc đổi email, trùng mentor khác → 409, mentor gắn với họ đổi theo.
+    /// <paramref name="locked"/>: giảng viên vừa bị khóa, mentor gắn với họ khóa theo. Mở khóa giảng viên không đi qua đây, Bộ môn tự mở mentor.
     /// </summary>
-    Task StageLecturerEmailAsync(Guid lecturerId, string email, CancellationToken ct);
+    Task StageLecturerChangeAsync(Guid lecturerId, string? newEmail, bool locked, CancellationToken ct);
 }
 
 /// <summary>
@@ -65,7 +66,7 @@ public sealed class MentorService(IMentorRepository mentors, ILecturerRepository
     {
         var isInternal = input.IsInternal ?? false;
         var lecturer = await ResolveLecturerAsync(input.LecturerId, null, isInternal, null, ct);
-        var email = lecturer?.Email ?? input.Email!.Trim();
+        var email = lecturer?.Email ?? MentorRules.RequireEmail(input.Email);
         await RequireFreeEmailAsync(email, lecturer, null, ct);
         var domainIds = await LecturerService.ValidateDomainsAsync(lecturers, input.DomainIds ?? [], [], ct);
 
@@ -84,7 +85,7 @@ public sealed class MentorService(IMentorRepository mentors, ILecturerRepository
         var mentor = await FindAsync(id, ct);
         var isInternal = input.IsInternal ?? mentor.IsInternal;
         var lecturer = await ResolveLecturerAsync(input.LecturerId, mentor.LecturerId, isInternal, id, ct);
-        var email = lecturer?.Email ?? input.Email!.Trim();
+        var email = lecturer?.Email ?? MentorRules.RequireEmail(input.Email);
         await RequireFreeEmailAsync(email, lecturer, id, ct);
         var current = await CurrentDomainIdsAsync(id, ct);
         var domainIds = await LecturerService.ValidateDomainsAsync(lecturers, input.DomainIds ?? current, current, ct);
@@ -123,17 +124,19 @@ public sealed class MentorService(IMentorRepository mentors, ILecturerRepository
         return await ToResponseAsync(mentor, ct);
     }
 
-    public async Task StageLecturerEmailAsync(Guid lecturerId, string email, CancellationToken ct)
+    public async Task StageLecturerChangeAsync(Guid lecturerId, string? newEmail, bool locked, CancellationToken ct)
     {
-        if (await mentors.FindByLecturerAsync(lecturerId, ct) is not { } mentor)
+        var mentor = await mentors.FindByLecturerAsync(lecturerId, ct);
+        if (newEmail is not null && await mentors.EmailExistsAsync(newEmail, mentor?.Id, ct))
+        {
+            throw MentorErrors.EmailExists(newEmail);
+        }
+        if (mentor is null || (newEmail is null && !mentor.IsActive))
         {
             return;
         }
-        if (await mentors.EmailExistsAsync(email, mentor.Id, ct))
-        {
-            throw MentorErrors.EmailExists(email);
-        }
-        mentor.Email = email;
+        mentor.Email = newEmail ?? mentor.Email;
+        mentor.IsActive = mentor.IsActive && !locked;
         mentors.AddEvent(MentorEventTypes.MentorRegistered, mentor.Id, RegisteredEvent(mentor, await CurrentDomainIdsAsync(mentor.Id, ct)));
     }
 
@@ -241,11 +244,9 @@ public static class MentorErrors
     public static HttpStatusException PreferredAboveMax(int maxTeams) =>
         new(400, "preferred-above-max", "Số nhóm mong muốn vượt tối đa", $"Số nhóm mong muốn không được vượt {maxTeams}, mức tối đa do Bộ môn đặt.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException LecturerLocked() =>
         new("lecturer-locked", "Giảng viên đang bị khóa", "Mở khóa giảng viên rồi mới gắn được với hồ sơ mentor.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException LecturerHasMentor() =>
         new("lecturer-has-mentor", "Giảng viên đã có hồ sơ mentor", "Mỗi giảng viên chỉ gắn với một hồ sơ mentor.");
 }

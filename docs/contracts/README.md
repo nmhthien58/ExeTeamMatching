@@ -43,6 +43,10 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `team-has-mentor`, `mentor-full` | Nhóm đã có mentor / mentor đã đủ số nhóm tối đa (rule 20) |
 | `mentor-is-instructor` | Đổi mentor tay (`PUT /api/teams/{teamId}/mentor-assignment`) chọn mentor có `lecturerId` trùng giảng viên hướng dẫn đang gán của nhóm – một người không vừa hướng dẫn vừa mentor cùng một nhóm (rule 20) |
 | `instructor-is-mentor` | Đổi giảng viên tay (`PUT /api/teams/{teamId}/instructor`) chọn giảng viên trùng `lecturerId` của mentor đang gán của nhóm (rule 20) |
+| `email-exists` | Email đã thuộc người khác: tạo, sửa mentor trùng mentor, giảng viên, sinh viên; tạo, sửa giảng viên trùng mentor khác (rule 5, 20) |
+| `lecturer-email-taken` | Tạo, sửa giảng viên trùng email giảng viên khác |
+| `lecturer-locked` | Gắn mentor với giảng viên đang khóa; mở khóa giảng viên rồi mới gắn được (rule 20) |
+| `lecturer-has-mentor` | Giảng viên đã gắn với một hồ sơ mentor khác (rule 20) |
 | `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
 | `skills-incomplete` | Hồ sơ chưa đánh giá đủ 5 kỹ năng (rule 16) |
 | `not-workspace-member` (403) | Không thuộc workspace của nhóm (rule 21) |

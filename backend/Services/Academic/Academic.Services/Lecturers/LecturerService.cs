@@ -65,6 +65,7 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
         }
         var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds ?? [], [], ct);
         var lecturer = new Lecturer { Id = Guid.NewGuid(), IsActive = input.IsActive ?? true };
+        await mentors.StageLecturerChangeAsync(lecturer.Id, email, locked: false, ct);
         Apply(lecturer, input, email);
         lecturers.Add(lecturer);
         await lecturers.ReplaceDomainsAsync(lecturer.Id, domainIds, ct);
@@ -76,6 +77,7 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
     /// <summary>
     /// Admin sửa mọi trường. Luôn phát <c>LecturerProfileUpdated</c>; đổi họ tên, email hoặc khóa / mở thì phát thêm
     /// <c>LecturerRegistered</c> để Identity và Notification cập nhật tài khoản, liên lạc (xử lý idempotent theo lecturerId).
+    /// Giảng viên kiêm mentor: đổi email thì mentor đổi theo, khóa thì mentor khóa theo; mở khóa thì Bộ môn tự mở mentor.
     /// </summary>
     public async Task<LecturerResponse> UpdateAsync(Guid id, LecturerInput input, CancellationToken ct)
     {
@@ -88,15 +90,16 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
         var current = await CurrentDomainIdsAsync(id, ct);
         var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds ?? current, current, ct);
         var emailChanged = !string.Equals(lecturer.Email, email, StringComparison.OrdinalIgnoreCase);
+        var locked = lecturer.IsActive && input.IsActive == false;
         var accountChanged = lecturer.FullName != input.FullName!.Trim() || emailChanged
             || lecturer.IsActive != (input.IsActive ?? lecturer.IsActive);
 
         Apply(lecturer, input, email);
         lecturer.IsActive = input.IsActive ?? lecturer.IsActive;
         await lecturers.ReplaceDomainsAsync(id, domainIds, ct);
-        if (emailChanged)
+        if (emailChanged || locked)
         {
-            await mentors.StageLecturerEmailAsync(id, email, ct); // giảng viên kiêm mentor chỉ có một email
+            await mentors.StageLecturerChangeAsync(id, emailChanged ? email : null, locked, ct);
         }
         lecturers.AddEvent(LecturerEventTypes.LecturerProfileUpdated, id, ProfileEvent(lecturer, domainIds));
         if (accountChanged)
@@ -203,7 +206,6 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
 /// <summary>Lỗi của module Lecturers.</summary>
 public static class LecturerErrors
 {
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException EmailTaken(string email) =>
         new("lecturer-email-taken", "Email đã có giảng viên khác", $"Email {email} đã thuộc một giảng viên khác.");
 }

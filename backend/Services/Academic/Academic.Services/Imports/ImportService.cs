@@ -137,7 +137,7 @@ public sealed class ImportService(
     private async Task<IReadOnlyList<ImportRowCheck>> CheckAsync(IReadOnlyList<ImportRow> rows, Guid semesterId, string courseCode, CancellationToken ct) =>
         (await LoadAndCheckAsync(rows, semesterId, courseCode, ct)).Checks;
 
-    /// <summary>Đọc danh mục, sinh viên trùng MSSV / email và danh sách học kỳ của họ, rồi chạy <see cref="StudentImportRules"/>.</summary>
+    /// <summary>Đọc danh mục, sinh viên trùng MSSV / email, email của mentor và danh sách học kỳ của họ, rồi chạy <see cref="StudentImportRules"/>.</summary>
     private async Task<(IReadOnlyList<ImportRowCheck> Checks, IReadOnlyList<Student> Students, IReadOnlyList<SemesterEnrollment> Enrollments)> LoadAndCheckAsync(
         IReadOnlyList<ImportRow> rows, Guid semesterId, string courseCode, CancellationToken ct)
     {
@@ -149,12 +149,14 @@ public sealed class ImportService(
         var classes = await imports.ListClassCodesAsync(classCodes, ct);
         var students = await imports.FindStudentsAsync(codes, emails, ct);
         var enrollments = await imports.FindEnrollmentsAsync(semesterId, students.Select(s => s.Id).ToList(), ct);
+        var mentorEmails = await imports.FindMentorEmailsAsync(emails, ct);
 
         var reference = new ImportReference(
             specializations.Select(s => new CatalogEntry(s.Id, s.Code, s.Name, s.IsActive)).ToList(),
             classes.Select(c => new CatalogEntry(c.Id, c.Code, null, c.IsActive)).ToList(),
             students.Select(s => new ExistingStudent(s.Id, s.StudentCode, s.Email)).ToList(),
-            enrollments.ToDictionary(e => e.StudentId, e => e.CourseCode));
+            enrollments.ToDictionary(e => e.StudentId, e => e.CourseCode),
+            mentorEmails);
         return (StudentImportRules.Check(rows, courseCode, reference), students, enrollments);
     }
 
