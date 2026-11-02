@@ -17,7 +17,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Jobs.Tests;
 
-/// <summary>BE-51 → BE-55, BE-72, BE-81: logic từng job với client, Kafka và Hangfire giả.</summary>
+/// <summary>BE-51 → BE-55, BE-72, BE-81 (giảng viên, mentor): logic từng job với client, Kafka và Hangfire giả.</summary>
 public sealed class JobTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 22, 1, 0, 0, TimeSpan.Zero); // 08:00 giờ Việt Nam
@@ -250,6 +250,119 @@ public sealed class JobTests
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, error.StatusCode);
         Assert.Contains(code, error.Message);
+    }
+
+    // ---------- MentorMatchingJob (BE-81) ----------
+
+    /// <summary>Học kỳ bắt đầu thứ Hai 07/09/2026; tuần 6 bắt đầu 12/10/2026 00:00 giờ Việt Nam = 11/10 17:00 UTC.</summary>
+    private static SemesterDto Fa26(int? mentoringStartWeek = 6) =>
+        new(Guid.NewGuid(), "FA26", new DateOnly(2026, 9, 7), new DateOnly(2026, 12, 26), mentoringStartWeek);
+
+    private static MentorMatchingJob MentorJob(FakeAcademic academic, FakeTeam team, DateTimeOffset now) =>
+        new(academic, team, Options.Create(new JobsOptions()), new FixedClock(now), NullLogger<MentorMatchingJob>.Instance);
+
+    [Theory]
+    [InlineData(6, "2026-10-12T00:00:00+07:00")]
+    [InlineData(null, "2026-10-12T00:00:00+07:00")]
+    [InlineData(4, "2026-09-28T00:00:00+07:00")]
+    public void Mentoring_starts_at_midnight_of_the_start_week_in_the_job_time_zone(int? week, string expected) =>
+        Assert.Equal(DateTimeOffset.Parse(expected), MentorMatchingJob.StartsAt(Fa26(week), new JobsOptions().ResolveTimeZone()));
+
+    [Fact]
+    public async Task Mentor_matching_waits_until_the_mentoring_start_week()
+    {
+        var academic = new FakeAcademic { CurrentSemester = Fa26() };
+        var team = new FakeTeam();
+
+        await MentorJob(academic, team, DateTimeOffset.Parse("2026-10-11T16:59:00Z")).CheckAsync(Ct);
+
+        Assert.Empty(team.AdvisorRuns);
+    }
+
+    [Fact]
+    public async Task Mentor_matching_runs_for_both_courses_from_the_start_week()
+    {
+        var semester = Fa26();
+        var academic = new FakeAcademic { CurrentSemester = semester };
+        var team = new FakeTeam();
+
+        await MentorJob(academic, team, DateTimeOffset.Parse("2026-10-12T00:00:00Z")).CheckAsync(Ct);
+
+        Assert.Equal([(AdvisorKinds.Mentor, semester.Id, "EXE101"), (AdvisorKinds.Mentor, semester.Id, "EXE201")], team.AdvisorRuns);
+    }
+
+    [Fact]
+    public async Task Mentor_matching_reads_the_start_week_again_each_run()
+    {
+        // Admin dời tuần bắt đầu mentor sang tuần 8 sau khi job đã được lên lịch: tuần 6 không ghép.
+        var academic = new FakeAcademic { CurrentSemester = Fa26(8) };
+        var team = new FakeTeam();
+
+        await MentorJob(academic, team, DateTimeOffset.Parse("2026-10-13T00:00:00Z")).CheckAsync(Ct);
+
+        Assert.Empty(team.AdvisorRuns);
+    }
+
+    [Fact]
+    public async Task Mentor_matching_does_nothing_without_current_semester_or_after_it_ended()
+    {
+        var team = new FakeTeam();
+
+        await MentorJob(new FakeAcademic(), team, Now).CheckAsync(Ct);
+        await MentorJob(new FakeAcademic { CurrentSemester = Fa26() }, team, DateTimeOffset.Parse("2026-12-27T01:00:00Z")).CheckAsync(Ct);
+
+        Assert.Empty(team.AdvisorRuns);
+    }
+
+    [Fact]
+    public async Task Mentor_matching_error_in_one_course_still_runs_the_other_and_rethrows_for_retry()
+    {
+        var academic = new FakeAcademic { CurrentSemester = Fa26() };
+        var team = new FakeTeam { FailingCourse = "EXE101" };
+
+        var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            MentorJob(academic, team, DateTimeOffset.Parse("2026-10-20T01:00:00Z")).CheckAsync(Ct));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, error.StatusCode);
+        Assert.Equal(["EXE101", "EXE201"], team.AdvisorRuns.Select(r => r.CourseCode));
+    }
+
+    [Fact]
+    public async Task Mentor_matching_run_calls_team_for_mentors_of_the_course()
+    {
+        var team = new FakeTeam();
+        var semesterId = Guid.NewGuid();
+
+        await MentorJob(new FakeAcademic(), team, Now).RunAsync(semesterId, "EXE201", Ct);
+
+        Assert.Equal([(AdvisorKinds.Mentor, semesterId, "EXE201")], team.AdvisorRuns);
+    }
+
+    [Fact]
+    public void Mentor_matching_is_registered_as_a_recurring_job_with_a_fixed_id()
+    {
+        var manager = new FakeRecurringJobManager();
+        var options = new JobsOptions();
+
+        RecurringJobs.Register(manager, options);
+
+        var (job, cron, recurring) = manager.Jobs[MentorMatchingJob.RecurringId];
+        Assert.Equal((typeof(MentorMatchingJob), nameof(MentorMatchingJob.CheckAsync)), (job.Type, job.Method.Name));
+        Assert.Equal(options.MentorMatchingCron, cron);
+        Assert.Equal(options.ResolveTimeZone(), recurring.TimeZone);
+    }
+
+    [Fact]
+    public async Task Academic_client_reads_current_semester_and_treats_404_as_none()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK,
+            """{"id":"5b0c3a52-6a0e-4e4a-9a5c-1d9f8b4f0e11","code":"FA26","name":"Fall 2026","startDate":"2026-09-07","endDate":"2026-12-26","isCurrent":true,"mentoringStartWeek":6,"expectedMentorSessions":3}""");
+        var semester = await new AcademicClient(new HttpClient(handler) { BaseAddress = new Uri("http://academic") }).GetCurrentSemesterAsync(Ct);
+
+        Assert.Equal("/api/semesters/current", handler.Request!.RequestUri!.AbsolutePath);
+        Assert.Equal(("FA26", new DateOnly(2026, 9, 7), 6), (semester!.Code, semester.StartDate, semester.MentoringStartWeek));
+        Assert.Null(await new AcademicClient(new HttpClient(new StubHandler(HttpStatusCode.NotFound, "{}")) { BaseAddress = new Uri("http://academic") })
+            .GetCurrentSemesterAsync(Ct));
     }
 
     // ---------- MeetingReminderJob, TaskDueReminderJob (BE-72) ----------
