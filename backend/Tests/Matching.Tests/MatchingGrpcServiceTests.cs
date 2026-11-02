@@ -3,6 +3,7 @@ using ExeTeamMatching.Protos.Matching.V1;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Matching.Grpc.Services;
+using Matching.Services.AdvisorMatching;
 using Matching.Services.AutoAssignment;
 using Matching.Services.Suggestions;
 using Matching.Services.TopicSuggestions;
@@ -15,7 +16,7 @@ public sealed class MatchingGrpcServiceTests
     private readonly Scenario _s = new();
 
     private MatchingGrpcService Service => new(
-        new SuggestionService(_s.Model), new TopicSuggestionService(_s.Model), new AutoAssignmentPlanner(_s.Model));
+        new SuggestionService(_s.Model), new TopicSuggestionService(_s.Model), new AutoAssignmentPlanner(_s.Model), new AdvisorMatchingPlanner());
 
     [Fact]
     public async Task ValidateComposition_maps_violations()
@@ -66,12 +67,51 @@ public sealed class MatchingGrpcServiceTests
     }
 
     [Fact]
-    public async Task PlanAdvisorMatching_is_left_to_advisor_matching_module()
+    public async Task PlanAdvisorMatching_maps_matches_reasons_and_unmatched_teams()
     {
-        var error = await Assert.ThrowsAsync<RpcException>(() =>
-            Service.PlanAdvisorMatching(new PlanAdvisorMatchingRequest(), new FakeCallContext()));
+        var full = Guid.NewGuid().ToString();
+        var open = Guid.NewGuid().ToString();
+        var matched = new MatchingTeam { TeamId = Guid.NewGuid().ToString(), PreferredAdvisorIds = { full, open } };
+        var unmatched = new MatchingTeam { TeamId = Guid.NewGuid().ToString(), PreferredAdvisorIds = { full } };
+        var request = new PlanAdvisorMatchingRequest
+        {
+            Course = Course.Exe101,
+            Teams = { matched, unmatched },
+            Advisors =
+            {
+                new MatchingAdvisor { AdvisorId = full, CurrentTeamCount = 2, HasMaxTeams = true, MaxTeams = 2 },
+                new MatchingAdvisor { AdvisorId = open, HasMaxTeams = true, MaxTeams = 1 },
+            },
+        };
 
-        Assert.Equal(StatusCode.Unimplemented, error.StatusCode);
+        var response = await CallThroughInterceptor(request, Service.PlanAdvisorMatching);
+
+        Assert.Equal(1, response.MatchedCount);
+        Assert.Equal(1, response.UnmatchedCount);
+        var first = response.Matches.Single(m => m.TeamId == matched.TeamId);
+        Assert.Equal(open, first.AdvisorId);
+        Assert.Equal(MatchReason.Preference, first.Reason);
+        Assert.Equal(2, first.PreferenceRank);
+        var second = response.Matches.Single(m => m.TeamId == unmatched.TeamId);
+        Assert.Equal(string.Empty, second.AdvisorId);
+        Assert.Equal(MatchReason.Unspecified, second.Reason);
+    }
+
+    [Fact]
+    public async Task PlanAdvisorMatching_treats_missing_maximum_as_no_limit_and_rejects_bad_ids()
+    {
+        var advisor = Guid.NewGuid().ToString();
+        var request = new PlanAdvisorMatchingRequest
+        {
+            Teams = { new MatchingTeam { TeamId = Guid.NewGuid().ToString() } },
+            Advisors = { new MatchingAdvisor { AdvisorId = advisor, CurrentTeamCount = 40 } },
+        };
+
+        Assert.Equal(advisor, (await CallThroughInterceptor(request, Service.PlanAdvisorMatching)).Matches.Single().AdvisorId);
+
+        request.Teams[0].PreviousInstructorId = "abc";
+        var error = await Assert.ThrowsAsync<RpcException>(() => CallThroughInterceptor(request, Service.PlanAdvisorMatching));
+        Assert.Equal(StatusCode.InvalidArgument, error.StatusCode);
     }
 
     [Fact]
