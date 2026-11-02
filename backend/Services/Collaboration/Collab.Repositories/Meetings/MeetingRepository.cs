@@ -35,6 +35,9 @@ public interface IMeetingRepository
     /// <summary>Khung giờ của các cuộc họp, sắp theo giờ bắt đầu.</summary>
     Task<IReadOnlyList<MeetingSlot>> ListSlotsAsync(IReadOnlyCollection<Guid> meetingIds, CancellationToken ct);
 
+    /// <summary>Có theo dõi thay đổi.</summary>
+    Task<MeetingSlot?> FindSlotAsync(Guid slotId, CancellationToken ct);
+
     /// <summary>Câu trả lời của các khung. Có theo dõi thay đổi, để sửa câu trả lời cũ.</summary>
     Task<IReadOnlyList<MeetingRespons>> ListResponsesAsync(IReadOnlyCollection<Guid> slotIds, CancellationToken ct);
 
@@ -58,6 +61,9 @@ public interface IMeetingRepository
     void Add(MeetingMinutes minutes);
 
     void Add(MeetingReminder reminder);
+
+    /// <summary>Xóa các mốc nhắc đã gửi; lưu cùng lần <see cref="SaveAsync"/>.</summary>
+    Task RemoveRemindersAsync(Guid meetingId, CancellationToken ct);
 
     /// <summary>Ghi sự kiện vào outbox (topic <c>exe.collab</c>, key = id workspace); lưu cùng lần <see cref="SaveAsync"/>.</summary>
     void AddEvent<TPayload>(string eventType, Guid workspaceId, TPayload payload);
@@ -91,6 +97,9 @@ public sealed class MeetingRepository(CollabDbContext db) : IMeetingRepository
 
     public async Task<IReadOnlyList<MeetingSlot>> ListSlotsAsync(IReadOnlyCollection<Guid> meetingIds, CancellationToken ct) =>
         await db.Set<MeetingSlot>().AsNoTracking().Where(s => meetingIds.Contains(s.MeetingId)).OrderBy(s => s.StartsAt).ToListAsync(ct);
+
+    public Task<MeetingSlot?> FindSlotAsync(Guid slotId, CancellationToken ct) =>
+        db.Set<MeetingSlot>().FirstOrDefaultAsync(s => s.Id == slotId, ct);
 
     public async Task<IReadOnlyList<MeetingRespons>> ListResponsesAsync(IReadOnlyCollection<Guid> slotIds, CancellationToken ct) =>
         await db.Set<MeetingRespons>().Where(r => slotIds.Contains(r.SlotId)).ToListAsync(ct);
@@ -128,6 +137,9 @@ public sealed class MeetingRepository(CollabDbContext db) : IMeetingRepository
     public void Add(MeetingMinutes minutes) => db.Set<MeetingMinutes>().Add(minutes);
 
     public void Add(MeetingReminder reminder) => db.Set<MeetingReminder>().Add(reminder);
+
+    public async Task RemoveRemindersAsync(Guid meetingId, CancellationToken ct) =>
+        db.Set<MeetingReminder>().RemoveRange(await db.Set<MeetingReminder>().Where(r => r.MeetingId == meetingId).ToListAsync(ct));
 
     public void AddEvent<TPayload>(string eventType, Guid workspaceId, TPayload payload) =>
         db.AddOutboxMessage(Topics.Collab, eventType, "Workspace", workspaceId, payload);

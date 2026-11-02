@@ -47,6 +47,10 @@ public sealed class MeetingsController(IMeetingService meetings) : ControllerBas
     public async Task<ActionResult<MeetingDetailResponse>> Cancel(Guid meetingId, CancelMeetingRequest request, CancellationToken ct) =>
         Ok(await meetings.CancelAsync(meetingId, request, User, ct));
 
+    [HttpPost("meetings/{meetingId:guid}/reschedule")]
+    public async Task<ActionResult<MeetingDetailResponse>> Reschedule(Guid meetingId, RescheduleMeetingRequest request, CancellationToken ct) =>
+        Ok(await meetings.RescheduleAsync(meetingId, request, User, ct));
+
     [HttpPut("meetings/{meetingId:guid}/minutes")]
     public async Task<ActionResult<MeetingDetailResponse>> Minutes(Guid meetingId, MeetingMinutesRequest request, CancellationToken ct) =>
         Ok(await meetings.SaveMinutesAsync(meetingId, request, User, ct));
