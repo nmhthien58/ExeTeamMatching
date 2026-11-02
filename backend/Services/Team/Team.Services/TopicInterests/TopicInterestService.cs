@@ -15,13 +15,12 @@ public sealed class TopicInterestService(
     ITopicInterestRepository repo,
     ITeamRepository teams,
     IAcademicClient academic,
+    ITopicSuggestionClient suggestions,
+    ITopicInterestSettingsClient settings,
     TeamReader reader,
     AuditLogWriter audit,
     TimeProvider clock) : ITopicInterestService
 {
-    private const int DefaultUnlimitedLimit = 10;
-    private const int ExtraSlots = 2;
-    private const int DefaultMentorMax = 5;
 
     public async Task<TopicRecommendationsResponse> GetRecommendationsAsync(
         string advisorKind,
@@ -38,59 +37,32 @@ public sealed class TopicInterestService(
         var targetCourse = courseCode ?? "EXE101";
 
         var (interestOpen, matchingAt) = await ResolvePhaseAsync(advisorKind, targetCourse, semester, ct);
-        var (limit, remainingCapacity) = await CalculateLimitAsync(advisorKind, advisorId, targetCourse, ct);
-        var openCount = await repo.CountOpenByAdvisorAsync(advisorKind, advisorId, ct);
+        var (limit, remainingCapacity) = await CalculateLimitAsync(advisorKind, advisorId, semester.Id, targetCourse, ct);
+        var openCount = await repo.CountOpenByAdvisorAsync(advisorKind, advisorId, semester.Id, targetCourse, ct);
 
-        var advisorDomainIds = await GetAdvisorDomainIdsAsync(advisorKind, advisorId, ct);
+        var suggested = await suggestions.SuggestAsync(semester.Id, targetCourse, advisorKind, advisorId, page, pageSize, ct);
         var catalogs = await reader.LoadCatalogsAsync(ct);
-
-        // Lấy danh sách nhóm của môn trong học kỳ chưa có cố vấn loại này
-        var allTeamIds = await repo.ListTeamIdsInSemesterAsync(semester.Id, courseCode, ct);
-        var graphs = await teams.ListGraphsAsync(allTeamIds, ct);
-
-        var candidates = new List<(TeamGraph Graph, bool WasEXE101, List<CatalogRef> MatchedDomains, int OtherInterests, int? PrefRank, TopicInterest? MyInterest)>();
-
-        foreach (var graph in graphs)
+        var graphs = (await teams.ListGraphsAsync(suggested.Select(s => s.TeamId).ToList(), ct)).ToDictionary(g => g.Team.Id);
+        var items = new List<TopicRecommendationResponse>();
+        foreach (var suggestion in suggested)
         {
+            if (!graphs.TryGetValue(suggestion.TeamId, out var graph)) continue;
             if (graph.Team.Status == TeamStatuses.Disbanded) continue;
             var hasAdvisor = await repo.HasActiveAssignmentAsync(graph.Team.Id, advisorKind, ct);
             if (hasAdvisor) continue;
-
-            var wasEXE101 = advisorKind == AdvisorKinds.Lecturer && await repo.WasLecturerEXE101InstructorAsync(graph.Team.Id, advisorId, ct);
             var matchedDomains = graph.Domains
-                .Where(d => advisorDomainIds.Contains(d.DomainId))
+                .Where(d => suggestion.MatchedDomainIds.Contains(d.DomainId))
                 .Select(d => new CatalogRef(d.DomainId, d.DomainCode, catalogs.Domains.GetValueOrDefault(d.DomainId)?.Name))
                 .ToList();
-            var otherCount = await repo.CountOpenByTeamAsync(graph.Team.Id, advisorKind, advisorId, ct);
             var prefRank = advisorKind == AdvisorKinds.Lecturer
                 ? await repo.GetLecturerPreferenceRankAsync(graph.Team.Id, advisorId, ct)
                 : null;
             var myInterest = await repo.GetLatestInterestAsync(graph.Team.Id, advisorKind, advisorId, ct);
-
-            candidates.Add((graph, wasEXE101, matchedDomains, otherCount, prefRank, myInterest));
+            items.Add(new TopicRecommendationResponse(
+                TeamMapper.ToCard(graph, catalogs), matchedDomains, suggestion.OtherInterestedCount, prefRank,
+                myInterest is not null ? ToResponse(myInterest, suggestion.WasPreviousInstructor) : null,
+                suggestion.WasPreviousInstructor, false));
         }
-
-        // Sắp xếp: Đề tài EXE101 trước, rồi theo số domain trùng, rồi theo ít người quan tâm hơn
-        var sorted = candidates
-            .OrderByDescending(c => c.WasEXE101)
-            .ThenByDescending(c => c.MatchedDomains.Count)
-            .ThenBy(c => c.OtherInterests)
-            .ToList();
-
-        var paged = sorted
-            .Skip(Math.Max(0, (page - 1) * pageSize))
-            .Take(pageSize > 0 ? pageSize : 20)
-            .ToList();
-
-        var items = paged.Select(c => new TopicRecommendationResponse(
-            TeamMapper.ToCard(c.Graph, catalogs),
-            c.MatchedDomains,
-            c.OtherInterests,
-            c.PrefRank,
-            c.MyInterest is not null ? ToResponse(c.MyInterest, c.WasEXE101) : null,
-            c.WasEXE101,
-            false
-        )).ToList();
 
         return new TopicRecommendationsResponse(
             openCount,
@@ -113,6 +85,7 @@ public sealed class TopicInterestService(
         var responses = new List<TopicInterestResponse>();
         foreach (var item in list)
         {
+            if (item.Status != TopicInterestStatuses.Open) continue;
             var wasPrevious = advisorKind == AdvisorKinds.Lecturer
                 && await repo.WasLecturerEXE101InstructorAsync(item.TeamId, advisorId, ct);
             responses.Add(ToResponse(item, wasPrevious));
@@ -127,6 +100,7 @@ public sealed class TopicInterestService(
         ClaimsPrincipal user,
         CancellationToken ct)
     {
+        if (advisorKind is not null) advisorKind = NormalizeAdvisorKind(advisorKind);
         var graph = await teams.GetGraphAsync(teamId, ct) ?? throw TeamErrors.TeamNotFound(teamId);
         var list = await repo.ListByTeamIdAsync(teamId, advisorKind, ct);
 
@@ -139,6 +113,7 @@ public sealed class TopicInterestService(
         var responses = new List<TopicInterestResponse>();
         foreach (var item in list)
         {
+            if (item.Status != TopicInterestStatuses.Open) continue;
             // Sinh viên chỉ thấy quan tâm của giảng viên (rule 19), không thấy của mentor (rule 20)
             if (isMember && !isAdmin && item.AdvisorKind == AdvisorKinds.Mentor)
             {
@@ -184,7 +159,8 @@ public sealed class TopicInterestService(
                 $"Nhóm đã được ghép {(advisorKind == AdvisorKinds.Lecturer ? "giảng viên hướng dẫn" : "mentor")}.");
         }
 
-        var semester = await academic.GetCurrentSemesterAsync(ct);
+        var semester = await academic.GetCurrentSemesterAsync(ct) ?? throw TeamErrors.RoundClosed();
+        if (graph.Team.SemesterId != semester.Id) throw TeamErrors.RoundClosed();
         var (interestOpen, _) = await ResolvePhaseAsync(advisorKind, graph.Team.CourseCode, semester, ct);
         if (!interestOpen)
         {
@@ -213,8 +189,8 @@ public sealed class TopicInterestService(
             throw new ConflictException("interest-closed", "Hết thời gian bày tỏ quan tâm", detail);
         }
 
-        var (limit, _) = await CalculateLimitAsync(advisorKind, advisorId, graph.Team.CourseCode, ct);
-        var currentOpen = await repo.CountOpenByAdvisorAsync(advisorKind, advisorId, ct);
+        var (limit, _) = await CalculateLimitAsync(advisorKind, advisorId, semester.Id, graph.Team.CourseCode, ct);
+        var currentOpen = await repo.CountOpenByAdvisorAsync(advisorKind, advisorId, semester.Id, graph.Team.CourseCode, ct);
 
         // Kiểm tra xem đã có quan tâm OPEN chưa
         var existingOpen = await repo.GetOpenInterestAsync(teamId, advisorKind, advisorId, ct);
@@ -367,10 +343,12 @@ public sealed class TopicInterestService(
         await repo.SaveChangesAsync(ct);
     }
 
-    private static string NormalizeAdvisorKind(string advisorKind) =>
-        advisorKind.Equals(AdvisorKinds.Mentor, StringComparison.OrdinalIgnoreCase)
-            ? AdvisorKinds.Mentor
-            : AdvisorKinds.Lecturer;
+    private static string NormalizeAdvisorKind(string? advisorKind)
+    {
+        if (string.Equals(advisorKind, AdvisorKinds.Lecturer, StringComparison.OrdinalIgnoreCase)) return AdvisorKinds.Lecturer;
+        if (string.Equals(advisorKind, AdvisorKinds.Mentor, StringComparison.OrdinalIgnoreCase)) return AdvisorKinds.Mentor;
+        throw TeamErrors.Invalid("advisorKind", "Loại cố vấn phải là LECTURER hoặc MENTOR.");
+    }
 
     private static (Guid AdvisorId, string AdvisorName) ResolveAdvisorIdentity(string advisorKind, ClaimsPrincipal user)
     {
@@ -430,10 +408,12 @@ public sealed class TopicInterestService(
     private async Task<(int Limit, int? RemainingCapacity)> CalculateLimitAsync(
         string advisorKind,
         Guid advisorId,
+        Guid semesterId,
         string courseCode,
         CancellationToken ct)
     {
-        var currentAssigned = await repo.CountActiveAssignmentsByAdvisorAsync(advisorKind, advisorId, ct);
+        var currentAssigned = await repo.CountActiveAssignmentsByAdvisorAsync(advisorKind, advisorId, semesterId, courseCode, ct);
+        var rules = await settings.GetAsync(ct);
 
         if (advisorKind == AdvisorKinds.Lecturer)
         {
@@ -442,42 +422,21 @@ public sealed class TopicInterestService(
 
             if (maxTeams is null)
             {
-                return (DefaultUnlimitedLimit, null);
+                return (rules.MaxInterestsUnlimited, null);
             }
 
             var remaining = Math.Max(0, maxTeams.Value - currentAssigned);
-            return (remaining + ExtraSlots, remaining);
+            return (remaining + rules.InterestExtraSlots, remaining);
         }
         else
         {
-            // Rule 19: Giới hạn quan tâm mentor = sức chứa tối đa + 2.
-            // Tích hợp IAcademicClient.GetMentorAsync (BE-66 của Nam). Khi Academic chưa có endpoint (404), fallback DefaultMentorMax = 5.
-            var snapshot = await academic.GetMentorAsync(advisorId, ct);
-            var maxTeams = snapshot?.PreferredTeams ?? snapshot?.MaxTeams ?? DefaultMentorMax;
+            // Rule 19: giới hạn của mentor dựa trên mức tối đa do Bộ môn đặt.
+            var snapshot = await academic.GetMentorAsync(advisorId, ct)
+                ?? throw new InvalidOperationException("Không đọc được sức chứa mentor từ Academic.");
+            var maxTeams = snapshot.MaxTeams;
             var remaining = Math.Max(0, maxTeams - currentAssigned);
-            return (remaining + ExtraSlots, remaining);
+            return (maxTeams + rules.InterestExtraSlots, remaining);
         }
-    }
-
-    private async Task<HashSet<int>> GetAdvisorDomainIdsAsync(string advisorKind, Guid advisorId, CancellationToken ct)
-    {
-        if (advisorKind == AdvisorKinds.Lecturer)
-        {
-            var snapshot = await academic.GetLecturerAsync(advisorId, ct);
-            if (snapshot?.Domains is { } domains)
-            {
-                return domains.Select(d => d.Id).ToHashSet();
-            }
-        }
-        else if (advisorKind == AdvisorKinds.Mentor)
-        {
-            var snapshot = await academic.GetMentorAsync(advisorId, ct);
-            if (snapshot?.Domains is { } domains)
-            {
-                return domains.Select(d => d.Id).ToHashSet();
-            }
-        }
-        return [];
     }
 
     private static TopicInterestResponse ToResponse(TopicInterest interest, bool wasPrevious) =>

@@ -50,9 +50,16 @@ public sealed class TopicInterestRepository(TeamDbContext db) : ITopicInterestRe
             .OrderBy(t => t.CreatedAt)
             .ToListAsync(ct);
 
-    public Task<int> CountOpenByAdvisorAsync(string advisorKind, Guid advisorId, CancellationToken ct) =>
-        db.Set<TopicInterest>()
-            .CountAsync(t => t.AdvisorKind == advisorKind && t.AdvisorId == advisorId && t.Status == "OPEN", ct);
+    public Task<int> CountOpenByAdvisorAsync(string advisorKind, Guid advisorId, Guid semesterId, string courseCode, CancellationToken ct)
+    {
+        var query = from interest in db.Set<TopicInterest>()
+                    join team in db.Set<TeamEntity>() on interest.TeamId equals team.Id
+                    where interest.AdvisorKind == advisorKind && interest.AdvisorId == advisorId
+                        && interest.Status == "OPEN" && team.SemesterId == semesterId
+                    select new { interest, team };
+        if (advisorKind == "LECTURER") query = query.Where(x => x.team.CourseCode == courseCode);
+        return query.CountAsync(ct);
+    }
 
     public Task<int> CountOpenByTeamAsync(Guid teamId, string advisorKind, Guid? excludeAdvisorId, CancellationToken ct)
     {
@@ -77,14 +84,21 @@ public sealed class TopicInterestRepository(TeamDbContext db) : ITopicInterestRe
         return await db.Set<MentorAssignment>().AnyAsync(a => a.TeamId == teamId && a.Status == "ASSIGNED", ct);
     }
 
-    public Task<int> CountActiveAssignmentsByAdvisorAsync(string advisorKind, Guid advisorId, CancellationToken ct)
+    public Task<int> CountActiveAssignmentsByAdvisorAsync(string advisorKind, Guid advisorId, Guid semesterId, string courseCode, CancellationToken ct)
     {
+        var teams = db.Set<TeamEntity>().Where(t => t.SemesterId == semesterId);
         if (advisorKind == "LECTURER")
         {
-            return db.Set<LecturerAssignment>().CountAsync(a => a.LecturerId == advisorId && a.Status == "ASSIGNED", ct);
+            return (from assignment in db.Set<LecturerAssignment>()
+                    join team in teams on assignment.TeamId equals team.Id
+                    where assignment.LecturerId == advisorId && assignment.Status == "ASSIGNED" && team.CourseCode == courseCode
+                    select assignment).CountAsync(ct);
         }
 
-        return db.Set<MentorAssignment>().CountAsync(a => a.MentorId == advisorId && a.Status == "ASSIGNED", ct);
+        return (from assignment in db.Set<MentorAssignment>()
+                join team in teams on assignment.TeamId equals team.Id
+                where assignment.MentorId == advisorId && assignment.Status == "ASSIGNED"
+                select assignment).CountAsync(ct);
     }
 
     public async Task<bool> WasLecturerEXE101InstructorAsync(Guid teamId, Guid lecturerId, CancellationToken ct)
