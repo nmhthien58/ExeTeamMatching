@@ -1,12 +1,13 @@
 using BuildingBlocks.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Team.Services.Finalization;
 using Team.Services.Teams;
 
 namespace Team.Api.Controllers.Finalization;
 
-/// <summary>Admin chốt / mở lại nhóm, thêm và chuyển thành viên: W16, W21, W22 (BE-48) – team.yaml tag Admin.</summary>
+/// <summary>Admin chốt / mở lại nhóm, thêm, bớt và chuyển thành viên: W16, W21, W22 (BE-48) – team.yaml tag Admin.</summary>
 [ApiController]
 [Authorize(Policy = Policies.Admin)]
 [Route("api/teams/{teamId:guid}")]
@@ -15,6 +16,12 @@ public sealed class FinalizationController(IFinalizationService finalization) : 
     [HttpPost("members")]
     public async Task<ActionResult<TeamDetailResponse>> AddMember(Guid teamId, AdminAddMemberRequest request, CancellationToken ct) =>
         Ok(await finalization.AddMemberAsync(teamId, request, User, ct));
+
+    /// <summary>Bớt thành viên khỏi nhóm; body (lý do) không bắt buộc. Bớt người cuối cùng thì nhóm bị giải tán.</summary>
+    [HttpPost("members/{studentId:guid}/remove")]
+    public async Task<ActionResult<TeamDetailResponse>> RemoveMember(Guid teamId, Guid studentId,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] AdminRemoveMemberRequest? request, CancellationToken ct) =>
+        Ok(await finalization.RemoveMemberAsync(teamId, studentId, request ?? new AdminRemoveMemberRequest(null), User, ct));
 
     [HttpPost("members/{studentId:guid}/move")]
     public async Task<IActionResult> MoveMember(Guid teamId, Guid studentId, MoveMemberRequest request, CancellationToken ct)

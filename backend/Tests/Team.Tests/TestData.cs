@@ -3,11 +3,13 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Team.Repositories.BaselineImport;
 using Team.Repositories.ChangeRequests;
 using Team.Repositories.Invitations;
 using Team.Repositories.JoinRequests;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
+using Team.Services.Academic;
 using Team.Services.Teams;
 
 namespace Team.Tests;
@@ -47,6 +49,33 @@ public static class TestData
             return await db.SaveChangesAsync();
         });
         return team;
+    }
+
+    /// <summary>Nhóm EXE201 kế thừa như sau import mốc (BE-43): ghi thẳng vào DB, sinh viên đầu là trưởng nhóm, có danh sách mốc.</summary>
+    public static async Task<Guid> CreateInheritedTeamAsync(TeamApiFactory api, string name, IReadOnlyList<StudentSnapshot> students)
+    {
+        var teamId = Guid.NewGuid();
+        var semesterId = api.Academic.Semester.Id;
+        await api.QueryDbAsync(db =>
+        {
+            db.Add(new TeamEntity { Id = teamId, SemesterId = semesterId, CourseCode = "EXE201", Name = name, Status = TeamStatuses.Active, IsInherited = true });
+            for (var i = 0; i < students.Count; i++)
+            {
+                var s = students[i];
+                var role = i == 0 ? MemberRoles.Leader : MemberRoles.Member;
+                db.Add(new TeamMember
+                {
+                    TeamId = teamId, SemesterId = semesterId, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName,
+                    SpecializationId = s.SpecializationId, Role = role, JoinSource = "INHERITED",
+                });
+                db.Add(new TeamBaselineMember
+                {
+                    TeamId = teamId, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName, SpecializationId = s.SpecializationId, Role = role,
+                });
+            }
+            return db.SaveChangesAsync();
+        });
+        return teamId;
     }
 
     /// <summary>Xóa nhóm (cascade thành viên, lời mời…) và sự kiện outbox của học kỳ giả, nhóm, lời mời, yêu cầu.</summary>
