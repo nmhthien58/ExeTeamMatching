@@ -8,6 +8,7 @@ import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
 import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import '../workspace/workspace_widgets.dart';
+import '../lecturers/paths.dart';
 import 'my_team_api.dart';
 import 'project_card.dart';
 import 'team_advisors.dart';
@@ -120,6 +121,8 @@ class _TeamOverview extends StatelessWidget {
                 leading: const Icon(Icons.school_outlined),
                 title: const Text('Giảng viên'),
                 subtitle: Text(team.lecturerName ?? 'Chưa ghép'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(lecturerPreferencesPath),
               ),
               ListTile(
                 leading: const Icon(Icons.support_agent_outlined),
