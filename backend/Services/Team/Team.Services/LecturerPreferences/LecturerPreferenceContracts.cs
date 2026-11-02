@@ -5,14 +5,16 @@ namespace Team.Services.LecturerPreferences;
 public sealed record LecturerRef(
     Guid LecturerId,
     string FullName,
-    IReadOnlyList<CatalogRef> Domains);
+    IReadOnlyList<CatalogRef> Domains,
+    bool? CapacityReached = null);
 
 public sealed record LecturerPreferenceItem(
     Guid LecturerId,
     string FullName,
     IReadOnlyList<CatalogRef> Domains,
     int Rank,
-    bool IsInterested);
+    bool IsInterested,
+    bool? CapacityReached = null);
 
 public sealed record LecturerPreferenceListResponse(
     int MaxPreferences,

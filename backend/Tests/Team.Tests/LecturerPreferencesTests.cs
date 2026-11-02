@@ -24,6 +24,7 @@ public sealed class LecturerPreferencesTests
         public List<LecturerPreference> Preferences { get; } = [];
         public List<TopicInterest> Interests { get; } = [];
         public List<LecturerAssignment> Assignments { get; } = [];
+        public List<TeamEntity> AssignmentTeams { get; } = [];
         public List<OutboxMessage> OutboxMessages { get; } = [];
         public LecturerPreferencePreviousInstructor? PreviousInstructor { get; set; }
 
@@ -35,6 +36,13 @@ public sealed class LecturerPreferencesTests
 
         public Task<bool> HasAssignedInstructorAsync(Guid teamId, CancellationToken ct) =>
             Task.FromResult(Assignments.Any(a => a.TeamId == teamId && a.Status == "ASSIGNED"));
+
+        public Task<Dictionary<Guid, int>> CountActiveAssignmentsAsync(Guid semesterId, string courseCode, IReadOnlyList<Guid> lecturerIds, CancellationToken ct) =>
+            Task.FromResult(Assignments
+                .Where(a => a.Status == "ASSIGNED" && lecturerIds.Contains(a.LecturerId)
+                    && AssignmentTeams.Any(t => t.Id == a.TeamId && t.SemesterId == semesterId && t.CourseCode == courseCode))
+                .GroupBy(a => a.LecturerId)
+                .ToDictionary(g => g.Key, g => g.Count()));
 
         public Task<IReadOnlyList<TopicInterest>> ListOpenLecturerInterestsByTeamIdAsync(Guid teamId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<TopicInterest>>(Interests.Where(t => t.TeamId == teamId && t.Status == "OPEN" && t.AdvisorKind == "LECTURER").OrderBy(t => t.CreatedAt).ToList());
@@ -391,6 +399,51 @@ public sealed class LecturerPreferencesTests
         var res = await service.GetPreferencesAsync(team.Id, StudentUser(leaderId), CancellationToken.None);
 
         Assert.True(res.Locked);
+    }
+
+    [Fact]
+    public async Task GetPreferences_ReportsCapacityForTeamSemesterAndCourse()
+    {
+        var (service, repo, _, academic, team, leaderId) = CreateTestSetup("EXE201");
+        var fullId = Guid.NewGuid();
+        var availableId = Guid.NewGuid();
+        var unlimitedId = Guid.NewGuid();
+        var unknownId = Guid.NewGuid();
+        academic.Lecturers[fullId] = new LecturerSnapshot(fullId, "Full", "full@example.test", [], 5, 1, true);
+        academic.Lecturers[availableId] = new LecturerSnapshot(availableId, "Available", "available@example.test", [], 1, 2, true);
+        academic.Lecturers[unlimitedId] = new LecturerSnapshot(unlimitedId, "Unlimited", "unlimited@example.test", [], 1, null, true);
+
+        foreach (var id in new[] { fullId, unlimitedId, unknownId })
+        {
+            repo.Preferences.Add(new LecturerPreference { TeamId = team.Id, LecturerId = id, LecturerName = "Fallback", Rank = (short)(repo.Preferences.Count + 1) });
+        }
+        foreach (var id in new[] { fullId, availableId })
+        {
+            repo.Interests.Add(new TopicInterest { Id = Guid.NewGuid(), TeamId = team.Id, AdvisorKind = "LECTURER", AdvisorId = id, AdvisorName = "Interested", Status = "OPEN" });
+        }
+        repo.PreviousInstructor = new LecturerPreferencePreviousInstructor(fullId, "Previous");
+
+        void Assigned(Guid lecturerId, Guid semesterId, string courseCode, string status = "ASSIGNED")
+        {
+            var assignedTeamId = Guid.NewGuid();
+            repo.AssignmentTeams.Add(new TeamEntity { Id = assignedTeamId, SemesterId = semesterId, CourseCode = courseCode });
+            repo.Assignments.Add(new LecturerAssignment { Id = Guid.NewGuid(), TeamId = assignedTeamId, LecturerId = lecturerId, Status = status });
+        }
+
+        Assigned(fullId, team.SemesterId, "EXE201");
+        Assigned(fullId, team.SemesterId, "EXE101");
+        Assigned(fullId, Guid.NewGuid(), "EXE201");
+        Assigned(fullId, team.SemesterId, "EXE201", "ENDED");
+        Assigned(availableId, team.SemesterId, "EXE201");
+
+        var result = await service.GetPreferencesAsync(team.Id, StudentUser(leaderId), CancellationToken.None);
+
+        Assert.True(result.Preferences.Single(p => p.LecturerId == fullId).CapacityReached);
+        Assert.True(result.InterestedLecturers.Single(p => p.LecturerId == fullId).CapacityReached);
+        Assert.True(result.PreviousInstructor!.CapacityReached);
+        Assert.False(result.InterestedLecturers.Single(p => p.LecturerId == availableId).CapacityReached);
+        Assert.False(result.Preferences.Single(p => p.LecturerId == unlimitedId).CapacityReached);
+        Assert.Null(result.Preferences.Single(p => p.LecturerId == unknownId).CapacityReached);
     }
 
     [Fact]
