@@ -264,6 +264,41 @@ public sealed class MentorsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Mentor_of_a_locked_lecturer_cannot_be_reopened_but_other_edits_work()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturer = await CreateLecturerAsync();
+        var mentor = await CreateAsync("Giảng viên kiêm mentor", isInternal: true, lecturerId: lecturer);
+        var email = await LecturerEmailAsync(lecturer);
+        Assert.Equal(HttpStatusCode.OK,
+            (await Admin.PutAsJsonAsync($"/api/lecturers/{lecturer}", new { fullName = "Giảng viên thử", email, isActive = false })).StatusCode);
+        var eventsBefore = (await EventsAsync(mentor.Id)).Count;
+
+        // Mở khóa mentor khi giảng viên còn khóa → 409, không lưu, không phát sự kiện.
+        var reopen = await Admin.PutAsJsonAsync($"/api/mentors/{mentor.Id}", new { fullName = "Tên mới", maxTeams = 5, isActive = true });
+        Assert.Equal(HttpStatusCode.Conflict, reopen.StatusCode);
+        Assert.Contains("lecturer-locked", await reopen.Content.ReadAsStringAsync());
+        var unchanged = (await Admin.GetFromJsonAsync<MentorResponse>($"/api/mentors/{mentor.Id}"))!;
+        Assert.Equal(("Giảng viên kiêm mentor", 3, false), (unchanged.FullName, unchanged.MaxTeams, unchanged.IsActive));
+        Assert.Equal(eventsBefore, (await EventsAsync(mentor.Id)).Count);
+
+        // Sửa khác vẫn được: giữ khóa rõ ràng hoặc bỏ trống isActive.
+        var keptLocked = await PutAsync(mentor.Id, new { fullName = "Tên mới", maxTeams = 5, isActive = false });
+        Assert.Equal(("Tên mới", 5, false), (keptLocked.FullName, keptLocked.MaxTeams, keptLocked.IsActive));
+        var noFlag = await PutAsync(mentor.Id, new { fullName = "Tên mới nữa", maxTeams = 4 });
+        Assert.Equal(("Tên mới nữa", 4, false), (noFlag.FullName, noFlag.MaxTeams, noFlag.IsActive));
+
+        // Mở giảng viên rồi mới mở được mentor.
+        Assert.Equal(HttpStatusCode.OK,
+            (await Admin.PutAsJsonAsync($"/api/lecturers/{lecturer}", new { fullName = "Giảng viên thử", email, isActive = true })).StatusCode);
+        Assert.True((await PutAsync(mentor.Id, new { fullName = "Tên mới nữa", maxTeams = 4, isActive = true })).IsActive);
+    }
+
+    [Fact]
     public async Task Locked_mentor_of_a_lecturer_stays_locked_when_the_lecturer_changes_email()
     {
         if (!Enabled)
