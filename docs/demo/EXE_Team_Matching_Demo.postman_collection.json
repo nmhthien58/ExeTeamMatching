@@ -14,6 +14,10 @@
       "value": "http://localhost:8025"
     },
     {
+      "key": "jobsUrl",
+      "value": "http://localhost:5006"
+    },
+    {
       "key": "roundMinutes",
       "value": "3"
     }
@@ -1238,7 +1242,458 @@
       ]
     },
     {
-      "name": "4. Thông báo trong app và email (luồng 9)",
+      "name": "4. Họp nhóm – đề xuất, chốt, nhắc họp, biên bản (luồng 6, phần nhóm)",
+      "description": "Trưởng nhóm đề xuất họp 2 khung giờ, thành viên trả lời, trưởng nhóm chốt (MeetingScheduled) → MeetingReminderJob (Jobs, mỗi 15 phút; request kích hoạt ngay qua Hangfire) hỏi Collaboration họp sắp bắt đầu và phát MeetingReminder → Notification. Sau buổi họp ghi biên bản và tạo việc từ biên bản. Buổi mentor cần ghép mentor trước (chưa có trên develop).",
+      "item": [
+        {
+          "name": "SV1 đề xuất họp với 2 khung giờ (MeetingProposed)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Khung 1 bắt đầu sau 45 phút để rơi vào mốc nhắc 1 giờ; khung 2 vào ngày mai.",
+                  "pm.collectionVariables.set('slot1At', new Date(Date.now() + 45 * 60000).toISOString());",
+                  "pm.collectionVariables.set('slot2At', new Date(Date.now() + 26 * 3600000).toISOString());",
+                  "// Mốc để chỉ đếm thông báo của lượt chạy này (sinh viên demo giữ nguyên id giữa các lượt).",
+                  "pm.collectionVariables.set('meetingSince', new Date(Date.now() - 5000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200/201', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "const m = pm.response.json();",
+                  "pm.test('Họp đang chờ chốt, có 2 khung giờ', () => { pm.expect(m.status).to.equal('PROPOSED'); pm.expect(m.slots.length).to.equal(2); });",
+                  "const slots = [...m.slots].sort((a, b) => a.startsAt.localeCompare(b.startsAt));",
+                  "pm.collectionVariables.set('meetingA', m.id);",
+                  "pm.collectionVariables.set('meetingSlot1', slots[0].id);",
+                  "pm.collectionVariables.set('meetingSlot2', slots[1].id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA}}/meetings",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA}}/meetings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Chốt phạm vi MVP\",\n  \"agenda\": \"Chọn 3 tính năng cho checkpoint 1\",\n  \"location\": \"Phòng 304 hoặc Google Meet\",\n  \"slots\": [\n    {\n      \"startsAt\": \"{{slot1At}}\",\n      \"durationMinutes\": 45\n    },\n    {\n      \"startsAt\": \"{{slot2At}}\",\n      \"durationMinutes\": 60\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "SV2 trả lời: được khung 1, không được khung 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings/{{meetingA}}/responses",
+              "host": [
+                "{{baseUrl}}/api/meetings/{{meetingA}}/responses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\n      \"slotId\": \"{{meetingSlot1}}\",\n      \"answer\": \"YES\"\n    },\n    {\n      \"slotId\": \"{{meetingSlot2}}\",\n      \"answer\": \"NO\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "SV3 trả lời: được khung 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv3}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings/{{meetingA}}/responses",
+              "host": [
+                "{{baseUrl}}/api/meetings/{{meetingA}}/responses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\n      \"slotId\": \"{{meetingSlot1}}\",\n      \"answer\": \"YES\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "SV1 xem số người được từng khung",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const slot = pm.response.json().slots.find(s => s.id === pm.collectionVariables.get('meetingSlot1'));",
+                  "pm.test('Khung 1 có ít nhất 2 người đồng ý', () => pm.expect(slot.yesCount).to.be.at.least(2));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings/{{meetingA}}",
+              "host": [
+                "{{baseUrl}}/api/meetings/{{meetingA}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 chốt khung 1 (MeetingScheduled)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Họp đã chốt', () => pm.expect(pm.response.json().status).to.equal('SCHEDULED'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings/{{meetingA}}/confirm",
+              "host": [
+                "{{baseUrl}}/api/meetings/{{meetingA}}/confirm"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slotId\": \"{{meetingSlot1}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SV2 nhận thông báo họp đã chốt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const since = pm.collectionVariables.get('meetingSince');",
+                  "const items = pm.response.json().items.filter(n => new Date(n.createdAt) >= new Date(since));",
+                  "",
+                  "const tries = Number(pm.collectionVariables.get('_tries') || 0);",
+                  "if (!(items.some(n => n.type === 'MeetingScheduled')) && tries < 20) {",
+                  "  pm.collectionVariables.set('_tries', tries + 1);",
+                  "  console.log('Chưa có thông báo MeetingScheduled – thử lại lần ' + (tries + 1));",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return setTimeout(() => {}, 3000);",
+                  "}",
+                  "pm.collectionVariables.unset('_tries');",
+                  "pm.test('Có thông báo MeetingScheduled', () => pm.expect(items.some(n => n.type === 'MeetingScheduled')).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": [
+                "{{baseUrl}}/api/notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Kích hoạt MeetingReminderJob ngay (Hangfire)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('Hangfire nhận lệnh', () => pm.expect(pm.response.code).to.be.oneOf([200, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{jobsUrl}}/hangfire/recurring/trigger",
+              "host": [
+                "{{jobsUrl}}/hangfire/recurring/trigger"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "jobs[]",
+                  "value": "meeting-reminder",
+                  "type": "text"
+                }
+              ]
+            },
+            "description": "Job chạy mỗi 15 phút; request này giống nút \"Trigger now\" ở {{jobsUrl}}/hangfire → Recurring Jobs (dashboard chỉ mở cho máy khác ở môi trường Development)."
+          }
+        },
+        {
+          "name": "SV2 nhận nhắc họp trước 1 giờ (MeetingReminder)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const since = pm.collectionVariables.get('meetingSince');",
+                  "const items = pm.response.json().items.filter(n => new Date(n.createdAt) >= new Date(since));",
+                  "",
+                  "const tries = Number(pm.collectionVariables.get('_tries') || 0);",
+                  "if (!(items.some(n => n.type === 'MeetingReminder')) && tries < 20) {",
+                  "  pm.collectionVariables.set('_tries', tries + 1);",
+                  "  console.log('Chưa có thông báo MeetingReminder – thử lại lần ' + (tries + 1));",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return setTimeout(() => {}, 3000);",
+                  "}",
+                  "pm.collectionVariables.unset('_tries');",
+                  "pm.test('Có thông báo MeetingReminder', () => pm.expect(items.some(n => n.type === 'MeetingReminder')).to.equal(true));",
+                  "pm.test('Chỉ một lần nhắc (họp 45 phút nữa: không nhắc trùng mốc 24 giờ)', () => pm.expect(items.filter(n => n.type === 'MeetingReminder').length).to.equal(1));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": [
+                "{{baseUrl}}/api/notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 ghi biên bản họp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Có biên bản', () => pm.expect(pm.response.json().minutes.content).to.include('3 tính năng'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings/{{meetingA}}/minutes",
+              "host": [
+                "{{baseUrl}}/api/meetings/{{meetingA}}/minutes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Chốt 3 tính năng: đăng ký, tìm nhóm, nhắn tin. Bảo vẽ wireframe, Hà viết kế hoạch truyền thông.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SV1 tạo việc từ biên bản",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200/201', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));",
+                  "pm.test('Tạo 2 việc', () => pm.expect(pm.response.json().length).to.equal(2));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meetings/{{meetingA}}/minutes/tasks",
+              "host": [
+                "{{baseUrl}}/api/meetings/{{meetingA}}/minutes/tasks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"title\": \"Wireframe màn tìm nhóm\"\n    },\n    {\n      \"title\": \"Kế hoạch truyền thông tuần 1\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "SV2 thấy việc từ biên bản trên bảng việc",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Bảng việc có việc từ biên bản', () => pm.expect(JSON.stringify(pm.response.json())).to.include('Kế hoạch truyền thông tuần 1'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA}}/tasks",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA}}/tasks"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Thông báo trong app và email (luồng 9)",
       "item": [
         {
           "name": "SV2 xem thông báo (Notification consume Kafka)",
@@ -1355,7 +1810,7 @@
       ]
     },
     {
-      "name": "5. Hết hạn, chốt nhóm, ghép tự động (luồng 4)",
+      "name": "6. Hết hạn, chốt nhóm, ghép tự động (luồng 4)",
       "description": "Jobs hẹn RoundAutoCloseJob đúng hạn chót: khóa đợt → Team finalize-round → Matching PlanAutoAssignment (gRPC) → Team áp dụng. Chạy bằng Runner; các request \"Chờ…\" tự thử lại tới khi đợt khóa (khoảng {{roundMinutes}} phút sau khi tạo đợt).",
       "item": [
         {
