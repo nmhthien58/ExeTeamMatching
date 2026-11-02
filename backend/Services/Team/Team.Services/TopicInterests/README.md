@@ -10,7 +10,7 @@
 
 Luồng lưu kết quả ghép tự động, ghép sớm và thay cố vấn thủ công cần gọi hàm trên với `LECTURER` hoặc `MENTOR`. Ghi assignment và đóng quan tâm phải nằm trong cùng transaction: hàm đóng quan tâm có gọi SaveChanges, nên caller cần mở transaction trước khi ghi assignment và chỉ commit sau khi cả hai bước thành công.
 
-Tại `origin/develop` f321a42, module hiện chỉ có API đọc assignment; chưa có luồng ghi kết quả ghép để nối lời gọi này. Vì vậy chưa nghiệm thu tự đóng quan tâm từ thao tác ghép thực tế. Đây là điểm tích hợp với module ghép của Thiên, không phải BE-73 phải chờ BE-71 chưa hoàn thành.
+Trên `develop`, module hiện chỉ có API đọc assignment; chưa có luồng ghi kết quả ghép để nối lời gọi này. Vì vậy chưa nghiệm thu tự đóng quan tâm từ thao tác ghép thực tế. Đây là điểm tích hợp với module ghép của Thiên, không phải BE-73 phải chờ BE-71 chưa hoàn thành.
 
 ## Mobile
 
