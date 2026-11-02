@@ -11,7 +11,7 @@ info:
     `.../errors/already-in-team`, `.../errors/not-leader`, `.../errors/lecturer-full`.
     Bản 4 thêm: `ideas-required` (rule 17), `interest-limit` (rule 19), `team-has-mentor`, `mentor-full` (rule 20),
     `project-change-pending` (rule 26). Khám phá ngoài giai đoạn lập nhóm trả `round-closed` (rule 18).
-    BE-80 thêm `mentor-is-instructor` (rule 20): mentor là giảng viên hướng dẫn của chính nhóm.
+    BE-80 thêm `mentor-is-instructor`, `instructor-is-mentor` (rule 20): một người không vừa hướng dẫn vừa mentor cùng một nhóm.
 servers:
   - url: http://localhost:8080
     description: API Gateway
@@ -492,7 +492,7 @@ paths:
   /api/teams/{teamId}/instructor:
     put:
       tags: [AdvisorMatching]
-      summary: Admin đổi giảng viên hướng dẫn của nhóm (reason MANUAL, bắt buộc ghi chú). 409 lecturer-full khi vượt tối đa
+      summary: Admin đổi giảng viên hướng dẫn của nhóm (reason MANUAL, bắt buộc ghi chú). 409 lecturer-full khi vượt tối đa; giảng viên là mentor đang gán của nhóm → 409 instructor-is-mentor
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [lecturerId, note], properties: { lecturerId: { type: string, format: uuid }, note: { type: string, minLength: 1, maxLength: 500 } } } } } }
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LecturerAssignment' } } } }, '409': { $ref: '#/components/responses/Problem' } }
