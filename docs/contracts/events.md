@@ -37,6 +37,8 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 
 Tin nhắn thường **không** có sự kiện Kafka: Collaboration đẩy qua SignalR hub `/hubs/collab` (`messageCreated`, `messageUpdated`, `readUpdated`, `typing`) và không tạo thông báo (PROJECT_CONTEXT §5.7).
 
+Lưới slot C09 cũng đẩy qua hub: sau khi `SaveChangesAsync` thành công của lần đặt, đổi hoặc tự xếp slot, Collaboration gửi `slotsChanged` `{ "scheduleId": "uuid" }` tới workspace của mọi nhóm trong lịch; client tải lại lịch qua REST. Đây là sự kiện hub riêng, bổ sung cho `MeetingSlotBooked` (Kafka, tạo thông báo).
+
 `InvitationExpired` do Team phát: Job gọi endpoint nội bộ `POST /internal/invitations/expire-overdue` của Team (Job không đụng database của Team).
 
 ## Payload
