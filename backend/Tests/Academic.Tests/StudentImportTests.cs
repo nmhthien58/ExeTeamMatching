@@ -14,7 +14,8 @@ public sealed class StudentImportTests
         [new CatalogEntry(1, "SE", "Kỹ thuật phần mềm", true), new CatalogEntry(2, "GD", "Thiết kế đồ họa", true), new CatalogEntry(3, "OLD", "Ngừng", false)],
         [new CatalogEntry(10, "EXE101SE01", null, true), new CatalogEntry(11, "EXE101OLD", null, false)],
         [new ExistingStudent(Existing, "SE111111", "old@example.com"), new ExistingStudent(EnrolledOther, "SE222222", "two@example.com")],
-        new Dictionary<Guid, string> { [EnrolledOther] = "EXE201" });
+        new Dictionary<Guid, string> { [EnrolledOther] = "EXE201" },
+        ["mentor@example.com"]);
 
     [Fact]
     public void Template_can_be_read_back()
@@ -142,6 +143,14 @@ public sealed class StudentImportTests
     private static ImportRow Row(int number, string code = "SE184118", string name = "Nguyễn Văn A", string email = "a@example.com",
         string specialization = "SE", string classCode = "EXE101SE01", string? phone = null) =>
         new(number, code, name, email, specialization, classCode, phone);
+
+    [Fact]
+    public void Email_of_a_mentor_is_a_row_error_in_any_letter_case()
+    {
+        var error = Single(Row(2, code: "SE333333", email: "MENTOR@example.com")).Errors.Single();
+        Assert.Equal((ImportFields.Email, "Email đã thuộc một mentor."), (error.Field, error.Message));
+        Assert.True(Single(Row(2, code: "SE333333", email: "khac@example.com")).IsValid);
+    }
 
     private static ImportRowCheck Single(ImportRow row) => StudentImportRules.Check([row], "EXE101", Reference).Single();
 

@@ -206,6 +206,111 @@ public sealed class MentorsApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Lecturer_email_must_not_belong_to_another_mentor()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var mentor = await CreateAsync("Mentor Ngoài");
+        var created = await Admin.PostAsJsonAsync("/api/lecturers", new { fullName = "Trùng mentor", email = mentor.Email.ToUpperInvariant() });
+        Assert.Equal(HttpStatusCode.Conflict, created.StatusCode);
+        Assert.Contains("email-exists", await created.Content.ReadAsStringAsync());
+
+        var lecturer = await CreateLecturerAsync();
+        var updated = await Admin.PutAsJsonAsync($"/api/lecturers/{lecturer}", new { fullName = "Trùng mentor", email = mentor.Email });
+        Assert.Equal(HttpStatusCode.Conflict, updated.StatusCode);
+        Assert.Contains("email-exists", await updated.Content.ReadAsStringAsync());
+
+        var linked = await CreateAsync("Giảng viên kiêm mentor", isInternal: true, lecturerId: lecturer);
+        var sameEmail = await Admin.PutAsJsonAsync($"/api/lecturers/{lecturer}", new { fullName = "Đổi tên", email = linked.Email });
+        Assert.Equal(HttpStatusCode.OK, sameEmail.StatusCode); // mentor của chính giảng viên không tính là trùng
+    }
+
+    [Fact]
+    public async Task Locking_a_lecturer_locks_the_linked_mentor_but_unlocking_does_not()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturer = await CreateLecturerAsync();
+        var email = await LecturerEmailAsync(lecturer);
+        var mentor = await CreateAsync("Giảng viên kiêm mentor", isInternal: true, lecturerId: lecturer);
+        var other = await CreateAsync("Mentor Khác");
+
+        Task<HttpResponseMessage> LecturerActiveAsync(bool isActive) =>
+            Admin.PutAsJsonAsync($"/api/lecturers/{lecturer}", new { fullName = "Giảng viên thử", email, isActive });
+        Task<MentorResponse?> MentorAsync() => Admin.GetFromJsonAsync<MentorResponse>($"/api/mentors/{mentor.Id}");
+
+        Assert.Equal(HttpStatusCode.OK, (await LecturerActiveAsync(false)).StatusCode);
+        Assert.False((await MentorAsync())!.IsActive);
+        var events = await EventsAsync(mentor.Id);
+        Assert.Equal(2, events.Count);
+        Assert.Equal(("MentorRegistered", false), (events[^1].EventType, JsonDocument.Parse(events[^1].Payload).RootElement.GetProperty("isActive").GetBoolean()));
+        Assert.True((await Admin.GetFromJsonAsync<MentorResponse>($"/api/mentors/{other.Id}"))!.IsActive);
+
+        Assert.Equal(HttpStatusCode.OK, (await LecturerActiveAsync(false)).StatusCode); // đã khóa: không phát lại
+        Assert.Equal(2, (await EventsAsync(mentor.Id)).Count);
+
+        Assert.Equal(HttpStatusCode.OK, (await LecturerActiveAsync(true)).StatusCode);
+        Assert.False((await MentorAsync())!.IsActive); // Bộ môn tự mở
+        Assert.Equal(2, (await EventsAsync(mentor.Id)).Count);
+
+        var reopened = await PutAsync(mentor.Id, new { fullName = mentor.FullName, maxTeams = 3, isActive = true });
+        Assert.True(reopened.IsActive);
+    }
+
+    [Fact]
+    public async Task Locked_mentor_of_a_lecturer_stays_locked_when_the_lecturer_changes_email()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturer = await CreateLecturerAsync();
+        var mentor = await CreateAsync("Giảng viên kiêm mentor", isInternal: true, lecturerId: lecturer, isActive: false);
+        var newEmail = NewEmail();
+        Assert.Equal(HttpStatusCode.OK, (await Admin.PutAsJsonAsync($"/api/lecturers/{lecturer}", new { fullName = "Giảng viên thử", email = newEmail })).StatusCode);
+
+        var after = (await Admin.GetFromJsonAsync<MentorResponse>($"/api/mentors/{mentor.Id}"))!;
+        Assert.Equal((newEmail, false), (after.Email, after.IsActive));
+    }
+
+    [Fact]
+    public async Task Linked_mentor_needs_no_email_but_others_do()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lecturer = await CreateLecturerAsync();
+        var email = await LecturerEmailAsync(lecturer);
+        var created = await Admin.PostAsJsonAsync("/api/mentors", new { fullName = "Không gửi email", maxTeams = 2, isInternal = true, lecturerId = lecturer });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var mentor = (await created.Content.ReadFromJsonAsync<MentorResponse>())!;
+        Assert.Equal(email, mentor.Email);
+
+        var kept = await PutAsync(mentor.Id, new { fullName = "Sửa, không gửi lecturerId", maxTeams = 3, email = "khong-phai-email" }); // liên kết cũ, email bị bỏ qua
+        Assert.Equal((email, lecturer), (kept.Email, kept.LecturerId!.Value));
+
+        var noEmail = await Admin.PostAsJsonAsync("/api/mentors", new { fullName = "Ngoài trường", maxTeams = 2 });
+        Assert.Equal(HttpStatusCode.BadRequest, noEmail.StatusCode);
+        Assert.Contains("email", await noEmail.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.BadRequest, (await Admin.PostAsJsonAsync("/api/mentors", new { fullName = "Ngoài trường", email = "khong-phai-email", maxTeams = 2 })).StatusCode);
+
+        var unlink = await Admin.PutAsJsonAsync($"/api/mentors/{mentor.Id}", new { fullName = "Ra ngoài trường", maxTeams = 3, isInternal = false });
+        Assert.Equal(HttpStatusCode.BadRequest, unlink.StatusCode); // thôi gắn giảng viên phải có email riêng
+
+        var external = await CreateAsync("Mentor Ngoài");
+        Assert.Equal(HttpStatusCode.BadRequest, (await Admin.PutAsJsonAsync($"/api/mentors/{external.Id}", new { fullName = "Thiếu email", maxTeams = 3 })).StatusCode);
+    }
+
+    [Fact]
     public async Task Locked_lecturer_cannot_be_linked_until_unlocked()
     {
         if (!Enabled)

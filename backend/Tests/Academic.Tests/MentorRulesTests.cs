@@ -1,5 +1,6 @@
 using Academic.Services.Lecturers;
 using Academic.Services.Mentors;
+using BuildingBlocks.Errors;
 
 namespace Academic.Tests;
 
@@ -13,8 +14,6 @@ public sealed class MentorRulesTests
 
     [Theory]
     [InlineData("", "tuan@example.com", 4, "FullName")]
-    [InlineData("Tuấn", "", 4, "Email")]
-    [InlineData("Tuấn", "khong-phai-email", 4, "Email")]
     [InlineData("Tuấn", "tuan@example.com", null, "MaxTeams")]
     [InlineData("Tuấn", "tuan@example.com", 0, "MaxTeams")]
     [InlineData("Tuấn", "tuan@example.com", 51, "MaxTeams")]
@@ -22,6 +21,20 @@ public sealed class MentorRulesTests
     {
         var result = new MentorInputValidator().Validate(Valid with { FullName = name, Email = email, MaxTeams = maxTeams });
         Assert.Contains(result.Errors, e => e.PropertyName == field);
+    }
+
+    [Fact]
+    public void Email_is_left_to_the_service_which_knows_the_lecturer_link() =>
+        Assert.True(new MentorInputValidator().Validate(Valid with { Email = null }).IsValid);
+
+    [Fact]
+    public void Mentor_without_lecturer_needs_a_valid_email()
+    {
+        Assert.Equal("tuan@example.com", MentorRules.RequireEmail("  tuan@example.com "));
+        foreach (var email in new[] { null, "", "  ", "khong-phai-email", new string('a', 250) + "@a.vn" })
+        {
+            Assert.Contains("email", Assert.Throws<RequestValidationException>(() => MentorRules.RequireEmail(email)).Errors.Keys);
+        }
     }
 
     [Fact]

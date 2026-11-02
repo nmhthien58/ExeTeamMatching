@@ -4,11 +4,13 @@ namespace Academic.Services.Imports;
 
 /// <summary>Dữ liệu trong DB cần để kiểm tra một file: danh mục, sinh viên đã có (theo MSSV hoặc email), danh sách học kỳ.</summary>
 /// <param name="Enrollments">Môn của sinh viên đã có trong danh sách học kỳ, theo id sinh viên.</param>
+/// <param name="MentorEmails">Email trong file đã thuộc một mentor.</param>
 public sealed record ImportReference(
     IReadOnlyList<CatalogEntry> Specializations,
     IReadOnlyList<CatalogEntry> ClassCodes,
     IReadOnlyList<ExistingStudent> Students,
-    IReadOnlyDictionary<Guid, string> Enrollments);
+    IReadOnlyDictionary<Guid, string> Enrollments,
+    IReadOnlyCollection<string> MentorEmails);
 
 /// <summary>Mục danh mục; <see cref="Name"/> null với mã lớp.</summary>
 public sealed record CatalogEntry(int Id, string Code, string? Name, bool IsActive);
@@ -36,6 +38,7 @@ public static partial class StudentImportRules
         var classCodes = reference.ClassCodes.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
         var byCode = reference.Students.ToDictionary(s => s.StudentCode, StringComparer.OrdinalIgnoreCase);
         var byEmail = reference.Students.ToDictionary(s => s.Email, StringComparer.OrdinalIgnoreCase);
+        var mentorEmails = reference.MentorEmails.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var seenCodes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var seenEmails = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -69,7 +72,7 @@ public static partial class StudentImportRules
                 Error(ImportFields.FullName, "Họ tên tối đa 150 ký tự.");
             }
 
-            // Email: cùng mẫu với CHECK ck_students_email; không trùng trong file, không thuộc sinh viên có MSSV khác.
+            // Email: cùng mẫu với CHECK ck_students_email; không trùng trong file, không thuộc mentor hay sinh viên có MSSV khác.
             if (row.Email.Length == 0)
             {
                 Error(ImportFields.Email, "Thiếu email.");
@@ -81,6 +84,10 @@ public static partial class StudentImportRules
             else if (!seenEmails.TryAdd(row.Email, row.RowNumber))
             {
                 Error(ImportFields.Email, $"Trùng email với dòng {seenEmails[row.Email]}.");
+            }
+            else if (mentorEmails.Contains(row.Email))
+            {
+                Error(ImportFields.Email, "Email đã thuộc một mentor.");
             }
             else if (byEmail.TryGetValue(row.Email, out var owner) && !string.Equals(owner.StudentCode, row.StudentCode, StringComparison.OrdinalIgnoreCase))
             {

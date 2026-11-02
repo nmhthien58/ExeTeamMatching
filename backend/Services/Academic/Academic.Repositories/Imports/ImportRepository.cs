@@ -20,6 +20,9 @@ public interface IImportRepository
     /// <summary>Sinh viên có MSSV hoặc email trong danh sách. Có theo dõi thay đổi, để cập nhật rồi gọi <see cref="SaveAsync"/>.</summary>
     Task<IReadOnlyList<Student>> FindStudentsAsync(IReadOnlyCollection<string> studentCodes, IReadOnlyCollection<string> emails, CancellationToken ct);
 
+    /// <summary>Các email trong danh sách đã thuộc một mentor.</summary>
+    Task<IReadOnlyList<string>> FindMentorEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken ct);
+
     /// <summary>Dòng danh sách học kỳ của các sinh viên. Có theo dõi thay đổi.</summary>
     Task<IReadOnlyList<SemesterEnrollment>> FindEnrollmentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
 
@@ -51,6 +54,9 @@ public sealed class ImportRepository(AcademicDbContext db) : IImportRepository
     /// <remarks><c>email</c> là citext nên so sánh trong SQL không phân biệt hoa thường.</remarks>
     public async Task<IReadOnlyList<Student>> FindStudentsAsync(IReadOnlyCollection<string> studentCodes, IReadOnlyCollection<string> emails, CancellationToken ct) =>
         await db.Students.Where(s => studentCodes.Contains(s.StudentCode) || emails.Contains(s.Email)).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<string>> FindMentorEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken ct) =>
+        await db.Mentors.AsNoTracking().Where(m => emails.Contains(m.Email)).Select(m => m.Email).ToListAsync(ct);
 
     public async Task<IReadOnlyList<SemesterEnrollment>> FindEnrollmentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct) =>
         await db.SemesterEnrollments.Where(e => e.SemesterId == semesterId && studentIds.Contains(e.StudentId)).ToListAsync(ct);
