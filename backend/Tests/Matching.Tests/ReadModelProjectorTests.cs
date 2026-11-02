@@ -42,6 +42,23 @@ public sealed class ReadModelProjectorTests
     }
 
     [Fact]
+    public async Task Student_imported_after_creating_team_in_new_semester_keeps_team()
+    {
+        // exe.student và exe.team đọc riêng: TeamCreated của học kỳ mới có thể tới trước StudentImported.
+        var s = new Scenario();
+        var student = await s.StudentAsync(Scenario.SE);
+        await s.TeamAsync("Nhóm EXE101", student);
+        var nextSemester = Guid.NewGuid();
+        var nextTeam = Guid.NewGuid();
+
+        await s.Projector.HandleAsync(new TeamCreated(nextTeam, nextSemester, Courses.Exe101, "Nhóm mới", student, null), Ct);
+        await s.Projector.HandleAsync(new StudentImported(student, "SV 001", Scenario.SE, nextSemester, Courses.Exe101), Ct);
+
+        var view = (await s.Model.GetStudentsAsync(nextSemester, Courses.Exe101, Ct)).Single(x => x.Id == student);
+        Assert.Equal(nextTeam, view.TeamId);
+    }
+
+    [Fact]
     public async Task Student_imported_again_in_same_semester_keeps_team()
     {
         var s = new Scenario();
