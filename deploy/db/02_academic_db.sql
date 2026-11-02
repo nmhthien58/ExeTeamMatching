@@ -223,6 +223,7 @@ CREATE TABLE academic.import_batches (
     errors       jsonb,                              -- [{row, field, message}]
     status       varchar(20)  NOT NULL DEFAULT 'PROCESSING',
     imported_by  uuid         NOT NULL,              -- identity.user_accounts.id
+    imported_by_name varchar(150),                   -- snapshot tên người import (W08); tên nằm ở Identity
     created_at   timestamptz  NOT NULL DEFAULT now(),
     completed_at timestamptz,
     CONSTRAINT pk_import_batches PRIMARY KEY (id),

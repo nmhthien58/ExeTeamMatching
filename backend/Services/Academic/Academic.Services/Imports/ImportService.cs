@@ -21,7 +21,7 @@ public interface IImportService
 
     Task<ImportBatchResponse> ConfirmAsync(Guid previewId, ClaimsPrincipal user, CancellationToken ct);
 
-    Task<PagedResponse<ImportBatchResponse>> ListAsync(ImportQuery query, ClaimsPrincipal user, CancellationToken ct);
+    Task<PagedResponse<ImportBatchResponse>> ListAsync(ImportQuery query, CancellationToken ct);
 }
 
 /// <summary>
@@ -75,6 +75,7 @@ public sealed class ImportService(
             Errors = ErrorsJson(checks),
             Status = valid.Count > 0 ? ImportStatuses.Completed : ImportStatuses.Failed,
             ImportedBy = user.GetUserId(),
+            ImportedByName = user.FindFirstValue(ClaimNames.Name),
             CreatedAt = now,
             CompletedAt = now,
         };
@@ -123,20 +124,14 @@ public sealed class ImportService(
             throw ImportErrors.Conflict();
         }
         await previews.RemoveAsync(previewId, ct);
-        return ImportBatchResponse.From(batch, user.FindFirstValue(ClaimNames.Name));
+        return ImportBatchResponse.From(batch);
     }
 
-    /// <remarks>
-    /// <c>import_batches</c> chỉ lưu id người import; Academic không có tên tài khoản Admin (ở Identity).
-    /// Tạm điền <c>importedByName</c> từ claim <c>name</c> khi người xem chính là người import, còn lại null (đề xuất thêm cột – xem báo cáo BE-17).
-    /// </remarks>
-    public async Task<PagedResponse<ImportBatchResponse>> ListAsync(ImportQuery query, ClaimsPrincipal user, CancellationToken ct)
+    public async Task<PagedResponse<ImportBatchResponse>> ListAsync(ImportQuery query, CancellationToken ct)
     {
         var (items, total) = await imports.ListBatchesAsync(query.SemesterId, query.Page, query.PageSize, ct);
-        var me = user.GetUserId();
-        var myName = user.FindFirstValue(ClaimNames.Name);
         return PagedResponse<ImportBatchResponse>.Create(
-            items.Select(b => ImportBatchResponse.From(b, b.ImportedBy == me ? myName : null)).ToList(), query.Page, query.PageSize, total);
+            items.Select(ImportBatchResponse.From).ToList(), query.Page, query.PageSize, total);
     }
 
     private async Task<IReadOnlyList<ImportRowCheck>> CheckAsync(IReadOnlyList<ImportRow> rows, Guid semesterId, string courseCode, CancellationToken ct) =>

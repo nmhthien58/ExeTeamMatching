@@ -20,6 +20,9 @@ public class ImportBatch
     /// <summary><c>identity.user_accounts.id</c>.</summary>
     public Guid ImportedBy { get; set; }
 
+    /// <summary>Snapshot tên người import lúc xác nhận (W08); lô cũ có thể null.</summary>
+    public string? ImportedByName { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
 }
