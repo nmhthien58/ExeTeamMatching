@@ -37,28 +37,37 @@ public sealed class LecturerPreferencesService(
         var interestedMap = openInterests.ToDictionary(i => i.AdvisorId, i => i.AdvisorName);
 
         var prev = await preferences.GetPreviousInstructorAsync(teamId, ct);
+        var lecturerIds = existingPrefs.Select(p => p.LecturerId)
+            .Concat(openInterests.Select(i => i.AdvisorId))
+            .Concat(prev is null ? [] : [prev.LecturerId])
+            .Distinct().ToList();
+        var assignedCounts = await preferences.CountActiveAssignmentsAsync(
+            graph.Team.SemesterId, graph.Team.CourseCode, lecturerIds, ct);
         var catalogs = await reader.LoadCatalogsAsync(ct);
 
         var prefItems = new List<LecturerPreferenceItem>();
         foreach (var p in existingPrefs.OrderBy(p => p.Rank))
         {
             var isInterested = interestedMap.ContainsKey(p.LecturerId);
-            var (fullName, domains) = await ResolveLecturerInfoAsync(p.LecturerId, p.LecturerName, catalogs, ct);
-            prefItems.Add(new LecturerPreferenceItem(p.LecturerId, fullName, domains, p.Rank, isInterested));
+            var (fullName, domains, capacityReached) = await ResolveLecturerInfoAsync(
+                p.LecturerId, p.LecturerName, graph.Team.CourseCode, assignedCounts, catalogs, ct);
+            prefItems.Add(new LecturerPreferenceItem(p.LecturerId, fullName, domains, p.Rank, isInterested, capacityReached));
         }
 
         var interestedLecturers = new List<LecturerRef>();
         foreach (var interest in openInterests)
         {
-            var (fullName, domains) = await ResolveLecturerInfoAsync(interest.AdvisorId, interest.AdvisorName, catalogs, ct);
-            interestedLecturers.Add(new LecturerRef(interest.AdvisorId, fullName, domains));
+            var (fullName, domains, capacityReached) = await ResolveLecturerInfoAsync(
+                interest.AdvisorId, interest.AdvisorName, graph.Team.CourseCode, assignedCounts, catalogs, ct);
+            interestedLecturers.Add(new LecturerRef(interest.AdvisorId, fullName, domains, capacityReached));
         }
 
         LecturerRef? previousInstructor = null;
         if (prev is not null)
         {
-            var (fullName, domains) = await ResolveLecturerInfoAsync(prev.LecturerId, prev.LecturerName, catalogs, ct);
-            previousInstructor = new LecturerRef(prev.LecturerId, fullName, domains);
+            var (fullName, domains, capacityReached) = await ResolveLecturerInfoAsync(
+                prev.LecturerId, prev.LecturerName, graph.Team.CourseCode, assignedCounts, catalogs, ct);
+            previousInstructor = new LecturerRef(prev.LecturerId, fullName, domains, capacityReached);
         }
 
         return new LecturerPreferenceListResponse(
@@ -247,9 +256,11 @@ public sealed class LecturerPreferencesService(
         return "Giảng viên";
     }
 
-    private async Task<(string FullName, IReadOnlyList<CatalogRef> Domains)> ResolveLecturerInfoAsync(
+    private async Task<(string FullName, IReadOnlyList<CatalogRef> Domains, bool? CapacityReached)> ResolveLecturerInfoAsync(
         Guid lecturerId,
         string fallbackName,
+        string courseCode,
+        IReadOnlyDictionary<Guid, int> assignedCounts,
         Catalogs catalogs,
         CancellationToken ct)
     {
@@ -259,9 +270,11 @@ public sealed class LecturerPreferencesService(
             var domains = academicLecturer.Domains
                 .Select(d => new CatalogRef(d.Id, d.Code, catalogs.Domains.GetValueOrDefault(d.Id)?.Name ?? d.Name))
                 .ToList();
-            return (academicLecturer.FullName, domains);
+            var maxTeams = courseCode == "EXE201" ? academicLecturer.MaxTeamsExe201 : academicLecturer.MaxTeamsExe101;
+            return (academicLecturer.FullName, domains,
+                maxTeams is not null && assignedCounts.GetValueOrDefault(lecturerId) >= maxTeams.Value);
         }
 
-        return (string.IsNullOrWhiteSpace(fallbackName) ? "Giảng viên" : fallbackName, []);
+        return (string.IsNullOrWhiteSpace(fallbackName) ? "Giảng viên" : fallbackName, [], null);
     }
 }

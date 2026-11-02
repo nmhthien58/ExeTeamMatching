@@ -801,7 +801,11 @@ components:
     MentorMatchReason: { type: string, enum: [MENTOR_INTEREST, DOMAIN, MANUAL] }
     LecturerRef:
       type: object
-      properties: { lecturerId: { type: string, format: uuid }, fullName: { type: string }, domains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' } } }
+      properties:
+        lecturerId: { type: string, format: uuid }
+        fullName: { type: string }
+        domains: { type: array, items: { $ref: '#/components/schemas/CatalogRef' } }
+        capacityReached: { type: boolean, nullable: true, description: "Đã đủ số nhóm được gán trong học kỳ và môn của nhóm; false nếu không đặt maxTeams; null nếu chưa đọc được hồ sơ giảng viên từ Academic. Áp dụng cho GET /api/teams/{teamId}/lecturer-preferences." }
     LecturerPreferenceList:
       type: object
       properties:
