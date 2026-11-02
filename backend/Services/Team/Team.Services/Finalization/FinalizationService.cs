@@ -24,6 +24,11 @@ public interface IFinalizationService
     /// <summary>W16, W21 – Admin thêm sinh viên chưa có nhóm vào nhóm (mọi lúc, kể cả nhóm EXE201 kế thừa).</summary>
     Task<TeamDetailResponse> AddMemberAsync(Guid teamId, AdminAddMemberRequest request, ClaimsPrincipal user, CancellationToken ct);
 
+    /// <summary>
+    /// W16 – Admin bớt thành viên khỏi nhóm (mọi lúc, kể cả nhóm EXE201 kế thừa – không qua yêu cầu đổi nhóm): sinh viên thành chưa có nhóm.
+    /// </summary>
+    Task<TeamDetailResponse> RemoveMemberAsync(Guid teamId, Guid studentId, AdminRemoveMemberRequest request, ClaimsPrincipal user, CancellationToken ct);
+
     /// <summary>W21 – Admin chuyển sinh viên sang nhóm khác cùng học kỳ và môn.</summary>
     Task MoveMemberAsync(Guid teamId, Guid studentId, MoveMemberRequest request, ClaimsPrincipal user, CancellationToken ct);
 }
@@ -126,6 +131,22 @@ public sealed class FinalizationService(
         return await teamService.GetAsync(teamId, user, ct);
     }
 
+    public async Task<TeamDetailResponse> RemoveMemberAsync(Guid teamId, Guid studentId, AdminRemoveMemberRequest request, ClaimsPrincipal user,
+        CancellationToken ct)
+    {
+        var team = await RequireTeamAsync(teamId, ct);
+        var current = await members.ListAsync(team.Id, ct);
+        var leaving = current.FirstOrDefault(m => m.StudentId == studentId) ?? throw TeamErrors.MemberNotFound(studentId);
+
+        await finalization.InTransactionAsync(async () =>
+        {
+            await DetachAsync(team, current, leaving, user.ToAuditActor(), "MEMBER_REMOVED", new { memberCount = current.Count - 1 }, request.Reason,
+                "Admin bớt thành viên cuối cùng", ct);
+            await teams.SaveChangesAsync(ct);
+        }, ct);
+        return await teamService.GetAsync(teamId, user, ct);
+    }
+
     public async Task MoveMemberAsync(Guid teamId, Guid studentId, MoveMemberRequest request, ClaimsPrincipal user, CancellationToken ct)
     {
         if (request.TargetTeamId == teamId)
@@ -147,35 +168,12 @@ public sealed class FinalizationService(
         }
 
         var actor = user.ToAuditActor();
-        var remaining = sourceMembers.Where(m => m.StudentId != studentId).ToList();
-        var newLeader = moving.Role == MemberRoles.Leader ? remaining.MinBy(m => m.JoinedAt) : null;
 
         // Dòng thành viên không đổi nhóm được (trigger): xóa ở nhóm cũ rồi mới thêm ở nhóm mới, trong một transaction.
         await finalization.InTransactionAsync(async () =>
         {
-            members.Remove(moving);
-            audit.Add(source.Id, "TeamMember", studentId, "MEMBER_MOVED_OUT", actor,
-                new { moving.StudentCode, moving.Role }, new { targetTeam = target.Name, memberCount = remaining.Count });
-            members.AddEvent(MemberEventTypes.MemberLeft, source.Id, new MemberLeft(source.Id, source.SemesterId, studentId, AdminSource, remaining.Count));
-            if (remaining.Count == 0)
-            {
-                audit.Add(source.Id, "Team", source.Id, "TEAM_DISBANDED", actor, new { status = source.Status }, new { status = TeamStatuses.Disbanded },
-                    "Thành viên cuối cùng được chuyển sang nhóm khác");
-                (source.Status, source.FinalizedAt) = (TeamStatuses.Disbanded, null);
-            }
-            else
-            {
-                await finalizer.AfterMembersChangedAsync(source, remaining, actor, ct);
-            }
-            await teams.SaveChangesAsync(ct);
-
-            if (newLeader is not null)
-            {
-                newLeader.Role = MemberRoles.Leader;
-                audit.Add(source.Id, "TeamMember", newLeader.StudentId, "LEADER_CHANGED", actor,
-                    new { leader = moving.StudentCode }, new { leader = newLeader.StudentCode });
-                members.AddEvent(MemberEventTypes.LeaderChanged, source.Id, new LeaderChanged(source.Id, studentId, newLeader.StudentId));
-            }
+            await DetachAsync(source, sourceMembers, moving, actor, "MEMBER_MOVED_OUT",
+                new { targetTeam = target.Name, memberCount = sourceMembers.Count - 1 }, null, "Thành viên cuối cùng được chuyển sang nhóm khác", ct);
             var added = AddMember(target, new TeamMember
             {
                 StudentId = moving.StudentId, StudentCode = moving.StudentCode, FullName = moving.FullName,
@@ -184,6 +182,40 @@ public sealed class FinalizationService(
             await finalizer.AfterMembersChangedAsync(target, [.. targetMembers, added], actor, ct);
             await teams.SaveChangesAsync(ct);
         }, ct);
+    }
+
+    /// <summary>
+    /// Xóa dòng thành viên do Admin (bớt hoặc chuyển đi): nhật ký <paramref name="action"/>, MemberLeft (reason ADMIN), trạng thái nhóm theo
+    /// thành viên còn lại hoặc giải tán nếu hết người, rồi chuyển trưởng nhóm cho người vào sớm nhất nếu người rời là trưởng nhóm.
+    /// Gọi trong transaction; việc đổi trưởng nhóm do người gọi lưu.
+    /// </summary>
+    private async Task DetachAsync(TeamEntity team, IReadOnlyList<TeamMember> current, TeamMember leaving, AuditActor actor, string action,
+        object newValues, string? reason, string disbandReason, CancellationToken ct)
+    {
+        var remaining = current.Where(m => m.StudentId != leaving.StudentId).ToList();
+        var newLeader = leaving.Role == MemberRoles.Leader ? remaining.MinBy(m => m.JoinedAt) : null;
+
+        members.Remove(leaving);
+        audit.Add(team.Id, "TeamMember", leaving.StudentId, action, actor, new { leaving.StudentCode, leaving.Role }, newValues, reason);
+        members.AddEvent(MemberEventTypes.MemberLeft, team.Id, new MemberLeft(team.Id, team.SemesterId, leaving.StudentId, AdminSource, remaining.Count));
+        if (remaining.Count == 0)
+        {
+            audit.Add(team.Id, "Team", team.Id, "TEAM_DISBANDED", actor, new { status = team.Status }, new { status = TeamStatuses.Disbanded }, disbandReason);
+            (team.Status, team.FinalizedAt) = (TeamStatuses.Disbanded, null);
+        }
+        else
+        {
+            await finalizer.AfterMembersChangedAsync(team, remaining, actor, ct);
+        }
+        await teams.SaveChangesAsync(ct);
+
+        if (newLeader is not null)
+        {
+            newLeader.Role = MemberRoles.Leader;
+            audit.Add(team.Id, "TeamMember", newLeader.StudentId, "LEADER_CHANGED", actor,
+                new { leader = leaving.StudentCode }, new { leader = newLeader.StudentCode });
+            members.AddEvent(MemberEventTypes.LeaderChanged, team.Id, new LeaderChanged(team.Id, leaving.StudentId, newLeader.StudentId));
+        }
     }
 
     /// <summary>Thêm dòng thành viên do Admin (join_source ADMIN), ghi nhật ký và MemberJoined; trạng thái nhóm do người gọi xử lý.</summary>

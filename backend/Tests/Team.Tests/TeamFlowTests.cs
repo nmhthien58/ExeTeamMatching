@@ -2,10 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using BuildingBlocks.Auth;
 using Microsoft.EntityFrameworkCore;
-using Team.Repositories.BaselineImport;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
-using Team.Services.Academic;
 using Team.Services.ChangeRequests;
 using Team.Services.Finalization;
 using Team.Services.Invitations;
@@ -64,7 +62,7 @@ public sealed class TeamFlowTests : IAsyncLifetime
 
         // Nhóm EXE201 kế thừa từ EXE101 (như sau import mốc, BE-43): 4 người, 2 chuyên ngành.
         var baseline = new[] { Academic.Enroll(1, "EXE201"), Academic.Enroll(1, "EXE201"), Academic.Enroll(2, "EXE201"), Academic.Enroll(2, "EXE201") };
-        var teamId = await CreateInheritedTeamAsync("Nhóm Kế Thừa", baseline);
+        var teamId = await TestData.CreateInheritedTeamAsync(_api, "Nhóm Kế Thừa", baseline);
         Academic.OpenCourses.Remove("EXE201");
         Academic.OpenChangeRequestCourses.Add("EXE201");
         var leader = _api.ClientFor(baseline[0].Id);
@@ -107,31 +105,6 @@ public sealed class TeamFlowTests : IAsyncLifetime
             await TestData.DeleteSemesterAsync(_api, Academic.Semester.Id);
         }
         await _api.DisposeAsync();
-    }
-
-    private async Task<Guid> CreateInheritedTeamAsync(string name, IReadOnlyList<StudentSnapshot> students)
-    {
-        var teamId = Guid.NewGuid();
-        await _api.QueryDbAsync(db =>
-        {
-            db.Add(new TeamEntity { Id = teamId, SemesterId = Academic.Semester.Id, CourseCode = "EXE201", Name = name, Status = TeamStatuses.Active, IsInherited = true });
-            for (var i = 0; i < students.Count; i++)
-            {
-                var s = students[i];
-                var role = i == 0 ? MemberRoles.Leader : MemberRoles.Member;
-                db.Add(new TeamMember
-                {
-                    TeamId = teamId, SemesterId = Academic.Semester.Id, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName,
-                    SpecializationId = s.SpecializationId, Role = role, JoinSource = "INHERITED",
-                });
-                db.Add(new TeamBaselineMember
-                {
-                    TeamId = teamId, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName, SpecializationId = s.SpecializationId, Role = role,
-                });
-            }
-            return db.SaveChangesAsync();
-        });
-        return teamId;
     }
 
     private async Task<FinalizeRoundResult> FinalizeRoundAsync(string courseCode)

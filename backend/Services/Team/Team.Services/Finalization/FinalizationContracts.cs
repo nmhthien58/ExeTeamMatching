@@ -26,6 +26,9 @@ public sealed record AdminAddMemberRequest(Guid StudentId, string? Reason);
 /// <summary>Body của <c>POST /api/teams/{teamId}/members/{studentId}/move</c> (W21).</summary>
 public sealed record MoveMemberRequest(Guid TargetTeamId);
 
+/// <summary>Body của <c>POST /api/teams/{teamId}/members/{studentId}/remove</c> (W16); lý do ghi vào nhật ký.</summary>
+public sealed record AdminRemoveMemberRequest(string? Reason);
+
 public sealed class FinalizeRoundRequestValidator : AbstractValidator<FinalizeRoundRequest>
 {
     public FinalizeRoundRequestValidator()
@@ -47,4 +50,9 @@ public sealed class AdminAddMemberRequestValidator : AbstractValidator<AdminAddM
 public sealed class MoveMemberRequestValidator : AbstractValidator<MoveMemberRequest>
 {
     public MoveMemberRequestValidator() => RuleFor(x => x.TargetTeamId).NotEmpty();
+}
+
+public sealed class AdminRemoveMemberRequestValidator : AbstractValidator<AdminRemoveMemberRequest>
+{
+    public AdminRemoveMemberRequestValidator() => RuleFor(x => x.Reason).MaximumLength(500).WithMessage("Lý do tối đa 500 ký tự.");
 }

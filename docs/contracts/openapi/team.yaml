@@ -518,6 +518,13 @@ paths:
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [studentId], properties: { studentId: { type: string, format: uuid }, reason: { type: string } } } } } }
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TeamDetail' } } } } }
+  /api/teams/{teamId}/members/{studentId}/remove:
+    post:
+      tags: [Admin]
+      summary: "Admin bớt thành viên khỏi nhóm (W16) – áp dụng ngay, kể cả nhóm EXE201 kế thừa (không qua yêu cầu đổi nhóm); bớt trưởng nhóm thì người vào sớm nhất làm trưởng nhóm; bớt người cuối cùng thì nhóm bị giải tán. Phát MemberLeft (reason ADMIN)"
+      parameters: [ { $ref: '#/components/parameters/TeamId' }, { $ref: '#/components/parameters/StudentId' } ]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { reason: { type: string, maxLength: 500, description: Ghi vào nhật ký nhóm } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TeamDetail' } } } }, '404': { $ref: '#/components/responses/Problem' } }
   /api/teams/{teamId}/members/{studentId}/move:
     post:
       tags: [Admin]

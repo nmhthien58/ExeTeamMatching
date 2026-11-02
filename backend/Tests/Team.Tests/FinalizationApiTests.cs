@@ -160,6 +160,81 @@ public sealed class FinalizationApiTests : IAsyncLifetime
         Assert.Equal(TeamStatuses.Active, (await StatusAsync(target.Id)).Status);
     }
 
+    [Fact]
+    public async Task Admin_removes_leader_from_finalized_team_and_student_becomes_unmatched()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var team = await CreateTeamAsync("Nhóm Bớt Người", extraMembers: 3);
+        await FinalizeRoundAsync();
+        var leaderId = team.Leader!.Id;
+
+        await AssertProblemAsync(await _api.ClientFor(leaderId).PostAsJsonAsync($"/api/teams/{team.Id}/members/{leaderId}/remove", new { }), 403, null);
+        await AssertProblemAsync(await Admin.PostAsJsonAsync($"/api/teams/{team.Id}/members/{Guid.NewGuid()}/remove", new { }), 404, null);
+        await AssertProblemAsync(await Admin.PostAsJsonAsync($"/api/teams/{team.Id}/members/{leaderId}/remove",
+            new AdminRemoveMemberRequest(new string('x', 501))), 400, "validation");
+
+        var removed = await Admin.PostAsJsonAsync($"/api/teams/{team.Id}/members/{leaderId}/remove", new AdminRemoveMemberRequest("Chuyển ngành"));
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        var detail = (await removed.Content.ReadFromJsonAsync<TeamDetailResponse>())!;
+        Assert.Equal((3, TeamStatuses.NeedsReview), (detail.MemberCount, detail.Status));
+        Assert.DoesNotContain(detail.Members, m => m.Id == leaderId);
+        Assert.Single(detail.Members, m => m.Role == MemberRoles.Leader);
+
+        var events = await _api.EventsAsync(team.Id);
+        var left = events.Last(e => e.EventType == "MemberLeft");
+        Assert.Equal(("ADMIN", 3), (Payload(left).GetProperty("reason").GetString(), Payload(left).GetProperty("memberCount").GetInt32()));
+        Assert.Contains(events, e => e.EventType == "LeaderChanged");
+        Assert.Contains(events, e => e.EventType == FinalizationEventTypes.TeamNeedsReview);
+        var entry = await _api.QueryDbAsync(db => db.Set<Team.Repositories.AuditLog.AuditLogEntry>()
+            .SingleAsync(a => a.TeamId == team.Id && a.Action == "MEMBER_REMOVED"));
+        Assert.Equal((leaderId, "Chuyển ngành"), (entry.EntityId, entry.Reason));
+
+        // Sinh viên bị bớt thành chưa có nhóm: Admin thêm được vào nhóm khác.
+        var other = await CreateTeamAsync("Nhóm Nhận Người", extraMembers: 0);
+        Assert.Equal(HttpStatusCode.OK, (await Admin.PostAsJsonAsync($"/api/teams/{other.Id}/members", new AdminAddMemberRequest(leaderId, null))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_removal_applies_to_inherited_team_without_change_request()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        // Nhóm EXE201 kế thừa: trưởng nhóm bớt người chỉ thành thay đổi chờ duyệt (rule 7), Admin thì áp dụng ngay.
+        var students = new[] { Academic.Enroll(1, "EXE201"), Academic.Enroll(2, "EXE201"), Academic.Enroll(3, "EXE201"), Academic.Enroll(4, "EXE201") };
+        var teamId = await TestData.CreateInheritedTeamAsync(_api, "Nhóm Kế Thừa Bớt Người", students);
+
+        var detail = (await (await Admin.PostAsJsonAsync($"/api/teams/{teamId}/members/{students[3].Id}/remove", new AdminRemoveMemberRequest(null)))
+            .Content.ReadFromJsonAsync<TeamDetailResponse>())!;
+
+        Assert.Equal((3, false), (detail.MemberCount, detail.HasPendingChanges));
+        Assert.DoesNotContain(detail.Members, m => m.Id == students[3].Id);
+    }
+
+    [Fact]
+    public async Task Removing_the_last_member_without_reason_disbands_the_team()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lonely = await CreateTeamAsync("Nhóm Bớt Hết", extraMembers: 0);
+
+        var removed = await Admin.PostAsync($"/api/teams/{lonely.Id}/members/{lonely.Leader!.Id}/remove", null);
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+        var disbanded = (await removed.Content.ReadFromJsonAsync<TeamDetailResponse>())!;
+        Assert.Equal((0, TeamStatuses.Disbanded), (disbanded.MemberCount, disbanded.Status));
+        Assert.Equal(["TEAM_DISBANDED"], await TeamActionsAsync(lonely.Id));
+        await AssertProblemAsync(await Admin.PostAsync($"/api/teams/{lonely.Id}/members/{lonely.Leader.Id}/remove", null), 404, null);
+    }
+
     public Task InitializeAsync() => Task.CompletedTask;
 
     public async Task DisposeAsync()
