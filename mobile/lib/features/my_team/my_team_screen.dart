@@ -122,7 +122,7 @@ class _TeamOverview extends StatelessWidget {
                 title: const Text('Giảng viên'),
                 subtitle: Text(team.lecturerName ?? 'Chưa ghép'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push(lecturerPreferencesPath),
+                onTap: () => context.push(teamLecturerPath),
               ),
               ListTile(
                 leading: const Icon(Icons.support_agent_outlined),
