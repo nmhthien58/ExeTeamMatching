@@ -27,7 +27,7 @@ public sealed class StudentLookupRequestValidator : AbstractValidator<StudentLoo
     {
         RuleFor(x => x.SemesterId).NotEmpty().WithMessage("Thiếu semesterId.");
         RuleFor(x => x.StudentIds).NotNull().WithMessage("Thiếu studentIds.")
-            .Must(ids => ids!.Count <= MaxIds).When(x => x.StudentIds is not null).WithMessage($"Tối đa {MaxIds} sinh viên mỗi lần.");
+            .Must(ids => ids!.Count <= MaxIds).When(x => x.StudentIds is not null, ApplyConditionTo.CurrentValidator).WithMessage($"Tối đa {MaxIds} sinh viên mỗi lần.");
     }
 }
 
