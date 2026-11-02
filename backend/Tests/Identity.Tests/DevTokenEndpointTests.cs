@@ -58,4 +58,18 @@ public sealed class DevTokenEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Swagger_declares_bearer_scheme_for_the_authorize_button()
+    {
+        using var factory = new IdentityApiFactory("Development");
+        using var client = factory.CreateClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync("/swagger/v1/swagger.json"));
+
+        var scheme = document.RootElement.GetProperty("components").GetProperty("securitySchemes").GetProperty("Bearer");
+        Assert.Equal("http", scheme.GetProperty("type").GetString());
+        Assert.Equal("bearer", scheme.GetProperty("scheme").GetString());
+        Assert.True(document.RootElement.GetProperty("security")[0].TryGetProperty("Bearer", out _));
+    }
 }
