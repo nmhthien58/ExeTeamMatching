@@ -41,6 +41,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(options =>
     {
         options.RoutePrefix = "swagger";
+        options.EnablePersistAuthorization(); // giữ JWT khi đổi service ở dropdown
         foreach (var service in new[] { "identity", "academic", "team", "notification", "collab" })
         {
             options.SwaggerEndpoint($"/swagger-proxy/{service}/swagger/v1/swagger.json", service);
