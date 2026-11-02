@@ -201,13 +201,22 @@ describe('W19 – ghép giảng viên hướng dẫn', () => {
     expect(within(table).getByText('Hai bên cùng chọn')).toBeInTheDocument()
     expect(within(table).getByText('Chưa có giảng viên')).toBeInTheDocument()
     expect(within(table).getByText('Phạm Văn Nam')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Ghép sớm' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ghép sớm' })).toBeInTheDocument()
     expect(screen.getByText('1 nhóm chưa có giảng viên')).toBeInTheDocument()
 
     expect(screen.getByRole('meter', { name: 'Số nhóm của Lê Thu Hà' })).toHaveAttribute('aria-valuenow', '2')
     expect(screen.getByText('7/6 nhóm')).toBeInTheDocument()
     expect(screen.getByText('Quá tải')).toBeInTheDocument()
     expect(screen.getByText('Đã đủ nhóm')).toBeInTheDocument()
+  })
+
+  it('hides matching once every team has a lecturer', async () => {
+    get.mockResolvedValue({ data: overview({ teamsWithoutAdvisor: 0 }) })
+
+    renderAt()
+
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ghép sớm' })).not.toBeInTheDocument()
   })
 
   it('filters teams without a lecturer and shows the empty state', async () => {

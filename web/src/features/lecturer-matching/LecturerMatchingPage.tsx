@@ -68,7 +68,8 @@ export function LecturerMatchingPage() {
   const applied = data?.lastRun?.status === 'APPLIED'
   const beforeMatching = roundOpen && !applied
   const pendingPreview = data?.lastRun?.status === 'PREVIEW' ? data.lastRun : null
-  const canMatchEarly = roundOpen && (data?.teamsWithoutAdvisor ?? 0) > 0
+  // Rule 9: Bộ môn ghép được mọi lúc, kể cả sau hạn cho nhóm sinh ra sau lần ghép theo lịch.
+  const canMatchEarly = (data?.teamsWithoutAdvisor ?? 0) > 0
 
   const startPreview = () => {
     setPageError(null)
