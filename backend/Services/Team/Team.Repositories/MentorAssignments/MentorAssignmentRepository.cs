@@ -1,4 +1,3 @@
-using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.Context;
 using Team.Repositories.Teams;
@@ -21,27 +20,29 @@ public sealed class MentorAssignmentRepository(TeamDbContext db) : IMentorAssign
             .Where(a => a.MentorId == mentorId && a.Status == "ASSIGNED")
             .ToListAsync(ct);
 
+    /// <summary>
+    /// Số nhóm đang mentor (dòng ASSIGNED, nhóm chưa giải tán) – cùng điều kiện với <c>AdvisorMatchingRepository.CountMentorLoadsAsync</c>;
+    /// có <paramref name="semesterId"/> thì chỉ tính nhóm của học kỳ đó.
+    /// </summary>
     public async Task<Dictionary<Guid, int>> CountActiveTeamsByMentorIdsAsync(IReadOnlyList<Guid> mentorIds, Guid? semesterId, CancellationToken ct)
     {
         if (mentorIds.Count == 0) return [];
 
-        var query = db.Set<MentorAssignment>()
-            .AsNoTracking()
-            .Where(a => mentorIds.Contains(a.MentorId) && a.Status == "ASSIGNED");
+        var query = from assignment in db.Set<MentorAssignment>()
+                    join team in db.Set<TeamEntity>() on assignment.TeamId equals team.Id
+                    where mentorIds.Contains(assignment.MentorId) && assignment.Status == "ASSIGNED" && team.Status != "DISBANDED"
+                    select new { assignment.MentorId, team.SemesterId };
 
-        if (semesterId.HasValue)
+        if (semesterId is { } sid)
         {
-            query = query.Where(a => db.Set<TeamEntity>().Any(t => t.Id == a.TeamId && t.SemesterId == semesterId.Value));
+            query = query.Where(x => x.SemesterId == sid);
         }
 
         return await query
-            .GroupBy(a => a.MentorId)
+            .GroupBy(x => x.MentorId)
             .Select(g => new { MentorId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.MentorId, x => x.Count, ct);
     }
-
-    public void AddOutboxMessage<TPayload>(string topic, string eventType, string aggregateType, Guid aggregateId, TPayload payload) =>
-        db.AddOutboxMessage(topic, eventType, aggregateType, aggregateId, payload);
 
     public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

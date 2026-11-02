@@ -47,13 +47,6 @@ public sealed record MentorTeamCountResponse(
     Guid MentorId,
     int CurrentTeamCount);
 
-/// <summary>Payload sự kiện <c>MentorUnassigned</c> trên topic <c>exe.assignment</c> (docs/contracts/events.md).</summary>
-public sealed record MentorUnassignedEvent(
-    Guid AssignmentId,
-    Guid TeamId,
-    Guid MentorId,
-    string Reason);
-
 /// <summary>Payload sự kiện <c>MentorRegistered</c> từ topic <c>exe.student</c> (Academic Service).</summary>
 public sealed record MentorRegisteredEvent(
     Guid MentorId,

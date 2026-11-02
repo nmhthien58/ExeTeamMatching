@@ -48,8 +48,6 @@ public sealed class AdvisorAssignmentTests
             return Task.FromResult(counts);
         }
 
-        public void AddOutboxMessage<TPayload>(string topic, string eventType, string aggregateType, Guid aggregateId, TPayload payload) { }
-
         public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
     }
 
@@ -129,7 +127,7 @@ public sealed class AdvisorAssignmentTests
         var mentorRepo = new FakeMentorRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         var user = UserWith(studentId: studentId, roles: Roles.Student);
         var result = await service.GetTeamLecturerAsync(teamId, user, CancellationToken.None);
@@ -153,7 +151,7 @@ public sealed class AdvisorAssignmentTests
         var mentorRepo = new FakeMentorRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         var user = UserWith(studentId: studentId, roles: Roles.Student);
         var result = await service.GetTeamLecturerAsync(teamId, user, CancellationToken.None);
@@ -175,7 +173,7 @@ public sealed class AdvisorAssignmentTests
         var mentorRepo = new FakeMentorRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         var user = UserWith(studentId: strangerId, roles: Roles.Student);
         await Assert.ThrowsAsync<ForbiddenException>(() => service.GetTeamLecturerAsync(teamId, user, CancellationToken.None));
@@ -215,7 +213,7 @@ public sealed class AdvisorAssignmentTests
         };
 
         var reader = new TeamReader(teamRepo, new FakeAcademic());
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         // Caller is assigned mentor
         var user = UserWith(mentorId: mentorId, roles: Roles.Mentor);
@@ -251,7 +249,7 @@ public sealed class AdvisorAssignmentTests
 
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         var user = UserWith(mentorId: mentorId, roles: Roles.Mentor);
         var result = await service.GetTeamMentorAsync(teamId, user, CancellationToken.None);
@@ -297,7 +295,7 @@ public sealed class AdvisorAssignmentTests
         };
 
         var reader = new TeamReader(teamRepo, new FakeAcademic());
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         // Caller is assigned lecturer
         var user = UserWith(lecturerId: lecturerId, roles: Roles.Lecturer);
@@ -332,7 +330,7 @@ public sealed class AdvisorAssignmentTests
 
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         var user = UserWith(lecturerId: lecturerId, mentorId: mentorId, roles: [Roles.Lecturer, Roles.Mentor]);
 
@@ -368,7 +366,7 @@ public sealed class AdvisorAssignmentTests
 
         var mentorRepo = new FakeMentorRepo();
         var reader = new TeamReader(teamRepo, new FakeAcademic());
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         // Lecturer has no mentorId claim
         var user = UserWith(lecturerId: lecturerId, mentorId: null, roles: Roles.Lecturer);
@@ -388,7 +386,7 @@ public sealed class AdvisorAssignmentTests
         var lecturerRepo = new FakeLecturerRepo();
         var mentorRepo = new FakeMentorRepo();
         var reader = new TeamReader(teamRepo, new FakeAcademic());
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         // User is lecturer without mentorId claim calling mentor-teams/me
         var user = UserWith(lecturerId: lecturerId, mentorId: null, roles: Roles.Lecturer);
@@ -405,7 +403,7 @@ public sealed class AdvisorAssignmentTests
         var mentorRepo = new FakeMentorRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, MentorWriterHarness.Create().Writer);
 
         var studentUser = UserWith(studentId: Guid.NewGuid(), roles: Roles.Student);
         await Assert.ThrowsAsync<ForbiddenException>(() => service.GetLecturerTeamsMeAsync(null, null, null, studentUser, CancellationToken.None));

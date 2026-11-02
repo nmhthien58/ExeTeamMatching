@@ -622,6 +622,7 @@ paths:
     post:
       tags: [Internal]
       summary: Đếm số nhóm đang mentor cho danh sách mentor (Academic gọi cho W27, lọc hasCapacity, chặn max-below-current)
+      description: Chỉ đếm dòng gán đang hiệu lực (ASSIGNED) của nhóm chưa giải tán (khác DISBANDED), cùng cách đếm với ghép mentor tự động. Mentor không có nhóm trả 0.
       requestBody:
         required: true
         content:

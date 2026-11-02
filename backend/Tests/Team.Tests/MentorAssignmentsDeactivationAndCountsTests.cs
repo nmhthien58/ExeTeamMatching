@@ -4,6 +4,7 @@ using System.Text.Json;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Messaging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Team.Repositories.AuditLog;
 using Team.Repositories.LecturerAssignments;
 using Team.Repositories.MentorAssignments;
 using Team.Repositories.Projects;
@@ -15,8 +16,8 @@ namespace Team.Tests;
 
 /// <summary>
 /// Kiểm thử tính năng BE-74:
-/// 1. Gỡ mentor khi Bộ môn khóa tài khoản (isActive=false) và phát sự kiện MentorUnassigned qua Outbox (idempotent).
-/// 2. API nội bộ POST /internal/mentors/team-counts đếm số nhóm đang mentor cho danh sách mentor (Academic W27).
+/// 1. Gỡ mentor khi Bộ môn khóa tài khoản (isActive=false): ghi nhật ký MENTOR_UNASSIGNED và phát MentorUnassigned qua Outbox (idempotent).
+/// 2. API nội bộ POST /internal/mentors/team-counts đếm số nhóm đang mentor cho danh sách mentor (Academic W27), bỏ nhóm đã giải tán.
 /// </summary>
 public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
 {
@@ -28,9 +29,11 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
     private sealed class InMemoryMentorRepo : IMentorAssignmentRepository
     {
         public List<MentorAssignment> Assignments { get; } = [];
-        public List<OutboxRecord> Outbox { get; } = [];
 
-        public sealed record OutboxRecord(string Topic, string EventType, string AggregateType, Guid AggregateId, object Payload);
+        /// <summary>Nhóm theo id (học kỳ, trạng thái) – thay cho join với <c>team.teams</c> của repository thật.</summary>
+        public Dictionary<Guid, (Guid SemesterId, string Status)> Teams { get; } = [];
+
+        public int SaveCount { get; private set; }
 
         public Task<MentorAssignment?> GetActiveByTeamIdAsync(Guid teamId, CancellationToken ct) =>
             Task.FromResult(Assignments.FirstOrDefault(a => a.TeamId == teamId && a.Status == "ASSIGNED"));
@@ -41,19 +44,30 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         public Task<List<MentorAssignment>> ListActiveByMentorIdTrackedAsync(Guid mentorId, CancellationToken ct) =>
             Task.FromResult(Assignments.Where(a => a.MentorId == mentorId && a.Status == "ASSIGNED").ToList());
 
+        // Cùng điều kiện với MentorAssignmentRepository: dòng ASSIGNED, nhóm tồn tại và chưa DISBANDED, lọc học kỳ nếu có.
         public Task<Dictionary<Guid, int>> CountActiveTeamsByMentorIdsAsync(IReadOnlyList<Guid> mentorIds, Guid? semesterId, CancellationToken ct)
         {
             var counts = Assignments
                 .Where(a => mentorIds.Contains(a.MentorId) && a.Status == "ASSIGNED")
+                .Where(a => Teams.TryGetValue(a.TeamId, out var t) && t.Status != "DISBANDED"
+                    && (semesterId is null || t.SemesterId == semesterId))
                 .GroupBy(a => a.MentorId)
                 .ToDictionary(g => g.Key, g => g.Count());
             return Task.FromResult(counts);
         }
 
-        public void AddOutboxMessage<TPayload>(string topic, string eventType, string aggregateType, Guid aggregateId, TPayload payload) =>
-            Outbox.Add(new OutboxRecord(topic, eventType, aggregateType, aggregateId, payload!));
+        public Task SaveChangesAsync(CancellationToken ct)
+        {
+            SaveCount++;
+            return Task.CompletedTask;
+        }
 
-        public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
+        public Guid AddTeam(Guid semesterId, string status = "ACTIVE")
+        {
+            var id = Guid.NewGuid();
+            Teams[id] = (semesterId, status);
+            return id;
+        }
     }
 
     private sealed class StubLecturerRepo : ILecturerAssignmentRepository
@@ -90,7 +104,8 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         var lecturerRepo = new StubLecturerRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var harness = MentorWriterHarness.Create();
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, harness.Writer);
 
         var mentorId = Guid.NewGuid();
         var teamId1 = Guid.NewGuid();
@@ -136,10 +151,12 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         Assert.NotNull(assignment2.EndedAt);
         Assert.Equal("MENTOR_DEACTIVATED", assignment2.EndReason);
 
-        // Đúng 2 sự kiện MentorUnassigned trong Outbox
-        Assert.Equal(2, mentorRepo.Outbox.Count);
-        var msg1 = Assert.Single(mentorRepo.Outbox.Where(m => m.AggregateId == teamId1));
-        var msg2 = Assert.Single(mentorRepo.Outbox.Where(m => m.AggregateId == teamId2));
+        // Đúng 2 sự kiện MentorUnassigned trong Outbox, cùng một lần lưu với dòng gán và nhật ký
+        Assert.Equal(1, mentorRepo.SaveCount);
+        var outbox = harness.Outbox();
+        Assert.Equal(2, outbox.Count);
+        var msg1 = Assert.Single(outbox.Where(m => m.AggregateId == teamId1));
+        var msg2 = Assert.Single(outbox.Where(m => m.AggregateId == teamId2));
 
         Assert.Equal(Topics.Assignment, msg1.Topic);
         Assert.Equal("MentorUnassigned", msg1.EventType);
@@ -152,9 +169,7 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         Assert.Equal(teamId2, msg2.AggregateId);
 
         // Kiểm tra JSON payload thực tế theo docs/contracts/events.md (JSON camelCase)
-        // Không chỉ deserialize lại bằng C#, mà kiểm tra trực tiếp qua JsonDocument
-        var json1 = JsonSerializer.Serialize(msg1.Payload, EventEnvelope.JsonOptions);
-        using var doc1 = JsonDocument.Parse(json1);
+        using var doc1 = JsonDocument.Parse(msg1.Payload);
         var root1 = doc1.RootElement;
         Assert.True(root1.TryGetProperty("assignmentId", out var pAssignmentId));
         Assert.Equal(assignment1.Id, pAssignmentId.GetGuid());
@@ -164,6 +179,21 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         Assert.Equal(mentorId, pMentorId.GetGuid());
         Assert.True(root1.TryGetProperty("reason", out var pReason));
         Assert.Equal("MENTOR_DEACTIVATED", pReason.GetString());
+
+        // Nhật ký nhóm MENTOR_UNASSIGNED cho từng nhóm, người thực hiện là hệ thống (rule 10)
+        var audits = harness.Audits();
+        Assert.Equal(2, audits.Count);
+        foreach (var (assignment, teamId) in new[] { (assignment1, teamId1), (assignment2, teamId2) })
+        {
+            var log = Assert.Single(audits.Where(a => a.TeamId == teamId));
+            Assert.Equal("MENTOR_UNASSIGNED", log.Action);
+            Assert.Equal("MentorAssignment", log.EntityType);
+            Assert.Equal(assignment.Id, log.EntityId);
+            Assert.Null(log.ActorAccountId);
+            Assert.Equal("System", log.ActorRole);
+            Assert.Equal("MENTOR_DEACTIVATED", log.Reason);
+            Assert.Contains(mentorId.ToString(), log.OldValues);
+        }
     }
 
     [Fact]
@@ -174,7 +204,8 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         var lecturerRepo = new StubLecturerRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var harness = MentorWriterHarness.Create();
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, harness.Writer);
 
         var mentorId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
@@ -193,13 +224,16 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         // Lần 1: gỡ thành công
         var count1 = await service.HandleMentorRegisteredAsync(new MentorRegisteredEvent(mentorId, IsActive: false), CancellationToken.None);
         Assert.Equal(1, count1);
-        Assert.Single(mentorRepo.Outbox);
+        Assert.Single(harness.Outbox());
+        Assert.Single(harness.Audits());
 
         // Lần 2 (nhận lại cùng sự kiện): trạng thái và số sự kiện không đổi
         var count2 = await service.HandleMentorRegisteredAsync(new MentorRegisteredEvent(mentorId, IsActive: false), CancellationToken.None);
         Assert.Equal(0, count2);
         Assert.Equal("ENDED", assignment.Status);
-        Assert.Single(mentorRepo.Outbox); // Vẫn chỉ có 1 message, không tạo trùng
+        Assert.Single(harness.Outbox()); // Vẫn chỉ có 1 message, không tạo trùng
+        Assert.Single(harness.Audits()); // và chỉ 1 dòng nhật ký
+        Assert.Equal(1, mentorRepo.SaveCount); // lần 2 không lưu gì
     }
 
     [Fact]
@@ -210,7 +244,8 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         var lecturerRepo = new StubLecturerRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var harness = MentorWriterHarness.Create();
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, harness.Writer);
 
         var mentorId = Guid.NewGuid();
         var teamId = Guid.NewGuid();
@@ -233,7 +268,8 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         Assert.Equal(0, count);
         Assert.Equal("ASSIGNED", assignment.Status);
         Assert.Null(assignment.EndedAt);
-        Assert.Empty(mentorRepo.Outbox);
+        Assert.Empty(harness.Outbox());
+        Assert.Empty(harness.Audits());
     }
 
     [Fact]
@@ -244,17 +280,19 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         var lecturerRepo = new StubLecturerRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var harness = MentorWriterHarness.Create();
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, harness.Writer);
 
         var mentor1 = Guid.NewGuid();
         var mentor2 = Guid.NewGuid();
         var mentor3 = Guid.NewGuid(); // không có nhóm
 
-        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = Guid.NewGuid(), MentorId = mentor1, Status = "ASSIGNED" });
-        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = Guid.NewGuid(), MentorId = mentor1, Status = "ASSIGNED" });
-        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = Guid.NewGuid(), MentorId = mentor1, Status = "ENDED", EndedAt = DateTimeOffset.UtcNow }); // nhóm cũ đã kết thúc
+        var semester = Guid.NewGuid();
+        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = mentorRepo.AddTeam(semester), MentorId = mentor1, Status = "ASSIGNED" });
+        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = mentorRepo.AddTeam(semester), MentorId = mentor1, Status = "ASSIGNED" });
+        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = mentorRepo.AddTeam(semester), MentorId = mentor1, Status = "ENDED", EndedAt = DateTimeOffset.UtcNow }); // nhóm cũ đã kết thúc
 
-        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = Guid.NewGuid(), MentorId = mentor2, Status = "ASSIGNED" });
+        mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = mentorRepo.AddTeam(semester), MentorId = mentor2, Status = "ASSIGNED" });
 
         // Act: Đếm cho cả 3 mentor
         var counts = await service.GetMentorTeamCountsAsync([mentor1, mentor2, mentor3], null, CancellationToken.None);
@@ -264,6 +302,31 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         Assert.Equal(2, counts.Single(c => c.MentorId == mentor1).CurrentTeamCount);
         Assert.Equal(1, counts.Single(c => c.MentorId == mentor2).CurrentTeamCount);
         Assert.Equal(0, counts.Single(c => c.MentorId == mentor3).CurrentTeamCount);
+    }
+
+    [Fact]
+    public async Task GetMentorTeamCounts_ExcludesDisbandedTeams_WithAndWithoutSemester()
+    {
+        var mentorRepo = new InMemoryMentorRepo();
+        var teamRepo = new StubTeamRepo();
+        var service = new AdvisorAssignmentService(new StubLecturerRepo(), mentorRepo, teamRepo, new TeamReader(teamRepo, new FakeAcademic()),
+            MentorWriterHarness.Create().Writer);
+
+        var mentor = Guid.NewGuid();
+        var current = Guid.NewGuid();
+        var previous = Guid.NewGuid();
+        void Assign(Guid teamId) => mentorRepo.Assignments.Add(new MentorAssignment { Id = Guid.NewGuid(), TeamId = teamId, MentorId = mentor, Status = "ASSIGNED" });
+        Assign(mentorRepo.AddTeam(current));
+        Assign(mentorRepo.AddTeam(current, "FINALIZED"));
+        Assign(mentorRepo.AddTeam(current, "DISBANDED")); // giải tán nhưng dòng gán chưa kết thúc: không tính
+        Assign(mentorRepo.AddTeam(previous));
+        Assign(mentorRepo.AddTeam(previous, "DISBANDED"));
+
+        var inSemester = await service.GetMentorTeamCountsAsync([mentor], current, CancellationToken.None);
+        Assert.Equal(2, Assert.Single(inSemester).CurrentTeamCount);
+
+        var allSemesters = await service.GetMentorTeamCountsAsync([mentor], null, CancellationToken.None);
+        Assert.Equal(3, Assert.Single(allSemesters).CurrentTeamCount);
     }
 
     [Fact]
@@ -306,7 +369,8 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         var lecturerRepo = new StubLecturerRepo();
         var academic = new FakeAcademic();
         var reader = new TeamReader(teamRepo, academic);
-        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader);
+        var harness = MentorWriterHarness.Create();
+        var service = new AdvisorAssignmentService(lecturerRepo, mentorRepo, teamRepo, reader, harness.Writer);
         var handler = new MentorRegisteredHandler(service, NullLogger<MentorRegisteredHandler>.Instance);
 
         var mentorId = Guid.NewGuid();
@@ -346,6 +410,7 @@ public sealed class MentorAssignmentsDeactivationAndCountsTests : IAsyncLifetime
         var assignment = Assert.Single(mentorRepo.Assignments);
         Assert.Equal("ENDED", assignment.Status);
         Assert.Equal("MENTOR_DEACTIVATED", assignment.EndReason);
-        Assert.Single(mentorRepo.Outbox);
+        Assert.Single(harness.Outbox());
+        Assert.Single(harness.Audits());
     }
 }
