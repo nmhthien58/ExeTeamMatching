@@ -35,6 +35,22 @@ public sealed class AdvisorAssignmentTests
 
         public Task<List<MentorAssignment>> ListActiveByMentorIdAsync(Guid mentorId, CancellationToken ct) =>
             Task.FromResult(All.Where(a => a.MentorId == mentorId && a.Status == "ASSIGNED").ToList());
+
+        public Task<List<MentorAssignment>> ListActiveByMentorIdTrackedAsync(Guid mentorId, CancellationToken ct) =>
+            Task.FromResult(All.Where(a => a.MentorId == mentorId && a.Status == "ASSIGNED").ToList());
+
+        public Task<Dictionary<Guid, int>> CountActiveTeamsByMentorIdsAsync(IReadOnlyList<Guid> mentorIds, Guid? semesterId, CancellationToken ct)
+        {
+            var counts = All
+                .Where(a => mentorIds.Contains(a.MentorId) && a.Status == "ASSIGNED")
+                .GroupBy(a => a.MentorId)
+                .ToDictionary(g => g.Key, g => g.Count());
+            return Task.FromResult(counts);
+        }
+
+        public void AddOutboxMessage<TPayload>(string topic, string eventType, string aggregateType, Guid aggregateId, TPayload payload) { }
+
+        public Task SaveChangesAsync(CancellationToken ct) => Task.CompletedTask;
     }
 
     private sealed class FakeTeamRepo : ITeamRepository

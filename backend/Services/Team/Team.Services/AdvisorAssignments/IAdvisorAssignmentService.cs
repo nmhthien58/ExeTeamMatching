@@ -16,4 +16,8 @@ public interface IAdvisorAssignmentService
         CancellationToken ct);
 
     Task<IReadOnlyList<AdvisedTeamResponse>> GetMentorTeamsMeAsync(ClaimsPrincipal user, CancellationToken ct);
+
+    Task<IReadOnlyList<MentorTeamCountResponse>> GetMentorTeamCountsAsync(IReadOnlyList<Guid> mentorIds, Guid? semesterId, CancellationToken ct);
+
+    Task<int> HandleMentorRegisteredAsync(MentorRegisteredEvent @event, CancellationToken ct);
 }

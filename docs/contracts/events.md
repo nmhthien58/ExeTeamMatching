@@ -25,7 +25,7 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 
 | Topic | Sự kiện | Producer | Consumer |
 |---|---|---|---|
-| `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic (outbox) | Identity (tạo sẵn tài khoản), Notification (contacts), Matching (read model) |
+| `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic (outbox) | Identity (tạo sẵn tài khoản), Notification (contacts), Matching (read model), Team (gỡ mentor khi khóa) |
 | `exe.registration` | RoundOpened, RoundClosed | Academic (outbox) | Notification, Job (lên lịch đóng đợt) |
 | `exe.registration` | DeadlineApproaching | Job (publish trực tiếp) | Notification |
 | `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject, UnmatchedStudentsReminded | Team (outbox) | Matching, Notification, Collaboration |
