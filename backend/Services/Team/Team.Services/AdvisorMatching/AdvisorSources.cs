@@ -12,11 +12,17 @@ namespace Team.Services.AdvisorMatching;
 
 /// <summary>
 /// Cố vấn đang hoạt động. <see cref="MaxTeams"/> null = không giới hạn; <see cref="PreferredTeams"/> 0 = không đặt (chỉ mentor).
-/// <see cref="Organization"/>, <see cref="IsInternal"/>, <see cref="LecturerId"/> chỉ có ở mentor.
+/// <see cref="Organization"/>, <see cref="IsInternal"/> chỉ có ở mentor. <see cref="LecturerId"/> là tài khoản giảng viên của cố vấn:
+/// giảng viên – chính <see cref="Id"/>; mentor nội bộ – giảng viên liên kết; mentor ngoài – null.
 /// </summary>
 public sealed record AdvisorCandidate(
     Guid Id, string FullName, IReadOnlyList<CatalogRef> Domains, int? MaxTeams, int PreferredTeams,
-    string? Organization = null, bool IsInternal = false, Guid? LecturerId = null);
+    string? Organization = null, bool IsInternal = false, Guid? LecturerId = null)
+{
+    /// <summary>Cố vấn trùng người bị chặn ở nhóm (<paramref name="blocked"/> từ <see cref="IAdvisorSource.ListBlockedLecturersAsync"/>) – không được ghép (rule 20).</summary>
+    public bool IsBlockedAt(Guid teamId, IReadOnlyDictionary<Guid, Guid> blocked) =>
+        LecturerId is { } lecturerId && blocked.TryGetValue(teamId, out var blockedId) && blockedId == lecturerId;
+}
 
 /// <summary>Cố vấn hiện tại của một nhóm (bảng W19 / W28).</summary>
 public sealed record CurrentAdvisor(Guid AdvisorId, string AdvisorName, string Reason, int? PreferenceRank);
@@ -47,7 +53,7 @@ public interface IAdvisorSource
     /// <summary>
     /// Giảng viên mà cố vấn loại này không được trùng ở từng nhóm (teamId → lecturerId): mentor – giảng viên hướng dẫn đang gán của nhóm
     /// (rule 20: một người không vừa hướng dẫn vừa mentor cùng một nhóm, so theo <see cref="AdvisorCandidate.LecturerId"/>);
-    /// giảng viên – rỗng.
+    /// giảng viên – <c>lecturerId</c> của mentor đang gán, nhóm có mentor ngoài thì không có dòng.
     /// </summary>
     Task<Dictionary<Guid, Guid>> ListBlockedLecturersAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
 
@@ -79,8 +85,21 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
         (await repo.ListActiveLecturerAssignmentsAsync(teamIds, ct))
         .ToDictionary(x => x.Key, x => new CurrentAdvisor(x.Value.LecturerId, x.Value.LecturerName, x.Value.Reason, x.Value.PreferenceRank));
 
-    public Task<Dictionary<Guid, Guid>> ListBlockedLecturersAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
-        Task.FromResult(new Dictionary<Guid, Guid>());
+    /// <summary>
+    /// Chỉ gọi Academic khi có nhóm đang có mentor. Dùng danh sách (lấy cả mentor đang khóa, lỗi → 503 <c>academic-unavailable</c>) thay cho
+    /// <c>GetMentorAsync</c> vốn trả null khi Academic lỗi – nếu không, kiểm tra rule 20 sẽ bị bỏ qua âm thầm.
+    /// </summary>
+    public async Task<Dictionary<Guid, Guid>> ListBlockedLecturersAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct)
+    {
+        var assigned = teamIds.Count == 0 ? [] : await repo.ListActiveMentorAssignmentsAsync(teamIds, ct);
+        if (assigned.Count == 0)
+        {
+            return [];
+        }
+        var lecturerByMentor = (await AcademicCall.RunAsync(academic.ListMentorsAsync, ct))
+            .Where(m => m.LecturerId is not null).ToDictionary(m => m.Id, m => m.LecturerId!.Value);
+        return assigned.Where(x => lecturerByMentor.ContainsKey(x.Value.MentorId)).ToDictionary(x => x.Key, x => lecturerByMentor[x.Value.MentorId]);
+    }
 
     public async Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct)
     {
@@ -107,8 +126,8 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
     public static int? MaxTeamsFor(LecturerSnapshot lecturer, string courseCode) =>
         courseCode == "EXE201" ? lecturer.MaxTeamsExe201 : lecturer.MaxTeamsExe101;
 
-    private static AdvisorCandidate ToCandidate(LecturerSnapshot l, string courseCode) =>
-        new(l.Id, l.FullName, l.Domains.Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), MaxTeamsFor(l, courseCode), 0);
+    public static AdvisorCandidate ToCandidate(LecturerSnapshot l, string courseCode) =>
+        new(l.Id, l.FullName, l.Domains.Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), MaxTeamsFor(l, courseCode), 0, LecturerId: l.Id);
 }
 
 /// <summary>
@@ -142,10 +161,6 @@ public sealed class MentorAdvisorSource(IAcademicClient academic, IAdvisorMatchi
         teamIds.Count == 0
             ? []
             : (await repo.ListActiveLecturerAssignmentsAsync(teamIds, ct)).ToDictionary(x => x.Key, x => x.Value.LecturerId);
-
-    /// <summary>Mentor là giảng viên hướng dẫn đang gán của nhóm (<paramref name="instructors"/>: teamId → lecturerId) – không được ghép (rule 20).</summary>
-    public static bool IsOwnInstructor(AdvisorCandidate mentor, Guid teamId, IReadOnlyDictionary<Guid, Guid> instructors) =>
-        mentor.LecturerId is { } lecturerId && instructors.TryGetValue(teamId, out var instructorId) && instructorId == lecturerId;
 
     public async Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct)
     {

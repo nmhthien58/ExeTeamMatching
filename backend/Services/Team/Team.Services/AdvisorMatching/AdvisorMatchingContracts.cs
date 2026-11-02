@@ -47,7 +47,7 @@ public static class AdvisorMatchingKinds
 
 public static class AdvisorMatchingErrors
 {
-    // Mã lỗi: docs/contracts/README.md (run-not-preview, lecturer-full, mentor-full, mentor-is-instructor, academic-unavailable).
+    // Mã lỗi: docs/contracts/README.md (run-not-preview, lecturer-full, instructor-is-mentor, mentor-full, mentor-is-instructor, academic-unavailable).
 
     public static ConflictException RunNotPreview(string status) =>
         new("run-not-preview", "Kết quả xem trước không còn dùng được", $"Lần ghép đang ở trạng thái {status}; chỉ áp dụng hoặc bỏ được lần ghép PREVIEW.");
@@ -60,6 +60,10 @@ public static class AdvisorMatchingErrors
 
     public static ConflictException LecturerFull(string lecturerName, int maxTeams) =>
         new("lecturer-full", "Giảng viên đã đủ số nhóm", $"{lecturerName} đã hướng dẫn {maxTeams} nhóm (tối đa {maxTeams}).");
+
+    public static ConflictException InstructorIsMentor(string lecturerName) =>
+        new("instructor-is-mentor", "Giảng viên đang là mentor của nhóm",
+            $"{lecturerName} đang mentor nhóm này; một người không vừa hướng dẫn vừa mentor cùng một nhóm. Chọn giảng viên khác hoặc đổi mentor trước.");
 
     public static NotFoundException MentorNotFound(Guid id) => new("mentor", id);
 

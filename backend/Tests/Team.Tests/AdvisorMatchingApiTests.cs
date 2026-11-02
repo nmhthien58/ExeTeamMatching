@@ -12,6 +12,7 @@ using Team.Repositories.AdvisorMatching;
 using Team.Repositories.AuditLog;
 using Team.Repositories.LecturerAssignments;
 using Team.Repositories.LecturerPreferences;
+using Team.Repositories.MentorAssignments;
 using Team.Repositories.Teams;
 using Team.Repositories.TopicInterests;
 using Team.Services.Academic;
@@ -329,6 +330,165 @@ public sealed class AdvisorMatchingApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Admin_cannot_make_the_team_mentor_its_instructor()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An");
+        var b = Academic.AddLecturer("GV Bình");
+        var own = await TeamAsync("A Do An Mentor");
+        var other = await TeamAsync("B Nhóm Khác");
+        await MentorDirectlyAsync(own.Id, Academic.AddMentor("Mentor An", maxTeams: 3, lecturerId: a.Id));
+
+        await AssertProblemAsync(await ChangeInstructorAsync(own.Id, a.Id, "Phân công"), 409, "instructor-is-mentor");
+        Assert.Empty(await AssignmentsAsync());
+        Assert.DoesNotContain(await _api.EventsAsync(own.Id), e => e.EventType == "LecturerAssigned");
+
+        // Nhóm khác vẫn nhận An; nhóm A nhận giảng viên khác.
+        Assert.Equal(HttpStatusCode.OK, (await ChangeInstructorAsync(other.Id, a.Id, "Phân công")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await ChangeInstructorAsync(own.Id, b.Id, "Phân công")).StatusCode);
+
+        // Dữ liệu cũ đã trùng người: chọn lại đúng giảng viên đó cũng bị chặn, không tự gỡ mentor.
+        var legacy = await TeamAsync("C Dữ Liệu Cũ");
+        await AssignDirectlyAsync(legacy.Id, b);
+        await MentorDirectlyAsync(legacy.Id, Academic.AddMentor("Mentor Bình", maxTeams: 3, lecturerId: b.Id));
+        await AssertProblemAsync(await ChangeInstructorAsync(legacy.Id, b.Id, "Lặp lại"), 409, "instructor-is-mentor");
+        Assert.Equal(2, await _api.QueryDbAsync(db => db.Set<MentorAssignment>().CountAsync(x => x.Status == "ASSIGNED" && (x.TeamId == own.Id || x.TeamId == legacy.Id))));
+    }
+
+    [Fact]
+    public async Task Change_instructor_is_also_blocked_by_a_locked_mentor_and_allows_external_mentors()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An");
+        var locked = await TeamAsync("A Mentor Đã Khóa");
+        var external = await TeamAsync("B Mentor Ngoài");
+        await MentorDirectlyAsync(locked.Id, Academic.AddMentor("Mentor An", maxTeams: 3, active: false, lecturerId: a.Id));
+        await MentorDirectlyAsync(external.Id, Academic.AddMentor("Mentor Ngoài", maxTeams: 3));
+
+        await AssertProblemAsync(await ChangeInstructorAsync(locked.Id, a.Id, "Phân công"), 409, "instructor-is-mentor");
+        Assert.Equal(HttpStatusCode.OK, (await ChangeInstructorAsync(external.Id, a.Id, "Phân công")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Change_instructor_needs_academic_only_when_the_team_has_a_mentor()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An");
+        var withMentor = await TeamAsync("A Có Mentor");
+        var withoutMentor = await TeamAsync("B Chưa Có Mentor");
+        await MentorDirectlyAsync(withMentor.Id, Academic.AddMentor("Mentor An", maxTeams: 3, lecturerId: a.Id));
+
+        Academic.MentorsDown = true;
+        await AssertProblemAsync(await ChangeInstructorAsync(withMentor.Id, a.Id, "Phân công"), 503, "academic-unavailable");
+        Assert.Empty(await AssignmentsAsync());
+        Assert.Equal(HttpStatusCode.OK, (await ChangeInstructorAsync(withoutMentor.Id, a.Id, "Phân công")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Concurrent_instructor_and_mentor_changes_cannot_pick_the_same_person()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An");
+        var mentor = Academic.AddMentor("Mentor An", maxTeams: 20, lecturerId: a.Id);
+        for (var i = 0; i < 10; i++)
+        {
+            var team = await TeamAsync($"Nhóm {i}");
+            var results = await Task.WhenAll(
+                ChangeInstructorAsync(team.Id, a.Id, "Phân công"),
+                Admin.PutAsJsonAsync($"/api/teams/{team.Id}/mentor-assignment", new { mentorId = mentor.Id, note = "Phân công" }));
+
+            Assert.Equal(new[] { HttpStatusCode.OK, HttpStatusCode.Conflict }, results.Select(r => r.StatusCode).Order());
+        }
+    }
+
+    [Fact]
+    public async Task Job_run_replans_team_matched_to_its_own_mentor_with_another_lecturer()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An", domains: [1]);
+        var b = Academic.AddLecturer("GV Bình", domains: [1]);
+        var own = await TeamAsync("A Do An Mentor");
+        var other = await TeamAsync("B Nhóm Khác");
+        await PreferencesAsync(own.Id, a, b);
+        await InterestAsync(other.Id, a);
+        await MentorDirectlyAsync(own.Id, Academic.AddMentor("Mentor An", maxTeams: 3, lecturerId: a.Id));
+
+        var run = await RunJobAsync();
+
+        Assert.Equal((2, 0), (run.MatchedCount, run.UnmatchedCount));
+        var assigned = await AssignmentsAsync();
+        // Bình vẫn là nguyện vọng 2 của nhóm A: lần tính lại không làm đổi thứ hạng.
+        Assert.Equal((b.Id, "PREFERENCE", (short?)2), Row(assigned, own.Id));
+        Assert.Equal((a.Id, "LECTURER_INTEREST", (short?)null), Row(assigned, other.Id));
+
+        Assert.Equal(2, _api.Matching.AdvisorRequests.Count);
+        var replan = _api.Matching.AdvisorRequests[1];
+        Assert.Equal(own.Id, Assert.Single(replan.Teams).TeamId);
+        Assert.Equal(b.Id, Assert.Single(replan.Advisors).AdvisorId);
+    }
+
+    [Fact]
+    public async Task Job_run_leaves_team_unmatched_when_only_its_mentor_is_left()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An", domains: [1]);
+        var own = await TeamAsync("A Do An Mentor");
+        await MentorDirectlyAsync(own.Id, Academic.AddMentor("Mentor An", maxTeams: 3, lecturerId: a.Id));
+
+        var run = await RunJobAsync();
+
+        Assert.Equal((0, 1), (run.MatchedCount, run.UnmatchedCount));
+        Assert.Null(Assert.Single(run.Plan).AdvisorId);
+        Assert.Empty(await AssignmentsAsync());
+    }
+
+    [Fact]
+    public async Task Early_matching_skips_lecturer_who_became_the_team_mentor_before_confirm()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var a = Academic.AddLecturer("GV An", domains: [1]);
+        var team = await TeamAsync("A Nhóm");
+
+        var preview = await PreviewAsync();
+        Assert.Equal(a.Id, Assert.Single(preview.Plan).AdvisorId);
+
+        // Trong lúc chờ xác nhận, An được đổi thành mentor của nhóm.
+        await MentorDirectlyAsync(team.Id, Academic.AddMentor("Mentor An", maxTeams: 3, lecturerId: a.Id));
+        var confirmed = await ConfirmAsync(preview.Id);
+
+        Assert.Equal(("APPLIED", 0, 1), (confirmed.Status, confirmed.MatchedCount, confirmed.UnmatchedCount));
+        Assert.Empty(await AssignmentsAsync());
+    }
+
+    [Fact]
     public async Task Failure_in_the_middle_rolls_back_the_whole_run()
     {
         if (!Enabled)
@@ -525,6 +685,16 @@ public sealed class AdvisorMatchingApiTests : IAsyncLifetime
         {
             Id = Guid.NewGuid(), TeamId = teamId, LecturerId = lecturer.Id, LecturerName = lecturer.FullName, Reason = "LECTURER_INTEREST",
             Source = "AUTO", AssignedAt = DateTimeOffset.UtcNow,
+        });
+        return db.SaveChangesAsync();
+    });
+
+    private Task MentorDirectlyAsync(Guid teamId, MentorSnapshot mentor) => _api.QueryDbAsync(db =>
+    {
+        db.Add(new MentorAssignment
+        {
+            Id = Guid.NewGuid(), TeamId = teamId, MentorId = mentor.Id, MentorName = mentor.FullName, Reason = "MENTOR_INTEREST", Source = "AUTO",
+            AssignedAt = DateTimeOffset.UtcNow,
         });
         return db.SaveChangesAsync();
     });

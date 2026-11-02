@@ -30,6 +30,22 @@ public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
         Assert.Equal(400, Assert.Throws<BuildingBlocks.Errors.RequestValidationException>(() => AdvisorMatchingKinds.Parse(kind)).Status);
 
     [Fact]
+    public void Advisor_is_blocked_by_lecturer_identity_for_both_kinds()
+    {
+        var teamId = Guid.NewGuid();
+        var lecturerId = Guid.NewGuid();
+        var blocked = new Dictionary<Guid, Guid> { [teamId] = lecturerId };
+        var lecturer = LecturerAdvisorSource.ToCandidate(new LecturerSnapshot(lecturerId, "GV An", "an@example.edu", [], null, null, true), "EXE101");
+        var internalMentor = new AdvisorCandidate(Guid.NewGuid(), "Mentor An", [], 3, 0, LecturerId: lecturerId);
+        var externalMentor = new AdvisorCandidate(Guid.NewGuid(), "Mentor Ngoài", [], 3, 0);
+
+        Assert.True(lecturer.IsBlockedAt(teamId, blocked));
+        Assert.True(internalMentor.IsBlockedAt(teamId, blocked));
+        Assert.False(externalMentor.IsBlockedAt(teamId, blocked));
+        Assert.False(lecturer.IsBlockedAt(Guid.NewGuid(), blocked));
+    }
+
+    [Fact]
     public async Task Unknown_kind_answers_400() =>
         await TestData.AssertProblemAsync(await _api.ClientFor(null, Roles.Admin).PostAsJsonAsync("/api/advisor-matching/TA/preview",
             new { courseCode = "EXE101" }), 400, "validation");

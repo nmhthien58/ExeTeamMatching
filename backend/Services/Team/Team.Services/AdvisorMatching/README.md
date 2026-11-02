@@ -31,11 +31,16 @@ thì nhóm thành chưa ghép. `matchedCount` / `unmatchedCount` của lần ch�
   (Collaboration đổi người trong workspace). Gỡ hẳn mới phát `MentorUnassigned`.
 - Đổi tay: mentor đã khóa → 400; đã đủ `maxTeams` → 409 `mentor-full`; vượt `preferredTeams` → 200 kèm `warnings: [ABOVE_PREFERRED]`;
   mentor có `lecturerId` trùng giảng viên hướng dẫn đang gán của nhóm → 409 `mentor-is-instructor`.
-- Một người không vừa hướng dẫn vừa mentor cùng một nhóm (so `lecturerId` của mentor với `lecturer_assignments` ASSIGNED,
-  `IAdvisorSource.ListBlockedLecturersAsync`). `PlanAdvisorMatching` không có trường loại trừ theo nhóm (không đổi .proto) nên khi
-  ghép tự động / Ghép sớm, nhóm bị Matching ghép trùng được **tính lại** với danh sách mentor đã bỏ người đó (mỗi giảng viên một lời gọi,
-  tải cộng phần đã ghép của lần đầu); không còn mentor phù hợp thì chưa ghép. Lần tính lại không cạnh tranh công bằng với các nhóm
-  của lần đầu (mentor có thể đã hết chỗ). Lúc xác nhận Ghép sớm, nếu giảng viên vừa được đổi thành mentor trong phương án thì nhóm chưa ghép.
-- Chiều ngược lại (đổi giảng viên hướng dẫn thành người đang mentor nhóm) **chưa chặn**.
+- Một người không vừa hướng dẫn vừa mentor cùng một nhóm, **chặn cả hai chiều** (so theo tài khoản giảng viên,
+  `AdvisorCandidate.LecturerId`: giảng viên là `Id`, mentor nội bộ là `lecturerId` liên kết; `IAdvisorSource.ListBlockedLecturersAsync`:
+  ghép mentor đọc `lecturer_assignments` ASSIGNED, ghép giảng viên đọc `mentor_assignments` ASSIGNED rồi đổi `mentorId` sang `lecturerId` qua Academic).
+  - Đổi tay: 409 `mentor-is-instructor` (đổi mentor), 409 `instructor-is-mentor` (đổi giảng viên). Không tự gỡ cố vấn đang gán: Bộ môn đổi người kia trước.
+  - Đổi giảng viên / ghép giảng viên cần Academic **chỉ khi nhóm đang có mentor**; Academic lỗi → 503 `academic-unavailable` (dùng `ListMentorsAsync`,
+    không dùng `GetMentorAsync` vì hàm này trả null khi lỗi và làm kiểm tra bị bỏ qua).
+  - `PlanAdvisorMatching` không có trường loại trừ theo nhóm (không đổi .proto) nên khi ghép tự động / Ghép sớm, nhóm bị Matching ghép trùng
+    được **tính lại** với danh sách cố vấn đã bỏ người đó (mỗi người một lời gọi, tải cộng phần đã ghép của lần đầu); không còn ai phù hợp thì
+    chưa ghép. Nguyện vọng giữ nguyên nên thứ hạng không đổi. Lần tính lại không cạnh tranh công bằng với các nhóm của lần đầu (cố vấn có thể
+    đã hết chỗ). Lúc xác nhận Ghép sớm, nếu cố vấn trong phương án vừa thành cố vấn loại kia của nhóm thì nhóm chưa ghép.
+  - Khóa: luồng giảng viên giữ thêm khóa mentor của học kỳ (`LockAsync`, thứ tự giảng viên → mentor) để kiểm tra chéo không lọt khi hai bên chạy cùng lúc.
 - `matchingAt` của W28 = đầu tuần bắt đầu mentor (`MentoringSchedule.StartsAt`: `startDate + 7·(tuần − 1)` ngày, 00:00 UTC+7).
 - Gỡ mentor khi Bộ môn khóa mentor (consumer `MentorRegistered`) là BE-74 của Thành; có thể dùng `MentorAssignmentWriter.End(..., unassigned: true)`.
