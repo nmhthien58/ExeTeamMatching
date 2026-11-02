@@ -4,7 +4,7 @@ using Identity.Api.Dev;
 using Identity.Services;
 
 // Identity Service – cấu hình chung ở BuildingBlocks (BE-05): Serilog + CorrelationId, ProblemDetails, JWT, FluentValidation.
-// Đăng nhập Google → JWT hệ thống, refresh, logout (BE-10 → BE-12).
+// Đăng nhập Google → JWT hệ thống, refresh, logout (BE-10 → BE-12), tạo sẵn tài khoản từ Kafka (BE-13).
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults("identity");
