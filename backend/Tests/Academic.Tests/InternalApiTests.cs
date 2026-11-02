@@ -112,6 +112,8 @@ public sealed class InternalApiTests : IAsyncLifetime
 
         var tooMany = await Service.PostAsJsonAsync("/internal/students/lookup", new { semesterId = semester.Id, studentIds = Enumerable.Range(0, 501).Select(_ => Guid.NewGuid()) });
         Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
+        var missingIds = await Service.PostAsJsonAsync("/internal/students/lookup", new { semesterId = semester.Id });
+        Assert.Equal(HttpStatusCode.BadRequest, missingIds.StatusCode);
     }
 
     [Fact]
