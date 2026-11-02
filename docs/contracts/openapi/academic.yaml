@@ -251,7 +251,7 @@ paths:
       summary: Sửa mentor, đặt số nhóm tối đa, khóa / mở (Admin)
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MentorInput' } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '409': { description: "`.../errors/max-below-current` – tối đa nhỏ hơn số nhóm đang mentor", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '409': { description: "`.../errors/max-below-current` – tối đa nhỏ hơn số nhóm đang mentor; `.../errors/lecturer-locked` – gắn giảng viên đang khóa, hoặc mở khóa mentor (isActive false → true) khi giảng viên liên kết đang khóa; `.../errors/lecturer-has-mentor`; `.../errors/email-exists`", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } } }
   /api/mentors/me:
     get:
       tags: [Mentors]

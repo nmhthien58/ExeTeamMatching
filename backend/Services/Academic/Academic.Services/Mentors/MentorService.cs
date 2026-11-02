@@ -79,12 +79,21 @@ public sealed class MentorService(IMentorRepository mentors, ILecturerRepository
         return await ToResponseAsync(mentor, ct);
     }
 
-    /// <summary>Admin sửa hồ sơ, đặt số nhóm tối đa, khóa / mở. Luôn phát <c>MentorRegistered</c> để các bên cập nhật.</summary>
+    /// <summary>
+    /// Admin sửa hồ sơ, đặt số nhóm tối đa, khóa / mở. Luôn phát <c>MentorRegistered</c> để các bên cập nhật.
+    /// Mở khóa mentor khi giảng viên liên kết đang khóa → 409 <c>lecturer-locked</c>.
+    /// </summary>
     public async Task<MentorResponse> UpdateAsync(Guid id, MentorInput input, CancellationToken ct)
     {
         var mentor = await FindAsync(id, ct);
         var isInternal = input.IsInternal ?? mentor.IsInternal;
         var lecturer = await ResolveLecturerAsync(input.LecturerId, mentor.LecturerId, isInternal, id, ct);
+        // Khóa giảng viên thì mentor gắn với họ khóa theo (StageLecturerChangeAsync): không mở lại mentor khi giảng viên vẫn khóa.
+        // Sửa khác (kể cả giữ nguyên trạng thái khóa) vẫn được.
+        if (!mentor.IsActive && input.IsActive == true && lecturer is { IsActive: false })
+        {
+            throw MentorErrors.ReopenWhileLecturerLocked();
+        }
         var email = lecturer?.Email ?? MentorRules.RequireEmail(input.Email);
         await RequireFreeEmailAsync(email, lecturer, id, ct);
         var current = await CurrentDomainIdsAsync(id, ct);
@@ -246,6 +255,10 @@ public static class MentorErrors
 
     public static ConflictException LecturerLocked() =>
         new("lecturer-locked", "Giảng viên đang bị khóa", "Mở khóa giảng viên rồi mới gắn được với hồ sơ mentor.");
+
+    /// <summary>Cùng mã <c>lecturer-locked</c>: mở khóa mentor trong khi giảng viên liên kết đang khóa.</summary>
+    public static ConflictException ReopenWhileLecturerLocked() =>
+        new("lecturer-locked", "Giảng viên đang bị khóa", "Giảng viên gắn với hồ sơ mentor này đang bị khóa. Mở khóa giảng viên rồi mới mở khóa mentor.");
 
     public static ConflictException LecturerHasMentor() =>
         new("lecturer-has-mentor", "Giảng viên đã có hồ sơ mentor", "Mỗi giảng viên chỉ gắn với một hồ sơ mentor.");
