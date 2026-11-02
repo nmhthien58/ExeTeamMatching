@@ -66,8 +66,10 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 // LecturerProfileUpdated – giảng viên / Admin sửa chuyên môn, sức chứa (Matching cập nhật read model), key = lecturerId
 { "lecturerId": "uuid", "domainIds": [4, 7], "maxTeams": 8, "isAcceptingTeams": true, "isActive": true }
 
-// MentorRegistered – Admin tạo hoặc sửa mentor (rule 20), key = mentorId. Identity tạo / khóa tài khoản role Mentor;
-// lecturerId != null → thêm role Mentor vào tài khoản sẵn có của giảng viên đó.
+// MentorRegistered – Admin tạo hoặc sửa mentor (rule 20), key = mentorId. Phát lại ở mọi lần sửa: các bên xử lý idempotent theo mentorId.
+// Identity (BE-64): lecturerId == null → tài khoản riêng theo email, isActive=false thì khóa tài khoản;
+// lecturerId != null → thêm role Mentor vào tài khoản sẵn có của giảng viên đó (không đổi email – LecturerRegistered làm),
+// isActive=false thì chỉ bỏ role Mentor. LecturerRegistered isActive=false trên tài khoản còn vai trò khác cũng chỉ bỏ role Lecturer.
 { "mentorId": "uuid", "fullName": "Lê Văn Tuấn", "email": "tuan@startup.vn", "organization": "Startup X",
   "isInternal": false, "lecturerId": null, "maxTeams": 4, "isActive": true }
 ```

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Identity.Tests;
 
-/// <summary>Tạo sẵn tài khoản từ StudentImported, LecturerRegistered (BE-13, rule 5).</summary>
+/// <summary>Tạo sẵn tài khoản từ StudentImported, LecturerRegistered (BE-13, rule 5); MentorRegistered ở MentorProvisioningTests (BE-64).</summary>
 public sealed class AccountProvisioningTests : IDisposable
 {
     private readonly IdentityApiFactory _factory = new();
@@ -129,7 +129,9 @@ public sealed class AccountProvisioningTests : IDisposable
 
         await HandleAsync(new LecturerRegistered(lecturerId, "GV", "gv.e@example.com", false));
 
-        Assert.Equal(AccountStatuses.Active, (await AccountAsync("gv.e@example.com")).Status);
+        var account = await AccountAsync("gv.e@example.com");
+        Assert.Equal(AccountStatuses.Active, account.Status);
+        Assert.Equal([RoleIds.Mentor], account.Roles.Select(r => r.RoleId)); // khóa giảng viên thì bỏ role Lecturer
     }
 
     [Fact]
@@ -149,11 +151,11 @@ public sealed class AccountProvisioningTests : IDisposable
     }
 
     [Fact]
-    public void Consumer_listens_to_both_events_on_student_topic()
+    public void Consumer_listens_to_three_events_on_student_topic()
     {
         var registrations = _factory.Services.GetServices<HandlerRegistration>().ToList();
 
-        Assert.Equal([nameof(LecturerRegistered), nameof(StudentImported)], registrations.Select(r => r.EventType).Order());
+        Assert.Equal([nameof(LecturerRegistered), nameof(MentorRegistered), nameof(StudentImported)], registrations.Select(r => r.EventType).Order());
         Assert.All(registrations, r => Assert.Equal(Topics.Student, r.Topic));
     }
 
@@ -164,6 +166,12 @@ public sealed class AccountProvisioningTests : IDisposable
     }
 
     private async Task HandleAsync(LecturerRegistered e)
+    {
+        using var scope = _factory.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AccountProvisioningService>().HandleAsync(e, CancellationToken.None);
+    }
+
+    private async Task HandleAsync(MentorRegistered e)
     {
         using var scope = _factory.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<AccountProvisioningService>().HandleAsync(e, CancellationToken.None);
