@@ -4,6 +4,7 @@ import 'package:exe_team_matching/core/theme/app_theme.dart';
 import 'package:exe_team_matching/features/messages/channel_screen.dart';
 import 'package:exe_team_matching/features/messages/conversations_screen.dart';
 import 'package:exe_team_matching/features/messages/messages_api.dart';
+import 'package:exe_team_matching/features/files/file_services.dart';
 import 'package:exe_team_matching/features/realtime/collab_hub.dart';
 import 'package:exe_team_matching/features/workspace/workspace_api.dart';
 import 'package:exe_team_matching/features/workspace/workspace_models.dart';
@@ -11,6 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/workspace_fakes.dart';
 
 const _leader = PersonRef(personType: 'STUDENT', personId: 's1', displayName: 'Trưởng Nhóm', role: WorkspaceRole.leader);
 const _channel = Channel(id: 'c1', workspaceId: 'w1', kind: 'ADVISORS');
@@ -33,6 +36,7 @@ class _FakeApi extends MessagesApi {
   final Set<String> waiting;
   final sent = <String>[];
   final read = <String>[];
+  List<String> lastFiles = const [], lastMentions = const [];
   int failNext = 0;
 
   @override
@@ -48,11 +52,28 @@ class _FakeApi extends MessagesApi {
   Future<void> markRead(String channelId, String lastReadMessageId) async => read.add(lastReadMessageId);
 
   @override
-  Future<Message> send(String channelId, {required String clientMessageId, required String body, String? parentMessageId, bool isAdvisorQuestion = false}) async {
+  Future<Message> send(
+    String channelId, {
+    required String clientMessageId,
+    required String body,
+    String? parentMessageId,
+    bool isAdvisorQuestion = false,
+    List<String> attachmentFileIds = const [],
+    List<String> mentionPersonIds = const [],
+  }) async {
     sent.add('$clientMessageId $body question=$isAdvisorQuestion');
+    lastFiles = attachmentFileIds;
+    lastMentions = mentionPersonIds;
     if (failNext-- > 0) throw const ApiException(status: 0, code: 'network', title: 'Mất kết nối');
     return _msg('new', body, minute: 9);
   }
+}
+
+class _FilesApi extends FakeCollabApi {
+  _FilesApi({super.folderContent});
+
+  @override
+  Future<String> downloadUrl(String fileId, {int? version}) async => 'https://s3/$fileId';
 }
 
 class _FakeConnection implements HubConnectionLike {
@@ -111,6 +132,53 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Cô sẽ góp ý'), findsOneWidget);
     expect(api.read.last, 'm3');
+  });
+
+  testWidgets('C03: chọn file C06 và @nhắc tên rồi gửi; tin có file nhấn để tải', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    addTearDown(tester.view.resetPhysicalSize);
+    final file = ProjectFile(id: 'f1', name: 'ke-hoach.pdf', currentVersion: 1, sizeBytes: 2048, updatedByName: 'Vy', updatedAt: DateTime.utc(2026, 10, 27));
+    final archived = ProjectFile(id: 'f2', name: 'exe101.pdf', currentVersion: 1, sizeBytes: 1, updatedByName: 'Vy', updatedAt: DateTime.utc(2026, 10, 27), isArchive: true);
+    const lecturer = PersonRef(personType: 'LECTURER', personId: 'l1', displayName: 'Cô Hạnh', role: WorkspaceRole.instructor);
+    final opened = <String>[];
+    final api = _FakeApi(items: [
+      Message(id: 'm1', channelId: 'c1', author: lecturer, body: 'Xem file', createdAt: DateTime.utc(2026, 10, 27), attachments: [file]),
+    ]);
+    await _pump(tester, const ChannelView(channel: _channel, readOnly: false, isStudent: true, people: [_leader, lecturer]), api, overrides: [
+      collabApiOverride(_FilesApi(folderContent: FolderContent(files: [file, archived]))),
+      openUrlProvider.overrideWithValue((url) async {
+        opened.add(url);
+        return true;
+      }),
+    ]);
+
+    await tester.tap(find.text('ke-hoach.pdf'));
+    await tester.pumpAndSettle();
+    expect(opened, ['https://s3/f1']);
+
+    await tester.tap(find.byTooltip('Đính kèm file'));
+    await tester.pumpAndSettle();
+    expect(find.text('exe101.pdf'), findsNothing);
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'ke-hoach.pdf'));
+    await tester.pump();
+    await tester.tap(find.text('Đính kèm (1)'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(InputChip, 'ke-hoach.pdf'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Cô @Tr');
+    await tester.pump();
+    expect(find.widgetWithText(ListTile, 'Trưởng Nhóm'), findsNothing, reason: 'không tự nhắc mình');
+    await tester.enterText(find.byType(TextField), 'Cô @h');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(ListTile, 'Cô Hạnh'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Gửi'));
+    await tester.pumpAndSettle();
+
+    expect(api.sent.single, endsWith('Cô @Cô Hạnh question=false'));
+    expect(api.lastFiles, ['f1']);
+    expect(api.lastMentions, ['l1']);
+    expect(find.byType(InputChip), findsNothing);
   });
 
   testWidgets('C03: gửi kèm Hỏi cố vấn; gửi lỗi hiện Gửi lại, gửi lại dùng cùng clientMessageId', (tester) async {

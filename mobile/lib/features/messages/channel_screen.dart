@@ -6,14 +6,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
+import '../files/file_services.dart' show fileIcon, openUrlProvider;
 import '../realtime/collab_hub.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart' show workspaceProvider;
-import '../workspace/workspace_models.dart' show WorkspaceRole;
+import '../workspace/workspace_api.dart' show collabApiProvider, folderProvider, workspaceProvider;
+import '../workspace/workspace_models.dart' show PersonRef, ProjectFile, WorkspaceRole;
 import '../workspace/workspace_widgets.dart' show Avatar, RoleChip;
 import 'messages_api.dart';
 
 const maxMessageLength = 2000;
+const maxAttachments = 5;
+
+/// Nội dung khung soạn tin khi bấm Gửi.
+typedef MessageDraft = ({String body, bool asQuestion, List<String> fileIds, List<String> mentionIds});
+
+/// Người được @nhắc: trừ mình; kênh Nhóm chỉ có sinh viên (quy tắc 22).
+List<PersonRef> mentionable(Channel channel, List<PersonRef> people, Set<String> mine) => [
+      for (final p in people)
+        if (!mine.contains(p.personId) && (!channel.isTeam || p.role == WorkspaceRole.leader || p.role == WorkspaceRole.member)) p,
+    ];
 
 /// clientMessageId dạng UUID v4 – gửi lại cùng id thì server không tạo tin trùng.
 String newClientId() {
@@ -48,28 +59,28 @@ class ChannelScreen extends ConsumerWidget {
               ? const SkeletonList(count: 3)
               : channel == null
                   ? const EmptyState(icon: Icons.forum_outlined, title: 'Không tìm thấy kênh')
-                  : ChannelView(channel: channel, readOnly: ws.myRole == WorkspaceRole.admin, isStudent: isStudent),
+                  : ChannelView(channel: channel, readOnly: ws.myRole == WorkspaceRole.admin, isStudent: isStudent, people: ws.people),
     );
   }
 }
 
 class _Pending {
-  _Pending({required this.clientId, required this.body, this.asQuestion = false});
+  _Pending({required this.clientId, required this.draft});
 
   final String clientId;
-  final String body;
-  final bool asQuestion;
+  final MessageDraft draft;
   bool failed = false;
 }
 
 /// Danh sách tin (mới nhất ở dưới, chia theo ngày), khung soạn tin, cập nhật realtime, đánh dấu đã đọc.
-// shortcut: chưa có đính kèm file (API chưa nhận), @nhắc tên, sửa / xóa tin trên giao diện; bổ sung khi cần.
+// shortcut: chưa có sửa / xóa tin trên giao diện; bổ sung khi cần.
 class ChannelView extends ConsumerStatefulWidget {
-  const ChannelView({super.key, required this.channel, required this.readOnly, required this.isStudent});
+  const ChannelView({super.key, required this.channel, required this.readOnly, required this.isStudent, this.people = const []});
 
   final Channel channel;
   final bool readOnly;
   final bool isStudent;
+  final List<PersonRef> people;
 
   @override
   ConsumerState<ChannelView> createState() => _ChannelViewState();
@@ -174,9 +185,14 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
       if (!_pending.contains(p)) _pending.add(p);
     });
     try {
-      final m = await ref
-          .read(messagesApiProvider)
-          .send(_channelId, clientMessageId: p.clientId, body: p.body, isAdvisorQuestion: p.asQuestion);
+      final m = await ref.read(messagesApiProvider).send(
+            _channelId,
+            clientMessageId: p.clientId,
+            body: p.draft.body,
+            isAdvisorQuestion: p.draft.asQuestion,
+            attachmentFileIds: p.draft.fileIds,
+            mentionPersonIds: p.draft.mentionIds,
+          );
       if (!mounted) return;
       setState(() => _pending.remove(p));
       _apply(m, created: true);
@@ -190,7 +206,7 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
         isScrollControlled: true,
         useSafeArea: true,
         showDragHandle: true,
-        builder: (_) => ThreadSheet(root: root, channel: widget.channel, readOnly: widget.readOnly),
+        builder: (_) => ThreadSheet(root: root, channel: widget.channel, readOnly: widget.readOnly, people: widget.people),
       );
 
   @override
@@ -228,8 +244,10 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
           const Padding(padding: EdgeInsets.all(AppSpacing.s4), child: Text('Bộ môn chỉ xem kênh này.'))
         else
           MessageComposer(
+            workspaceId: widget.channel.workspaceId,
+            people: mentionable(widget.channel, widget.people, mine),
             allowQuestion: !widget.channel.isTeam && widget.isStudent,
-            onSend: (body, asQuestion) => _send(_Pending(clientId: newClientId(), body: body, asQuestion: asQuestion)),
+            onSend: (draft) => _send(_Pending(clientId: newClientId(), draft: draft)),
           ),
       ],
     );
@@ -284,6 +302,7 @@ class MessageBubble extends StatelessWidget {
           m.isDeleted
               ? Text('Tin nhắn đã bị xóa', style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic))
               : Text(m.body, style: theme.textTheme.bodyLarge),
+          for (final f in m.attachments) _Attachment(file: f),
           Text('${formatDateTime(m.createdAt)}${m.editedAt != null ? ' · đã sửa' : ''}', style: theme.textTheme.bodySmall),
         ],
       ),
@@ -323,6 +342,32 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
+/// File đính kèm trong tin: nhấn để tải.
+class _Attachment extends ConsumerWidget {
+  const _Attachment({required this.file});
+
+  final ProjectFile file;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Material(
+        type: MaterialType.transparency, // bong bóng có nền nên ListTile cần Material riêng
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(fileIcon(file.name)),
+          title: Text(file.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(formatSize(file.sizeBytes)),
+          onTap: () async {
+            final messenger = ScaffoldMessenger.of(context);
+            try {
+              await ref.read(openUrlProvider)(await ref.read(collabApiProvider).downloadUrl(file.id));
+            } catch (e) {
+              messenger.showSnackBar(SnackBar(content: Text(e.apiError.title)));
+            }
+          },
+        ),
+      );
+}
+
 class _PendingBubble extends StatelessWidget {
   const _PendingBubble({required this.pending, required this.onRetry});
 
@@ -341,7 +386,7 @@ class _PendingBubble extends StatelessWidget {
             margin: const EdgeInsets.only(top: AppSpacing.s1),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3, vertical: AppSpacing.s2),
             decoration: BoxDecoration(border: Border.all(color: theme.colorScheme.outlineVariant), borderRadius: BorderRadius.circular(AppRadius.lg)),
-            child: Text(pending.body),
+            child: Text(pending.draft.body),
           ),
           pending.failed
               ? TextButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh, size: 18), label: const Text('Gửi lỗi · Gửi lại'))
@@ -352,11 +397,14 @@ class _PendingBubble extends StatelessWidget {
   }
 }
 
-/// Khung soạn tin dính đáy: tối đa 2.000 ký tự, công tắc "Hỏi cố vấn" ở kênh Cố vấn (chỉ sinh viên, chỉ tin gốc).
+/// Khung soạn tin dính đáy: tối đa 2.000 ký tự, công tắc "Hỏi cố vấn" ở kênh Cố vấn (chỉ sinh viên, chỉ tin gốc),
+/// đính kèm file có sẵn ở C06 và @nhắc tên.
 class MessageComposer extends StatefulWidget {
-  const MessageComposer({super.key, required this.onSend, this.allowQuestion = false, this.hint = 'Nhập tin nhắn'});
+  const MessageComposer({super.key, required this.workspaceId, required this.onSend, this.people = const [], this.allowQuestion = false, this.hint = 'Nhập tin nhắn'});
 
-  final void Function(String body, bool asQuestion) onSend;
+  final String workspaceId;
+  final void Function(MessageDraft draft) onSend;
+  final List<PersonRef> people;
   final bool allowQuestion;
   final String hint;
 
@@ -367,6 +415,8 @@ class MessageComposer extends StatefulWidget {
 class _MessageComposerState extends State<MessageComposer> {
   final _text = TextEditingController();
   bool _asQuestion = false;
+  List<ProjectFile> _files = const [];
+  final List<PersonRef> _mentions = [];
 
   @override
   void dispose() {
@@ -374,12 +424,44 @@ class _MessageComposerState extends State<MessageComposer> {
     super.dispose();
   }
 
+  // shortcut: chỉ gợi ý khi đang gõ @ ở cuối ô soạn tin; cần thì theo vị trí con trỏ.
+  List<PersonRef> get _suggestions {
+    final query = RegExp(r'(?:^|\s)@([^@\n]*)$').firstMatch(_text.text)?.group(1)?.toLowerCase();
+    return query == null ? const [] : widget.people.where((p) => p.displayName.toLowerCase().contains(query)).toList();
+  }
+
+  void _mention(PersonRef person) {
+    final text = _text.text.replaceFirst(RegExp(r'@[^@\n]*$'), '@${person.displayName} ');
+    _text.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+    setState(() => _mentions.add(person));
+  }
+
+  Future<void> _attach() async {
+    final picked = await showModalBottomSheet<List<ProjectFile>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => _AttachSheet(workspaceId: widget.workspaceId, selected: _files),
+    );
+    if (picked != null && mounted) setState(() => _files = picked);
+  }
+
   void _send() {
     final body = _text.text.trim();
     if (body.isEmpty) return;
-    widget.onSend(body, _asQuestion);
+    widget.onSend((
+      body: body,
+      asQuestion: _asQuestion,
+      fileIds: [for (final f in _files) f.id],
+      mentionIds: {for (final p in _mentions) if (body.contains('@${p.displayName}')) p.personId}.toList(),
+    ));
     _text.clear();
-    setState(() => _asQuestion = false);
+    _mentions.clear();
+    setState(() {
+      _asQuestion = false;
+      _files = const [];
+    });
   }
 
   @override
@@ -390,6 +472,28 @@ class _MessageComposerState extends State<MessageComposer> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_suggestions.isNotEmpty)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 168),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final p in _suggestions) ListTile(dense: true, title: Text(p.displayName), trailing: RoleChip(role: p.role), onTap: () => _mention(p)),
+                    ],
+                  ),
+                ),
+              if (_files.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(spacing: AppSpacing.s2, children: [
+                    for (final f in _files)
+                      InputChip(
+                        label: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 200), child: Text(f.name, overflow: TextOverflow.ellipsis)),
+                        deleteButtonTooltipMessage: 'Bỏ ${f.name}',
+                        onDeleted: () => setState(() => _files = [..._files]..remove(f)),
+                      ),
+                  ]),
+                ),
               if (widget.allowQuestion)
                 SwitchListTile(
                   dense: true,
@@ -401,6 +505,7 @@ class _MessageComposerState extends State<MessageComposer> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  IconButton(tooltip: 'Đính kèm file', onPressed: _attach, icon: const Icon(Icons.attach_file)),
                   Expanded(
                     child: TextField(
                       controller: _text,
@@ -421,13 +526,97 @@ class _MessageComposerState extends State<MessageComposer> {
       );
 }
 
+/// Chọn tối đa 5 file có sẵn của dự án (C06). File EXE101 không đính kèm được.
+class _AttachSheet extends ConsumerStatefulWidget {
+  const _AttachSheet({required this.workspaceId, required this.selected});
+
+  final String workspaceId;
+  final List<ProjectFile> selected;
+
+  @override
+  ConsumerState<_AttachSheet> createState() => _AttachSheetState();
+}
+
+class _AttachSheetState extends ConsumerState<_AttachSheet> {
+  final List<String> _path = [];
+  late final List<ProjectFile> _selected = [...widget.selected];
+
+  void _toggle(ProjectFile file) => setState(() {
+        final had = _selected.any((f) => f.id == file.id);
+        had ? _selected.removeWhere((f) => f.id == file.id) : _selected.add(file);
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final folder = ref.watch(folderProvider((workspaceId: widget.workspaceId, folderId: _path.lastOrNull)));
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height * 0.7,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+            child: Text('Chọn tối đa $maxAttachments file', style: theme.textTheme.titleLarge),
+          ),
+          if (_path.isNotEmpty)
+            TextButton.icon(onPressed: () => setState(() => _path.removeLast()), icon: const Icon(Icons.arrow_back), label: const Text('Quay lại')),
+          Expanded(
+            child: folder.when(
+              loading: () => const SkeletonList(count: 3),
+              error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(folderProvider)),
+              data: (content) {
+                final folders = content.folders.where((f) => !f.isArchive).toList();
+                final files = content.files.where((f) => !f.isArchive).toList();
+                if (folders.isEmpty && files.isEmpty) {
+                  return const EmptyState(icon: Icons.folder_open, title: 'Chưa có file.', description: 'Tải lên ở mục File trước.');
+                }
+                return ListView(
+                  children: [
+                    for (final f in folders)
+                      ListTile(
+                        leading: Icon(Icons.folder_outlined, color: theme.colorScheme.primary),
+                        title: Text(f.name),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => setState(() => _path.add(f.id)),
+                      ),
+                    for (final f in files)
+                      Builder(builder: (_) {
+                        final checked = _selected.any((s) => s.id == f.id);
+                        return CheckboxListTile(
+                          value: checked,
+                          secondary: Icon(fileIcon(f.name)),
+                          title: Text(f.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(formatSize(f.sizeBytes)),
+                          onChanged: checked || _selected.length < maxAttachments ? (_) => _toggle(f) : null,
+                        );
+                      }),
+                  ],
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.s4),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(onPressed: () => Navigator.pop(context, _selected), child: Text('Đính kèm (${_selected.length})')),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Luồng trả lời (bottom sheet): tin gốc, các trả lời, khung trả lời. Cố vấn trả lời câu hỏi → "Đã trả lời".
 class ThreadSheet extends ConsumerStatefulWidget {
-  const ThreadSheet({super.key, required this.root, required this.channel, required this.readOnly});
+  const ThreadSheet({super.key, required this.root, required this.channel, required this.readOnly, this.people = const []});
 
   final Message root;
   final Channel channel;
   final bool readOnly;
+  final List<PersonRef> people;
 
   @override
   ConsumerState<ThreadSheet> createState() => _ThreadSheetState();
@@ -472,10 +661,17 @@ class _ThreadSheetState extends ConsumerState<ThreadSheet> {
     }
   }
 
-  Future<void> _reply(String body) async {
+  Future<void> _reply(MessageDraft draft) async {
     setState(() => _sendError = null);
     try {
-      final m = await ref.read(messagesApiProvider).send(widget.channel.id, clientMessageId: newClientId(), body: body, parentMessageId: widget.root.id);
+      final m = await ref.read(messagesApiProvider).send(
+            widget.channel.id,
+            clientMessageId: newClientId(),
+            body: draft.body,
+            parentMessageId: widget.root.id,
+            attachmentFileIds: draft.fileIds,
+            mentionPersonIds: draft.mentionIds,
+          );
       if (mounted && _replies.every((r) => r.id != m.id)) setState(() => _replies.add(m));
     } catch (e) {
       if (mounted) setState(() => _sendError = e.apiError.detail ?? e.apiError.title);
@@ -509,7 +705,13 @@ class _ThreadSheetState extends ConsumerState<ThreadSheet> {
                     ),
             ),
             if (_sendError != null) ErrorBanner(message: _sendError!),
-            if (!widget.readOnly) MessageComposer(hint: 'Trả lời trong luồng', onSend: (body, _) => _reply(body)),
+            if (!widget.readOnly)
+              MessageComposer(
+                workspaceId: widget.channel.workspaceId,
+                people: mentionable(widget.channel, widget.people, mine),
+                hint: 'Trả lời trong luồng',
+                onSend: _reply,
+              ),
           ],
         ),
       ),

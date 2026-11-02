@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
-import '../workspace/workspace_models.dart' show PersonRef;
+import '../workspace/workspace_models.dart' show PersonRef, ProjectFile;
 
 // Model theo docs/contracts/openapi/collab.yaml (tag Messages) – C02, C03, quy tắc 22.
 
@@ -21,6 +21,7 @@ class Message {
     this.isAdvisorQuestion = false,
     this.questionStatus,
     this.replyCount = 0,
+    this.attachments = const [],
     this.editedAt,
   });
 
@@ -35,6 +36,7 @@ class Message {
   /// OPEN (Chờ trả lời) hoặc ANSWERED (Đã trả lời).
   final String? questionStatus;
   final int replyCount;
+  final List<ProjectFile> attachments;
   final DateTime createdAt;
   final DateTime? editedAt;
 
@@ -48,6 +50,7 @@ class Message {
         isAdvisorQuestion: j['isAdvisorQuestion'] as bool? ?? false,
         questionStatus: j['questionStatus'] as String?,
         replyCount: j['replyCount'] as int? ?? 0,
+        attachments: [for (final f in (j['attachments'] as List? ?? const [])) ProjectFile.fromJson(_map(f))],
         createdAt: DateTime.parse(j['createdAt'] as String),
         editedAt: j['editedAt'] == null ? null : DateTime.parse(j['editedAt'] as String),
       );
@@ -63,6 +66,7 @@ class Message {
         isAdvisorQuestion: isAdvisorQuestion,
         questionStatus: questionStatus ?? this.questionStatus,
         replyCount: replyCount ?? this.replyCount,
+        attachments: isDeleted == true ? const [] : attachments,
         editedAt: editedAt,
       );
 }
@@ -120,12 +124,22 @@ class MessagesApi {
       });
 
   /// Gửi lại cùng [clientMessageId] không tạo tin trùng (server trả tin đã có).
-  Future<Message> send(String channelId, {required String clientMessageId, required String body, String? parentMessageId, bool isAdvisorQuestion = false}) =>
+  Future<Message> send(
+    String channelId, {
+    required String clientMessageId,
+    required String body,
+    String? parentMessageId,
+    bool isAdvisorQuestion = false,
+    List<String> attachmentFileIds = const [],
+    List<String> mentionPersonIds = const [],
+  }) =>
       _call(() async => Message.fromJson(_map((await _dio.post<Map<String, dynamic>>('/api/channels/$channelId/messages', data: {
             'clientMessageId': clientMessageId,
             'body': body,
             'parentMessageId': ?parentMessageId,
             if (isAdvisorQuestion) 'isAdvisorQuestion': true,
+            if (attachmentFileIds.isNotEmpty) 'attachmentFileIds': attachmentFileIds,
+            if (mentionPersonIds.isNotEmpty) 'mentionPersonIds': mentionPersonIds,
           }))
               .data)));
 
