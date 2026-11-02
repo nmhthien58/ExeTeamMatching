@@ -33,6 +33,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `change-request-not-allowed` | Đổi nhóm với nhóm EXE101 hoặc nhóm không kế thừa (rule 7) |
 | `lecturer-full` | Admin đổi tay sang giảng viên đã đủ số nhóm tối đa (rule 9) |
 | `preferences-locked` | Sửa nguyện vọng khi nhóm đã được ghép giảng viên hoặc đợt đã đóng (rule 9) |
+| `run-not-preview` | Áp dụng (`POST /api/advisor-matching/runs/{id}/confirm`) hoặc bỏ (`DELETE /api/advisor-matching/runs/{id}`) lần ghép cố vấn không còn ở trạng thái PREVIEW (rule 9, 20) |
 | `interest-closed`, `team-has-advisor` | Quan tâm ngoài giai đoạn / nhóm đã có cố vấn cùng loại (rule 19) |
 | `slot-taken`, `booking-closed`, `slot-booked` | Slot vừa có nhóm khác đặt / quá hạn chọn slot / sửa khung bỏ slot đã có nhóm (rule 25) |
 | `checkpoint-locked` | Bỏ đánh dấu checkpoint sau ngày đã đánh dấu (rule 27) |
@@ -49,6 +50,8 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `instructor-only` (403) | Chỉ giảng viên hướng dẫn tạo / duyệt bài nộp (rule 23) |
 | `file-too-large` (413), `file-type-not-allowed` (415) | File quá 25 MB / sai định dạng (rule 24) |
 | `matching-unavailable` (503) | Team gọi Matching (gRPC) lỗi hoặc quá 5 giây: chốt nhóm, ghép tự động, gợi ý |
+| `academic-unavailable` (503) | Team gọi Academic lỗi khi lấy danh sách cố vấn để ghép cố vấn tự động |
+| `mentor-matching-unavailable` (501) | Ghép mentor tự động (`/api/advisor-matching/MENTOR/…`, `/internal/advisor-matching/MENTOR`) khi Academic chưa có API danh sách mentor kèm số nhóm tối đa / mong muốn (chờ BE-66) |
 
 ## Dùng dữ liệu giả khi API chưa xong
 

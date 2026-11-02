@@ -140,7 +140,8 @@ public sealed class AdvisorMatchingService(
             var search = query.Search.Trim();
             filtered = filtered.Where(t => t.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
-        var page = filtered.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToList();
+        var matched = filtered.ToList();
+        var page = matched.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToList();
         var pageIds = page.Select(t => t.Id).ToList();
 
         var catalogs = await reader.LoadCatalogsAsync(ct);
@@ -174,7 +175,11 @@ public sealed class AdvisorMatchingService(
             preferences is null ? 0 : all.Count(t => preferences[t.Id].Any()),
             all.Count(t => !assignments.ContainsKey(t.Id)),
             items,
-            advisors.Select(a => new AdvisorLoadResponse(a.Id, a.FullName, loads.GetValueOrDefault(a.Id), null, a.MaxTeams)).ToList());
+            advisors.Select(a => new AdvisorLoadResponse(a.Id, a.FullName, loads.GetValueOrDefault(a.Id), null, a.MaxTeams)).ToList(),
+            query.Page,
+            query.PageSize,
+            matched.Count,
+            (matched.Count + query.PageSize - 1) / query.PageSize);
     }
 
     public async Task<LecturerAssignmentResponse> ChangeInstructorAsync(Guid teamId, ChangeInstructorInput input, ClaimsPrincipal user,
