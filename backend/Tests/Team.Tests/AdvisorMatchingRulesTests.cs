@@ -8,7 +8,7 @@ using Team.Services.AdvisorMatching;
 
 namespace Team.Tests;
 
-/// <summary>Phần của BE-80 không cần PostgreSQL: loại cố vấn, mentor chưa ghép được, phân trang Academic, validate, quyền.</summary>
+/// <summary>Phần của BE-80 không cần PostgreSQL: loại cố vấn, phân trang Academic (giảng viên, mentor), tuần bắt đầu mentor, validate, quyền.</summary>
 public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
 {
     private readonly TeamApiFactory _api = new();
@@ -29,20 +29,6 @@ public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
     public void Unknown_kind_is_a_validation_error(string? kind) =>
         Assert.Equal(400, Assert.Throws<BuildingBlocks.Errors.RequestValidationException>(() => AdvisorMatchingKinds.Parse(kind)).Status);
 
-    [Theory]
-    [InlineData("/internal/advisor-matching/MENTOR", Roles.Service)]
-    [InlineData("/api/advisor-matching/MENTOR/preview", Roles.Admin)]
-    public async Task Mentor_matching_answers_501_until_academic_has_mentor_api(string path, string role)
-    {
-        var response = await _api.ClientFor(null, role).PostAsJsonAsync(path, new { semesterId = Guid.NewGuid(), courseCode = "EXE101" });
-        await TestData.AssertProblemAsync(response, 501, "mentor-matching-unavailable");
-    }
-
-    [Fact]
-    public async Task Mentor_overview_answers_501() =>
-        await TestData.AssertProblemAsync(await _api.ClientFor(null, Roles.Admin).GetAsync("/api/advisor-matching/MENTOR/overview"), 501,
-            "mentor-matching-unavailable");
-
     [Fact]
     public async Task Unknown_kind_answers_400() =>
         await TestData.AssertProblemAsync(await _api.ClientFor(null, Roles.Admin).PostAsJsonAsync("/api/advisor-matching/TA/preview",
@@ -62,13 +48,17 @@ public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
     [InlineData("DELETE", "/api/advisor-matching/runs/00000000-0000-0000-0000-000000000001")]
     [InlineData("GET", "/api/advisor-matching/LECTURER/overview")]
     [InlineData("PUT", "/api/teams/00000000-0000-0000-0000-000000000001/instructor")]
+    [InlineData("GET", "/api/advisor-matching/MENTOR/overview")]
+    [InlineData("POST", "/api/advisor-matching/MENTOR/preview")]
+    [InlineData("PUT", "/api/teams/00000000-0000-0000-0000-000000000001/mentor-assignment")]
+    [InlineData("DELETE", "/api/teams/00000000-0000-0000-0000-000000000001/mentor-assignment")]
     public async Task Admin_endpoints_reject_other_roles(string method, string path)
     {
         foreach (var role in new[] { Roles.Student, Roles.Lecturer, Roles.Mentor, Roles.Service })
         {
             var request = new HttpRequestMessage(new HttpMethod(method), path)
             {
-                Content = method is "POST" or "PUT" ? JsonContent.Create(new { courseCode = "EXE101", lecturerId = Guid.NewGuid(), note = "x" }) : null,
+                Content = method is "POST" or "PUT" ? JsonContent.Create(new { courseCode = "EXE101", lecturerId = Guid.NewGuid(), mentorId = Guid.NewGuid(), note = "x" }) : null,
             };
             await TestData.AssertProblemAsync(await _api.ClientFor(Guid.NewGuid(), role).SendAsync(request), 403, null);
         }
@@ -119,6 +109,54 @@ public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Mentor_change_needs_a_note_and_removal_reason_is_optional()
+    {
+        var validator = new ChangeMentorInputValidator();
+        Assert.True(validator.Validate(new ChangeMentorInput(Guid.NewGuid(), "Nhóm xin đổi")).IsValid);
+        Assert.False(validator.Validate(new ChangeMentorInput(Guid.NewGuid(), "")).IsValid);
+        Assert.False(validator.Validate(new ChangeMentorInput(Guid.NewGuid(), new string('x', 501))).IsValid);
+        Assert.False(validator.Validate(new ChangeMentorInput(Guid.Empty, "ok")).IsValid);
+        Assert.True(new RemoveMentorInputValidator().Validate(new RemoveMentorInput(null)).IsValid);
+        Assert.False(new RemoveMentorInputValidator().Validate(new RemoveMentorInput(new string('x', 501))).IsValid);
+    }
+
+    [Fact]
+    public async Task Academic_mentor_list_is_read_page_by_page_and_keeps_locked_mentors_for_the_caller_to_filter()
+    {
+        var handler = new PagedMentorsHandler(totalPages: 2);
+        var client = new AcademicClient(new HttpClient(handler) { BaseAddress = new Uri("http://academic") }, new MemoryCache(new MemoryCacheOptions()));
+
+        var mentors = await client.ListMentorsAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { 1, 2 }, handler.Pages);
+        Assert.All(handler.Queries, q => Assert.Contains("pageSize=100", q));
+        Assert.Equal(4, mentors.Count);
+        var active = mentors.First(m => m.IsActive);
+        Assert.Equal((4, (int?)2, "Startup X", true), (active.MaxTeams, active.PreferredTeams, active.Organization, active.IsInternal));
+        Assert.NotNull(active.LecturerId);
+        Assert.Equal(7, active.Domains.Single().Id);
+
+        // Nguồn ghép mentor chỉ giữ mentor đang hoạt động; preferredTeams null → 0 (không đặt).
+        var source = new MentorAdvisorSource(new FakeAcademicWith(mentors), null!, null!);
+        var candidates = await source.ListActiveAsync("EXE101", CancellationToken.None);
+        Assert.Equal(2, candidates.Count);
+        Assert.All(candidates, c => Assert.Equal((4, 2), (c.MaxTeams, c.PreferredTeams)));
+        Assert.Equal(0, MentorAdvisorSource.ToCandidate(mentors.First(m => !m.IsActive)).PreferredTeams);
+    }
+
+    [Theory]
+    [InlineData(6, "2026-10-12T00:00:00+07:00")]
+    [InlineData(null, "2026-10-12T00:00:00+07:00")]
+    [InlineData(1, "2026-09-07T00:00:00+07:00")]
+    public void Mentoring_starts_at_the_beginning_of_the_start_week_vietnam_time(int? week, string expected) =>
+        Assert.Equal(DateTimeOffset.Parse(expected),
+            MentoringSchedule.StartsAt(new SemesterDto(Guid.NewGuid(), "FA26", "Fall 2026", new DateOnly(2026, 9, 7), week)));
+
+    [Fact]
+    public void Mentoring_start_is_unknown_without_semester_start_date() =>
+        Assert.Null(MentoringSchedule.StartsAt(new SemesterDto(Guid.NewGuid(), "FA26", "Fall 2026")));
+
+    [Fact]
     public async Task Academic_outage_while_listing_lecturers_surfaces_as_http_error()
     {
         var client = new AcademicClient(new HttpClient(new FailingHandler()) { BaseAddress = new Uri("http://academic") },
@@ -151,6 +189,44 @@ public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
                 """;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
         }
+    }
+
+    private sealed class PagedMentorsHandler(int totalPages) : HttpMessageHandler
+    {
+        public List<int> Pages { get; } = [];
+
+        public List<string> Queries { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert.Equal("/api/mentors", request.RequestUri!.AbsolutePath);
+            var query = request.RequestUri.Query;
+            Queries.Add(query);
+            var page = int.Parse(System.Web.HttpUtility.ParseQueryString(query)["page"]!);
+            Pages.Add(page);
+            // Schema Mentor của academic.yaml; currentTeamCount không đọc (Team tự đếm).
+            var json = $$"""
+                {"items":[
+                  {"id":"{{Guid.NewGuid()}}","fullName":"Mentor {{page}}","email":"m{{page}}@example.com","organization":"Startup X","isInternal":true,
+                   "lecturerId":"{{Guid.NewGuid()}}","description":null,"domains":[{"id":7,"code":"D07","name":"Fintech"}],"maxTeams":4,"preferredTeams":2,
+                   "currentTeamCount":0,"isActive":true},
+                  {"id":"{{Guid.NewGuid()}}","fullName":"Mentor khóa {{page}}","email":"k{{page}}@example.com","organization":null,"isInternal":false,
+                   "lecturerId":null,"description":null,"domains":[],"maxTeams":3,"preferredTeams":null,"currentTeamCount":0,"isActive":false}
+                ],"page":{{page}},"pageSize":100,"totalCount":{{totalPages * 2}},"totalPages":{{totalPages}}}
+                """;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") });
+        }
+    }
+
+    private sealed class FakeAcademicWith(IReadOnlyList<MentorSnapshot> mentors) : IAcademicClient
+    {
+        public Task<IReadOnlyList<MentorSnapshot>> ListMentorsAsync(CancellationToken ct) => Task.FromResult(mentors);
+        public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<CatalogItem>> GetSpecializationsAsync(CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class FailingHandler : HttpMessageHandler

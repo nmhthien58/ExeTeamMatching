@@ -1,6 +1,7 @@
 using Team.Repositories.AdvisorMatching;
 using Team.Repositories.AuditLog;
 using Team.Repositories.LecturerAssignments;
+using Team.Repositories.MentorAssignments;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
 using Team.Services.Matching;
@@ -9,25 +10,39 @@ using Team.Services.TopicInterests;
 
 namespace Team.Services.AdvisorMatching;
 
-/// <summary>Cố vấn đang hoạt động. <see cref="MaxTeams"/> null = không giới hạn; <see cref="PreferredTeams"/> 0 = không đặt (chỉ mentor).</summary>
-public sealed record AdvisorCandidate(Guid Id, string FullName, IReadOnlyList<CatalogRef> Domains, int? MaxTeams, int PreferredTeams);
+/// <summary>
+/// Cố vấn đang hoạt động. <see cref="MaxTeams"/> null = không giới hạn; <see cref="PreferredTeams"/> 0 = không đặt (chỉ mentor).
+/// <see cref="Organization"/>, <see cref="IsInternal"/>, <see cref="LecturerId"/> chỉ có ở mentor.
+/// </summary>
+public sealed record AdvisorCandidate(
+    Guid Id, string FullName, IReadOnlyList<CatalogRef> Domains, int? MaxTeams, int PreferredTeams,
+    string? Organization = null, bool IsInternal = false, Guid? LecturerId = null);
+
+/// <summary>Cố vấn hiện tại của một nhóm (bảng W19 / W28).</summary>
+public sealed record CurrentAdvisor(Guid AdvisorId, string AdvisorName, string Reason, int? PreferenceRank);
 
 /// <summary>
 /// Phần riêng của từng loại cố vấn trong luồng ghép chung (<see cref="AdvisorMatchingService"/>): danh sách cố vấn, tải hiện tại,
-/// đầu vào của nhóm và cách ghi kết quả. Ghép mentor chỉ cần một lớp mới cài interface này khi Academic có API mentor (BE-66).
+/// đầu vào của nhóm và cách ghi kết quả.
 /// </summary>
 public interface IAdvisorSource
 {
     /// <summary>LECTURER hoặc MENTOR.</summary>
     string Kind { get; }
 
-    /// <summary>Báo lỗi ngay (trước khi mở transaction) khi loại cố vấn này chưa có nguồn dữ liệu.</summary>
-    void EnsureAvailable();
+    /// <summary>
+    /// Phạm vi môn của khóa <c>pg_advisory_xact_lock</c>: giảng viên theo môn; mentor dùng chung một khóa cho cả học kỳ vì
+    /// số nhóm tối đa của mentor tính chung hai môn.
+    /// </summary>
+    string LockScope(string courseCode);
 
     Task<IReadOnlyList<AdvisorCandidate>> ListActiveAsync(string courseCode, CancellationToken ct);
 
-    /// <summary>Số nhóm đang có của từng cố vấn trong môn và học kỳ của lần ghép.</summary>
+    /// <summary>Số nhóm đang có của từng cố vấn trong học kỳ của lần ghép (giảng viên theo môn, mentor chung hai môn).</summary>
     Task<Dictionary<Guid, int>> CountLoadsAsync(Guid semesterId, string courseCode, CancellationToken ct);
+
+    /// <summary>Cố vấn hiện tại của các nhóm.</summary>
+    Task<Dictionary<Guid, CurrentAdvisor>> ListCurrentAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
 
     /// <summary>Đầu vào PlanAdvisorMatching của các nhóm chưa có cố vấn (domain, nguyện vọng, quan tâm OPEN, giảng viên EXE101).</summary>
     Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct);
@@ -42,26 +57,20 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
 {
     public string Kind => AdvisorKinds.Lecturer;
 
-    public void EnsureAvailable()
-    {
-    }
+    public string LockScope(string courseCode) => courseCode;
 
     public async Task<IReadOnlyList<AdvisorCandidate>> ListActiveAsync(string courseCode, CancellationToken ct)
     {
-        IReadOnlyList<LecturerSnapshot> lecturers;
-        try
-        {
-            lecturers = await academic.ListActiveLecturersAsync(ct);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
-        {
-            throw AdvisorMatchingErrors.AcademicUnavailable();
-        }
+        var lecturers = await AcademicCall.RunAsync(academic.ListActiveLecturersAsync, ct);
         return lecturers.Where(l => l.IsActive).Select(l => ToCandidate(l, courseCode)).OrderBy(l => l.FullName).ThenBy(l => l.Id).ToList();
     }
 
     public Task<Dictionary<Guid, int>> CountLoadsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
         repo.CountLecturerLoadsAsync(semesterId, courseCode, ct);
+
+    public async Task<Dictionary<Guid, CurrentAdvisor>> ListCurrentAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
+        (await repo.ListActiveLecturerAssignmentsAsync(teamIds, ct))
+        .ToDictionary(x => x.Key, x => new CurrentAdvisor(x.Value.LecturerId, x.Value.LecturerName, x.Value.Reason, x.Value.PreferenceRank));
 
     public async Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct)
     {
@@ -93,27 +102,121 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
 }
 
 /// <summary>
-/// Mentor (rule 20) – chưa ghép được: Academic chưa có API danh sách mentor kèm số tối đa và số mong muốn (BE-66 của Nam).
-/// Mọi thao tác trả 501 <c>mentor-matching-unavailable</c>, không giả dữ liệu.
+/// Mentor (rule 20): danh sách từ Academic <c>GET /api/mentors</c> (API trả cả mentor đang khóa nên lọc <c>isActive</c> ở đây),
+/// số nhóm tối đa và số mong muốn của từng mentor từ Academic, số nhóm đang mentor đếm từ <c>mentor_assignments</c> (chung hai môn
+/// trong học kỳ). Nhóm không có nguyện vọng mentor, chỉ có quan tâm OPEN của mentor và domain (sinh viên không chọn mentor).
 /// </summary>
-public sealed class MentorAdvisorSource : IAdvisorSource
+public sealed class MentorAdvisorSource(IAcademicClient academic, IAdvisorMatchingRepository repo, MentorAssignmentWriter writer) : IAdvisorSource
 {
+    /// <summary>Khóa chung của ghép mentor trong học kỳ, không theo môn.</summary>
+    public const string AllCourses = "ALL";
+
     public string Kind => AdvisorKinds.Mentor;
 
-    public void EnsureAvailable() => throw AdvisorMatchingErrors.MentorSourceUnavailable();
+    public string LockScope(string courseCode) => AllCourses;
 
-    public Task<IReadOnlyList<AdvisorCandidate>> ListActiveAsync(string courseCode, CancellationToken ct) =>
-        throw AdvisorMatchingErrors.MentorSourceUnavailable();
+    public async Task<IReadOnlyList<AdvisorCandidate>> ListActiveAsync(string courseCode, CancellationToken ct)
+    {
+        var mentors = await AcademicCall.RunAsync(academic.ListMentorsAsync, ct);
+        return mentors.Where(m => m.IsActive).Select(ToCandidate).OrderBy(m => m.FullName).ThenBy(m => m.Id).ToList();
+    }
 
     public Task<Dictionary<Guid, int>> CountLoadsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
-        throw AdvisorMatchingErrors.MentorSourceUnavailable();
+        repo.CountMentorLoadsAsync(semesterId, ct);
 
-    public Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct) =>
-        throw AdvisorMatchingErrors.MentorSourceUnavailable();
+    public async Task<Dictionary<Guid, CurrentAdvisor>> ListCurrentAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
+        (await repo.ListActiveMentorAssignmentsAsync(teamIds, ct))
+        .ToDictionary(x => x.Key, x => new CurrentAdvisor(x.Value.MentorId, x.Value.MentorName, x.Value.Reason, null));
+
+    public async Task<IReadOnlyList<AdvisorMatchingTeam>> BuildTeamsAsync(IReadOnlyList<TeamEntity> teams, CancellationToken ct)
+    {
+        var ids = teams.Select(t => t.Id).ToList();
+        var domains = await repo.ListDomainIdsAsync(ids, ct);
+        var interests = await repo.ListInterestsAsync(Kind, ids, openOnly: true, ct);
+        return teams.Select(t => new AdvisorMatchingTeam(
+                t.Id, domains[t.Id].ToList(), [], interests[t.Id].Select(i => i.AdvisorId).Distinct().ToList(), null))
+            .ToList();
+    }
 
     public void StageAutoAssignment(TeamEntity team, AdvisorCandidate advisor, AdvisorMatchingPlanItem item, Guid runId,
         IReadOnlyList<Guid> memberStudentIds, AuditActor actor) =>
-        throw AdvisorMatchingErrors.MentorSourceUnavailable();
+        writer.Stage(team, advisor, item.Reason!, MentorAssignmentWriter.SourceAuto, runId, null, null, previous: null, memberStudentIds, actor);
+
+    public static AdvisorCandidate ToCandidate(MentorSnapshot m) =>
+        new(m.Id, m.FullName, m.Domains.Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), m.MaxTeams, m.PreferredTeams ?? 0,
+            m.Organization, m.IsInternal, m.LecturerId);
+}
+
+/// <summary>Gọi Academic lấy danh sách cố vấn: lỗi mạng / quá hạn → 503 <c>academic-unavailable</c>.</summary>
+internal static class AcademicCall
+{
+    public static async Task<IReadOnlyList<T>> RunAsync<T>(Func<CancellationToken, Task<IReadOnlyList<T>>> call, CancellationToken ct)
+    {
+        try
+        {
+            return await call(ct);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+        {
+            throw AdvisorMatchingErrors.AcademicUnavailable();
+        }
+    }
+}
+
+/// <summary>
+/// Ghi mentor của nhóm: dòng <c>mentor_assignments</c>, nhật ký nhóm và sự kiện theo events.md – dùng cho ghép tự động, đổi tay và gỡ.
+/// Một mentor mỗi nhóm (<c>uq_mentor_assignments_active</c>): người gọi kết thúc dòng cũ và lưu trước khi thêm dòng mới.
+/// Thay mentor chỉ phát <c>MentorAssigned</c> có <c>replacedMentorId</c> (Collaboration đổi người trong workspace);
+/// gỡ hẳn mới phát <c>MentorUnassigned</c>.
+/// </summary>
+public sealed class MentorAssignmentWriter(IAdvisorMatchingRepository repo, AuditLogWriter audit, TimeProvider clock)
+{
+    public const string SourceAuto = "AUTO";
+    public const string SourceManual = "MANUAL";
+    public const string ReasonManual = "MANUAL";
+    public const string AuditAction = "MENTOR_ASSIGNED";
+    public const string AuditRemoveAction = "MENTOR_UNASSIGNED";
+
+    public MentorAssignment Stage(TeamEntity team, AdvisorCandidate mentor, string reason, string source, Guid? runId,
+        Guid? assignedByAccountId, string? note, MentorAssignment? previous, IReadOnlyList<Guid> memberStudentIds, AuditActor actor)
+    {
+        var assignment = new MentorAssignment
+        {
+            Id = Guid.NewGuid(),
+            TeamId = team.Id,
+            MentorId = mentor.Id,
+            MentorName = mentor.FullName,
+            Status = "ASSIGNED",
+            Reason = reason,
+            Source = source,
+            MatchingRunId = runId,
+            AssignedByAccountId = assignedByAccountId,
+            AssignedAt = clock.GetUtcNow(),
+            Note = note,
+        };
+        repo.Add(assignment);
+        audit.Add(team.Id, "MentorAssignment", assignment.Id, AuditAction, actor,
+            previous is null ? null : new { mentorId = previous.MentorId, mentorName = previous.MentorName, reason = previous.Reason },
+            new { mentorId = mentor.Id, mentorName = mentor.FullName, reason, source, matchingRunId = runId },
+            note);
+        repo.AddEvent(AdvisorMatchingEventTypes.MentorAssigned, "Team", team.Id, new MentorAssignedEvent(
+            assignment.Id, team.Id, mentor.Id, mentor.FullName, mentor.LecturerId, reason, source, runId, previous?.MentorId, memberStudentIds));
+        return assignment;
+    }
+
+    /// <summary>Kết thúc dòng đang gán (ENDED). <paramref name="unassigned"/> = gỡ hẳn: ghi nhật ký và phát <c>MentorUnassigned</c>.</summary>
+    public void End(MentorAssignment assignment, string endReason, bool unassigned, AuditActor actor)
+    {
+        (assignment.Status, assignment.EndedAt, assignment.EndReason) = ("ENDED", clock.GetUtcNow(), endReason);
+        if (!unassigned)
+        {
+            return;
+        }
+        audit.Add(assignment.TeamId, "MentorAssignment", assignment.Id, AuditRemoveAction, actor,
+            new { mentorId = assignment.MentorId, mentorName = assignment.MentorName, reason = assignment.Reason }, null, endReason);
+        repo.AddEvent(AdvisorMatchingEventTypes.MentorUnassigned, "Team", assignment.TeamId,
+            new MentorUnassignedEvent(assignment.Id, assignment.TeamId, assignment.MentorId, endReason));
+    }
 }
 
 /// <summary>Ghi giảng viên hướng dẫn: dòng <c>lecturer_assignments</c>, nhật ký nhóm và <c>LecturerAssigned</c> (events.md) – dùng cho ghép tự động và đổi tay.</summary>
@@ -159,6 +262,14 @@ public sealed class LecturerAssignmentWriter(IAdvisorMatchingRepository repo, Au
 public sealed record LecturerAssignedEvent(
     Guid AssignmentId, Guid TeamId, Guid LecturerId, string LecturerName, string Reason, int? PreferenceRank, string Source, Guid? MatchingRunId,
     IReadOnlyList<Guid> MemberStudentIds, Guid? PreviousLecturerId);
+
+/// <summary>Payload <c>MentorAssigned</c> (events.md, topic exe.assignment, key = teamId).</summary>
+public sealed record MentorAssignedEvent(
+    Guid AssignmentId, Guid TeamId, Guid MentorId, string MentorName, Guid? MentorLecturerId, string Reason, string Source, Guid? MatchingRunId,
+    Guid? ReplacedMentorId, IReadOnlyList<Guid> MemberStudentIds);
+
+/// <summary>Payload <c>MentorUnassigned</c> (key = teamId).</summary>
+public sealed record MentorUnassignedEvent(Guid AssignmentId, Guid TeamId, Guid MentorId, string Reason);
 
 /// <summary>Payload <c>AdvisorMatchingCompleted</c> (key = matchingRunId).</summary>
 public sealed record AdvisorMatchingCompletedEvent(

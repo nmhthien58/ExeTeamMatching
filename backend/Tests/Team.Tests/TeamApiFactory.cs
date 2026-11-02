@@ -94,7 +94,7 @@ public sealed class FakeAcademic : IAcademicClient
 {
     private readonly Dictionary<Guid, StudentSnapshot> _students = new();
 
-    public SemesterDto Semester { get; } = new(Guid.NewGuid(), "FA26", "Fall 2026");
+    public SemesterDto Semester { get; set; } = new(Guid.NewGuid(), "FA26", "Fall 2026");
 
     public HashSet<string> OpenCourses { get; } = ["EXE101", "EXE201"];
 
@@ -144,6 +144,29 @@ public sealed class FakeAcademic : IAcademicClient
 
     public Task<LecturerSnapshot?> GetLecturerAsync(Guid lecturerId, CancellationToken ct) =>
         Task.FromResult(Lecturers.FirstOrDefault(l => l.Id == lecturerId));
+
+    /// <summary>Mentor của Academic, cả đã khóa – như <c>GET /api/mentors</c> (BE-80 tự lọc isActive).</summary>
+    public List<MentorSnapshot> Mentors { get; } = [];
+
+    /// <summary>true = Academic không phản hồi khi lấy danh sách mentor.</summary>
+    public bool MentorsDown { get; set; }
+
+    public MentorSnapshot AddMentor(string name, int maxTeams, int? preferredTeams = null, int[]? domains = null, bool active = true,
+        Guid? lecturerId = null)
+    {
+        var mentor = new MentorSnapshot(Guid.NewGuid(), name, $"{Guid.NewGuid():N}@example.com",
+            (domains ?? []).Select(d => new CatalogItem(d, $"D{d:00}", $"Domain {d}", true)).ToList(), maxTeams, preferredTeams, active,
+            "Startup X", lecturerId is not null, lecturerId);
+        Mentors.Add(mentor);
+        return mentor;
+    }
+
+    public Task<IReadOnlyList<MentorSnapshot>> ListMentorsAsync(CancellationToken ct) => MentorsDown
+        ? throw new HttpRequestException("Academic không phản hồi")
+        : Task.FromResult<IReadOnlyList<MentorSnapshot>>(Mentors.ToList());
+
+    public Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct) =>
+        Task.FromResult(Mentors.FirstOrDefault(m => m.Id == mentorId));
 
         public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct)
     {
