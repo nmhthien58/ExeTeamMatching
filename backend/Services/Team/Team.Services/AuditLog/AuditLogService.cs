@@ -78,8 +78,22 @@ public sealed class AuditLogService(IAuditLogRepository logs, ITeamRepository te
             "RECRUITMENT_POST_OPENED" => "Đăng bài tuyển thành viên",
             "RECRUITMENT_POST_UPDATED" => "Sửa bài tuyển thành viên",
             "RECRUITMENT_POST_CLOSED" => "Đóng bài tuyển thành viên",
+            "LECTURER_ASSIGNED" => LecturerAssigned(Old("lecturerName"), New("lecturerName"), New("source")),
+            "TOPIC_INTEREST_OPENED" => New("advisorName") is { } advisor ? $"{advisor} quan tâm đề tài của nhóm" : "Cố vấn quan tâm đề tài của nhóm",
+            "TOPIC_INTEREST_WITHDRAWN" => "Rút quan tâm đề tài",
             _ => e.Action,
         };
+    }
+
+    /// <summary><c>LECTURER_ASSIGNED</c> do <c>LecturerAssignmentWriter</c> ghi: <c>lecturerName</c>, <c>source</c> AUTO / MANUAL; old_values có khi đổi giảng viên.</summary>
+    private static string LecturerAssigned(string? oldName, string? newName, string? source)
+    {
+        var name = string.IsNullOrWhiteSpace(newName) ? "giảng viên" : newName;
+        if (!string.IsNullOrWhiteSpace(oldName))
+        {
+            return $"Đổi giảng viên hướng dẫn từ {oldName} sang {name}";
+        }
+        return source == "AUTO" ? $"Hệ thống ghép giảng viên hướng dẫn {name}" : $"Gán giảng viên hướng dẫn {name}";
     }
 
     private static string? Read(string? json, string property)

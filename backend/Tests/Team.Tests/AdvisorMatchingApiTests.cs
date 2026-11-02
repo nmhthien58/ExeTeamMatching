@@ -409,6 +409,7 @@ public sealed class AdvisorMatchingApiTests : IAsyncLifetime
 
         var overview = await GetOverviewAsync("courseCode=EXE101");
         Assert.Equal((1, 2, 3), (overview.TeamsWithPreferences, overview.TeamsWithoutAdvisor, overview.Items.Count));
+        Assert.Equal((1, 20, 3, 1), (overview.Page, overview.PageSize, overview.TotalCount, overview.TotalPages));
         Assert.Equal("PREVIEW", overview.LastRun!.Status);
         Assert.NotNull(overview.MatchingAt); // hạn đợt lập nhóm EXE101 đang mở của học kỳ
         var first = overview.Items[0];
@@ -424,8 +425,13 @@ public sealed class AdvisorMatchingApiTests : IAsyncLifetime
 
         var waitingOnly = await GetOverviewAsync("courseCode=EXE101&withoutAdvisor=true&search=chờ&page=1&pageSize=1");
         Assert.Equal(waiting.Id, Assert.Single(waitingOnly.Items).Team.Id);
+        Assert.Equal((1, 1), (waitingOnly.TotalCount, waitingOnly.TotalPages)); // đếm sau lọc withoutAdvisor + search
         var page2 = await GetOverviewAsync("withoutAdvisor=true&page=2&pageSize=1");
         Assert.Equal("C Không Tín Hiệu", Assert.Single(page2.Items).Team.Name);
+        Assert.Equal((2, 1, 2, 2), (page2.Page, page2.PageSize, page2.TotalCount, page2.TotalPages)); // đếm sau lọc withoutAdvisor
+        var beyond = await GetOverviewAsync("page=5&pageSize=2");
+        Assert.Empty(beyond.Items);
+        Assert.Equal((3, 2), (beyond.TotalCount, beyond.TotalPages));
         await AssertProblemAsync(await Admin.GetAsync("/api/advisor-matching/LECTURER/overview?pageSize=500"), 400, "validation");
     }
 

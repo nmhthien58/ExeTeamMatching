@@ -43,7 +43,7 @@ public static class AdvisorMatchingKinds
 
 public static class AdvisorMatchingErrors
 {
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung (xem mô tả PR BE-80).
+    // Mã lỗi: docs/contracts/README.md (run-not-preview, mentor-matching-unavailable, academic-unavailable).
 
     /// <summary>Academic chưa có API danh sách mentor kèm số tối đa / số mong muốn (BE-66) nên chưa ghép mentor được.</summary>
     public static HttpStatusException MentorSourceUnavailable() =>
@@ -133,7 +133,8 @@ public sealed record AdvisorMatchingRowResponse(
 /// <summary>Schema <c>AdvisorLoad</c>.</summary>
 public sealed record AdvisorLoadResponse(Guid AdvisorId, string FullName, int AssignedCount, int? PreferredTeams, int? MaxTeams);
 
-/// <summary>Bảng W19 / W28.</summary>
+/// <summary>Bảng W19 / W28. <c>Page</c>…<c>TotalPages</c> là <c>PagedMeta</c>, tính sau khi lọc <c>withoutAdvisor</c>, <c>search</c>.</summary>
 public sealed record AdvisorMatchingOverviewResponse(
     DateTimeOffset? MatchingAt, AdvisorMatchingRunResponse? LastRun, int TeamsWithPreferences, int TeamsWithoutAdvisor,
-    IReadOnlyList<AdvisorMatchingRowResponse> Items, IReadOnlyList<AdvisorLoadResponse> AdvisorLoads);
+    IReadOnlyList<AdvisorMatchingRowResponse> Items, IReadOnlyList<AdvisorLoadResponse> AdvisorLoads,
+    int Page, int PageSize, int TotalCount, int TotalPages);

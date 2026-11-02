@@ -458,14 +458,17 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  matchingAt: { type: string, format: date-time, nullable: true, description: Lúc hệ thống tự ghép (hạn lập nhóm / tuần bắt đầu mentor) }
-                  lastRun: { allOf: [ { $ref: '#/components/schemas/AdvisorMatchingRun' } ], type: object, nullable: true }
-                  teamsWithPreferences: { type: integer }
-                  teamsWithoutAdvisor: { type: integer }
-                  items: { type: array, items: { $ref: '#/components/schemas/AdvisorMatchingRow' } }
-                  advisorLoads: { type: array, items: { $ref: '#/components/schemas/AdvisorLoad' } }
+                description: page, pageSize, totalCount, totalPages (PagedMeta) tính trên danh sách nhóm sau khi lọc withoutAdvisor, search
+                allOf:
+                  - { $ref: '#/components/schemas/PagedMeta' }
+                  - type: object
+                    properties:
+                      matchingAt: { type: string, format: date-time, nullable: true, description: Lúc hệ thống tự ghép (hạn lập nhóm / tuần bắt đầu mentor) }
+                      lastRun: { allOf: [ { $ref: '#/components/schemas/AdvisorMatchingRun' } ], type: object, nullable: true }
+                      teamsWithPreferences: { type: integer }
+                      teamsWithoutAdvisor: { type: integer }
+                      items: { type: array, items: { $ref: '#/components/schemas/AdvisorMatchingRow' } }
+                      advisorLoads: { type: array, items: { $ref: '#/components/schemas/AdvisorLoad' } }
   /api/advisor-matching/{kind}/preview:
     post:
       tags: [AdvisorMatching]
