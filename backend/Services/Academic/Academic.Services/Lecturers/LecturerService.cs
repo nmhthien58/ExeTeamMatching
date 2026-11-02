@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Academic.Repositories.Lecturers;
+using Academic.Services.Mentors;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -31,7 +32,7 @@ public interface ILecturerService
 /// (Identity cấp quyền đăng nhập, Notification lưu liên lạc, Matching cập nhật read model). Sửa chuyên môn, số nhóm tối đa,
 /// trạng thái → <c>LecturerProfileUpdated</c>. Sự kiện qua outbox cùng transaction.
 /// </summary>
-public sealed class LecturerService(ILecturerRepository lecturers) : ILecturerService
+public sealed class LecturerService(ILecturerRepository lecturers, IMentorService mentors) : ILecturerService
 {
     public async Task<PagedResponse<LecturerResponse>> ListAsync(LecturerQuery query, ClaimsPrincipal user, CancellationToken ct)
     {
@@ -86,13 +87,17 @@ public sealed class LecturerService(ILecturerRepository lecturers) : ILecturerSe
         }
         var current = await CurrentDomainIdsAsync(id, ct);
         var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds ?? current, current, ct);
-        var accountChanged = lecturer.FullName != input.FullName!.Trim()
-            || !string.Equals(lecturer.Email, email, StringComparison.OrdinalIgnoreCase)
+        var emailChanged = !string.Equals(lecturer.Email, email, StringComparison.OrdinalIgnoreCase);
+        var accountChanged = lecturer.FullName != input.FullName!.Trim() || emailChanged
             || lecturer.IsActive != (input.IsActive ?? lecturer.IsActive);
 
         Apply(lecturer, input, email);
         lecturer.IsActive = input.IsActive ?? lecturer.IsActive;
         await lecturers.ReplaceDomainsAsync(id, domainIds, ct);
+        if (emailChanged)
+        {
+            await mentors.StageLecturerEmailAsync(id, email, ct); // giảng viên kiêm mentor chỉ có một email
+        }
         lecturers.AddEvent(LecturerEventTypes.LecturerProfileUpdated, id, ProfileEvent(lecturer, domainIds));
         if (accountChanged)
         {

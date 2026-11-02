@@ -24,6 +24,12 @@ public interface IMentorRepository
 
     Task<bool> EmailExistsAsync(string email, Guid? exceptId, CancellationToken ct);
 
+    /// <summary>Email đã thuộc một giảng viên hoặc sinh viên chưa (không phân biệt hoa thường).</summary>
+    Task<bool> EmailUsedByPersonAsync(string email, CancellationToken ct);
+
+    /// <summary>Hồ sơ mentor gắn với giảng viên. Có theo dõi thay đổi.</summary>
+    Task<Mentor?> FindByLecturerAsync(Guid lecturerId, CancellationToken ct);
+
     /// <summary>Giảng viên đã gắn với mentor khác chưa (mỗi giảng viên một mentor).</summary>
     Task<bool> LecturerLinkedAsync(Guid lecturerId, Guid? exceptId, CancellationToken ct);
 
@@ -71,6 +77,12 @@ public sealed class MentorRepository(AcademicDbContext db) : IMentorRepository
 
     public Task<bool> EmailExistsAsync(string email, Guid? exceptId, CancellationToken ct) =>
         db.Mentors.AnyAsync(m => m.Email == email && m.Id != exceptId, ct);
+
+    public async Task<bool> EmailUsedByPersonAsync(string email, CancellationToken ct) =>
+        await db.Lecturers.AnyAsync(l => l.Email == email, ct) || await db.Students.AnyAsync(s => s.Email == email, ct);
+
+    public Task<Mentor?> FindByLecturerAsync(Guid lecturerId, CancellationToken ct) =>
+        db.Mentors.SingleOrDefaultAsync(m => m.LecturerId == lecturerId, ct);
 
     public Task<bool> LecturerLinkedAsync(Guid lecturerId, Guid? exceptId, CancellationToken ct) =>
         db.Mentors.AnyAsync(m => m.LecturerId == lecturerId && m.Id != exceptId, ct);

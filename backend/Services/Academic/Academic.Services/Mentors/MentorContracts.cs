@@ -16,6 +16,7 @@ public sealed record MentorResponse(
 /// <summary>
 /// Schema <c>MentorInput</c>. Khi sửa, <see cref="IsInternal"/>, <see cref="IsActive"/>, <see cref="DomainIds"/> bỏ trống thì giữ nguyên;
 /// <see cref="LecturerId"/> bỏ trống cũng giữ liên kết cũ, muốn gỡ thì đặt <see cref="IsInternal"/> = false.
+/// Mentor gắn giảng viên dùng email giảng viên, <see cref="Email"/> gửi lên bị bỏ qua.
 /// </summary>
 public sealed record MentorInput(
     string? FullName, string? Email, string? Organization, bool? IsInternal, Guid? LecturerId, IReadOnlyList<int>? DomainIds,
