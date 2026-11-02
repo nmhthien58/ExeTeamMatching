@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Services\Team\Team.Api\Team.Api.csproj" />
+    <!-- Planner ghép cố vấn thật (BE-79) cho FakeMatching: test BE-80 kiểm tra lý do ghép từ đầu đến cuối. -->
+    <ProjectReference Include="..\..\Services\Matching\Matching.Services\Matching.Services.csproj" />
   </ItemGroup>
 
 </Project>

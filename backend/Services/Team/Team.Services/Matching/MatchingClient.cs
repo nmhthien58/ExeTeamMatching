@@ -27,6 +27,19 @@ public sealed record SuggestedMembers(IReadOnlyList<int> MissingSpecializationId
 
 public sealed record SuggestedTeam(Guid TeamId, double Score, IReadOnlyList<string> Reasons);
 
+/// <summary>Nhóm chưa có cố vấn gửi PlanAdvisorMatching. <see cref="PreferredAdvisorIds"/> theo thứ tự nguyện vọng (chỉ giảng viên).</summary>
+public sealed record AdvisorMatchingTeam(
+    Guid TeamId, IReadOnlyList<int> DomainIds, IReadOnlyList<Guid> PreferredAdvisorIds, IReadOnlyList<Guid> InterestedAdvisorIds, Guid? PreviousInstructorId);
+
+/// <summary>Cố vấn đang hoạt động. <see cref="MaxTeams"/> null = không giới hạn; <see cref="PreferredTeams"/> 0 = không đặt (chỉ mentor).</summary>
+public sealed record AdvisorMatchingAdvisor(Guid AdvisorId, IReadOnlyList<int> DomainIds, int CurrentTeamCount, int? MaxTeams, int PreferredTeams);
+
+/// <summary>
+/// Một dòng phương án PlanAdvisorMatching (rule 9, 20). <see cref="AdvisorId"/> null = không ghép được;
+/// <see cref="Reason"/> theo LecturerMatchReason / MentorMatchReason của team.yaml (MUTUAL, PREFERENCE…).
+/// </summary>
+public sealed record PlannedAdvisorMatch(Guid TeamId, Guid? AdvisorId, string? Reason, int? PreferenceRank);
+
 /// <summary>Lời gọi gRPC tới Matching Service (PROJECT_CONTEXT §5.5). Matching lỗi hoặc quá hạn → 503 matching-unavailable.</summary>
 public interface IMatchingClient
 {
@@ -37,6 +50,10 @@ public interface IMatchingClient
     Task<SuggestedMembers> SuggestMembersAsync(Guid semesterId, string courseCode, Guid teamId, int limit, CancellationToken ct);
 
     Task<IReadOnlyList<SuggestedTeam>> SuggestTeamsAsync(Guid semesterId, string courseCode, Guid studentId, int limit, CancellationToken ct);
+
+    /// <summary>Phương án ghép cố vấn (BE-79); <paramref name="advisorKind"/> là LECTURER hoặc MENTOR. Matching chỉ tính, Team áp dụng.</summary>
+    Task<IReadOnlyList<PlannedAdvisorMatch>> PlanAdvisorMatchingAsync(string advisorKind, string courseCode,
+        IReadOnlyCollection<AdvisorMatchingTeam> teams, IReadOnlyCollection<AdvisorMatchingAdvisor> advisors, CancellationToken ct);
 }
 
 public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc) : IMatchingClient
@@ -91,6 +108,52 @@ public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc) :
             }, options);
             return response.Suggestions.Select(s => new SuggestedTeam(Guid.Parse(s.TeamId), s.Score, s.Reasons.ToList())).ToList();
         }, ct);
+
+    public Task<IReadOnlyList<PlannedAdvisorMatch>> PlanAdvisorMatchingAsync(string advisorKind, string courseCode,
+        IReadOnlyCollection<AdvisorMatchingTeam> teams, IReadOnlyCollection<AdvisorMatchingAdvisor> advisors, CancellationToken ct) =>
+        CallAsync<IReadOnlyList<PlannedAdvisorMatch>>(async options =>
+        {
+            var request = new PlanAdvisorMatchingRequest
+            {
+                AdvisorKind = advisorKind == "MENTOR" ? AdvisorKind.Mentor : AdvisorKind.Lecturer,
+                Course = ToCourse(courseCode),
+            };
+            request.Teams.AddRange(teams.Select(t =>
+            {
+                var team = new MatchingTeam { TeamId = t.TeamId.ToString(), PreviousInstructorId = t.PreviousInstructorId?.ToString() ?? "" };
+                team.DomainIds.AddRange(t.DomainIds);
+                team.PreferredAdvisorIds.AddRange(t.PreferredAdvisorIds.Select(id => id.ToString()));
+                team.InterestedAdvisorIds.AddRange(t.InterestedAdvisorIds.Select(id => id.ToString()));
+                return team;
+            }));
+            request.Advisors.AddRange(advisors.Select(a =>
+            {
+                var advisor = new MatchingAdvisor
+                {
+                    AdvisorId = a.AdvisorId.ToString(), CurrentTeamCount = a.CurrentTeamCount,
+                    HasMaxTeams = a.MaxTeams is not null, MaxTeams = a.MaxTeams ?? 0, PreferredTeams = a.PreferredTeams,
+                };
+                advisor.DomainIds.AddRange(a.DomainIds);
+                return advisor;
+            }));
+            var response = await grpc.PlanAdvisorMatchingAsync(request, options);
+            return response.Matches.Select(m => Guid.TryParse(m.AdvisorId, out var advisorId)
+                    ? new PlannedAdvisorMatch(Guid.Parse(m.TeamId), advisorId, ReasonCode(m.Reason), m.PreferenceRank > 0 ? m.PreferenceRank : null)
+                    : new PlannedAdvisorMatch(Guid.Parse(m.TeamId), null, null, null))
+                .ToList();
+        }, ct);
+
+    /// <summary>MatchReason của matching.proto → mã lý do của team.yaml / events.md.</summary>
+    internal static string? ReasonCode(MatchReason reason) => reason switch
+    {
+        MatchReason.Mutual => "MUTUAL",
+        MatchReason.Preference => "PREFERENCE",
+        MatchReason.LecturerInterest => "LECTURER_INTEREST",
+        MatchReason.PreviousInstructor => "PREVIOUS_INSTRUCTOR",
+        MatchReason.Domain => "DOMAIN",
+        MatchReason.MentorInterest => "MENTOR_INTEREST",
+        _ => null,
+    };
 
     /// <summary>Tên kỹ năng như Matching dùng trong lý do gợi ý (rule 16).</summary>
     private static string SkillLabel(Skill skill) => skill switch
