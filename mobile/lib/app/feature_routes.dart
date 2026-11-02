@@ -21,6 +21,7 @@ import '../features/my_team/recruitment_post_screen.dart';
 import '../features/my_team/requests_screen.dart';
 import '../features/my_team/team_history_screen.dart';
 import '../features/my_team/team_form_screen.dart';
+import '../features/profile/student_profile_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
 import '../features/round_closed/round_closed_screen.dart';
 import '../features/suggestions/invite_students_screen.dart';
@@ -88,6 +89,8 @@ final _studentTeamRoutes = [
   GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),
   // S22 – MB-26 (Cường).
   GoRoute(path: '/sv/nhom/lich-su', builder: (_, _) => const TeamHistoryScreen()),
+  // S04 – MB-13 (Nam).
+  GoRoute(path: '/sv/sinh-vien/:id', builder: (_, s) => StudentProfileScreen(studentId: s.pathParameters['id']!)),
 ];
 
 /// Dự án của giảng viên / mentor theo id workspace (mở từ L04, L05, M01).
