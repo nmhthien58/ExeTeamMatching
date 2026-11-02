@@ -2,11 +2,14 @@ using ExeTeamMatching.Protos.Matching.V1;
 using Grpc.Core;
 using static Matching.Grpc.Services.ProtoMapping;
 // Tên kiểu của Matching.Services trùng message proto (MemberSuggestion, NewTeamPlan…) nên chỉ đặt alias cho kiểu cần dùng.
+using AdvisorMatchingPlanner = Matching.Services.AdvisorMatching.AdvisorMatchingPlanner;
+using AdvisorOption = Matching.Services.AdvisorMatching.AdvisorOption;
 using AutoAssignmentPlanner = Matching.Services.AutoAssignment.AutoAssignmentPlanner;
 using CompositionMember = Matching.Services.Composition.CompositionMember;
 using CompositionRules = Matching.Services.Composition.CompositionRules;
 using CompositionValidator = Matching.Services.Composition.CompositionValidator;
 using SuggestionService = Matching.Services.Suggestions.SuggestionService;
+using TeamToMatch = Matching.Services.AdvisorMatching.TeamToMatch;
 using TopicQuery = Matching.Services.TopicSuggestions.TopicQuery;
 using TopicSuggestionService = Matching.Services.TopicSuggestions.TopicSuggestionService;
 
@@ -14,13 +17,13 @@ namespace Matching.Grpc.Services;
 
 /// <summary>
 /// Matching gRPC (BE-34): chỉ đổi message proto ↔ model rồi gọi Matching.Services; lỗi nghiệp vụ được
-/// <c>GrpcServerInterceptor</c> đổi sang status code. PlanAdvisorMatching thuộc module AdvisorMatching (BE-79) –
-/// chưa override nên trả <c>Unimplemented</c>.
+/// <c>GrpcServerInterceptor</c> đổi sang status code.
 /// </summary>
 public class MatchingGrpcService(
     SuggestionService suggestions,
     TopicSuggestionService topics,
-    AutoAssignmentPlanner autoAssignment) : MatchingService.MatchingServiceBase
+    AutoAssignmentPlanner autoAssignment,
+    AdvisorMatchingPlanner advisorMatching) : MatchingService.MatchingServiceBase
 {
     public override async Task<SuggestMembersResponse> SuggestMembers(SuggestMembersRequest request, ServerCallContext context)
     {
@@ -135,5 +138,37 @@ public class MatchingGrpcService(
         }));
         response.UnassignedStudentIds.AddRange(plan.UnassignedStudentIds.Select(id => id.ToString()));
         return response;
+    }
+
+    public override Task<PlanAdvisorMatchingResponse> PlanAdvisorMatching(PlanAdvisorMatchingRequest request, ServerCallContext context)
+    {
+        var plan = advisorMatching.Plan(
+            ToAdvisorKind(request.AdvisorKind),
+            request.Teams.Select(t => new TeamToMatch(
+                ParseId(t.TeamId, "teams.teamId"),
+                t.DomainIds,
+                t.PreferredAdvisorIds.Select(id => ParseId(id, "teams.preferredAdvisorIds")).ToList(),
+                t.InterestedAdvisorIds.Select(id => ParseId(id, "teams.interestedAdvisorIds")).ToList(),
+                t.PreviousInstructorId.Length == 0 ? null : ParseId(t.PreviousInstructorId, "teams.previousInstructorId"))).ToList(),
+            request.Advisors.Select(a => new AdvisorOption(
+                ParseId(a.AdvisorId, "advisors.advisorId"),
+                a.DomainIds,
+                a.CurrentTeamCount,
+                a.HasMaxTeams ? a.MaxTeams : null,
+                a.PreferredTeams)).ToList());
+
+        var response = new PlanAdvisorMatchingResponse
+        {
+            MatchedCount = plan.Count(m => m.AdvisorId is not null),
+            UnmatchedCount = plan.Count(m => m.AdvisorId is null),
+        };
+        response.Matches.AddRange(plan.Select(m => new AdvisorMatch
+        {
+            TeamId = m.TeamId.ToString(),
+            AdvisorId = m.AdvisorId?.ToString() ?? string.Empty,
+            Reason = (MatchReason)(int)m.Reason,
+            PreferenceRank = m.PreferenceRank,
+        }));
+        return Task.FromResult(response);
     }
 }

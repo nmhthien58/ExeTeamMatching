@@ -1,4 +1,5 @@
 using BuildingBlocks.Messaging;
+using Matching.Services.AdvisorMatching;
 using Matching.Services.AutoAssignment;
 using Matching.Services.Events;
 using Matching.Services.ReadModel;
@@ -15,7 +16,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Matching Service (BE-34, BE-35): read model Redis dựng từ Kafka, thuật toán gợi ý / kiểm tra / ghép tự động.
-    /// Module AdvisorMatching (PlanAdvisorMatching – BE-79) tự đăng ký service của mình bên dưới.
+    /// Module AdvisorMatching (PlanAdvisorMatching – BE-79) đăng ký service của mình bên dưới.
     /// </summary>
     public static IServiceCollection AddMatchingServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SuggestionService>();
         services.AddScoped<TopicSuggestionService>();
         services.AddScoped<AutoAssignmentPlanner>();
+        services.AddSingleton<AdvisorMatchingPlanner>();
 
         if (configuration.GetValue("Kafka:ConsumersEnabled", true))
         {
