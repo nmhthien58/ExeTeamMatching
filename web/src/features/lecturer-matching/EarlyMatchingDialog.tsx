@@ -3,8 +3,9 @@ import { lecturerReasonLabel } from '@/features/my_team/advisorsApi'
 import type { AdvisorMatchingRun } from './api'
 
 /**
- * Dialog xem trước kết quả "Ghép sớm" (W19): số nhóm ghép được / chưa ghép được và từng dòng nhóm → giảng viên · lý do.
+ * Dialog xem trước kết quả "Ghép sớm" (W19, W28): số nhóm ghép được / chưa ghép được và từng dòng nhóm → cố vấn · lý do.
  * "Chốt kết quả" áp dụng; "Bỏ kết quả" hủy lần xem trước; Esc chỉ đóng (lần xem trước vẫn mở lại được).
+ * Mặc định cho giảng viên; W28 truyền `advisorNoun="mentor"` và `reasonLabel={mentorReasonLabel}`.
  */
 export function EarlyMatchingDialog({
   run,
@@ -14,6 +15,8 @@ export function EarlyMatchingDialog({
   confirming,
   discarding,
   error,
+  advisorNoun = 'giảng viên',
+  reasonLabel = lecturerReasonLabel,
 }: {
   run: AdvisorMatchingRun | null
   onClose: () => void
@@ -22,6 +25,8 @@ export function EarlyMatchingDialog({
   confirming: boolean
   discarding: boolean
   error?: { title: string; detail?: string } | null
+  advisorNoun?: string
+  reasonLabel?: (reason?: string | null, rank?: number | null) => string | undefined
 }) {
   const plan = run?.plan ?? []
   const busy = confirming || discarding
@@ -47,10 +52,10 @@ export function EarlyMatchingDialog({
             Ghép được <strong className="text-text-primary">{run.matchedCount} nhóm</strong>
             {run.unmatchedCount > 0 && (
               <>
-                {' '}· <strong className="text-warning">{run.unmatchedCount} nhóm</strong> chưa có giảng viên còn chỗ
+                {' '}· <strong className="text-warning">{run.unmatchedCount} nhóm</strong> chưa có {advisorNoun} còn chỗ
               </>
             )}
-            . Giảng viên và nhóm được báo ngay sau khi chốt.
+            . {advisorNoun === 'giảng viên' ? 'Giảng viên' : 'Mentor'} và nhóm được báo ngay sau khi chốt.
           </p>
           {error && (
             <Banner tone="error" title={error.title}>
@@ -67,10 +72,10 @@ export function EarlyMatchingDialog({
                   {item.advisorId ? (
                     <>
                       <span className="text-text-primary">{item.advisorName}</span>
-                      <StatusChip tone="info">{lecturerReasonLabel(item.reason, item.preferenceRank) ?? 'Hệ thống ghép'}</StatusChip>
+                      <StatusChip tone="info">{reasonLabel(item.reason, item.preferenceRank) ?? 'Hệ thống ghép'}</StatusChip>
                     </>
                   ) : (
-                    <StatusChip tone="warning">Chưa có giảng viên</StatusChip>
+                    <StatusChip tone="warning">Chưa có {advisorNoun}</StatusChip>
                   )}
                 </li>
               ))}

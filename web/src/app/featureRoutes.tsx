@@ -4,6 +4,7 @@ import { adminAuditLogRoutes } from '@/features/audit-log/routes'
 import { adminTeamRoutes } from '@/features/teams/routes'
 import { adminAutoAssignRoutes } from '@/features/auto-assign/routes'
 import { adminLecturerMatchingRoutes } from '@/features/lecturer-matching/routes'
+import { adminMentorMatchingRoutes } from '@/features/mentor-matching/routes'
 import { adminImportRoutes } from '@/features/imports/routes'
 import { adminSemesterRoutes } from '@/features/semesters/routes'
 import { changeRequestRoutes } from '@/features/change-requests/routes'
@@ -19,7 +20,7 @@ import { workspaceRoutes } from '@/features/workspace/routes'
  * Route trùng với mục điều hướng sẽ thay ScreenPlaceholder của mục đó; mỗi mảng thêm route của mình vào đây.
  */
 export const featureRoutes: Record<Shell, RouteObject[]> = {
-  admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminLecturerMatchingRoutes, ...changeRequestRoutes, ...projectRoutes],
+  admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminLecturerMatchingRoutes, ...adminMentorMatchingRoutes, ...changeRequestRoutes, ...projectRoutes],
   student: [completeProfileRoute, ...requireCompletedProfile([workspaceRoutes('/sv'), ...suggestionRoutes, ...studentTeamRoutes, ...studentProfileRoutes])],
   lecturer: [workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerProfileRoutes],
   mentor: [workspaceRoutes('/mentor'), ...advisorMessageRoutes, ...mentorProfileRoutes],
