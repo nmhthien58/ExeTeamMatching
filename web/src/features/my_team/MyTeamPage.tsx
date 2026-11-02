@@ -4,8 +4,10 @@ import { Icon, StatusChip } from '@/shared/components/ui'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { useIsTeamFormation, useMyCourse } from '@/shared/phase/usePhase'
 import { Card } from '@/features/workspace/components'
+import { useMyWorkspaces } from '@/features/workspace/api'
 import { useMyTeam } from '@/features/suggestions/api'
 import { DomainChips, TeamRequirementBar } from '@/features/suggestions/components'
+import { AdvisorsCard, CheckpointCard } from './AdvisorsCard'
 import { teamStatusLabel, type FullTeam } from './api'
 import { linkClass, ListSkeleton } from './components'
 import { ProjectCard } from './ProjectCard'
@@ -54,12 +56,14 @@ function Overview({ team }: { team: FullTeam }) {
   const isLeader = team.myRelation === 'LEADER'
   const maxSize = team.requirement?.maxSize ?? 6
   const canEdit = isLeader && (team.status === 'DRAFT' || team.status === 'ACTIVE')
+  const workspaceId = useMyWorkspaces().data?.[0]?.id
   const shortcuts = [
     { to: '/sv/nhom/thanh-vien', icon: 'groups', label: 'Thành viên', detail: `${team.memberCount}/${maxSize}`, show: true },
     { to: '/sv/nhom/yeu-cau', icon: 'mark_email_unread', label: 'Yêu cầu và lời mời', show: isLeader },
     { to: '/sv/nhom/goi-y', icon: 'person_search', label: 'Gợi ý thành viên', show: canEdit && team.memberCount < maxSize },
     { to: '/sv/nhom/bai-tuyen', icon: 'campaign', label: 'Bài tuyển thành viên', detail: team.recruitmentPost ? 'Đang mở' : undefined, show: canEdit },
     { to: '/sv/nhom/sua', icon: 'edit', label: 'Sửa thông tin', show: canEdit },
+    { to: '/sv/du-an', icon: 'rocket_launch', label: 'Mở dự án', show: !!workspaceId },
     { to: '/sv/nhom/lich-su', icon: 'history', label: 'Lịch sử hoạt động', show: true },
   ].filter((s) => s.show)
 
@@ -104,11 +108,8 @@ function Overview({ team }: { team: FullTeam }) {
         )}
       </div>
       <div className="flex flex-col gap-4">
-        <Card>
-          <h3 className="mb-2 font-semibold">Cố vấn</h3>
-          <p>Giảng viên: {team.lecturerName ?? 'Chưa ghép'}</p>
-          <p>Mentor: {team.mentorName ?? 'Ghép từ tuần 6'}</p>
-        </Card>
+        <AdvisorsCard team={team} />
+        <CheckpointCard team={team} workspaceId={workspaceId} />
         <Card className="p-0">
           <nav aria-label="Lối tắt nhóm">
             {shortcuts.map((s) => (
