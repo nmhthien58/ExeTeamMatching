@@ -61,6 +61,8 @@ export interface AdvisorLoad {
   advisorId: string
   fullName: string
   assignedCount: number
+  /** Chỉ mentor: số mong muốn; null = chưa đặt. */
+  preferredTeams?: number | null
   maxTeams: number | null
 }
 
@@ -87,17 +89,15 @@ export interface OverviewQuery {
 
 export const PAGE_SIZE = 20
 
-export const lecturerMatchingKeys = {
-  all: ['advisor-matching', 'LECTURER'] as const,
-  overview: (course: CourseCode, query: OverviewQuery) => ['advisor-matching', 'LECTURER', course, query] as const,
-}
+type AdvisorKind = AdvisorMatchingRun['advisorKind']
 
-export function useLecturerMatchingOverview(course: CourseCode, query: OverviewQuery) {
+/** Bảng W19, W28 của một loại cố vấn. */
+export function useAdvisorMatchingOverview<T>(kind: AdvisorKind, course: CourseCode, query: OverviewQuery) {
   return useQuery({
-    queryKey: lecturerMatchingKeys.overview(course, query),
+    queryKey: ['advisor-matching', kind, course, query],
     queryFn: async () =>
       (
-        await api.get<AdvisorMatchingOverview>('/api/advisor-matching/LECTURER/overview', {
+        await api.get<T>(`/api/advisor-matching/${kind}/overview`, {
           params: {
             courseCode: course,
             withoutAdvisor: query.withoutAdvisor || undefined,
@@ -111,34 +111,37 @@ export function useLecturerMatchingOverview(course: CourseCode, query: OverviewQ
   })
 }
 
-function useInvalidateMatching() {
+export const useLecturerMatchingOverview = (course: CourseCode, query: OverviewQuery) =>
+  useAdvisorMatchingOverview<AdvisorMatchingOverview>('LECTURER', course, query)
+
+export function useInvalidateMatching(kind: AdvisorKind) {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: lecturerMatchingKeys.all })
+    void queryClient.invalidateQueries({ queryKey: ['advisor-matching', kind] })
     void queryClient.invalidateQueries({ queryKey: ['teams'] })
   }
 }
 
-/** Ghép sớm – bước 1: tính phương án cho nhóm chưa có giảng viên (không đổi dữ liệu). */
-export function usePreviewMatching(course: CourseCode) {
-  const invalidate = useInvalidateMatching()
+/** Ghép sớm – bước 1: tính phương án cho nhóm chưa có cố vấn (không đổi dữ liệu). */
+export function usePreviewMatching(course: CourseCode, kind: AdvisorKind = 'LECTURER') {
+  const invalidate = useInvalidateMatching(kind)
   return useMutation({
-    mutationFn: async () => (await api.post<AdvisorMatchingRun>('/api/advisor-matching/LECTURER/preview', { courseCode: course })).data,
+    mutationFn: async () => (await api.post<AdvisorMatchingRun>(`/api/advisor-matching/${kind}/preview`, { courseCode: course })).data,
     onSuccess: invalidate,
   })
 }
 
 /** Ghép sớm – bước 2: áp dụng phương án. 409 `run-not-preview` khi đã áp dụng / bỏ. */
-export function useConfirmMatching() {
-  const invalidate = useInvalidateMatching()
+export function useConfirmMatching(kind: AdvisorKind = 'LECTURER') {
+  const invalidate = useInvalidateMatching(kind)
   return useMutation({
     mutationFn: async (runId: string) => (await api.post<AdvisorMatchingRun>(`/api/advisor-matching/runs/${runId}/confirm`)).data,
     onSettled: invalidate,
   })
 }
 
-export function useDiscardMatching() {
-  const invalidate = useInvalidateMatching()
+export function useDiscardMatching(kind: AdvisorKind = 'LECTURER') {
+  const invalidate = useInvalidateMatching(kind)
   return useMutation({
     mutationFn: async (runId: string) => {
       await api.delete(`/api/advisor-matching/runs/${runId}`)
@@ -149,7 +152,7 @@ export function useDiscardMatching() {
 
 /** Đổi giảng viên tay (lý do "Bộ môn phân công", ghi chú bắt buộc). 409 `lecturer-full` khi vượt tối đa. */
 export function useChangeInstructor() {
-  const invalidate = useInvalidateMatching()
+  const invalidate = useInvalidateMatching('LECTURER')
   return useMutation({
     mutationFn: async ({ teamId, lecturerId, note }: { teamId: string; lecturerId: string; note: string }) =>
       (await api.put(`/api/teams/${teamId}/instructor`, { lecturerId, note })).data,
@@ -160,7 +163,7 @@ export function useChangeInstructor() {
 /** Giảng viên đã đủ số nhóm tối đa chưa. */
 export const isFull = (load: AdvisorLoad) => load.maxTeams != null && load.assignedCount >= load.maxTeams
 
-/** Số giảng viên khác nhau đang quan tâm (lượt OPEN) trong các nhóm đã tải. */
-export function countInterestedLecturers(rows: AdvisorMatchingRow[]) {
+/** Số cố vấn khác nhau đang quan tâm (lượt OPEN) trong các nhóm đã tải. */
+export function countInterestedAdvisors(rows: AdvisorMatchingRow[]) {
   return new Set(rows.flatMap((r) => r.interests.filter((i) => i.status === 'OPEN').map((i) => i.advisorId))).size
 }

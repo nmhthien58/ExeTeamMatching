@@ -1,7 +1,5 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AdvisorMatchingOverview, AdvisorMatchingRow, AdvisorMatchingRun } from './api'
 
@@ -21,9 +19,7 @@ vi.mock('@/shared/api/apiClient', async (original) => ({
 
 const { ApiError } = await import('@/shared/api/apiClient')
 const { adminLecturerMatchingRoutes } = await import('./routes')
-const { tokenStore } = await import('@/shared/api/tokenStore')
-const { AuthProvider } = await import('@/shared/auth/AuthProvider')
-const { PageHeaderProvider, usePageHeaderState } = await import('@/shared/layout/PageHeader')
+const { renderMatchingPage, signInAsAdmin, stubDialogElement } = await import('@/features/lecturer-matching/matchingTestSetup')
 
 const team = (id: string, name: string) => ({
   id,
@@ -90,46 +86,17 @@ const previewRun: AdvisorMatchingRun = {
   ],
 }
 
-/** Hiện nút hành động chính của PageHeader như khung trang thật. */
-function HeaderAction() {
-  return <>{usePageHeaderState().action}</>
-}
-
-function renderAt(path = '/admin/ghep-giang-vien') {
-  return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <AuthProvider>
-        <PageHeaderProvider>
-          <HeaderAction />
-          <RouterProvider router={createMemoryRouter([{ path: '/admin', children: adminLecturerMatchingRoutes }], { initialEntries: [path] })} />
-        </PageHeaderProvider>
-      </AuthProvider>
-    </QueryClientProvider>,
-  )
-}
+const renderAt = (path = '/admin/ghep-giang-vien') => renderMatchingPage(adminLecturerMatchingRoutes, path)
 
 describe('W19 – ghép giảng viên hướng dẫn', () => {
-  beforeAll(() => {
-    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
-      this.open = true
-    }
-    HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
-      this.open = false
-    }
-  })
+  beforeAll(stubDialogElement)
 
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
     put.mockReset()
     del.mockReset()
-    tokenStore.save({
-      accessToken: 'a',
-      accessTokenExpiresAt: '',
-      refreshToken: 'r',
-      refreshTokenExpiresAt: '',
-      user: { id: 'u', email: 'admin@fpt.edu.vn', fullName: 'Bộ môn', roles: ['Admin'] },
-    })
+    signInAsAdmin()
   })
 
   it('before the deadline shows progress and previews then confirms early matching', async () => {
