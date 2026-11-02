@@ -1,11 +1,21 @@
 import { useState } from 'react'
 import clsx from 'clsx'
-import { Banner, Button, StatusChip } from '@/shared/components/ui'
+import { Banner } from '@/shared/components/ui'
 import { timeLeft, useCourseParam } from '@/features/dashboard/adminApi'
 import { EarlyMatchingDialog } from '@/features/lecturer-matching/EarlyMatchingDialog'
 import { mentorMatchingErrorMessage } from '@/features/lecturer-matching/errors'
 import { LoadPanel } from '@/features/lecturer-matching/LoadPanel'
-import { MatchedSummary, MatchingLayout, MatchingTable, StatCard, SummarySkeleton } from '@/features/lecturer-matching/MatchingLayout'
+import {
+  AdvisorCell,
+  EditCell,
+  InterestsCell,
+  MatchedSummary,
+  MatchingLayout,
+  MatchingTable,
+  ReasonCell,
+  StatCard,
+  SummarySkeleton,
+} from '@/features/lecturer-matching/MatchingLayout'
 import { useEarlyMatching, useMatchingParams } from '@/features/lecturer-matching/useMatchingPage'
 import { mentorReasonLabel } from '@/features/my_team/advisorsApi'
 import { formatDateTime } from '@/features/workspace/format'
@@ -150,29 +160,17 @@ function Row({ row, beforeMatching, onEdit }: { row: AdvisorMatchingRow; beforeM
         {row.team.domains.length > 0 && <p className="text-caption text-text-secondary">{row.team.domains.map((d) => d.name).join(' · ')}</p>}
       </td>
       <td className="min-w-[160px] px-4 py-3">{row.team.lecturerName ?? <span className="text-text-secondary">Chưa có</span>}</td>
-      <td className="min-w-[160px] px-4 py-3">
-        {row.advisorName ?? (beforeMatching ? <span className="text-text-secondary">–</span> : <StatusChip tone="warning">Chưa có mentor</StatusChip>)}
-      </td>
-      <td className="px-4 py-3">{reason ? <StatusChip tone="info">{reason}</StatusChip> : <span className="text-text-secondary">–</span>}</td>
-      <td className="min-w-[160px] px-4 py-3">
-        {interests.length === 0 ? (
-          <span className="text-text-secondary">–</span>
-        ) : (
-          <ul className="flex flex-col gap-1">
-            {interests.map((i) => (
-              <li key={i.id} className={clsx(i.advisorId === row.advisorId && 'font-semibold')}>
-                {i.advisorName}
-                {i.advisorId === row.advisorId && <span className="sr-only"> (đã ghép)</span>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </td>
-      <td className="px-4 py-3 text-right">
-        <Button variant="text" icon={row.advisorId ? 'swap_horiz' : 'person_add'} onClick={onEdit} aria-label={`${row.advisorId ? 'Đổi' : 'Gán'} mentor cho ${row.team.name}`}>
-          {row.advisorId ? 'Đổi' : 'Gán'}
-        </Button>
-      </td>
+      <AdvisorCell name={row.advisorName} noun="mentor" beforeMatching={beforeMatching} className="min-w-[160px] px-4 py-3" />
+      <ReasonCell reason={reason} />
+      <InterestsCell empty={interests.length === 0}>
+        {interests.map((i) => (
+          <li key={i.id} className={clsx(i.advisorId === row.advisorId && 'font-semibold')}>
+            {i.advisorName}
+            {i.advisorId === row.advisorId && <span className="sr-only"> (đã ghép)</span>}
+          </li>
+        ))}
+      </InterestsCell>
+      <EditCell assigned={!!row.advisorId} noun="mentor" teamName={row.team.name} onEdit={onEdit} />
     </tr>
   )
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from '@/shared/components/States'
-import { Banner, Button, Icon, Skeleton } from '@/shared/components/ui'
+import { Banner, Button, Icon, Skeleton, StatusChip } from '@/shared/components/ui'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import type { CourseCode } from '@/shared/phase/usePhase'
 import { CourseToggle } from '@/features/dashboard/CourseToggle'
@@ -267,6 +267,38 @@ export function MatchingTable<T extends OverviewData>({
     )
   }
   return <div className="overflow-x-auto rounded-lg bg-surface shadow-elevation-1">{body}</div>
+}
+
+/** Ô cố vấn, lý do và nút đổi / gán của một dòng trong bảng W19, W28. */
+export function AdvisorCell({ name, noun, beforeMatching, className }: { name: string | null; noun: string; beforeMatching: boolean; className: string }) {
+  return (
+    <td className={className}>
+      {name ?? (beforeMatching ? <span className="text-text-secondary">–</span> : <StatusChip tone="warning">Chưa có {noun}</StatusChip>)}
+    </td>
+  )
+}
+
+export function ReasonCell({ reason }: { reason?: string }) {
+  return <td className="px-4 py-3">{reason ? <StatusChip tone="info">{reason}</StatusChip> : <span className="text-text-secondary">–</span>}</td>
+}
+
+export function EditCell({ assigned, noun, teamName, onEdit }: { assigned: boolean; noun: string; teamName: string; onEdit: () => void }) {
+  const verb = assigned ? 'Đổi' : 'Gán'
+  return (
+    <td className="px-4 py-3 text-right">
+      <Button variant="text" icon={assigned ? 'swap_horiz' : 'person_add'} onClick={onEdit} aria-label={`${verb} ${noun} cho ${teamName}`}>
+        {verb}
+      </Button>
+    </td>
+  )
+}
+
+export function InterestsCell({ empty, children }: { empty: boolean; children: ReactNode }) {
+  return (
+    <td className="min-w-[160px] px-4 py-3">
+      {empty ? <span className="text-text-secondary">–</span> : <ul className="flex flex-col gap-1">{children}</ul>}
+    </td>
+  )
 }
 
 /** "1–20 trên 58" khi API có `totalCount`; thiếu trường phân trang thì đoán trang sau theo số dòng. */
