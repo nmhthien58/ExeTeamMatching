@@ -8,7 +8,8 @@ namespace Academic.Services.Mentors;
 // Schema của academic.yaml (tag Mentors). JSON camelCase.
 
 /// <summary>
-/// Schema <c>Mentor</c>. <see cref="CurrentTeamCount"/> thuộc Team Service – tạm thời 0 cho tới khi Team có API đếm số nhóm của mentor.
+/// Schema <c>Mentor</c>. <see cref="CurrentTeamCount"/>: số nhóm đang mentor trong học kỳ hiện hành, lấy từ Team Service
+/// (<c>POST /internal/mentors/team-counts</c>); Team không trả lời thì 0.
 /// </summary>
 public sealed record MentorResponse(
     Guid Id, string FullName, string Email, string? Organization, bool IsInternal, Guid? LecturerId, string? Description,
@@ -30,8 +31,8 @@ public sealed record MentorInput(
 public sealed record MentorProfileInput(int? PreferredTeams, string? Description, IReadOnlyList<int>? DomainIds);
 
 /// <summary>
-/// Query của <c>GET /api/mentors</c>. <see cref="HasCapacity"/> nhận theo contract nhưng chưa có tác dụng
-/// cho tới khi Team có API đếm số nhóm của mentor.
+/// Query của <c>GET /api/mentors</c>. <see cref="HasCapacity"/>: true = đang mentor &lt; tối đa, false = đã đủ; lọc trên toàn bộ
+/// dữ liệu trước khi phân trang. Team không trả lời thì bỏ qua bộ lọc này.
 /// </summary>
 public sealed record MentorQuery(string? Search, int? DomainId, bool? HasCapacity, bool? IsInternal, int Page = 1, int PageSize = 20);
 

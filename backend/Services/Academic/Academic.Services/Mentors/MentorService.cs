@@ -1,11 +1,14 @@
 using System.Security.Claims;
 using Academic.Repositories.Lecturers;
 using Academic.Repositories.Mentors;
+using Academic.Repositories.Semesters;
 using Academic.Services.Lecturers;
+using Academic.Services.Teams;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace Academic.Services.Mentors;
@@ -39,16 +42,45 @@ public interface IMentorService
 /// <summary>
 /// Mentor (BE-66, W27, M01; rule 19, 20). Admin tạo mentor → <c>MentorRegistered</c> (Identity tạo tài khoản, Notification mời đăng nhập,
 /// Matching cập nhật read model). Mọi lần sửa đều phát lại sự kiện này, các bên xử lý idempotent theo mentorId.
-/// Số nhóm đang mentor thuộc Team Service: khi Team có API đếm thì điền <c>currentTeamCount</c>, lọc <c>hasCapacity</c>
-/// và chặn <c>max-below-current</c> tại đây. Khóa mentor phát sự kiện với <c>isActive = false</c>; Team gỡ mentor khỏi nhóm.
+/// Số nhóm đang mentor thuộc Team Service (<c>POST /internal/mentors/team-counts</c>, học kỳ hiện hành, nhóm chưa giải tán):
+/// điền <c>currentTeamCount</c>, lọc <c>hasCapacity</c> trên toàn bộ dữ liệu trước khi phân trang và chặn <c>max-below-current</c>.
+/// Team lỗi: lúc đọc thì <c>currentTeamCount</c> = 0 và bỏ qua <c>hasCapacity</c> (như trước khi có API đếm), còn sửa tối đa thì 503.
+/// Khóa mentor phát sự kiện với <c>isActive = false</c>; Team gỡ mentor khỏi nhóm.
 /// Email do Bộ môn cấp, không trùng mentor, giảng viên, sinh viên; giảng viên kiêm mentor dùng luôn email giảng viên.
 /// </summary>
-public sealed class MentorService(IMentorRepository mentors, ILecturerRepository lecturers) : IMentorService
+public sealed class MentorService(
+    IMentorRepository mentors,
+    ILecturerRepository lecturers,
+    ISemesterRepository semesters,
+    ITeamClient team,
+    ILogger<MentorService> logger) : IMentorService
 {
     public async Task<PagedResponse<MentorResponse>> ListAsync(MentorQuery query, CancellationToken ct)
     {
-        var (items, total) = await mentors.ListAsync(new MentorFilter(query.Search, query.DomainId, query.IsInternal, query.Page, query.PageSize), ct);
+        var filter = new MentorFilter(query.Search, query.DomainId, query.IsInternal, query.Page, query.PageSize);
+        if (query.HasCapacity is { } hasCapacity && await ListWithCapacityAsync(filter, hasCapacity, ct) is { } filtered)
+        {
+            return filtered;
+        }
+        var (items, total) = await mentors.ListAsync(filter, ct);
         return PagedResponse<MentorResponse>.Create(await ToResponsesAsync(items, ct), query.Page, query.PageSize, total);
+    }
+
+    /// <summary>
+    /// Lọc <c>hasCapacity</c> (đang mentor &lt; tối đa) trên mọi mentor khớp bộ lọc rồi mới phân trang.
+    /// Team lỗi → null: người gọi trả danh sách không lọc theo số nhóm.
+    /// </summary>
+    private async Task<PagedResponse<MentorResponse>?> ListWithCapacityAsync(MentorFilter filter, bool hasCapacity, CancellationToken ct)
+    {
+        var rows = await mentors.ListCapacityRowsAsync(filter, ct);
+        if (await TryCountsAsync(rows.Select(r => r.Id).ToList(), ct) is not { } counts)
+        {
+            return null;
+        }
+        var matching = rows.Where(r => (counts.GetValueOrDefault(r.Id) < r.MaxTeams) == hasCapacity).ToList();
+        var pageIds = matching.Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize).Select(r => r.Id).ToList();
+        var items = await mentors.ListByIdsAsync(pageIds, ct);
+        return PagedResponse<MentorResponse>.Create(await ToResponsesAsync(items, counts, ct), filter.Page, filter.PageSize, matching.Count);
     }
 
     public async Task<MentorResponse> GetAsync(Guid id, ClaimsPrincipal user, CancellationToken ct)
@@ -99,13 +131,25 @@ public sealed class MentorService(IMentorRepository mentors, ILecturerRepository
         var current = await CurrentDomainIdsAsync(id, ct);
         var domainIds = await LecturerService.ValidateDomainsAsync(lecturers, input.DomainIds ?? current, current, ct);
 
+        // Chỉ kiểm tra khi đổi số tối đa: sửa khác không bị chặn nếu mentor lỡ vượt tối đa do Bộ môn gán tay.
+        IReadOnlyDictionary<Guid, int>? counts = null;
+        if (input.MaxTeams != mentor.MaxTeams)
+        {
+            counts = await RequireCountsAsync(new[] { id }, ct);
+            var currentTeams = counts.GetValueOrDefault(id);
+            if (input.MaxTeams < currentTeams)
+            {
+                throw MentorErrors.MaxBelowCurrent(currentTeams);
+            }
+        }
+
         Apply(mentor, input, email, isInternal, lecturer?.Id);
         mentor.IsActive = input.IsActive ?? mentor.IsActive;
         mentor.PreferredTeams = MentorRules.CapPreferred(mentor.PreferredTeams, mentor.MaxTeams);
         await mentors.ReplaceDomainsAsync(id, domainIds, ct);
         mentors.AddEvent(MentorEventTypes.MentorRegistered, id, RegisteredEvent(mentor, domainIds));
         await SaveAsync(email, ct);
-        return await ToResponseAsync(mentor, ct);
+        return counts is null ? await ToResponseAsync(mentor, ct) : (await ToResponsesAsync([mentor], counts, ct)).Single();
     }
 
     public async Task<MentorResponse> GetMeAsync(ClaimsPrincipal user, CancellationToken ct) =>
@@ -230,11 +274,56 @@ public sealed class MentorService(IMentorRepository mentors, ILecturerRepository
     private async Task<MentorResponse> ToResponseAsync(Mentor mentor, CancellationToken ct) =>
         (await ToResponsesAsync([mentor], ct)).Single();
 
-    private async Task<IReadOnlyList<MentorResponse>> ToResponsesAsync(IReadOnlyList<Mentor> items, CancellationToken ct)
+    /// <summary>Kèm <c>currentTeamCount</c> từ Team; Team lỗi thì 0 (màn hình vẫn hiện danh sách).</summary>
+    private async Task<IReadOnlyList<MentorResponse>> ToResponsesAsync(IReadOnlyList<Mentor> items, CancellationToken ct) =>
+        await ToResponsesAsync(items, await TryCountsAsync(items.Select(m => m.Id).ToList(), ct) ?? new Dictionary<Guid, int>(), ct);
+
+    private async Task<IReadOnlyList<MentorResponse>> ToResponsesAsync(IReadOnlyList<Mentor> items, IReadOnlyDictionary<Guid, int> counts, CancellationToken ct)
     {
         var domains = (await mentors.ListDomainsAsync(items.Select(m => m.Id).ToList(), ct)).ToLookup(d => d.MentorId);
         return items.Select(m => new MentorResponse(m.Id, m.FullName, m.Email, m.Organization, m.IsInternal, m.LecturerId, m.Description,
-            domains[m.Id].Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), m.MaxTeams, m.PreferredTeams, CurrentTeamCount: 0, m.IsActive)).ToList();
+            domains[m.Id].Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), m.MaxTeams, m.PreferredTeams,
+            counts.GetValueOrDefault(m.Id), m.IsActive)).ToList();
+    }
+
+    /// <summary>
+    /// Số nhóm đang mentor trong học kỳ hiện hành. Chưa có học kỳ hiện hành → mọi mentor 0 nhóm (không gọi Team).
+    /// Team lỗi → <see cref="TeamUnavailableException"/>.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, int>> FetchCountsAsync(IReadOnlyCollection<Guid> mentorIds, CancellationToken ct)
+    {
+        if (mentorIds.Count == 0 || await semesters.GetCurrentAsync(ct) is not { } semester)
+        {
+            return new Dictionary<Guid, int>();
+        }
+        return await team.GetMentorTeamCountsAsync(mentorIds, semester.Id, ct);
+    }
+
+    /// <summary>Như <see cref="FetchCountsAsync"/> nhưng Team lỗi thì ghi log và trả null, để luồng đọc không hỏng.</summary>
+    private async Task<IReadOnlyDictionary<Guid, int>?> TryCountsAsync(IReadOnlyCollection<Guid> mentorIds, CancellationToken ct)
+    {
+        try
+        {
+            return await FetchCountsAsync(mentorIds, ct);
+        }
+        catch (TeamUnavailableException ex)
+        {
+            logger.LogWarning(ex, "Không lấy được số nhóm của {Count} mentor từ Team; currentTeamCount = 0, bỏ qua hasCapacity.", mentorIds.Count);
+            return null;
+        }
+    }
+
+    /// <summary>Như <see cref="FetchCountsAsync"/> cho luồng ghi: Team lỗi → 503 <c>team-unavailable</c>, không bỏ qua kiểm tra.</summary>
+    private async Task<IReadOnlyDictionary<Guid, int>> RequireCountsAsync(IReadOnlyCollection<Guid> mentorIds, CancellationToken ct)
+    {
+        try
+        {
+            return await FetchCountsAsync(mentorIds, ct);
+        }
+        catch (TeamUnavailableException)
+        {
+            throw MentorErrors.TeamUnavailable();
+        }
     }
 
     private static MentorRegisteredEvent RegisteredEvent(Mentor m, IReadOnlyList<int> domainIds) =>
@@ -259,6 +348,15 @@ public static class MentorErrors
     /// <summary>Cùng mã <c>lecturer-locked</c>: mở khóa mentor trong khi giảng viên liên kết đang khóa.</summary>
     public static ConflictException ReopenWhileLecturerLocked() =>
         new("lecturer-locked", "Giảng viên đang bị khóa", "Giảng viên gắn với hồ sơ mentor này đang bị khóa. Mở khóa giảng viên rồi mới mở khóa mentor.");
+
+    public static ConflictException MaxBelowCurrent(int currentTeams) =>
+        new("max-below-current", "Số nhóm tối đa nhỏ hơn số nhóm đang mentor",
+            $"Mentor đang phụ trách {currentTeams} nhóm trong học kỳ hiện hành; số nhóm tối đa không được nhỏ hơn số này.");
+
+    /// <summary>Không kiểm tra được số nhóm đang mentor (Team không trả lời) nên không lưu số tối đa mới.</summary>
+    public static HttpStatusException TeamUnavailable() =>
+        new(503, "team-unavailable", "Chưa kiểm tra được số nhóm đang mentor",
+            "Team Service đang không trả lời nên chưa đổi được số nhóm tối đa. Thử lại sau.");
 
     public static ConflictException LecturerHasMentor() =>
         new("lecturer-has-mentor", "Giảng viên đã có hồ sơ mentor", "Mỗi giảng viên chỉ gắn với một hồ sơ mentor.");

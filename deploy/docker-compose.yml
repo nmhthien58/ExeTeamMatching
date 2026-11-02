@@ -159,6 +159,7 @@ services:
       ConnectionStrings__AcademicDb: Host=postgres;Port=5432;Database=academic_db;Username=academic_svc;Password=${ACADEMIC_DB_PASSWORD:-academic_dev_pw}
       ConnectionStrings__Redis: redis:6379
       Kafka__BootstrapServers: kafka:29092
+      Team__BaseUrl: http://team-api:8080   # số nhóm đang mentor (BE-66, POST /internal/mentors/team-counts)
     ports:
       - "5002:8080"
     healthcheck: *dotnet-healthcheck

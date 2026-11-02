@@ -7,6 +7,7 @@ using Academic.Services.Mentors;
 using Academic.Services.Semesters;
 using Academic.Services.Settings;
 using Academic.Services.Students;
+using Academic.Services.Teams;
 using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,7 @@ public static class ServiceCollectionExtensions
 
         services.AddAcademicCache(configuration);
         services.TryAddSingleton(TimeProvider.System);
+        services.AddTeamClient(configuration);
 
         // Module: Catalogs (BE-21), Semesters + Rounds (BE-16), Students – tra cứu nội bộ (BE-22), Imports (BE-17), Lecturers (BE-20), Settings (BE-23), Mentors (BE-66).
         services.AddCatalogsModule().AddSemestersModule().AddStudentsModule().AddImportsModule().AddLecturersModule().AddMentorsModule().AddSettingsModule();

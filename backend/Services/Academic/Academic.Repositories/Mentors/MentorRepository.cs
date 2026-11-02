@@ -8,6 +8,9 @@ namespace Academic.Repositories.Mentors;
 /// <summary>Domain của một mentor (đã nối bảng <c>domains</c>).</summary>
 public sealed record MentorDomainRow(Guid MentorId, int Id, string Code, string Name);
 
+/// <summary>Mentor rút gọn để lọc theo số nhóm (<c>hasCapacity</c>) trước khi phân trang.</summary>
+public sealed record MentorCapacityRow(Guid Id, int MaxTeams);
+
 /// <summary>Bộ lọc danh sách mentor.</summary>
 public sealed record MentorFilter(string? Search, int? DomainId, bool? IsInternal, int Page, int PageSize);
 
@@ -15,6 +18,15 @@ public interface IMentorRepository
 {
     /// <summary>Tìm theo họ tên, email hoặc tổ chức (không phân biệt hoa thường); sắp theo họ tên.</summary>
     Task<(IReadOnlyList<Mentor> Items, int TotalCount)> ListAsync(MentorFilter filter, CancellationToken ct);
+
+    /// <summary>
+    /// Mọi mentor khớp bộ lọc (bỏ qua trang), cùng thứ tự với <see cref="ListAsync"/>: dùng khi lọc theo số nhóm của Team
+    /// trên toàn bộ dữ liệu rồi mới phân trang.
+    /// </summary>
+    Task<IReadOnlyList<MentorCapacityRow>> ListCapacityRowsAsync(MentorFilter filter, CancellationToken ct);
+
+    /// <summary>Mentor theo danh sách id, giữ đúng thứ tự của <paramref name="ids"/>.</summary>
+    Task<IReadOnlyList<Mentor>> ListByIdsAsync(IReadOnlyList<Guid> ids, CancellationToken ct);
 
     /// <summary>Có theo dõi thay đổi, để sửa rồi gọi <see cref="SaveAsync"/>.</summary>
     Task<Mentor?> FindAsync(Guid id, CancellationToken ct);
@@ -51,6 +63,23 @@ public sealed class MentorRepository(AcademicDbContext db) : IMentorRepository
 {
     public async Task<(IReadOnlyList<Mentor> Items, int TotalCount)> ListAsync(MentorFilter filter, CancellationToken ct)
     {
+        var query = Filtered(filter);
+        var total = await query.CountAsync(ct);
+        var items = await Ordered(query).Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize).ToListAsync(ct);
+        return (items, total);
+    }
+
+    public async Task<IReadOnlyList<MentorCapacityRow>> ListCapacityRowsAsync(MentorFilter filter, CancellationToken ct) =>
+        await Ordered(Filtered(filter)).Select(m => new MentorCapacityRow(m.Id, m.MaxTeams)).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Mentor>> ListByIdsAsync(IReadOnlyList<Guid> ids, CancellationToken ct)
+    {
+        var byId = await db.Mentors.AsNoTracking().Where(m => ids.Contains(m.Id)).ToDictionaryAsync(m => m.Id, ct);
+        return ids.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+    }
+
+    private IQueryable<Mentor> Filtered(MentorFilter filter)
+    {
         var query = db.Mentors.AsNoTracking();
         if (filter.IsInternal is { } isInternal)
         {
@@ -66,10 +95,10 @@ public sealed class MentorRepository(AcademicDbContext db) : IMentorRepository
             query = query.Where(m => EF.Functions.ILike(m.FullName, pattern) || EF.Functions.ILike(m.Email, pattern)
                 || EF.Functions.ILike(m.Organization!, pattern));
         }
-        var total = await query.CountAsync(ct);
-        var items = await query.OrderBy(m => m.FullName).ThenBy(m => m.Id).Skip((filter.Page - 1) * filter.PageSize).Take(filter.PageSize).ToListAsync(ct);
-        return (items, total);
+        return query;
     }
+
+    private static IOrderedQueryable<Mentor> Ordered(IQueryable<Mentor> query) => query.OrderBy(m => m.FullName).ThenBy(m => m.Id);
 
     public Task<Mentor?> FindAsync(Guid id, CancellationToken ct) => db.Mentors.SingleOrDefaultAsync(m => m.Id == id, ct);
 
