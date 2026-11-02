@@ -6,6 +6,7 @@ using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
+using Team.Repositories.TopicInterests;
 using Team.Services.Academic;
 using Team.Services.Finalization;
 using Team.Services.Teams;
@@ -233,6 +234,44 @@ public sealed class FinalizationApiTests : IAsyncLifetime
         Assert.Equal((0, TeamStatuses.Disbanded), (disbanded.MemberCount, disbanded.Status));
         Assert.Equal(["TEAM_DISBANDED"], await TeamActionsAsync(lonely.Id));
         await AssertProblemAsync(await Admin.PostAsync($"/api/teams/{lonely.Id}/members/{lonely.Leader.Id}/remove", null), 404, null);
+    }
+
+    [Fact]
+    public async Task Disbanding_closes_open_interests_of_both_advisor_kinds()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var lonely = await CreateTeamAsync("Nhóm Giải Tán", extraMembers: 0);
+        var (lecturerId, mentorId, withdrawnBy) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        await _api.QueryDbAsync(db =>
+        {
+            db.AddRange(
+                new TopicInterest { Id = Guid.NewGuid(), TeamId = lonely.Id, AdvisorKind = "LECTURER", AdvisorId = lecturerId, AdvisorName = "GV A" },
+                new TopicInterest { Id = Guid.NewGuid(), TeamId = lonely.Id, AdvisorKind = "MENTOR", AdvisorId = mentorId, AdvisorName = "Mentor M" },
+                new TopicInterest
+                {
+                    Id = Guid.NewGuid(), TeamId = lonely.Id, AdvisorKind = "LECTURER", AdvisorId = withdrawnBy, AdvisorName = "GV B",
+                    Status = "WITHDRAWN", ClosedAt = DateTimeOffset.UtcNow,
+                });
+            return db.SaveChangesAsync();
+        });
+
+        var removed = await Admin.PostAsync($"/api/teams/{lonely.Id}/members/{lonely.Leader!.Id}/remove", null);
+        Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
+
+        var interests = await _api.QueryDbAsync(db => db.Set<TopicInterest>().AsNoTracking().Where(i => i.TeamId == lonely.Id).ToListAsync());
+        Assert.All(interests.Where(i => i.AdvisorId != withdrawnBy), i => Assert.Equal(("CLOSED", "TEAM_DISBANDED"), (i.Status, i.ClosedReason)));
+        Assert.Equal("WITHDRAWN", interests.Single(i => i.AdvisorId == withdrawnBy).Status);
+
+        var closed = (await _api.EventsAsync(lonely.Id)).Where(e => e.EventType == "TopicInterestClosed").Select(Payload).ToList();
+        Assert.Equal(2, closed.Count);
+        Assert.All(closed, p => Assert.Equal("TEAM_DISBANDED", p.GetProperty("reason").GetString()));
+        Assert.Equal(new[] { "LECTURER", "MENTOR" }, closed.Select(p => p.GetProperty("advisorKind").GetString()).Order());
+        Assert.Contains(closed, p => p.GetProperty("advisorId").GetGuid() == mentorId);
+        Assert.All(await _api.EventsAsync(lonely.Id), e => Assert.Contains(e.Topic, new[] { "exe.team", "exe.assignment" }));
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

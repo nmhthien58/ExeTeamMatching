@@ -39,4 +39,10 @@ public interface ITopicInterestService
         string advisorKind,
         Guid matchedAdvisorId,
         CancellationToken ct);
+
+    /// <summary>
+    /// Nhóm bị giải tán: đóng mọi quan tâm OPEN (giảng viên và mentor) với reason <c>TEAM_DISBANDED</c> và thêm
+    /// <c>TopicInterestClosed</c> vào Outbox. Không gọi SaveChanges – người gọi lưu cùng lần đổi trạng thái nhóm.
+    /// </summary>
+    Task CloseInterestsOnTeamDisbandedAsync(Guid teamId, CancellationToken ct);
 }
