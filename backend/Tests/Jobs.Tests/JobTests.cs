@@ -161,7 +161,7 @@ public sealed class JobTests
         collab.Upcoming[60] = [meeting, meeting with { Id = Guid.NewGuid(), StartsAt = null }];
         var publisher = new FakePublisher();
 
-        await new MeetingReminderJob(collab, publisher, NullLogger<MeetingReminderJob>.Instance).RunAsync(Ct);
+        await new MeetingReminderJob(collab, publisher, new FixedClock(Now), NullLogger<MeetingReminderJob>.Instance).RunAsync(Ct);
 
         var reminder = Assert.Single(publisher.Of<MeetingReminder>());
         Assert.Equal(60, reminder.OffsetMinutes);
@@ -169,6 +169,23 @@ public sealed class JobTests
         Assert.Equal([(meeting.Id, 60)], collab.Marked);
         Assert.Equal(Topics.Reminder, publisher.Published[0].Topic);
         Assert.Equal(meeting.WorkspaceId, publisher.Published[0].Key);
+    }
+
+    [Fact]
+    public async Task Meeting_confirmed_inside_the_one_hour_window_gets_only_the_one_hour_reminder()
+    {
+        // Collaboration trả họp 45 phút nữa cho cả mốc 24 giờ lẫn 1 giờ (chưa gửi mốc nào).
+        var collab = new FakeCollab();
+        var soon = new UpcomingMeetingDto(Guid.NewGuid(), Guid.NewGuid(), "Chốt MVP", Now.AddMinutes(45), null, [new PersonDto("STUDENT", Guid.NewGuid())]);
+        var tomorrow = soon with { Id = Guid.NewGuid(), StartsAt = Now.AddHours(20) };
+        collab.Upcoming[1440] = [soon, tomorrow];
+        collab.Upcoming[60] = [soon];
+        var publisher = new FakePublisher();
+
+        await new MeetingReminderJob(collab, publisher, new FixedClock(Now), NullLogger<MeetingReminderJob>.Instance).RunAsync(Ct);
+
+        Assert.Equal([(tomorrow.Id, 1440), (soon.Id, 60)], publisher.Of<MeetingReminder>().Select(r => (r.MeetingId, r.OffsetMinutes)));
+        Assert.Equal([(soon.Id, 1440), (tomorrow.Id, 1440), (soon.Id, 60)], collab.Marked);
     }
 
     [Fact]

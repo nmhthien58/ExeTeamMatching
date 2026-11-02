@@ -30,8 +30,8 @@ public sealed record ImportBatchResponse(
     Guid Id, Guid SemesterId, string FileName, int TotalRows, int SuccessRows, int FailedRows, string Status,
     string? ImportedByName, DateTimeOffset CreatedAt)
 {
-    public static ImportBatchResponse From(ImportBatch b, string? importedByName) =>
-        new(b.Id, b.SemesterId, b.FileName, b.TotalRows, b.SuccessRows, b.FailedRows, b.Status, importedByName, b.CreatedAt);
+    public static ImportBatchResponse From(ImportBatch b) =>
+        new(b.Id, b.SemesterId, b.FileName, b.TotalRows, b.SuccessRows, b.FailedRows, b.Status, b.ImportedByName, b.CreatedAt);
 }
 
 /// <summary>Form <c>multipart/form-data</c> của <c>POST /api/imports/students/preview</c>, đã tách khỏi <c>IFormFile</c>.</summary>

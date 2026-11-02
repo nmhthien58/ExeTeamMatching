@@ -6,9 +6,12 @@ import '../../core/phase.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
+import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import '../workspace/workspace_widgets.dart';
+import '../lecturers/paths.dart';
 import 'my_team_api.dart';
 import 'project_card.dart';
+import 'team_advisors.dart';
 
 /// Nhãn và màu chip trạng thái nhóm (quy tắc 15) – luôn có chữ, không chỉ màu.
 (String, StatusTone, IconData) teamStatusChip(String status) => switch (status) {
@@ -31,6 +34,9 @@ class MyTeamScreen extends ConsumerWidget {
       onRefresh: () async {
         refreshMyTeam(ref);
         ref.invalidate(teamProjectProvider);
+        ref.invalidate(teamLecturerProvider);
+        ref.invalidate(teamMentorProvider);
+        ref.invalidate(checkpointsDoneProvider);
       },
       child: team.when(
         loading: () => const SkeletonList(),
@@ -115,6 +121,8 @@ class _TeamOverview extends StatelessWidget {
                 leading: const Icon(Icons.school_outlined),
                 title: const Text('Giảng viên'),
                 subtitle: Text(team.lecturerName ?? 'Chưa ghép'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(lecturerPreferencesPath),
               ),
               ListTile(
                 leading: const Icon(Icons.support_agent_outlined),
@@ -124,6 +132,8 @@ class _TeamOverview extends StatelessWidget {
             ],
           ),
         ),
+        AdvisorNotes(team: team),
+        CheckpointCard(team: team),
         if (team.hasPendingChanges) ...[
           const SizedBox(height: AppSpacing.s3),
           Card.outlined(
@@ -157,6 +167,7 @@ class _TeamOverview extends StatelessWidget {
                   label: 'Yêu cầu đổi nhóm',
                   path: '/sv/yeu-cau-doi-nhom',
                 ),
+              const _OpenProject(),
               const _Shortcut(icon: Icons.history, label: 'Lịch sử hoạt động', path: '/sv/nhom/lich-su'),
             ],
           ),
@@ -167,6 +178,22 @@ class _TeamOverview extends StatelessWidget {
             child: Text('Nhóm đã khóa sau hạn chót, không sửa được.', style: theme.textTheme.bodyMedium),
           ),
       ],
+    );
+  }
+}
+
+/// Lối tắt sang tab Dự án (C01); ẩn khi nhóm chưa có dự án.
+class _OpenProject extends ConsumerWidget {
+  const _OpenProject();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(myWorkspacesProvider).value?.isNotEmpty != true) return const SizedBox.shrink();
+    return ListTile(
+      leading: const Icon(Icons.rocket_launch_outlined),
+      title: const Text('Mở dự án'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.go('/sv/du-an'),
     );
   }
 }
