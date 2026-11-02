@@ -13,12 +13,7 @@ public sealed record PlannedFill(Guid TeamId, IReadOnlyList<Guid> StudentIds);
 public sealed record PlannedTeam(string Name, Guid LeaderStudentId, IReadOnlyList<Guid> StudentIds);
 
 /// <summary>Phương án PlanAutoAssignment (rule 14) – Matching chỉ tính, Team áp dụng.</summary>
-public sealed record AutoAssignPlan(IReadOnlyList<PlannedFill> Fills, IReadOnlyList<PlannedTeam> NewTeams, IReadOnlyList<Guid> UnassignedStudentIds)
-{
-    /// <summary>Mọi sinh viên chưa có nhóm mà Matching biết: người được bù, người vào nhóm mới và người còn lại.</summary>
-    public IEnumerable<Guid> AllStudentIds =>
-        Fills.SelectMany(f => f.StudentIds).Concat(NewTeams.SelectMany(t => t.StudentIds)).Concat(UnassignedStudentIds).Distinct();
-}
+public sealed record AutoAssignPlan(IReadOnlyList<PlannedFill> Fills, IReadOnlyList<PlannedTeam> NewTeams, IReadOnlyList<Guid> UnassignedStudentIds);
 
 /// <summary>Gợi ý thành viên (S18): <see cref="Skills"/> là kỹ năng đã tự đánh giá, mạnh trước, ví dụ "Thiết kế UI/UX 4/5".</summary>
 public sealed record SuggestedMember(Guid StudentId, int SpecializationId, double Score, IReadOnlyList<string> Reasons, IReadOnlyList<string> Skills);

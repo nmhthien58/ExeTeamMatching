@@ -77,7 +77,6 @@ public sealed class StatisticsApiTests : IAsyncLifetime
             return;
         }
 
-        Academic.RosterAvailable = true; // Matching giả trả phương án rỗng: chỉ danh sách học kỳ của Academic có sinh viên.
         await TestData.CreateTeamAsync(_api, "Nhóm Đã Có", extraMembers: 1);
         var exe101 = new[] { Academic.Enroll(2), Academic.Enroll(3) };
         var exe201 = Academic.Enroll(4, course: "EXE201");

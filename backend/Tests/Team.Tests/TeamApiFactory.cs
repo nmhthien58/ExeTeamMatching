@@ -101,9 +101,6 @@ public sealed class FakeAcademic : IAcademicClient
     /// <summary>Môn đang có đợt đổi nhóm mở (CHANGE_REQUEST – chỉ EXE201).</summary>
     public HashSet<string> OpenChangeRequestCourses { get; } = [];
 
-    /// <summary>false = Academic chưa có <c>GET /internal/students</c> (404), Team dùng read model của Matching.</summary>
-    public bool RosterAvailable { get; set; }
-
     public Guid? ChangeRequestRoundId { get; set; }
 
     public StudentSnapshot Enroll(int specializationId = 1, string course = "EXE101", bool enrolled = true)
@@ -140,10 +137,8 @@ public sealed class FakeAcademic : IAcademicClient
             : null);
     }
 
-    public Task<IReadOnlyList<StudentSnapshot>?> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<StudentSnapshot>?>(RosterAvailable && semesterId == Semester.Id
-            ? _students.Values.Where(s => s.CourseCode == courseCode).ToList()
-            : null);
+    public Task<IReadOnlyList<StudentSnapshot>> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<StudentSnapshot>>(semesterId == Semester.Id ? _students.Values.Where(s => s.CourseCode == courseCode).ToList() : []);
 
     public Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<StudentSnapshot>>(studentIds.Where(_students.ContainsKey).Select(id => _students[id]).ToList());
