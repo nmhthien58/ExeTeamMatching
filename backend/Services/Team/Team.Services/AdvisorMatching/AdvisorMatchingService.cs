@@ -34,12 +34,21 @@ public interface IAdvisorMatchingService
 
     /// <summary>Admin đổi giảng viên hướng dẫn (reason MANUAL, ghi chú bắt buộc); 409 <c>lecturer-full</c> khi giảng viên đã đủ số nhóm tối đa.</summary>
     Task<LecturerAssignmentResponse> ChangeInstructorAsync(Guid teamId, ChangeInstructorInput input, ClaimsPrincipal user, CancellationToken ct);
+
+    /// <summary>
+    /// Admin đổi mentor (rule 20, reason MANUAL, ghi chú bắt buộc): vượt số mong muốn → cảnh báo <c>ABOVE_PREFERRED</c>;
+    /// đã đủ số tối đa → 409 <c>mentor-full</c>. Mentor cũ kết thúc (ENDED), <c>MentorAssigned</c> có <c>replacedMentorId</c>.
+    /// </summary>
+    Task<ChangeMentorResponse> ChangeMentorAsync(Guid teamId, ChangeMentorInput input, ClaimsPrincipal user, CancellationToken ct);
+
+    /// <summary>Admin gỡ mentor khỏi nhóm: dòng đang gán ENDED, <c>MentorUnassigned</c>. Nhóm chưa có mentor thì không làm gì.</summary>
+    Task RemoveMentorAsync(Guid teamId, RemoveMentorInput? input, ClaimsPrincipal user, CancellationToken ct);
 }
 
 /// <summary>
 /// Module AdvisorMatching (BE-80, rule 9, 19, 20, 21): đọc nguyện vọng, quan tâm, tải từ team_db, lấy phương án từ Matching
 /// (<c>PlanAdvisorMatching</c>) rồi áp dụng trong một transaction – assignment, khóa nguyện vọng (nhóm có giảng viên thì
-/// <c>preferences-locked</c>), đóng quan tâm cùng loại, <c>LecturerAssigned</c> và <c>AdvisorMatchingCompleted</c> qua Outbox.
+/// <c>preferences-locked</c>), đóng quan tâm cùng loại, <c>LecturerAssigned</c> / <c>MentorAssigned</c> và <c>AdvisorMatchingCompleted</c> qua Outbox.
 /// Luồng dùng chung cho hai loại cố vấn; phần riêng nằm ở <see cref="IAdvisorSource"/>.
 /// </summary>
 public sealed class AdvisorMatchingService(
@@ -51,6 +60,7 @@ public sealed class AdvisorMatchingService(
     ITeamRepository teams,
     TeamReader reader,
     LecturerAssignmentWriter lecturerWriter,
+    MentorAssignmentWriter mentorWriter,
     TimeProvider clock) : IAdvisorMatchingService
 {
     public async Task<AdvisorMatchingRunResponse> RunScheduledAsync(string kind, InternalAdvisorMatchingInput input, CancellationToken ct)
@@ -58,7 +68,7 @@ public sealed class AdvisorMatchingService(
         var source = Source(kind);
         return await repo.InTransactionAsync(async () =>
         {
-            await repo.LockAsync(source.Kind, input.SemesterId, input.CourseCode, ct);
+            await repo.LockAsync(source.Kind, input.SemesterId, source.LockScope(input.CourseCode), ct);
             var applied = await repo.GetLatestRunAsync(source.Kind, input.SemesterId, input.CourseCode, MatchingTriggers.Scheduled,
                 MatchingRunStatuses.Applied, ct);
             if (applied is not null)
@@ -95,7 +105,7 @@ public sealed class AdvisorMatchingService(
         EnsurePreview(run);
         return await repo.InTransactionAsync(async () =>
         {
-            await repo.LockAsync(source.Kind, run.SemesterId, run.CourseCode, ct);
+            await repo.LockAsync(source.Kind, run.SemesterId, source.LockScope(run.CourseCode), ct);
             await repo.ReloadAsync(run, ct);
             EnsurePreview(run);
 
@@ -131,7 +141,7 @@ public sealed class AdvisorMatchingService(
 
         var all = await repo.ListTeamsAsync(semester.Id, courseCode, ct);
         var allIds = all.Select(t => t.Id).ToList();
-        var assignments = await repo.ListActiveLecturerAssignmentsAsync(allIds, ct);
+        var assignments = await source.ListCurrentAsync(allIds, ct);
         var preferences = source.Kind == AdvisorKinds.Lecturer ? await repo.ListLecturerPreferencesAsync(allIds, ct) : null;
 
         var filtered = all.Where(t => query.WithoutAdvisor != true || !assignments.ContainsKey(t.Id));
@@ -159,23 +169,23 @@ public sealed class AdvisorMatchingService(
             var previousId = previous.TryGetValue(t.Id, out var p) ? p.LecturerId : (Guid?)null;
             return new AdvisorMatchingRowResponse(
                 TeamMapper.ToCard(graphs[t.Id], catalogs),
-                assignment?.LecturerId,
-                assignment?.LecturerName,
+                assignment?.AdvisorId,
+                assignment?.AdvisorName,
                 assignment?.Reason,
                 assignment?.PreferenceRank,
                 preferences is null ? [] : preferences[t.Id].Select(x => Lecturer(x.LecturerId, x.LecturerName)).ToList(),
                 interests[t.Id].Select(i => ToInterest(i, previousId)).ToList());
         }).ToList();
 
-        var round = await academic.GetOpenRoundAsync(courseCode, RoundTypes.TeamFormation, ct);
         var lastRun = await repo.GetLatestRunAsync(source.Kind, semester.Id, courseCode, null, null, ct);
         return new AdvisorMatchingOverviewResponse(
-            round is not null && round.SemesterId == semester.Id ? round.DeadlineAt : null,
+            await MatchingAtAsync(source, semester, courseCode, ct),
             lastRun is null ? null : ToResponse(lastRun),
             preferences is null ? 0 : all.Count(t => preferences[t.Id].Any()),
             all.Count(t => !assignments.ContainsKey(t.Id)),
             items,
-            advisors.Select(a => new AdvisorLoadResponse(a.Id, a.FullName, loads.GetValueOrDefault(a.Id), null, a.MaxTeams)).ToList(),
+            advisors.Select(a => new AdvisorLoadResponse(a.Id, a.FullName, loads.GetValueOrDefault(a.Id),
+                source.Kind == AdvisorKinds.Mentor && a.PreferredTeams > 0 ? a.PreferredTeams : null, a.MaxTeams)).ToList(),
             query.Page,
             query.PageSize,
             matched.Count,
@@ -185,11 +195,7 @@ public sealed class AdvisorMatchingService(
     public async Task<LecturerAssignmentResponse> ChangeInstructorAsync(Guid teamId, ChangeInstructorInput input, ClaimsPrincipal user,
         CancellationToken ct)
     {
-        var team = await teams.GetAsync(teamId, ct);
-        if (team is null || team.Status == TeamStatuses.Disbanded)
-        {
-            throw TeamErrors.TeamNotFound(teamId);
-        }
+        var team = await ActiveTeamAsync(teamId, ct);
         var lecturer = await academic.GetLecturerAsync(input.LecturerId, ct) ?? throw AdvisorMatchingErrors.LecturerNotFound(input.LecturerId);
         if (!lecturer.IsActive)
         {
@@ -227,12 +233,92 @@ public sealed class AdvisorMatchingService(
         }, ct);
     }
 
+    public async Task<ChangeMentorResponse> ChangeMentorAsync(Guid teamId, ChangeMentorInput input, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var team = await ActiveTeamAsync(teamId, ct);
+        var snapshot = await academic.GetMentorAsync(input.MentorId, ct) ?? throw AdvisorMatchingErrors.MentorNotFound(input.MentorId);
+        if (!snapshot.IsActive)
+        {
+            throw TeamErrors.Invalid("mentorId", "Mentor không còn hoạt động.");
+        }
+        var mentor = MentorAdvisorSource.ToCandidate(snapshot);
+        var note = input.Note.Trim();
+        var actor = user.ToAuditActor(Roles.Admin);
+
+        return await repo.InTransactionAsync(async () =>
+        {
+            await repo.LockAsync(AdvisorKinds.Mentor, team.SemesterId, MentorAdvisorSource.AllCourses, ct);
+            var current = await repo.GetActiveMentorAssignmentAsync(team.Id, ct);
+            if (current?.MentorId == mentor.Id)
+            {
+                return new ChangeMentorResponse(ToResponse(current, snapshot), []);
+            }
+            var load = (await repo.CountMentorLoadsAsync(team.SemesterId, ct)).GetValueOrDefault(mentor.Id);
+            if (load >= mentor.MaxTeams)
+            {
+                throw AdvisorMatchingErrors.MentorFull(mentor.FullName, mentor.MaxTeams!.Value);
+            }
+            List<MatchingWarning> warnings = mentor.PreferredTeams > 0 && load + 1 > mentor.PreferredTeams
+                ? [new(MatchingWarnings.AbovePreferred,
+                    $"{mentor.FullName} sẽ mentor {load + 1} nhóm, vượt số mong muốn ({mentor.PreferredTeams}); tối đa {mentor.MaxTeams}.")]
+                : [];
+            if (current is not null)
+            {
+                // Kết thúc trước khi thêm người mới (uq_mentor_assignments_active). Mentor cũ mất quyền khi Collaboration nhận MentorAssigned.
+                mentorWriter.End(current, note, unassigned: false, actor);
+                await repo.SaveChangesAsync(ct);
+            }
+
+            var members = (await repo.ListMemberStudentIdsAsync([team.Id], ct))[team.Id].ToList();
+            var assignment = mentorWriter.Stage(team, mentor, MentorAssignmentWriter.ReasonManual, MentorAssignmentWriter.SourceManual, null,
+                user.GetUserId(), note, current, members, actor);
+            await topicInterests.CloseInterestsOnAssignmentAsync(team.Id, AdvisorKinds.Mentor, mentor.Id, ct);
+            await repo.SaveChangesAsync(ct);
+            return new ChangeMentorResponse(ToResponse(assignment, snapshot), warnings);
+        }, ct);
+    }
+
+    public async Task RemoveMentorAsync(Guid teamId, RemoveMentorInput? input, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var team = await ActiveTeamAsync(teamId, ct);
+        var reason = string.IsNullOrWhiteSpace(input?.Reason) ? "Bộ môn gỡ mentor" : input.Reason.Trim();
+        var actor = user.ToAuditActor(Roles.Admin);
+        await repo.InTransactionAsync(async () =>
+        {
+            await repo.LockAsync(AdvisorKinds.Mentor, team.SemesterId, MentorAdvisorSource.AllCourses, ct);
+            if (await repo.GetActiveMentorAssignmentAsync(team.Id, ct) is { } current)
+            {
+                mentorWriter.End(current, reason, unassigned: true, actor);
+                await repo.SaveChangesAsync(ct);
+            }
+            return true;
+        }, ct);
+    }
+
+    private async Task<TeamEntity> ActiveTeamAsync(Guid teamId, CancellationToken ct)
+    {
+        var team = await teams.GetAsync(teamId, ct);
+        return team is null || team.Status == TeamStatuses.Disbanded ? throw TeamErrors.TeamNotFound(teamId) : team;
+    }
+
+    /// <summary>
+    /// Lúc ghép theo lịch: giảng viên – hạn đợt lập nhóm đang mở của môn; mentor – đầu tuần bắt đầu mentor của học kỳ
+    /// (<see cref="MentoringSchedule"/>).
+    /// </summary>
+    private async Task<DateTimeOffset?> MatchingAtAsync(IAdvisorSource source, SemesterDto semester, string courseCode, CancellationToken ct)
+    {
+        if (source.Kind == AdvisorKinds.Mentor)
+        {
+            return MentoringSchedule.StartsAt(semester);
+        }
+        var round = await academic.GetOpenRoundAsync(courseCode, RoundTypes.TeamFormation, ct);
+        return round is not null && round.SemesterId == semester.Id ? round.DeadlineAt : null;
+    }
+
     private IAdvisorSource Source(string kind)
     {
         var parsed = AdvisorMatchingKinds.Parse(kind);
-        var source = sources.FirstOrDefault(s => s.Kind == parsed) ?? throw AdvisorMatchingErrors.MentorSourceUnavailable();
-        source.EnsureAvailable();
-        return source;
+        return sources.First(s => s.Kind == parsed);
     }
 
     private sealed record Proposal(
@@ -337,6 +423,9 @@ public sealed class AdvisorMatchingService(
     private static AdvisorMatchingRunResponse ToResponse(AdvisorMatchingRun run) => new(
         run.Id, run.AdvisorKind, run.CourseCode, run.Trigger, run.Status, run.MatchedCount, run.UnmatchedCount, run.CreatedAt, run.AppliedAt,
         ReadPlan(run));
+
+    private static MentorAssignmentResponse ToResponse(Team.Repositories.MentorAssignments.MentorAssignment a, MentorSnapshot mentor) =>
+        new(a.Id, a.TeamId, a.MentorId, a.MentorName, mentor.Organization, mentor.IsInternal, a.Status, a.Reason, a.Source, a.AssignedAt, a.EndedAt);
 
     private static LecturerAssignmentResponse ToResponse(Team.Repositories.LecturerAssignments.LecturerAssignment a) =>
         new(a.Id, a.TeamId, a.LecturerId, a.LecturerName, a.Status, a.Reason, a.PreferenceRank, a.Source, a.AssignedAt, a.Note);

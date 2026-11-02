@@ -32,8 +32,13 @@ public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive
 /// <summary>Snapshot giảng viên từ Academic (academic.yaml).</summary>
 public sealed record LecturerSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int? MaxTeamsExe101, int? MaxTeamsExe201, bool IsActive);
 
-/// <summary>Snapshot mentor từ Academic (BE-66 của Nam); null nếu chưa có hoặc 404.</summary>
-public sealed record MentorSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int MaxTeams, int? PreferredTeams, bool IsActive);
+/// <summary>
+/// Snapshot mentor từ Academic (schema <c>Mentor</c>, BE-66 của Nam). <c>currentTeamCount</c> của Academic không đọc: số nhóm đang mentor
+/// tính từ <c>mentor_assignments</c> của Team. <see cref="LecturerId"/> khác null = giảng viên kiêm mentor (rule 20).
+/// </summary>
+public sealed record MentorSnapshot(
+    Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int MaxTeams, int? PreferredTeams, bool IsActive,
+    string? Organization = null, bool IsInternal = false, Guid? LecturerId = null);
 
 public interface IAcademicClient
 {
@@ -69,6 +74,13 @@ public interface IAcademicClient
     /// <summary>Snapshot mentor từ Academic (BE-66 của Nam); null nếu chưa có hoặc 404.</summary>
     Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct) => Task.FromResult<MentorSnapshot?>(null);
 
+    /// <summary>
+    /// Mọi mentor của Academic (<c>GET /api/mentors</c> với token dịch vụ), duyệt hết các trang. API này trả cả mentor đang khóa:
+    /// người gọi tự lọc <see cref="MentorSnapshot.IsActive"/>. Dùng cho ghép mentor (BE-80).
+    /// </summary>
+    Task<IReadOnlyList<MentorSnapshot>> ListMentorsAsync(CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<MentorSnapshot>>([]);
+
     /// <summary>Đổi danh sách MSSV sang snapshot (import mốc EXE101).</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct);
 
@@ -83,7 +95,7 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
 {
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromMinutes(10);
 
-    /// <summary>pageSize tối đa của Academic (<c>LecturerQueryValidator</c>: 1–100).</summary>
+    /// <summary>pageSize tối đa của Academic (<c>LecturerQueryValidator</c>, <c>MentorQueryValidator</c>: 1–100).</summary>
     internal const int LecturerPageSize = 100;
 
     /// <summary>Chặn vòng lặp khi Academic trả totalPages sai.</summary>
@@ -140,6 +152,24 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
     }
 
     private sealed record LecturerPage(IReadOnlyList<LecturerSnapshot> Items, int Page, int PageSize, int TotalCount, int TotalPages);
+
+    public async Task<IReadOnlyList<MentorSnapshot>> ListMentorsAsync(CancellationToken ct)
+    {
+        var mentors = new List<MentorSnapshot>();
+        for (var page = 1; page <= MaxLecturerPages; page++)
+        {
+            var result = await http.GetFromJsonAsync<MentorPage>($"/api/mentors?page={page}&pageSize={LecturerPageSize}", ct)
+                ?? throw new HttpRequestException("Academic trả danh sách mentor rỗng.");
+            mentors.AddRange(result.Items);
+            if (result.Items.Count == 0 || page >= result.TotalPages)
+            {
+                break;
+            }
+        }
+        return mentors.DistinctBy(m => m.Id).ToList();
+    }
+
+    private sealed record MentorPage(IReadOnlyList<MentorSnapshot> Items, int Page, int PageSize, int TotalCount, int TotalPages);
 
     public async Task<MentorSnapshot?> GetMentorAsync(Guid mentorId, CancellationToken ct)
     {

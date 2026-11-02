@@ -1,12 +1,13 @@
 using BuildingBlocks.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Team.Services.AdvisorAssignments;
 using Team.Services.AdvisorMatching;
 
 namespace Team.Api.Controllers.AdvisorMatching;
 
-/// <summary>Ghép cố vấn – Admin: W19 (giảng viên), W28 (mentor), Ghép sớm, đổi giảng viên (BE-80) – team.yaml tag AdvisorMatching.</summary>
+/// <summary>Ghép cố vấn – Admin: W19 (giảng viên), W28 (mentor), Ghép sớm, đổi giảng viên / mentor (BE-80) – team.yaml tag AdvisorMatching.</summary>
 [ApiController]
 [Authorize(Policy = Policies.Admin)]
 public sealed class AdvisorMatchingController(IAdvisorMatchingService matching) : ControllerBase
@@ -37,6 +38,20 @@ public sealed class AdvisorMatchingController(IAdvisorMatchingService matching) 
     [HttpPut("api/teams/{teamId:guid}/instructor")]
     public Task<LecturerAssignmentResponse> ChangeInstructor(Guid teamId, ChangeInstructorInput input, CancellationToken ct) =>
         matching.ChangeInstructorAsync(teamId, input, User, ct);
+
+    /// <summary>Đổi mentor (W28, reason MANUAL, ghi chú bắt buộc). Vượt số mong muốn → warnings ABOVE_PREFERRED; vượt tối đa → 409 mentor-full.</summary>
+    [HttpPut("api/teams/{teamId:guid}/mentor-assignment")]
+    public Task<ChangeMentorResponse> ChangeMentor(Guid teamId, ChangeMentorInput input, CancellationToken ct) =>
+        matching.ChangeMentorAsync(teamId, input, User, ct);
+
+    /// <summary>Gỡ mentor khỏi nhóm (body tùy chọn): mentor mất quyền vào workspace (MentorUnassigned), lịch sử giữ lại.</summary>
+    [HttpDelete("api/teams/{teamId:guid}/mentor-assignment")]
+    public async Task<IActionResult> RemoveMentor(Guid teamId, [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RemoveMentorInput? input,
+        CancellationToken ct)
+    {
+        await matching.RemoveMentorAsync(teamId, input, User, ct);
+        return NoContent();
+    }
 }
 
 /// <summary>Endpoint nội bộ cho Job Service (token dịch vụ, không qua Gateway).</summary>

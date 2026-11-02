@@ -1,5 +1,7 @@
 using BuildingBlocks.Errors;
 using FluentValidation;
+using Team.Services.Academic;
+using Team.Services.AdvisorAssignments;
 using Team.Services.LecturerPreferences;
 using Team.Services.Teams;
 using Team.Services.TopicInterests;
@@ -24,6 +26,8 @@ public static class MatchingRunStatuses
 public static class AdvisorMatchingEventTypes
 {
     public const string LecturerAssigned = "LecturerAssigned";
+    public const string MentorAssigned = "MentorAssigned";
+    public const string MentorUnassigned = "MentorUnassigned";
     public const string AdvisorMatchingCompleted = "AdvisorMatchingCompleted";
 }
 
@@ -43,12 +47,7 @@ public static class AdvisorMatchingKinds
 
 public static class AdvisorMatchingErrors
 {
-    // Mã lỗi: docs/contracts/README.md (run-not-preview, mentor-matching-unavailable, academic-unavailable).
-
-    /// <summary>Academic chưa có API danh sách mentor kèm số tối đa / số mong muốn (BE-66) nên chưa ghép mentor được.</summary>
-    public static HttpStatusException MentorSourceUnavailable() =>
-        new(501, "mentor-matching-unavailable", "Chưa ghép mentor được",
-            "Academic Service chưa có API danh sách mentor (số nhóm tối đa, số mong muốn). Ghép mentor sẽ mở khi BE-66 xong.");
+    // Mã lỗi: docs/contracts/README.md (run-not-preview, lecturer-full, mentor-full, academic-unavailable).
 
     public static ConflictException RunNotPreview(string status) =>
         new("run-not-preview", "Kết quả xem trước không còn dùng được", $"Lần ghép đang ở trạng thái {status}; chỉ áp dụng hoặc bỏ được lần ghép PREVIEW.");
@@ -62,6 +61,13 @@ public static class AdvisorMatchingErrors
     public static ConflictException LecturerFull(string lecturerName, int maxTeams) =>
         new("lecturer-full", "Giảng viên đã đủ số nhóm", $"{lecturerName} đã hướng dẫn {maxTeams} nhóm (tối đa {maxTeams}).");
 
+    public static NotFoundException MentorNotFound(Guid id) => new("mentor", id);
+
+    public static ConflictException MentorFull(string mentorName, int maxTeams) =>
+        new("mentor-full", "Mentor đã đủ số nhóm", $"{mentorName} đã mentor {maxTeams} nhóm trong học kỳ (tối đa {maxTeams}).");
+
+    public static NotFoundException TeamHasNoMentor(Guid teamId) => new("mentor của nhóm", teamId);
+
     public static HttpStatusException AcademicUnavailable() =>
         new(503, "academic-unavailable", "Chưa lấy được danh sách cố vấn", "Academic Service không phản hồi. Thử lại sau ít phút.");
 }
@@ -74,6 +80,23 @@ public sealed record AdvisorMatchingPreviewInput(string CourseCode);
 
 /// <summary>Body của <c>PUT /api/teams/{teamId}/instructor</c>.</summary>
 public sealed record ChangeInstructorInput(Guid LecturerId, string Note);
+
+/// <summary>Body của <c>PUT /api/teams/{teamId}/mentor-assignment</c>.</summary>
+public sealed record ChangeMentorInput(Guid MentorId, string Note);
+
+/// <summary>Body (tùy chọn) của <c>DELETE /api/teams/{teamId}/mentor-assignment</c>.</summary>
+public sealed record RemoveMentorInput(string? Reason);
+
+/// <summary>Cảnh báo khi đổi mentor tay. <c>ABOVE_PREFERRED</c>: mentor vượt số nhóm mong muốn (vẫn dưới tối đa).</summary>
+public sealed record MatchingWarning(string Code, string Message);
+
+/// <summary>Kết quả <c>PUT /api/teams/{teamId}/mentor-assignment</c> (team.yaml).</summary>
+public sealed record ChangeMentorResponse(MentorAssignmentResponse Assignment, IReadOnlyList<MatchingWarning> Warnings);
+
+public static class MatchingWarnings
+{
+    public const string AbovePreferred = "ABOVE_PREFERRED";
+}
 
 public sealed record AdvisorMatchingOverviewQuery(string? CourseCode, bool? WithoutAdvisor, string? Search, int Page = 1, int PageSize = 20);
 
@@ -102,6 +125,22 @@ public sealed class ChangeInstructorInputValidator : AbstractValidator<ChangeIns
     }
 }
 
+public sealed class ChangeMentorInputValidator : AbstractValidator<ChangeMentorInput>
+{
+    public ChangeMentorInputValidator()
+    {
+        RuleFor(x => x.MentorId).NotEmpty();
+        RuleFor(x => x.Note).Must(n => !string.IsNullOrWhiteSpace(n)).WithMessage("Cần ghi chú lý do đổi mentor.")
+            .MaximumLength(500).WithMessage("Ghi chú tối đa 500 ký tự.");
+    }
+}
+
+public sealed class RemoveMentorInputValidator : AbstractValidator<RemoveMentorInput>
+{
+    public RemoveMentorInputValidator() =>
+        RuleFor(x => x.Reason).MaximumLength(500).WithMessage("Lý do tối đa 500 ký tự.");
+}
+
 public sealed class AdvisorMatchingOverviewQueryValidator : AbstractValidator<AdvisorMatchingOverviewQuery>
 {
     public AdvisorMatchingOverviewQueryValidator()
@@ -110,6 +149,22 @@ public sealed class AdvisorMatchingOverviewQueryValidator : AbstractValidator<Ad
         RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100).WithMessage("pageSize từ 1 đến 100.");
     }
+}
+
+/// <summary>
+/// Tuần bắt đầu mentor của học kỳ (rule 20, mặc định tuần 6): tuần 1 bắt đầu ngày <c>startDate</c>, tuần N bắt đầu
+/// <c>startDate + 7·(N − 1)</c> ngày, lúc 00:00 giờ Việt Nam (UTC+7). Job ghép mentor (BE-81) dùng cùng công thức.
+/// </summary>
+public static class MentoringSchedule
+{
+    public const int DefaultStartWeek = 6;
+
+    private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+
+    public static DateTimeOffset? StartsAt(SemesterDto semester) =>
+        semester.StartDate is { } start
+            ? new DateTimeOffset(start.AddDays(7 * ((semester.MentoringStartWeek ?? DefaultStartWeek) - 1)), TimeOnly.MinValue, VietnamOffset)
+            : null;
 }
 
 public static class CourseCodes

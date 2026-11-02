@@ -50,8 +50,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `instructor-only` (403) | Chỉ giảng viên hướng dẫn tạo / duyệt bài nộp (rule 23) |
 | `file-too-large` (413), `file-type-not-allowed` (415) | File quá 25 MB / sai định dạng (rule 24) |
 | `matching-unavailable` (503) | Team gọi Matching (gRPC) lỗi hoặc quá 5 giây: chốt nhóm, ghép tự động, gợi ý |
-| `academic-unavailable` (503) | Team gọi Academic lỗi khi lấy danh sách cố vấn để ghép cố vấn tự động |
-| `mentor-matching-unavailable` (501) | Ghép mentor tự động (`/api/advisor-matching/MENTOR/…`, `/internal/advisor-matching/MENTOR`) khi Academic chưa có API danh sách mentor kèm số nhóm tối đa / mong muốn (chờ BE-66) |
+| `academic-unavailable` (503) | Team gọi Academic lỗi khi lấy danh sách cố vấn (giảng viên, mentor) để ghép cố vấn tự động |
 
 ## Dùng dữ liệu giả khi API chưa xong
 

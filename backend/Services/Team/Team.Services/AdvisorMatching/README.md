@@ -2,7 +2,7 @@
 
 Ghép cố vấn cho nhóm (rule 9, 19, 20): Job gọi `POST /internal/advisor-matching/{kind}`, Admin Ghép sớm
 (`preview` → `runs/{id}/confirm` hoặc `DELETE runs/{id}`), bảng W19/W28 (`{kind}/overview`), đổi giảng viên tay
-(`PUT /api/teams/{teamId}/instructor`).
+(`PUT /api/teams/{teamId}/instructor`), đổi / gỡ mentor tay (`PUT` / `DELETE /api/teams/{teamId}/mentor-assignment`).
 
 ## Luồng chung
 
@@ -18,13 +18,17 @@ Ghép cố vấn cho nhóm (rule 9, 19, 20): Job gọi `POST /internal/advisor-m
 Ghép sớm khi xác nhận bỏ qua nhóm đã giải tán hoặc đã có cố vấn trong lúc chờ; cố vấn đã nghỉ hoặc đã đủ số tối đa
 thì nhóm thành chưa ghép. `matchedCount` / `unmatchedCount` của lần chạy là kết quả thực tế.
 
-## Nối mentor (khi Academic có API mentor – BE-66 của Nam)
+## Mentor (rule 20)
 
-`MentorAdvisorSource` hiện trả 501 `mentor-matching-unavailable` cho mọi thao tác. Cần:
-
-- Academic: API danh sách mentor đang hoạt động kèm domain, **số nhóm tối đa** và **số mong muốn** (duyệt hết trang).
-- Thay `MentorAdvisorSource` bằng lớp gọi API trên: `CountLoadsAsync` đếm `mentor_assignments` (mentor tính chung hai môn
-  trong học kỳ – xem `TopicInterests/README.md`), `BuildTeamsAsync` không có nguyện vọng / giảng viên EXE101,
-  `StageAutoAssignment` ghi `MentorAssignment` + `MentorAssigned` theo events.md.
-- `GetOverviewAsync` đang đọc `lecturer_assignments`; khi nối mentor cần đọc `mentor_assignments` và trả `preferredTeams`.
-- `PUT /api/teams/{teamId}/mentor-assignment` chưa làm.
+- `MentorAdvisorSource`: danh sách từ Academic `GET /api/mentors` (token dịch vụ, duyệt hết trang). API này trả cả mentor
+  đang khóa nên lọc `isActive` ở đây. `maxTeams`, `preferredTeams` lấy từ Academic; `currentTeamCount` của Academic **không dùng**
+  (tạm luôn 0) – số nhóm đang mentor đếm từ `mentor_assignments`, **chung hai môn trong học kỳ** (`CountMentorLoadsAsync`).
+- Vì sức chứa chung hai môn, khóa `pg_advisory_xact_lock` của mentor dùng phạm vi `ALL` thay cho mã môn (`IAdvisorSource.LockScope`).
+- Đầu vào nhóm: domain và quan tâm OPEN của mentor; không có nguyện vọng, không có giảng viên EXE101 (sinh viên không chọn mentor).
+  Matching lấp tới số mong muốn trước rồi mới tới tối đa.
+- `MentorAssignmentWriter` ghi `mentor_assignments`, nhật ký `MENTOR_ASSIGNED` / `MENTOR_UNASSIGNED` và sự kiện theo events.md.
+  Thay mentor: dòng cũ `ENDED` (lưu trước, `uq_mentor_assignments_active`), chỉ phát `MentorAssigned` có `replacedMentorId`
+  (Collaboration đổi người trong workspace). Gỡ hẳn mới phát `MentorUnassigned`.
+- Đổi tay: mentor đã khóa → 400; đã đủ `maxTeams` → 409 `mentor-full`; vượt `preferredTeams` → 200 kèm `warnings: [ABOVE_PREFERRED]`.
+- `matchingAt` của W28 = đầu tuần bắt đầu mentor (`MentoringSchedule.StartsAt`: `startDate + 7·(tuần − 1)` ngày, 00:00 UTC+7).
+- Gỡ mentor khi Bộ môn khóa mentor (consumer `MentorRegistered`) là BE-74 của Thành; có thể dùng `MentorAssignmentWriter.End(..., unassigned: true)`.

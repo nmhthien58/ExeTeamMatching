@@ -46,6 +46,18 @@ public interface IAdvisorMatchingRepository
     /// <summary>Giảng viên đang hướng dẫn của nhóm (được theo dõi, để thu hồi).</summary>
     Task<LecturerAssignment?> GetActiveLecturerAssignmentAsync(Guid teamId, CancellationToken ct);
 
+    /// <summary>
+    /// Số nhóm đang mentor của từng mentor trong học kỳ, <b>tính chung hai môn</b> (số tối đa của mentor không chia theo môn – rule 20),
+    /// nhóm chưa giải tán. Không dùng <c>currentTeamCount</c> của Academic.
+    /// </summary>
+    Task<Dictionary<Guid, int>> CountMentorLoadsAsync(Guid semesterId, CancellationToken ct);
+
+    /// <summary>Mentor đang gán của các nhóm (không theo dõi).</summary>
+    Task<Dictionary<Guid, MentorAssignment>> ListActiveMentorAssignmentsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
+
+    /// <summary>Mentor đang gán của nhóm (được theo dõi, để kết thúc khi đổi / gỡ).</summary>
+    Task<MentorAssignment?> GetActiveMentorAssignmentAsync(Guid teamId, CancellationToken ct);
+
     Task<ILookup<Guid, Guid>> ListMemberStudentIdsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct);
 
     /// <summary>Lần chạy theo id (được theo dõi).</summary>
@@ -171,6 +183,20 @@ public sealed class AdvisorMatchingRepository(TeamDbContext db) : IAdvisorMatchi
 
     public Task<LecturerAssignment?> GetActiveLecturerAssignmentAsync(Guid teamId, CancellationToken ct) =>
         db.Set<LecturerAssignment>().FirstOrDefaultAsync(a => a.TeamId == teamId && a.Status == Assigned, ct);
+
+    public async Task<Dictionary<Guid, int>> CountMentorLoadsAsync(Guid semesterId, CancellationToken ct) =>
+        await (from assignment in db.Set<MentorAssignment>()
+               join team in db.Set<TeamEntity>() on assignment.TeamId equals team.Id
+               where assignment.Status == Assigned && team.SemesterId == semesterId && team.Status != Disbanded
+               group assignment by assignment.MentorId into g
+               select new { MentorId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.MentorId, x => x.Count, ct);
+
+    public Task<Dictionary<Guid, MentorAssignment>> ListActiveMentorAssignmentsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
+        db.Set<MentorAssignment>().AsNoTracking().Where(a => teamIds.Contains(a.TeamId) && a.Status == Assigned).ToDictionaryAsync(a => a.TeamId, ct);
+
+    public Task<MentorAssignment?> GetActiveMentorAssignmentAsync(Guid teamId, CancellationToken ct) =>
+        db.Set<MentorAssignment>().FirstOrDefaultAsync(a => a.TeamId == teamId && a.Status == Assigned, ct);
 
     public async Task<ILookup<Guid, Guid>> ListMemberStudentIdsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken ct) =>
         (await db.Set<TeamMember>().AsNoTracking().Where(m => teamIds.Contains(m.TeamId)).OrderBy(m => m.JoinedAt)
