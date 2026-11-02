@@ -383,11 +383,13 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
             ),
           ),
           const SizedBox(width: AppSpacing.s3),
-          Text(
-            'Chưa chọn nguyện vọng $priority',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontStyle: FontStyle.italic,
+          Expanded(
+            child: Text(
+              'Chưa chọn nguyện vọng $priority',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         ],
@@ -437,14 +439,16 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    // Wrap: tên dài hoặc chữ 130% thì nhãn "Đã quan tâm" xuống dòng thay vì tràn (flutter-handoff §5).
+                    Wrap(
+                      spacing: AppSpacing.s1,
+                      runSpacing: AppSpacing.s1,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Expanded(
-                          child: Text(
-                            pref.fullName,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        Text(
+                          pref.fullName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         if (pref.isInterested)
@@ -583,11 +587,13 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
             children: [
               const Icon(Icons.history_edu, size: 18, color: Palette.infoDark),
               const SizedBox(width: AppSpacing.s2),
-              Text(
-                'Đã hướng dẫn ở EXE101',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Palette.infoDark,
+              Expanded(
+                child: Text(
+                  'Đã hướng dẫn ở EXE101',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Palette.infoDark,
+                  ),
                 ),
               ),
             ],
