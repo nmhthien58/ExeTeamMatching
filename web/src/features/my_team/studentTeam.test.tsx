@@ -207,6 +207,23 @@ describe('student team screens (FE-37)', () => {
     expect(screen.getByText(/^Sinh viên · /)).toBeInTheDocument()
   })
 
+  it('S15 shows advisors with match reason, Checkpoint n/4 and a shortcut to the project', async () => {
+    routes = {
+      '/api/teams/me': team('MEMBER'),
+      '/api/teams/t1/lecturer': { lecturerName: 'Cô Hạnh', reason: 'PREFERENCE', preferenceRank: 1 },
+      '/api/teams/t1/mentor': '',
+      '/api/workspaces/me': [{ id: 'w1', teamName: 'Nhóm Bình Minh', courseCode: 'EXE101', myRole: 'MEMBER' }],
+      '/api/workspaces/w1/checkpoints': { workspaceId: 'w1', doneCount: 2, items: [] },
+    }
+    renderAt('/sv/nhom')
+
+    expect(await screen.findByText('Giảng viên: Cô Hạnh')).toBeInTheDocument()
+    expect(screen.getByText('Nguyện vọng 1')).toBeInTheDocument()
+    expect(screen.getByText('Mentor: Ghép từ tuần 6')).toBeInTheDocument()
+    expect(await screen.findByText('Checkpoint 2/4')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Mở dự án/ })).toHaveAttribute('href', '/sv/du-an')
+  })
+
   it('S15 shows the inherited project card and its timeline, newest first', async () => {
     routes = {
       '/api/teams/me': { ...team('MEMBER'), courseCode: 'EXE201', projectName: 'EduSpark AI' },

@@ -3,7 +3,7 @@ using FluentValidation;
 
 namespace Collab.Services.Messages;
 
-/// <summary>Schema <c>Message</c> (C03). <c>attachments</c> chưa hỗ trợ nên luôn rỗng.</summary>
+/// <summary>Schema <c>Message</c> (C03).</summary>
 public sealed record MessageResponse(
     Guid Id, Guid? ClientMessageId, Guid ChannelId, Guid? ParentMessageId, PersonRef Author, string Body, bool IsDeleted,
     bool IsAdvisorQuestion, string? QuestionStatus, int ReplyCount, IReadOnlyList<ProjectFileResponse> Attachments,
@@ -50,8 +50,7 @@ public sealed class SendMessageRequestValidator : AbstractValidator<SendMessageR
         RuleFor(x => x.Body)
             .Must(b => !string.IsNullOrWhiteSpace(b)).WithMessage("Nhập nội dung tin nhắn.")
             .MaximumLength(2000).WithMessage("Tin nhắn tối đa 2.000 ký tự.");
-        // shortcut: đính kèm file chưa làm (không nằm trong BE-69); bổ sung khi màn C03 cần, dùng lại mapper của module Files.
-        RuleFor(x => x.AttachmentFileIds).Must(ids => ids is null || ids.Count == 0).WithMessage("Chưa hỗ trợ đính kèm file trong tin nhắn.");
+        RuleFor(x => x.AttachmentFileIds).Must(ids => ids is null || ids.Count <= 5).WithMessage("Tối đa 5 file đính kèm.");
         RuleFor(x => x.IsAdvisorQuestion).Equal(false).When(x => x.ParentMessageId is not null)
             .WithMessage("Câu hỏi cho cố vấn phải là tin gốc, không phải trả lời trong luồng.");
     }
