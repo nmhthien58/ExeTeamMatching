@@ -14,6 +14,9 @@ info:
     **Realtime (SignalR):** hub `/hubs/collab` qua Gateway (WebSocket, dự phòng long polling); JWT qua query `access_token`.
     Client gọi `JoinChannel(channelId)` / `LeaveChannel(channelId)`; server đẩy `messageCreated`, `messageUpdated`, `messageDeleted`,
     `readUpdated`, `questionStatusChanged`, `typing`. Gửi tin luôn qua REST (`POST /api/channels/{id}/messages`), hub chỉ đẩy.
+    Lịch họp hằng tuần (C09): client gọi `JoinWorkspace(workspaceId)` (giảng viên vào mọi workspace của lịch); sau mỗi lần đặt, đổi hoặc
+    tự xếp slot, server đẩy `slotsChanged` `{ scheduleId }` tới workspace của mọi nhóm trong lịch. Payload không có tên nhóm, slot;
+    client nhận xong tải lại lịch qua REST (`GET /api/workspaces/{id}/meeting-schedule`, `GET /api/meeting-schedules/me`).
 
     **Lỗi riêng:** `not-workspace-member` (403), `workspace-read-only` (403 – Admin ghi), `not-workspace-advisor` (403 – không phải
     cố vấn của nhóm), `archive-read-only` (409 – thư mục EXE101 kỳ trước), `instructor-only` (403 – bài nộp,
