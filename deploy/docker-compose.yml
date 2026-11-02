@@ -279,6 +279,7 @@ services:
       <<: *jwt-env
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__CollabDb: Host=postgres;Port=5432;Database=collab_db;Username=collab_svc;Password=${COLLAB_DB_PASSWORD:-collab_dev_pw}
+      Academic__BaseUrl: http://academic-api:8080
       Kafka__BootstrapServers: kafka:29092
       ObjectStorage__ServiceUrl: http://object-storage:8333
       ObjectStorage__PublicUrl: http://localhost:9000   # URL tải file ký sẵn trả cho trình duyệt / app

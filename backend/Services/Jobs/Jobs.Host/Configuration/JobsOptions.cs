@@ -17,6 +17,9 @@ public sealed class JobsOptions
     /// <summary>MeetingReminderJob – mặc định mỗi 15 phút.</summary>
     public string MeetingReminderCron { get; set; } = "*/15 * * * *";
 
+    /// <summary>SlotBookingCloseJob – mặc định mỗi 15 phút.</summary>
+    public string SlotBookingCloseCron { get; set; } = "*/15 * * * *";
+
     /// <summary>Quy tắc 1, 2 truyền cho PlanAutoAssignment (0 = mặc định của Matching).</summary>
     public int MinTeamSize { get; set; } = 4;
     public int MaxTeamSize { get; set; } = 6;

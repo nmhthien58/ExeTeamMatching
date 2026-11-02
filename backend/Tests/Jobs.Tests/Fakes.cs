@@ -129,6 +129,15 @@ public sealed class FakeCollab : ICollabClient
 
     public Task<IReadOnlyList<DueTaskDto>> GetDueTasksAsync(int withinHours, bool includeOverdue, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<DueTaskDto>>(Due);
+
+    public int CloseSlotBookingCalls { get; private set; }
+    public CloseSlotBookingResult CloseSlotBookingResult { get; set; } = new(0, 0, 0);
+
+    public Task<CloseSlotBookingResult> CloseSlotBookingAsync(CancellationToken ct)
+    {
+        CloseSlotBookingCalls++;
+        return Task.FromResult(CloseSlotBookingResult);
+    }
 }
 
 /// <summary>Matching gRPC giả – trả phương án cho trước.</summary>

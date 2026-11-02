@@ -9,6 +9,7 @@ using Collab.Repositories.Context;
 using Collab.Repositories.Workspaces;
 using Collab.Services.Checkpoints;
 using Collab.Services.Meetings;
+using Collab.Services.Realtime;
 using Collab.Services.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -28,6 +29,9 @@ namespace Collab.Tests;
 /// </summary>
 public sealed class CollabApiFactory : WebApplicationFactory<Program>
 {
+    /// <summary>Dùng collab_db thật (<c>EXE_COLLAB_DB</c>) cho test cần chỉ mục duy nhất, CHECK.</summary>
+    public bool RealDatabase { get; init; }
+
     public const string SigningKey = "test-only-signing-key-0123456789abcdef-xyz";
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
@@ -38,20 +42,37 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
 
     public FakeAcademicSemesterClient AcademicSemesters { get; } = new();
 
+    public FakeScheduleSemesterClient ScheduleSemesters { get; } = new();
+
+    public FakeRealtimeNotifier Realtime { get; } = new();
+
+    public FixedTimeProvider Clock { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("Jwt:SigningKey", SigningKey);
-        builder.UseSetting("ConnectionStrings:CollabDb", "Host=unused");
+        builder.UseSetting("ConnectionStrings:CollabDb", RealDatabase
+            ? Environment.GetEnvironmentVariable("EXE_COLLAB_DB") ?? "Host=localhost;Port=5432;Database=collab_db;Username=collab_svc;Password=collab_dev_pw"
+            : "Host=unused");
         builder.UseSetting("Kafka:ConsumersEnabled", "false");
         builder.ConfigureTestServices(services =>
         {
-            services.RemoveAll<DbContextOptions<CollabDbContext>>();
-            services.AddDbContext<CollabDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+            if (!RealDatabase)
+            {
+                services.RemoveAll<DbContextOptions<CollabDbContext>>();
+                services.AddDbContext<CollabDbContext>(options => options.UseInMemoryDatabase(_databaseName));
+            }
             services.RemoveAll<IObjectStorage>();
             services.AddSingleton<IObjectStorage>(Storage);
             services.RemoveAll<IAcademicSemesterClient>();
             services.AddSingleton<IAcademicSemesterClient>(AcademicSemesters);
+            services.RemoveAll<IScheduleSemesterClient>();
+            services.AddSingleton<IScheduleSemesterClient>(ScheduleSemesters);
+            services.RemoveAll<IRealtimeNotifier>();
+            services.AddSingleton<IRealtimeNotifier>(Realtime);
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IMentorSessionTargetClient>();
             services.AddSingleton<IMentorSessionTargetClient, FakeMentorSessionTargetClient>();
             foreach (var hosted in services.Where(d => d.ServiceType == typeof(IHostedService)
@@ -183,6 +204,45 @@ public sealed class FakeAcademicSemesterClient : IAcademicSemesterClient
 
     public Task<SemesterCheckpointConfig?> GetConfigAsync(Guid semesterId, CancellationToken ct) =>
         Task.FromResult(Configs.GetValueOrDefault(semesterId));
+}
+
+/// <summary>Cài đặt học kỳ của lịch họp, không gọi Academic. <see cref="Default"/> dùng cho mọi học kỳ; null = Academic lỗi.</summary>
+public sealed class FakeScheduleSemesterClient : IScheduleSemesterClient
+{
+    public ScheduleSemester? Default { get; set; }
+
+    public Task<ScheduleSemester?> GetAsync(Guid semesterId, CancellationToken ct) => Task.FromResult(Default);
+}
+
+/// <summary>Ghi lại sự kiện realtime đã đẩy.</summary>
+public sealed class FakeRealtimeNotifier : IRealtimeNotifier
+{
+    public List<(Guid WorkspaceId, string Event)> Sent { get; } = [];
+
+    public Task ToChannelAsync(Guid channelId, string eventName, object payload, CancellationToken ct = default) => Task.CompletedTask;
+
+    public Task ToWorkspaceAsync(Guid workspaceId, string eventName, object payload, CancellationToken ct = default)
+    {
+        lock (Sent)
+        {
+            Sent.Add((workspaceId, eventName));
+        }
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Đồng hồ test: giờ thật cho tới khi test đặt <see cref="Now"/>.</summary>
+public sealed class FixedTimeProvider : TimeProvider
+{
+    private DateTimeOffset? _now;
+
+    public DateTimeOffset Now
+    {
+        get => _now ?? DateTimeOffset.UtcNow;
+        set => _now = value;
+    }
+
+    public override DateTimeOffset GetUtcNow() => Now;
 }
 
 /// <summary>Số buổi mentor mặc định, không gọi Academic.</summary>

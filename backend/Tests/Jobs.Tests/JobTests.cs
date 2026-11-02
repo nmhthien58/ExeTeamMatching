@@ -345,4 +345,12 @@ public sealed class JobTests
     [Fact]
     public void Time_zone_falls_back_to_utc_when_unknown() =>
         Assert.Equal(TimeZoneInfo.Utc, new JobsOptions { TimeZone = "Không/Có" }.ResolveTimeZone());
+
+    [Fact]
+    public async Task Slot_booking_close_job_calls_collaboration()
+    {
+        var collab = new FakeCollab { CloseSlotBookingResult = new CloseSlotBookingResult(2, 1, 20) };
+        await new SlotBookingCloseJob(collab, NullLogger<SlotBookingCloseJob>.Instance).RunAsync(CancellationToken.None);
+        Assert.Equal(1, collab.CloseSlotBookingCalls);
+    }
 }

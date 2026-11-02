@@ -29,6 +29,9 @@ public interface IMeetingService
 
     Task<MeetingDetailResponse> CancelAsync(Guid meetingId, CancelMeetingRequest request, ClaimsPrincipal user, CancellationToken ct);
 
+    /// <summary>Giảng viên dời một tuần của họp hằng tuần kèm lý do; nhóm được báo.</summary>
+    Task<MeetingDetailResponse> RescheduleAsync(Guid meetingId, RescheduleMeetingRequest request, ClaimsPrincipal user, CancellationToken ct);
+
     Task<MeetingDetailResponse> SaveMinutesAsync(Guid meetingId, MeetingMinutesRequest request, ClaimsPrincipal user, CancellationToken ct);
 
     Task<IReadOnlyList<TaskCardResponse>> CreateTasksAsync(Guid meetingId, MinuteTasksRequest request, ClaimsPrincipal user, CancellationToken ct);
@@ -234,6 +237,34 @@ public sealed class MeetingService(
         meeting.CancelReason = request.Reason!.Trim();
         var slots = await meetings.ListSlotsAsync([meetingId], ct);
         meetings.AddEvent(MeetingEventTypes.MeetingCancelled, meeting.WorkspaceId, Event(meeting, slots, await InviteesAsync(meeting, ct)));
+        await meetings.SaveAsync(ct);
+        return await DetailAsync(meeting, viewer, ct);
+    }
+
+    /// <remarks>Bảng không có cột lý do dời nên lý do đi trong <c>cancelReason</c> của sự kiện. Mốc nhắc cũ được xóa để nhóm được nhắc lại theo giờ mới.</remarks>
+    public async Task<MeetingDetailResponse> RescheduleAsync(Guid meetingId, RescheduleMeetingRequest request, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var (meeting, viewer) = await OrganizerAsync(meetingId, user, ct);
+        if (meeting.ScheduleBookingId is null)
+        {
+            throw MeetingScheduleErrors.NotWeekly();
+        }
+        if (meeting.Status != MeetingStatuses.Scheduled)
+        {
+            throw MeetingErrors.NotOpen();
+        }
+        var startsAt = request.StartsAt!.Value.ToUniversalTime();
+        if (startsAt <= clock.GetUtcNow())
+        {
+            throw MeetingErrors.Invalid("startsAt", "Giờ mới phải ở tương lai.");
+        }
+
+        var slot = await meetings.FindSlotAsync(meeting.ConfirmedSlotId!.Value, ct) ?? throw new NotFoundException("khung giờ", meeting.ConfirmedSlotId);
+        slot.StartsAt = startsAt;
+        meeting.UpdatedAt = clock.GetUtcNow();
+        await meetings.RemoveRemindersAsync(meetingId, ct);
+        meetings.AddEvent(MeetingEventTypes.MeetingScheduled, meeting.WorkspaceId,
+            Event(meeting, [slot], await InviteesAsync(meeting, ct)) with { CancelReason = request.Reason!.Trim() });
         await meetings.SaveAsync(ct);
         return await DetailAsync(meeting, viewer, ct);
     }
@@ -456,12 +487,19 @@ public static class MeetingErrors
 
 public static class MeetingsModule
 {
-    /// <summary>Module Meetings (BE-68): họp đề xuất, biên bản – C07, C08. Cần <see cref="TasksModule.AddTasksModule"/>.</summary>
+    /// <summary>Module Meetings: họp đề xuất, biên bản – C07, C08 (BE-68); lịch họp hằng tuần – C09 (BE-82). Cần <see cref="TasksModule.AddTasksModule"/>.</summary>
     public static IServiceCollection AddMeetingsModule(this IServiceCollection services, IConfiguration configuration)
     {
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<IMeetingRepository, MeetingRepository>();
         services.AddScoped<IMeetingService, MeetingService>();
+        services.AddScoped<IMeetingScheduleRepository, MeetingScheduleRepository>();
+        services.AddScoped<IMeetingScheduleService, MeetingScheduleService>();
+        services.AddHttpClient<IScheduleSemesterClient, ScheduleSemesterClient>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["Academic:BaseUrl"] ?? "http://localhost:5002");
+            client.Timeout = TimeSpan.FromSeconds(3);
+        });
         services.AddHttpClient<IMentorSessionTargetClient, MentorSessionTargetClient>(client =>
         {
             client.BaseAddress = new Uri(configuration["Academic:BaseUrl"] ?? "http://localhost:5002");
