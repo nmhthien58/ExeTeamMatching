@@ -1,7 +1,5 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AdvisorMatchingRow, AdvisorMatchingRun, MentorMatchingOverview } from './api'
 
@@ -21,9 +19,7 @@ vi.mock('@/shared/api/apiClient', async (original) => ({
 
 const { ApiError } = await import('@/shared/api/apiClient')
 const { adminMentorMatchingRoutes } = await import('./routes')
-const { tokenStore } = await import('@/shared/api/tokenStore')
-const { AuthProvider } = await import('@/shared/auth/AuthProvider')
-const { PageHeaderProvider, usePageHeaderState } = await import('@/shared/layout/PageHeader')
+const { renderMatchingPage, signInAsAdmin, stubDialogElement } = await import('@/features/lecturer-matching/matchingTestSetup')
 
 const team = (id: string, name: string, lecturerName: string | null) => ({
   id,
@@ -89,47 +85,19 @@ const previewRun: AdvisorMatchingRun = {
   ],
 }
 
-function HeaderAction() {
-  return <>{usePageHeaderState().action}</>
-}
-
-function renderAt(path = '/admin/ghep-mentor') {
-  return render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <AuthProvider>
-        <PageHeaderProvider>
-          <HeaderAction />
-          <RouterProvider router={createMemoryRouter([{ path: '/admin', children: adminMentorMatchingRoutes }], { initialEntries: [path] })} />
-        </PageHeaderProvider>
-      </AuthProvider>
-    </QueryClientProvider>,
-  )
-}
+const renderAt = (path = '/admin/ghep-mentor') => renderMatchingPage(adminMentorMatchingRoutes, path)
 
 const future = () => new Date(Date.now() + 5 * 24 * 3600e3).toISOString()
 
 describe('W28 – ghép mentor', () => {
-  beforeAll(() => {
-    HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
-      this.open = true
-    }
-    HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
-      this.open = false
-    }
-  })
+  beforeAll(stubDialogElement)
 
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
     put.mockReset()
     del.mockReset()
-    tokenStore.save({
-      accessToken: 'a',
-      accessTokenExpiresAt: '',
-      refreshToken: 'r',
-      refreshTokenExpiresAt: '',
-      user: { id: 'u', email: 'admin@fpt.edu.vn', fullName: 'Bộ môn', roles: ['Admin'] },
-    })
+    signInAsAdmin()
   })
 
   it('shows a loading state first', async () => {

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import clsx from 'clsx'
 import { Banner } from '@/shared/components/ui'
 import { timeLeft, useCourseParam } from '@/features/dashboard/adminApi'
-import { EarlyMatchingDialog } from '@/features/lecturer-matching/EarlyMatchingDialog'
 import { mentorMatchingErrorMessage } from '@/features/lecturer-matching/errors'
 import { LoadPanel } from '@/features/lecturer-matching/LoadPanel'
 import {
@@ -60,6 +59,7 @@ export function MentorMatchingPage() {
     <MatchingLayout
       title="Ghép mentor"
       advisorNoun="mentor"
+      reasonLabel={mentorReasonLabel}
       tableLabel="Nhóm và mentor"
       course={course}
       onCourse={setCourse}
@@ -88,34 +88,19 @@ export function MentorMatchingPage() {
         />
       }
       dialogs={
-        <>
-          {early.previewRun && (
-            <EarlyMatchingDialog
-              run={early.previewRun}
-              onClose={early.closePreview}
-              onConfirm={early.onConfirm}
-              onDiscard={early.onDiscard}
-              confirming={early.confirming}
-              discarding={early.discarding}
-              error={early.dialogError}
-              advisorNoun="mentor"
-              reasonLabel={mentorReasonLabel}
-            />
-          )}
-          {editing && (
-            <ChangeMentorDialog
-              key={editing.team.id}
-              row={editing}
-              loads={data?.advisorLoads ?? []}
-              onClose={() => setEditing(null)}
-              onDone={(message, result) => {
-                setEditing(null)
-                const warning = result.warnings?.find((w) => w.code === 'ABOVE_PREFERRED')
-                early.snackbar.show(warning ? `${message}. Lưu ý: vượt số nhóm mong muốn của mentor.` : message)
-              }}
-            />
-          )}
-        </>
+        editing && (
+          <ChangeMentorDialog
+            key={editing.team.id}
+            row={editing}
+            loads={data?.advisorLoads ?? []}
+            onClose={() => setEditing(null)}
+            onDone={(message, result) => {
+              setEditing(null)
+              const warning = result.warnings?.find((w) => w.code === 'ABOVE_PREFERRED')
+              early.snackbar.show(warning ? `${message}. Lưu ý: vượt số nhóm mong muốn của mentor.` : message)
+            }}
+          />
+        )
       }
     />
   )

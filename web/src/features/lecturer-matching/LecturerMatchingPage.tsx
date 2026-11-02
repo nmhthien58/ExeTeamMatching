@@ -15,7 +15,6 @@ import {
   type AdvisorMatchingRow,
 } from './api'
 import { ChangeLecturerDialog } from './ChangeLecturerDialog'
-import { EarlyMatchingDialog } from './EarlyMatchingDialog'
 import { matchingErrorMessage } from './errors'
 import { LoadPanel } from './LoadPanel'
 import { AdvisorCell, EditCell, InterestsCell, MatchedSummary, MatchingLayout, MatchingTable, ReasonCell, StatCard, SummarySkeleton } from './MatchingLayout'
@@ -67,31 +66,18 @@ export function LecturerMatchingPage() {
         />
       }
       dialogs={
-        <>
-          {early.previewRun && (
-            <EarlyMatchingDialog
-              run={early.previewRun}
-              onClose={early.closePreview}
-              onConfirm={early.onConfirm}
-              onDiscard={early.onDiscard}
-              confirming={early.confirming}
-              discarding={early.discarding}
-              error={early.dialogError}
-            />
-          )}
-          {editing && (
-            <ChangeLecturerDialog
-              key={editing.team.id}
-              row={editing}
-              loads={data?.advisorLoads ?? []}
-              onClose={() => setEditing(null)}
-              onDone={(message) => {
-                setEditing(null)
-                early.snackbar.show(message)
-              }}
-            />
-          )}
-        </>
+        editing && (
+          <ChangeLecturerDialog
+            key={editing.team.id}
+            row={editing}
+            loads={data?.advisorLoads ?? []}
+            onClose={() => setEditing(null)}
+            onDone={(message) => {
+              setEditing(null)
+              early.snackbar.show(message)
+            }}
+          />
+        )
       }
     />
   )

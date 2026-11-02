@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from '@/shared/components/States'
 import { Banner, Button, Icon, Skeleton, StatusChip } from '@/shared/components/ui'
@@ -7,6 +7,7 @@ import type { CourseCode } from '@/shared/phase/usePhase'
 import { CourseToggle } from '@/features/dashboard/CourseToggle'
 import { formatDateTime } from '@/features/workspace/format'
 import { PAGE_SIZE, type AdvisorMatchingOverview, type AdvisorMatchingRun } from './api'
+import { EarlyMatchingDialog } from './EarlyMatchingDialog'
 import type { EarlyMatching, MatchingParams } from './useMatchingPage'
 
 type OverviewData = Pick<AdvisorMatchingOverview, 'items' | 'totalCount' | 'totalPages' | 'teamsWithoutAdvisor' | 'lastRun'>
@@ -27,6 +28,7 @@ export interface OverviewState<T extends OverviewData> {
 export function MatchingLayout<T extends OverviewData>({
   title,
   advisorNoun,
+  reasonLabel,
   tableLabel,
   course,
   onCourse,
@@ -40,6 +42,8 @@ export function MatchingLayout<T extends OverviewData>({
 }: {
   title: string
   advisorNoun: string
+  /** Nhãn lý do trong dialog xem trước; bỏ trống là nhãn của giảng viên. */
+  reasonLabel?: ComponentProps<typeof EarlyMatchingDialog>['reasonLabel']
   tableLabel: string
   course: CourseCode
   onCourse: (course: CourseCode) => void
@@ -108,6 +112,19 @@ export function MatchingLayout<T extends OverviewData>({
         </div>
       </div>
 
+      {early.previewRun && (
+        <EarlyMatchingDialog
+          run={early.previewRun}
+          onClose={early.closePreview}
+          onConfirm={early.onConfirm}
+          onDiscard={early.onDiscard}
+          confirming={early.confirming}
+          discarding={early.discarding}
+          error={early.dialogError}
+          advisorNoun={advisorNoun}
+          reasonLabel={reasonLabel}
+        />
+      )}
       {dialogs}
       {early.snackbar.element}
     </>
