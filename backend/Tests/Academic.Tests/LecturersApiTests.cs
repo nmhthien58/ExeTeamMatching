@@ -70,8 +70,6 @@ public sealed class LecturersApiTests : IAsyncLifetime
         var forAdmin = await Admin.GetFromJsonAsync<PagedResponse<LecturerResponse>>($"/api/lecturers?search={tag}");
         Assert.Equal([active.Id, inactive.Id], forAdmin!.Items.Select(l => l.Id));
         Assert.Equal("0901234567", forAdmin.Items[0].Phone);
-        var activeOnly = await Admin.GetFromJsonAsync<PagedResponse<LecturerResponse>>($"/api/lecturers?search={tag}&acceptingOnly=true");
-        Assert.Equal(active.Id, activeOnly!.Items.Single().Id);
 
         var forStudent = await Student.GetFromJsonAsync<PagedResponse<LecturerResponse>>($"/api/lecturers?search={tag.ToUpperInvariant()}");
         var seen = forStudent!.Items.Single();

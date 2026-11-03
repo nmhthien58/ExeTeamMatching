@@ -37,7 +37,7 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
     public async Task<PagedResponse<LecturerResponse>> ListAsync(LecturerQuery query, ClaimsPrincipal user, CancellationToken ct)
     {
         var isAdmin = user.IsInRole(Roles.Admin);
-        var (items, total) = await lecturers.ListAsync(query.Search, !isAdmin || query.AcceptingOnly == true, query.Page, query.PageSize, ct);
+        var (items, total) = await lecturers.ListAsync(query.Search, activeOnly: !isAdmin, query.Page, query.PageSize, ct);
         return PagedResponse<LecturerResponse>.Create(await ToResponsesAsync(items, isAdmin, ct), query.Page, query.PageSize, total);
     }
 

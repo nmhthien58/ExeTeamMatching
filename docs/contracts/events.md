@@ -61,10 +61,10 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
   "isSeekingTeam": true, "profileCompleted": true }
 
 // LecturerRegistered – Admin thêm giảng viên, key = lecturerId
-{ "lecturerId": "uuid", "fullName": "Trần Thị B", "email": "b@fe.edu.vn", "domainIds": [4, 7], "maxTeams": 8, "isActive": true }
+{ "lecturerId": "uuid", "fullName": "Trần Thị B", "email": "b@fe.edu.vn", "domainIds": [4, 7], "maxTeamsExe101": 8, "maxTeamsExe201": null, "isActive": true }
 
 // LecturerProfileUpdated – giảng viên / Admin sửa chuyên môn, sức chứa (Matching cập nhật read model), key = lecturerId
-{ "lecturerId": "uuid", "domainIds": [4, 7], "maxTeams": 8, "isAcceptingTeams": true, "isActive": true }
+{ "lecturerId": "uuid", "domainIds": [4, 7], "maxTeamsExe101": 8, "maxTeamsExe201": null, "isActive": true }
 
 // MentorRegistered – Admin tạo hoặc sửa mentor, mentor tự sửa hồ sơ, giảng viên gắn với mentor đổi email hoặc bị khóa (rule 20), key = mentorId.
 // Phát lại ở mọi lần sửa: các bên xử lý idempotent theo mentorId. domainIds cho read model của Matching.
@@ -195,7 +195,7 @@ Người nhận trong `exe.collab` và `exe.reminder` là `{ "personType": "STUD
 { "workspaceId": "uuid", "taskId": "uuid", "title": "Báo cáo tuần 3", "dueAt": "...", "memberStudentIds": ["uuid"] }
 // DeliverableSubmitted
 { "workspaceId": "uuid", "taskId": "uuid", "submissionId": "uuid", "fileVersionId": "uuid", "lecturerId": "uuid" }
-// MeetingSlotsPublished – giảng viên đăng lịch họp hằng tuần EXE201 (rule 25); báo các nhóm của giảng viên
+// MeetingSlotsPublished – giảng viên đăng lịch họp hằng tuần EXE201 (rule 25), key = scheduleId; một sự kiện, recipients là sinh viên mọi nhóm của giảng viên
 { "scheduleId": "uuid", "lecturerId": "uuid", "lecturerName": "...", "bookingDeadline": "...", "slotCount": 32,
   "recipients": [ { "personType": "STUDENT", "personId": "uuid" } ] }
 // MeetingSlotBooked – key = workspaceId. source: LEADER | INSTRUCTOR | AUTO (giảng viên đổi / hệ thống xếp thì báo nhóm)
@@ -209,7 +209,8 @@ Người nhận trong `exe.collab` và `exe.reminder` là `{ "personType": "STUD
   "memberStudentIds": ["uuid"] }
 // FileUploaded – chỉ dùng để báo cố vấn khi có phiên bản mới của file đã ghim / đã nộp (không báo mọi file)
 { "workspaceId": "uuid", "fileId": "uuid", "version": 3, "name": "bao-cao.pdf", "uploadedByStudentId": "uuid" }
-// MeetingProposed / MeetingScheduled / MeetingCancelled (rule 25)
+// MeetingProposed / MeetingScheduled / MeetingCancelled (rule 25). Dời một tuần của họp hằng tuần phát MeetingScheduled,
+// lý do dời nằm trong cancelReason (không có cột riêng); confirmedSlotId là khung giờ mới. Sinh họp hằng tuần không phát sự kiện này.
 { "workspaceId": "uuid", "meetingId": "uuid", "title": "...", "isMentorSession": true,
   "slots": [ { "slotId": "uuid", "startsAt": "...", "durationMinutes": 60 } ],
   "confirmedSlotId": "uuid|null", "cancelReason": "...|null",
