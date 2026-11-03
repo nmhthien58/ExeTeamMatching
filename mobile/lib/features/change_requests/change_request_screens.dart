@@ -123,7 +123,9 @@ class _RequestListState extends State<_RequestList> {
                     : const SizedBox.shrink(),
               ),
               if (items.isNotEmpty) ...[
+                // isExpanded: tên đợt dài hoặc chữ 130% thì nhãn bị cắt bằng dấu … thay vì tràn (flutter-handoff §5).
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _status,
                   decoration: const InputDecoration(labelText: 'Trạng thái'),
                   items: const [
@@ -149,6 +151,7 @@ class _RequestListState extends State<_RequestList> {
                 ),
                 const SizedBox(height: AppSpacing.s3),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _round,
                   decoration: const InputDecoration(labelText: 'Đợt'),
                   items: [
@@ -157,7 +160,7 @@ class _RequestListState extends State<_RequestList> {
                       child: Text('Tất cả đợt'),
                     ),
                     for (final round in rounds)
-                      DropdownMenuItem(value: round, child: Text(round)),
+                      DropdownMenuItem(value: round, child: Text(round, overflow: TextOverflow.ellipsis)),
                   ],
                   onChanged: (value) => setState(() => _round = value),
                 ),
