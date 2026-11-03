@@ -22,6 +22,12 @@ const { adminMentorRoutes } = await import('./routes')
 const { validateLecturer, validateMentor } = await import('@/features/lecturers/rules')
 const { PageHeaderProvider, usePageHeaderState } = await import('@/shared/layout/PageHeader')
 
+/** Dán cả chuỗi thay vì gõ từng ký tự: cả bộ test chạy song song thì gõ từng ký tự dễ vượt 5 giây. */
+async function type(element: HTMLElement, text: string) {
+  await userEvent.click(element)
+  await userEvent.paste(text)
+}
+
 function HeaderAction() {
   return <>{usePageHeaderState().action}</>
 }
@@ -110,9 +116,9 @@ describe('W11 – Giảng viên (FE-17)', () => {
     post.mockResolvedValue({ data: ha })
     renderAt('/admin/giang-vien')
     await userEvent.click(await screen.findByRole('button', { name: 'Thêm giảng viên' }))
-    await userEvent.type(screen.getByLabelText('Họ tên'), ' Lê Hoàng Long ')
-    await userEvent.type(screen.getByLabelText('Email (dùng để đăng nhập)'), 'long@example.com')
-    await userEvent.type(screen.getByLabelText('Số nhóm tối đa EXE101'), '4')
+    await type(screen.getByLabelText('Họ tên'), ' Lê Hoàng Long ')
+    await type(screen.getByLabelText('Email (dùng để đăng nhập)'), 'long@example.com')
+    await type(screen.getByLabelText('Số nhóm tối đa EXE101'), '4')
     await userEvent.click(await within(drawer()).findByRole('checkbox', { name: /D02/ }))
     expect(within(drawer()).queryByRole('checkbox', { name: /D03/ })).not.toBeInTheDocument()
     await userEvent.click(within(drawer()).getByRole('button', { name: 'Lưu' }))
@@ -128,8 +134,8 @@ describe('W11 – Giảng viên (FE-17)', () => {
     post.mockRejectedValue(new ApiError({ status: 409, code: 'email-exists', title: 'Email đã được dùng', detail: 'Email đã thuộc một mentor khác.' }))
     renderAt('/admin/giang-vien')
     await userEvent.click(await screen.findByRole('button', { name: 'Thêm giảng viên' }))
-    await userEvent.type(screen.getByLabelText('Họ tên'), 'Trùng')
-    await userEvent.type(screen.getByLabelText('Email (dùng để đăng nhập)'), 'vinh@example.com')
+    await type(screen.getByLabelText('Họ tên'), 'Trùng')
+    await type(screen.getByLabelText('Email (dùng để đăng nhập)'), 'vinh@example.com')
     await userEvent.click(within(drawer()).getByRole('button', { name: 'Lưu' }))
     expect(await within(drawer()).findByText('Email đã thuộc một mentor khác.')).toBeInTheDocument()
   })
@@ -183,7 +189,7 @@ describe('W27 – Mentor (FE-34)', () => {
     renderAt('/admin/mentor')
     await userEvent.click(await screen.findByRole('button', { name: 'Thêm mentor' }))
     expect(screen.getByLabelText('Số nhóm tối đa')).toHaveValue(3)
-    await userEvent.type(screen.getByLabelText('Họ tên'), 'Trần Thu Hà')
+    await type(screen.getByLabelText('Họ tên'), 'Trần Thu Hà')
     await userEvent.click(within(drawer()).getByRole('switch', { name: 'Giảng viên / cán bộ của trường' }))
     const select = await within(drawer()).findByLabelText('Là giảng viên (không bắt buộc)')
     expect(within(select).queryByText(/Nguyễn Đức Khoa/)).not.toBeInTheDocument() // giảng viên đang khóa không gắn được
@@ -207,9 +213,9 @@ describe('W27 – Mentor (FE-34)', () => {
     expect(post).not.toHaveBeenCalled()
 
     // Ô đang lỗi: tên ô có thêm câu báo lỗi.
-    await userEvent.type(within(drawer()).getByRole('textbox', { name: /^Họ tên/ }), 'Mentor Mới')
-    await userEvent.type(within(drawer()).getByRole('textbox', { name: /^Email/ }), 'ha@example.com')
-    await userEvent.type(within(drawer()).getByRole('spinbutton', { name: /^Số nhóm tối đa/ }), '2')
+    await type(within(drawer()).getByRole('textbox', { name: /^Họ tên/ }), 'Mentor Mới')
+    await type(within(drawer()).getByRole('textbox', { name: /^Email/ }), 'ha@example.com')
+    await type(within(drawer()).getByRole('spinbutton', { name: /^Số nhóm tối đa/ }), '2')
     await userEvent.click(within(drawer()).getByRole('button', { name: 'Lưu' }))
     expect(await within(drawer()).findByText('Email đã thuộc giảng viên.')).toBeInTheDocument()
   })
@@ -220,7 +226,7 @@ describe('W27 – Mentor (FE-34)', () => {
     renderAt('/admin/mentor')
     await userEvent.click(await screen.findByText('Đỗ Quang Vinh'))
     await userEvent.clear(screen.getByLabelText('Số nhóm tối đa'))
-    await userEvent.type(screen.getByLabelText('Số nhóm tối đa'), '1')
+    await type(screen.getByLabelText('Số nhóm tối đa'), '1')
     await userEvent.click(within(drawer()).getByRole('button', { name: 'Lưu' }))
     expect(await within(drawer()).findByText('Mentor đang có 2 nhóm.')).toBeInTheDocument()
   })
@@ -245,7 +251,7 @@ describe('W27 – Mentor (FE-34)', () => {
     const week = await screen.findByLabelText('Tuần bắt đầu mentor')
     expect(screen.getByRole('button', { name: 'Lưu cài đặt' })).toBeDisabled()
     await userEvent.clear(week)
-    await userEvent.type(week, '6')
+    await type(week, '6')
     await userEvent.click(screen.getByRole('button', { name: 'Lưu cài đặt' }))
     await waitFor(() => expect(put).toHaveBeenCalledWith('/api/semesters/s1', expect.objectContaining({ code: 'SP90', mentoringStartWeek: 6, expectedMentorSessions: 3 })))
   })
