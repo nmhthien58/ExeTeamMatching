@@ -609,8 +609,10 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                 child: _buildMetricCard(
                   context,
                   title: 'Trễ hạn nộp',
-                  value: '${stats.overdueSubmissionsCount}',
-                  subtitle: 'Việc / bài tập',
+                  value: stats.overdueSubmissionsCount?.toString() ?? '—',
+                  subtitle: stats.overdueSubmissionsCount == null
+                      ? 'Chưa có số liệu'
+                      : 'Việc / bài tập',
                   icon: Icons.assignment_late_outlined,
                   color: Palette.error,
                   bgColor: Palette.errorContainer,
@@ -682,7 +684,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     ),
                     const SizedBox(width: AppSpacing.s2),
                     FilledButton.tonal(
-                      onPressed: () => context.push('/gv/lich'),
+                      onPressed: () => context.push('/gv/lich-hop'),
                       child: const Text('Đăng lịch'),
                     ),
                   ],

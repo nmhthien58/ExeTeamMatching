@@ -423,6 +423,22 @@ void main() {
       },
     );
 
+    testWidgets('keeps L01 usable when aggregate overview is unavailable', (
+      tester,
+    ) async {
+      final fakeApi = FakeLecturerHomeApi(
+        semesterStats: const LecturerSemesterStats(needsReplyCount: 2),
+      );
+
+      await tester.pumpWidget(buildApp(api: fakeApi, isTeamFormation: false));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cần trả lời'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('—'), findsNWidgets(2));
+      expect(find.text('Chưa tải được số liệu tương tác học kỳ'), findsNothing);
+    });
+
     testWidgets(
       'handles course phase mismatch (EXE201 in semester vs EXE101 in team formation)',
       (tester) async {

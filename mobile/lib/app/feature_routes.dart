@@ -6,6 +6,8 @@ import '../features/change_requests/routes.dart';
 import '../features/lecturers/routes.dart';
 import '../features/lecturer/lecturer_home_screen.dart';
 import '../features/lecturer/topic_interests_screen.dart';
+import '../features/lecturer/advised_teams_screen.dart';
+import '../features/mentor/mentor_home_screen.dart';
 
 import '../features/discover/discover_screen.dart';
 import '../features/discover/seeking_posts_screen.dart';
@@ -52,6 +54,9 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/kham-pha': (_) => const DiscoverScreen(),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
   '/gv': (_) => const LecturerHomeScreen(),
+  '/gv/nhom': (_) => const AdvisedTeamsScreen(advisorKind: 'LECTURER'),
+  '/mentor': (_) => const MentorHomeScreen(),
+  '/mentor/nhom': (_) => const AdvisedTeamsScreen(advisorKind: 'MENTOR'),
   '/gv/de-tai': (_) => const TopicInterestsScreen(advisorKind: 'LECTURER'),
   '/mentor/de-tai': (_) => const TopicInterestsScreen(advisorKind: 'MENTOR'),
   '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
@@ -78,6 +83,7 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: '/app://change-requests', redirect: (_, _) => changeRequestListPath),
         ],
       Shell.lecturer => [
+          GoRoute(path: '/gv/nhom/:teamId', builder: (_, state) => AdvisedTeamDetailScreen(teamId: state.pathParameters['teamId']!, advisorKind: 'LECTURER')),
           GoRoute(
             path: '/gv/de-tai/:teamId',
             builder: (_, state) {
@@ -98,6 +104,7 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: '/gv/lich-hop', builder: (_, _) => const LecturerScheduleScreen()),
         ],
       Shell.mentor => [
+          GoRoute(path: '/mentor/nhom/:teamId', builder: (_, state) => AdvisedTeamDetailScreen(teamId: state.pathParameters['teamId']!, advisorKind: 'MENTOR')),
           GoRoute(
             path: '/mentor/de-tai/:teamId',
             builder: (_, state) {

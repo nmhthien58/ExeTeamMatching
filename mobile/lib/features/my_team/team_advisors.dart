@@ -20,12 +20,7 @@ class TeamAdvisor {
 }
 
 
-String? _mentorReason(String? reason) => switch (reason) {
-      'MENTOR_INTEREST' => 'Mentor quan tâm',
-      'DOMAIN' => 'Theo chuyên môn',
-      'MANUAL' => 'Bộ môn phân công',
-      _ => null,
-    };
+
 
 /// Đọc cố vấn của nhóm (BE-47, BE-74) và tiến độ Checkpoint (BE-83). Chưa ghép → null.
 class TeamAdvisorsApi {
@@ -48,7 +43,7 @@ class TeamAdvisorsApi {
 
   Future<TeamAdvisor?> mentor(String teamId) => _call(() async {
         final j = (await _dio.get<Map<String, dynamic>>('/api/teams/$teamId/mentor')).data;
-        return j == null ? null : TeamAdvisor(name: j['mentorName'] as String? ?? '', reason: _mentorReason(j['reason'] as String?));
+        return j == null ? null : TeamAdvisor(name: j['mentorName'] as String? ?? '', reason: mentorMatchReason(j['reason'] as String?));
       });
 
   /// Số checkpoint đã trình bày trên 4.
