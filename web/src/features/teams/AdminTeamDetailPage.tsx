@@ -8,6 +8,9 @@ import { Avatar, Card, Drawer } from '@/features/workspace/components'
 import { formatDateTime } from '@/features/workspace/format'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { useTeamAuditLogs } from '@/features/audit-log/api'
+import { mentorReasonLabel, useTeamMentor } from '@/features/my_team/advisorsApi'
+import { ChangeMentorDialog } from '@/features/mentor-matching/ChangeMentorDialog'
+import { useMentorMatchingOverview } from '@/features/mentor-matching/api'
 import { DomainChips, TeamRequirementBar } from '@/features/suggestions/components'
 import type { StudentRef, TeamMember } from '@/features/suggestions/api'
 import { teamStatusLabel, type FullTeam } from '@/features/my_team/api'
@@ -18,9 +21,9 @@ type Pending = { action: AdminTeamAction; title: string; body: string; confirm: 
 
 /**
  * W16 – Chi tiết nhóm cho Bộ môn (FE-22): thành viên, ý tưởng, cố vấn, điều kiện, nhật ký thay đổi; Admin chốt / mở lại nhóm
- * (quy tắc 13), thêm sinh viên chưa có nhóm, chuyển thành viên sang nhóm khác – mọi thao tác qua dialog xác nhận.
+ * (quy tắc 13), thêm sinh viên chưa có nhóm, bớt thành viên, chuyển thành viên sang nhóm khác, gán / đổi / gỡ mentor – mọi thao tác
+ * qua dialog xác nhận.
  */
-// shortcut: chưa bớt thành viên khỏi nhóm (API chỉ có thêm / chuyển cho Admin); mục Mentor chỉ hiện tên (gán / gỡ ở BE-74, BE-80).
 export function AdminTeamDetailPage() {
   const { teamId = '' } = useParams()
   const team = useAdminTeam(teamId)
@@ -35,6 +38,8 @@ function Detail({ team }: { team: FullTeam }) {
   const [pending, setPending] = useState<Pending | null>(null)
   const [adding, setAdding] = useState(false)
   const [moving, setMoving] = useState<TeamMember | null>(null)
+  const [changingMentor, setChangingMentor] = useState(false)
+  const mentor = useTeamMentor(team.id).data
   const status = teamStatusLabel[team.status]
   const maxSize = team.requirement?.maxSize ?? 6
   const finalized = team.status === 'FINALIZED'
@@ -130,9 +135,30 @@ function Detail({ team }: { team: FullTeam }) {
                     </span>
                   </span>
                   {!finalized && !disbanded && (
-                    <Button variant="text" icon="swap_horiz" onClick={() => setMoving(m)}>
-                      Chuyển nhóm
-                    </Button>
+                    <>
+                      <Button variant="text" icon="swap_horiz" onClick={() => setMoving(m)}>
+                        Chuyển nhóm
+                      </Button>
+                      <Button
+                        variant="text"
+                        icon="person_remove"
+                        aria-label={`Bớt ${m.fullName} khỏi nhóm`}
+                        onClick={() =>
+                          ask({
+                            action: { kind: 'remove', studentId: m.id },
+                            title: `Bớt ${m.fullName} khỏi nhóm?`,
+                            body:
+                              team.memberCount <= 1
+                                ? 'Đây là thành viên cuối cùng: nhóm sẽ bị giải tán.'
+                                : `${m.studentCode} rời ${team.name} ngay, kể cả nhóm kế thừa EXE101.${m.role === 'LEADER' ? ' Người vào nhóm sớm nhất trở thành trưởng nhóm.' : ''}`,
+                            confirm: 'Bớt khỏi nhóm',
+                            done: 'Đã bớt thành viên',
+                          })
+                        }
+                      >
+                        Bớt
+                      </Button>
+                    </>
                   )}
                 </li>
               ))}
@@ -143,7 +169,35 @@ function Detail({ team }: { team: FullTeam }) {
         <Card className="self-start">
           <h2 className="mb-2 font-semibold">Cố vấn</h2>
           <p>Giảng viên: {team.lecturerName ?? 'Chưa ghép'}</p>
-          <p>Mentor: {team.mentorName ?? 'Chưa ghép'}</p>
+          <p className="flex flex-wrap items-center gap-2">
+            Mentor: {mentor?.mentorName ?? team.mentorName ?? 'Chưa ghép'}
+            {mentorReasonLabel(mentor?.reason) && (
+              <span className="rounded-full bg-info-container px-2 text-caption font-semibold text-info-dark">{mentorReasonLabel(mentor?.reason)}</span>
+            )}
+          </p>
+          {!disbanded && (
+            <span className="mt-2 flex flex-wrap gap-2">
+              <Button variant="outline" icon="handshake" onClick={() => setChangingMentor(true)}>
+                {mentor ? 'Đổi mentor' : 'Gán mentor'}
+              </Button>
+              {mentor && (
+                <Button
+                  variant="text"
+                  onClick={() =>
+                    ask({
+                      action: { kind: 'unassignMentor' },
+                      title: `Gỡ mentor ${mentor.mentorName}?`,
+                      body: 'Mentor không còn vào được dự án của nhóm; lịch sử trao đổi vẫn giữ lại.',
+                      confirm: 'Gỡ mentor',
+                      done: 'Đã gỡ mentor',
+                    })
+                  }
+                >
+                  Gỡ mentor
+                </Button>
+              )}
+            </span>
+          )}
           {team.finalizedAt && <p className="mt-2 text-caption text-text-secondary">Chốt lúc {formatDateTime(team.finalizedAt)}</p>}
         </Card>
       </div>
@@ -175,30 +229,57 @@ function Detail({ team }: { team: FullTeam }) {
           }}
         />
       )}
-      <Dialog
-        open={!!pending}
-        onClose={() => setPending(null)}
-        title={pending?.title ?? ''}
-        actions={
-          <>
-            <Button variant="text" onClick={() => setPending(null)}>
-              Hủy
-            </Button>
-            <Button loading={action.isPending} onClick={confirm}>
-              {pending?.confirm}
-            </Button>
-          </>
-        }
-      >
-        {pending?.body}
-        {error && (
-          <p role="alert" className="mt-2 text-error">
-            {error.detail ?? error.title}
-          </p>
-        )}
-      </Dialog>
+      {changingMentor && (
+        <MentorDialog
+          team={team}
+          mentor={mentor ? { id: mentor.mentorId, name: mentor.mentorName, reason: mentor.reason ?? null } : null}
+          onClose={() => setChangingMentor(false)}
+          onDone={(message) => {
+            setChangingMentor(false)
+            snackbar.show(message)
+          }}
+        />
+      )}
+      {/* Hộp xác nhận chỉ mount khi đang hỏi, để không trùng id tiêu đề với dialog đổi mentor. */}
+      {pending && (
+        <Dialog
+          open
+          onClose={() => setPending(null)}
+          title={pending.title}
+          actions={
+            <>
+              <Button variant="text" onClick={() => setPending(null)}>
+                Hủy
+              </Button>
+              <Button loading={action.isPending} onClick={confirm}>
+                {pending.confirm}
+              </Button>
+            </>
+          }
+        >
+          {pending.body}
+          {error && (
+            <p role="alert" className="mt-2 text-error">
+              {error.detail ?? error.title}
+            </p>
+          )}
+        </Dialog>
+      )}
       {snackbar.element}
     </>
+  )
+}
+
+/** Gán / đổi mentor tay bằng dialog của W28; tải số nhóm từng mentor khi mở. */
+function MentorDialog({ team, mentor, onClose, onDone }: { team: FullTeam; mentor: { id: string; name: string; reason: string | null } | null; onClose: () => void; onDone: (message: string) => void }) {
+  const loads = useMentorMatchingOverview(team.courseCode, { withoutAdvisor: false, page: 1 }).data?.advisorLoads ?? []
+  return (
+    <ChangeMentorDialog
+      row={{ team, advisorId: mentor?.id ?? null, advisorName: mentor?.name ?? null, reason: mentor?.reason ?? null, preferenceRank: null, preferences: [], interests: [] }}
+      loads={loads}
+      onClose={onClose}
+      onDone={(message) => onDone(message)}
+    />
   )
 }
 

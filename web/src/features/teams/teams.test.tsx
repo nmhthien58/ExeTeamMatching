@@ -6,9 +6,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const get = vi.fn()
 const post = vi.fn()
+const put = vi.fn()
+const del = vi.fn()
 vi.mock('@/shared/api/apiClient', async (original) => ({
   ...(await original<typeof import('@/shared/api/apiClient')>()),
-  api: { get: (...args: unknown[]) => get(...args), post: (...args: unknown[]) => post(...args) },
+  api: {
+    get: (...args: unknown[]) => get(...args),
+    post: (...args: unknown[]) => post(...args),
+    put: (...args: unknown[]) => put(...args),
+    delete: (...args: unknown[]) => del(...args),
+  },
 }))
 
 const { ApiError } = await import('@/shared/api/apiClient')
@@ -36,10 +43,13 @@ const detail = {
 }
 const paged = (items: unknown[]) => ({ items, page: 1, pageSize: 20, totalCount: items.length, totalPages: 1 })
 
-function renderAt(path: string) {
+function renderAt(path: string, mentor: unknown = null) {
   get.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
     if (url === '/api/teams') return { data: paged(config?.params?.minOpenSlots ? [card, other] : [card]) }
     if (url === '/api/teams/t1') return { data: detail }
+    if (url === '/api/teams/t1/mentor') return { data: mentor }
+    if (url === '/api/advisor-matching/MENTOR/overview')
+      return { data: { advisorLoads: [{ advisorId: 'm1', fullName: 'Chị Lan', assignedCount: 1, preferredTeams: 2, maxTeams: 3 }, { advisorId: 'm2', fullName: 'Anh Minh', assignedCount: 0, preferredTeams: null, maxTeams: 3 }] } }
     if (url === '/api/teams/t1/audit-logs')
       return { data: paged([{ id: 1, teamId: 't1', action: 'TEAM_CREATED', actorName: 'Sinh viên', actorRole: 'Student', summary: 'Tạo nhóm Nhóm Bình Minh', occurredAt: '2026-10-27T03:00:00Z' }]) }
     if (url === '/api/unmatched-students') return { data: paged([{ id: 's9', studentCode: 'SE180009', fullName: 'Lê Vy' }]) }
@@ -63,6 +73,8 @@ describe('W15, W16 – nhóm của Bộ môn (FE-21, FE-22)', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
+    put.mockReset()
+    del.mockReset()
     HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
       this.open = true
     }
@@ -122,5 +134,39 @@ describe('W15, W16 – nhóm của Bộ môn (FE-21, FE-22)', () => {
     await user.click(screen.getByRole('button', { name: 'Tiếp tục' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Chuyển Thành Viên?' })).getByRole('button', { name: 'Chuyển' }))
     expect(post).toHaveBeenCalledWith('/api/teams/t1/members/s2/move', { targetTeamId: 't2' })
+  })
+
+  it('W16: bớt thành viên cần xác nhận; bớt trưởng nhóm báo người vào sớm nhất lên thay', async () => {
+    post.mockResolvedValue({ data: {} })
+    renderAt('/admin/nhom/t1')
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: 'Bớt Trưởng Nhóm khỏi nhóm' }))
+    expect(screen.getByRole('dialog', { name: 'Bớt Trưởng Nhóm khỏi nhóm?' })).toHaveTextContent('Người vào nhóm sớm nhất trở thành trưởng nhóm.')
+    await user.click(screen.getByRole('button', { name: 'Hủy' }))
+
+    await user.click(screen.getByRole('button', { name: 'Bớt Thành Viên khỏi nhóm' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Bớt Thành Viên khỏi nhóm?' })).getByRole('button', { name: 'Bớt khỏi nhóm' }))
+    expect(post).toHaveBeenCalledWith('/api/teams/t1/members/s2/remove', {})
+  })
+
+  it('W16: mentor kèm lý do ghép; đổi mentor qua dialog W28 (bắt buộc lý do), gỡ mentor cần xác nhận', async () => {
+    put.mockResolvedValue({ data: { assignment: { mentorName: 'Anh Minh' }, warnings: [] } })
+    del.mockResolvedValue({ data: undefined })
+    renderAt('/admin/nhom/t1', { mentorId: 'm1', mentorName: 'Chị Lan', reason: 'DOMAIN' })
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('Theo chuyên môn')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Đổi mentor' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Đổi mentor – Nhóm Bình Minh' })
+    await user.selectOptions(await within(dialog).findByLabelText('Mentor'), 'm2')
+    await user.type(within(dialog).getByRole('textbox'), 'Cần mentor Fintech')
+    await user.click(within(dialog).getByRole('button', { name: 'Đổi mentor' }))
+    expect(put).toHaveBeenCalledWith('/api/teams/t1/mentor-assignment', { mentorId: 'm2', note: 'Cần mentor Fintech' })
+    expect(await screen.findByText('Đã đổi sang Anh Minh cho nhóm Nhóm Bình Minh')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Gỡ mentor' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Gỡ mentor Chị Lan?' })).getByRole('button', { name: 'Gỡ mentor' }))
+    expect(del).toHaveBeenCalledWith('/api/teams/t1/mentor-assignment')
   })
 })
