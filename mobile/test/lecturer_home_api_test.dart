@@ -3,61 +3,47 @@ import 'package:exe_team_matching/features/lecturer/lecturer_home_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('L01 counts only scheduled meetings occurring today', () async {
-    final now = DateTime.now();
-    final tomorrow = now.add(const Duration(days: 1));
-    final dio = Dio()
-      ..interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (request, handler) {
-            final data = switch (request.path) {
-              '/api/advisor/overview' => {
-                'needsReplyCount': 2,
-                'overdueDeliverableCount': 1,
-                'upcomingMeetingCount': 3,
-              },
-              '/api/checkpoints/me' => <dynamic>[],
-              '/api/meeting-schedules/me' => {'status': 'PUBLISHED'},
-              '/api/workspaces/me' => <dynamic>[
-                {
-                  'id': 'workspace-1',
-                  'teamId': 'team-1',
-                  'teamName': 'Nhóm 1',
-                  'courseCode': 'EXE201',
-                  'myRole': 'INSTRUCTOR',
+  test(
+    'L01 uses implemented APIs and leaves unavailable totals empty',
+    () async {
+      final requestedPaths = <String>[];
+      final dio = Dio()
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (request, handler) {
+              requestedPaths.add(request.path);
+              final data = switch (request.path) {
+                '/api/advisor/questions' => {
+                  'items': <dynamic>[],
+                  'totalCount': 2,
                 },
-              ],
-              '/api/workspaces/workspace-1/meetings' => {
-                'items': [
+                '/api/checkpoints/me' => <dynamic>[
                   {
-                    'id': 'meeting-today',
-                    'status': 'SCHEDULED',
-                    'startsAt': now.toIso8601String(),
-                  },
-                  {
-                    'id': 'meeting-tomorrow',
-                    'status': 'SCHEDULED',
-                    'startsAt': tomorrow.toIso8601String(),
-                  },
-                  {
-                    'id': 'meeting-proposed',
-                    'status': 'PROPOSED',
-                    'startsAt': now.toIso8601String(),
+                    'items': [
+                      {'checkpointNo': 2, 'presented': false, 'overdue': true},
+                    ],
                   },
                 ],
-              },
-              _ => throw StateError('Unexpected request: ${request.path}'),
-            };
-            handler.resolve(Response(requestOptions: request, data: data));
-          },
-        ),
-      );
+                '/api/meeting-schedules/me' => {'status': 'PUBLISHED'},
+                _ => throw StateError('Unexpected request: ${request.path}'),
+              };
+              handler.resolve(Response(requestOptions: request, data: data));
+            },
+          ),
+        );
 
-    final stats = await LecturerHomeApi(dio).getSemesterStats();
+      final stats = await LecturerHomeApi(dio).getSemesterStats();
 
-    expect(stats.needsReplyCount, 2);
-    expect(stats.overdueSubmissionsCount, 1);
-    expect(stats.meetingsTodayCount, 1);
-    expect(stats.hasPostedWeeklySchedule, isTrue);
-  });
+      expect(stats.needsReplyCount, 2);
+      expect(stats.overdueSubmissionsCount, isNull);
+      expect(stats.meetingsTodayCount, isNull);
+      expect(stats.missingCheckpointsCount, 1);
+      expect(stats.hasPostedWeeklySchedule, isTrue);
+      expect(requestedPaths, [
+        '/api/advisor/questions',
+        '/api/checkpoints/me',
+        '/api/meeting-schedules/me',
+      ]);
+    },
+  );
 }

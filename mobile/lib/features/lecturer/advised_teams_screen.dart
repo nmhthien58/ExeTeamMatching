@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../lecturers/match_reason.dart';
-import '../meeting_schedule/meeting_schedule_api.dart' show ScheduleSlot, dayNames;
+import '../meeting_schedule/meeting_schedule_api.dart'
+    show ScheduleSlot, dayNames;
 import '../workspace/workspace_widgets.dart';
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
@@ -183,11 +185,6 @@ class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
                         _AdvisedTeamCard(
                           entry: entry,
                           advisorKind: widget.advisorKind,
-                          workspace: workspaceItems
-                              .where(
-                                (value) => value.teamId == entry.item.teamId,
-                              )
-                              .firstOrNull,
                           checkpoint: checkpointItems
                               .where(
                                 (value) =>
@@ -224,32 +221,20 @@ class _AdvisorEntry {
   final bool isMentorRole;
 }
 
-class _AdvisedTeamCard extends ConsumerWidget {
+class _AdvisedTeamCard extends StatelessWidget {
   const _AdvisedTeamCard({
     required this.entry,
     required this.advisorKind,
-    required this.workspace,
     required this.checkpoint,
   });
 
   final _AdvisorEntry entry;
   final String advisorKind;
-  final AdvisorWorkspaceRef? workspace;
   final CheckpointProgress? checkpoint;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final item = entry.item;
-    final activity = workspace == null
-        ? null
-        : ref.watch(
-            advisorTeamActivityProvider((
-              workspace: workspace!,
-              includeTasks: advisorKind == 'LECTURER',
-              includeSchedule:
-                  advisorKind == 'LECTURER' && item.courseCode == 'EXE201',
-            )),
-          );
     final reason = entry.isMentorRole
         ? mentorMatchReason(item.reason)
         : lecturerMatchReason(item.reason, item.preferenceRank);
@@ -313,38 +298,6 @@ class _AdvisedTeamCard extends ConsumerWidget {
                       'Đã trình bày ${checkpoint!.doneCount} trên 4 checkpoint',
                 ),
               ],
-              if (activity != null)
-                activity.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.only(top: AppSpacing.s3),
-                    child: Skeleton(height: 16),
-                  ),
-                  error: (_, _) => const SizedBox.shrink(),
-                  data: (value) => Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.s3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (advisorKind == 'LECTURER')
-                          Text(
-                            'Tiến độ việc: ${value.completedTasks}/${value.tasks.length} · '
-                            '${value.pendingSubmissions} bài nộp chờ duyệt',
-                          ),
-                        if (item.courseCode == 'EXE201')
-                          Text(
-                            value.schedule?.mySlot == null
-                                ? 'Chưa chốt lịch họp hằng tuần'
-                                : _slotLabel(value.schedule!.mySlot!),
-                          ),
-                        if (entry.isMentorRole)
-                          Text(
-                            'Buổi mentor ${value.meetings.mentorSessionsDone}/'
-                            '${value.meetings.expectedMentorSessions}',
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -809,7 +762,7 @@ Future<void> _showCheckpointSheet(
                           context: context,
                           initialDate: presentedOn,
                           firstDate: DateTime(presentedOn.year - 1),
-                          lastDate: DateTime(presentedOn.year + 1),
+                          lastDate: DateTime.now(),
                         );
                         if (selected != null) {
                           setState(() => presentedOn = selected);
@@ -868,8 +821,9 @@ Future<void> _showCheckpointSheet(
                               } catch (cause) {
                                 setState(() {
                                   saving = false;
-                                  error =
-                                      'Không thể ghi nhận Checkpoint. Hãy thử lại.';
+                                  error = cause is ApiException
+                                      ? cause.detail ?? cause.title
+                                      : 'Không thể ghi nhận Checkpoint. Hãy thử lại.';
                                 });
                               }
                             },

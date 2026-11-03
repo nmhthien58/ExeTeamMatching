@@ -282,14 +282,14 @@ class LecturerTeamsMeResponse {
 class LecturerSemesterStats {
   const LecturerSemesterStats({
     this.needsReplyCount = 0,
-    this.overdueSubmissionsCount = 0,
+    this.overdueSubmissionsCount,
     this.meetingsTodayCount,
     this.missingCheckpointsCount = 0,
     this.hasPostedWeeklySchedule = true,
   });
 
   final int needsReplyCount;
-  final int overdueSubmissionsCount;
+  final int? overdueSubmissionsCount;
   final int? meetingsTodayCount;
   final int missingCheckpointsCount;
   final bool hasPostedWeeklySchedule;

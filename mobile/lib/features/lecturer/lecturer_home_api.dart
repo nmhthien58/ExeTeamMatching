@@ -234,19 +234,9 @@ class LecturerHomeApi {
   });
 
   Future<LecturerSemesterStats> getSemesterStats() => _call(() async {
-    final overview = await _dio.get<Map<String, dynamic>>(
-      '/api/advisor/overview',
-    );
+    final needsReplyCount = await getOpenQuestionCount();
     final checkpoints = await _dio.get<List<dynamic>>('/api/checkpoints/me');
     final schedule = await _dio.get<dynamic>('/api/meeting-schedules/me');
-    final workspaces = await getAdvisorWorkspaces();
-    final meetingLists = await Future.wait([
-      for (final workspace in workspaces)
-        _dio.get<Map<String, dynamic>>(
-          '/api/workspaces/${workspace.id}/meetings',
-        ),
-    ]);
-    final data = overview.data ?? {};
     final missingCheckpoints = (checkpoints.data ?? const []).where((progress) {
       final items = (progress as Map)['items'] as List? ?? const [];
       return items.any(
@@ -256,27 +246,8 @@ class LecturerHomeApi {
             item['overdue'] == true,
       );
     }).length;
-    final today = DateTime.now();
-    final meetingsToday = meetingLists
-        .expand(
-          (response) => response.data?['items'] as List? ?? const <dynamic>[],
-        )
-        .where((item) {
-          final meeting = Map<String, dynamic>.from(item as Map);
-          final startsAt = DateTime.tryParse(
-            '${meeting['startsAt']}',
-          )?.toLocal();
-          return meeting['status'] == 'SCHEDULED' &&
-              startsAt != null &&
-              startsAt.year == today.year &&
-              startsAt.month == today.month &&
-              startsAt.day == today.day;
-        })
-        .length;
     return LecturerSemesterStats(
-      needsReplyCount: data['needsReplyCount'] as int? ?? 0,
-      overdueSubmissionsCount: data['overdueDeliverableCount'] as int? ?? 0,
-      meetingsTodayCount: meetingsToday,
+      needsReplyCount: needsReplyCount,
       missingCheckpointsCount: missingCheckpoints,
       hasPostedWeeklySchedule:
           schedule.data is Map &&

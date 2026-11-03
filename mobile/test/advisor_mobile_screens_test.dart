@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:exe_team_matching/core/network/api_exception.dart';
 import 'package:exe_team_matching/core/phase.dart';
 import 'package:exe_team_matching/core/theme/app_theme.dart';
 import 'package:exe_team_matching/features/lecturer/advised_teams_screen.dart';
@@ -36,6 +37,8 @@ class FakeAdvisorApi extends LecturerHomeApi {
   int markCalls = 0;
   int undoCalls = 0;
   int savePreferredCalls = 0;
+  int teamActivityCalls = 0;
+  ApiException? markError;
 
   static const team = AdvisedTeamItem(
     teamId: 'team-1',
@@ -115,14 +118,17 @@ class FakeAdvisorApi extends LecturerHomeApi {
     AdvisorWorkspaceRef workspace, {
     required bool includeTasks,
     required bool includeSchedule,
-  }) async => AdvisorTeamActivity(
-    workspace: workspace,
-    meetings: const MeetingList(
-      items: [],
-      mentorSessionsDone: 2,
-      expectedMentorSessions: 3,
-    ),
-  );
+  }) async {
+    teamActivityCalls++;
+    return AdvisorTeamActivity(
+      workspace: workspace,
+      meetings: const MeetingList(
+        items: [],
+        mentorSessionsDone: 2,
+        expectedMentorSessions: 3,
+      ),
+    );
+  }
 
   @override
   Future<CheckpointProgress> markCheckpoint(
@@ -131,6 +137,7 @@ class FakeAdvisorApi extends LecturerHomeApi {
     required DateTime presentedOn,
     String? comment,
   }) async {
+    if (markError != null) throw markError!;
     markCalls++;
     progress = CheckpointProgress(
       workspaceId: workspaceId,
@@ -226,7 +233,7 @@ void main() {
     ),
   );
 
-  testWidgets('L04 shows match reason, checkpoint and activity', (
+  testWidgets('L04 shows summary without loading per-team activity', (
     tester,
   ) async {
     final api = FakeAdvisorApi();
@@ -238,7 +245,7 @@ void main() {
     expect(find.text('Nhóm Alpha'), findsOneWidget);
     expect(find.text('Nguyện vọng 1'), findsOneWidget);
     expect(find.text('Checkpoint 1/4'), findsOneWidget);
-    expect(find.textContaining('Tiến độ việc: 0/0'), findsOneWidget);
+    expect(api.teamActivityCalls, 0);
   });
 
   testWidgets('L05 marks checkpoint and offers undo', (tester) async {
@@ -257,6 +264,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(api.teamActivityCalls, 1);
 
     await tester.scrollUntilVisible(
       find.text('Đánh dấu Checkpoint'),
@@ -274,6 +282,53 @@ void main() {
     tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
     await tester.pumpAndSettle();
     expect(api.undoCalls, 1);
+  });
+
+  testWidgets('L05 limits checkpoint date and shows API detail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = FakeAdvisorApi()
+      ..markError = const ApiException(
+        status: 400,
+        code: 'future-checkpoint',
+        title: 'Ngày không hợp lệ',
+        detail: 'Ngày trình bày không được ở tương lai.',
+      );
+    await tester.pumpWidget(
+      app(
+        const AdvisedTeamDetailScreen(
+          teamId: 'team-1',
+          advisorKind: 'LECTURER',
+        ),
+        api,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Đánh dấu Checkpoint'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Đánh dấu Checkpoint'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ngày trình bày'));
+    await tester.pumpAndSettle();
+
+    final picker = tester.widget<CalendarDatePicker>(
+      find.byType(CalendarDatePicker),
+    );
+    final today = DateTime.now();
+    expect(DateUtils.dateOnly(picker.lastDate), DateUtils.dateOnly(today));
+    await tester.tap(find.byType(TextButton).last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ngày trình bày không được ở tương lai.'), findsOneWidget);
   });
 
   testWidgets('M01 before week 6 shows interests and saves preferred teams', (
@@ -311,7 +366,7 @@ void main() {
   });
 
   for (final size in const [Size(360, 800), Size(412, 915)]) {
-    testWidgets('L04 and M01 fit ${size.width}dp at 130% text scale', (
+    testWidgets('advisor screens fit ${size.width}dp at 130% text scale', (
       tester,
     ) async {
       tester.view.physicalSize = size;
@@ -329,12 +384,57 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      await _expectGuidelines(tester);
+
+      await tester.pumpWidget(
+        app(
+          const AdvisedTeamsScreen(advisorKind: 'MENTOR'),
+          api,
+          textScale: 1.3,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await _expectGuidelines(tester);
+
+      await tester.pumpWidget(
+        app(
+          const AdvisedTeamDetailScreen(
+            teamId: 'team-1',
+            advisorKind: 'LECTURER',
+          ),
+          api,
+          textScale: 1.3,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await _expectGuidelines(tester);
+
+      await tester.pumpWidget(
+        app(
+          const MentorHomeScreen(),
+          api,
+          mentoringWindow: false,
+          textScale: 1.3,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await _expectGuidelines(tester);
 
       await tester.pumpWidget(
         app(const MentorHomeScreen(), api, textScale: 1.3),
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      await _expectGuidelines(tester);
     });
   }
+}
+
+Future<void> _expectGuidelines(WidgetTester tester) async {
+  await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+  await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+  await expectLater(tester, meetsGuideline(textContrastGuideline));
 }
