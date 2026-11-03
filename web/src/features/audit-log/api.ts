@@ -23,6 +23,7 @@ export interface AuditLogFilter {
   from?: string
   to?: string
   page: number
+  actorName?: string
 }
 
 const PAGE_SIZE = 20
@@ -36,6 +37,7 @@ export function useSystemAuditLogs(filter: AuditLogFilter) {
         await api.get<Paged<AuditLog>>('/api/audit-logs', {
           params: {
             teamId: filter.teamId,
+            actorName: filter.actorName,
             from: filter.from ? new Date(`${filter.from}T00:00:00`).toISOString() : undefined,
             to: filter.to ? new Date(`${filter.to}T23:59:59.999`).toISOString() : undefined,
             page: filter.page,

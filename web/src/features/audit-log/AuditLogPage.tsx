@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from '@/shared/components/States'
 import { Button, Icon } from '@/shared/components/ui'
@@ -8,14 +9,14 @@ import { useSystemAuditLogs, useTeamOptions } from './api'
 const fieldClass = 'h-10 rounded-sm border border-border-strong bg-surface px-3 text-body'
 
 /**
- * W24 – Nhật ký hệ thống (FE-30, quy tắc 10): ai, lúc nào, thay đổi gì; lọc theo nhóm và khoảng thời gian, phân trang 20.
+ * W24 – Nhật ký hệ thống (FE-30, quy tắc 10): ai, lúc nào, thay đổi gì; lọc theo nhóm, tên người thực hiện, khoảng thời gian, phân trang 20.
  * Không dùng DataTable vì API không có tìm kiếm (DataTable luôn có ô tìm). Bộ lọc nằm trên URL để F5 / chia sẻ giữ nguyên.
  */
-// shortcut: chưa lọc theo người thực hiện – audit_logs chỉ có actor_account_id, chưa có tên để chọn; thêm khi có cột actor_name.
 export function AuditLogPage() {
   const [params, setParams] = useSearchParams()
   const filter = {
     teamId: params.get('teamId') ?? undefined,
+    actorName: params.get('actor') ?? undefined,
     from: params.get('from') ?? undefined,
     to: params.get('to') ?? undefined,
     page: Math.max(1, Number(params.get('page')) || 1),
@@ -23,7 +24,7 @@ export function AuditLogPage() {
   const logs = useSystemAuditLogs(filter)
   const teams = useTeamOptions()
   const teamName = new Map((teams.data ?? []).map((t) => [t.id, t.name]))
-  const hasFilters = !!(filter.teamId || filter.from || filter.to)
+  const hasFilters = !!(filter.teamId || filter.actorName || filter.from || filter.to)
   const invalidRange = !!(filter.from && filter.to && filter.from > filter.to)
 
   const update = (patch: Record<string, string | undefined>) => {
@@ -35,6 +36,17 @@ export function AuditLogPage() {
     if (!('page' in patch)) next.delete('page')
     setParams(next, { replace: true })
   }
+
+  // Gõ tên thì đợi 300 ms mới lọc, tránh gọi API mỗi phím.
+  const [actor, setActor] = useState(filter.actorName ?? '')
+  useEffect(() => setActor(filter.actorName ?? ''), [filter.actorName])
+  useEffect(() => {
+    const value = actor.trim() || undefined
+    if (value === filter.actorName) return
+    const timer = setTimeout(() => update({ actor: value }), 300)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actor])
 
   const data = logs.data
   const total = data?.totalCount ?? 0
@@ -58,6 +70,10 @@ export function AuditLogPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1">
+            <span className="text-caption text-text-secondary">Người thực hiện</span>
+            <input type="search" value={actor} maxLength={150} onChange={(e) => setActor(e.target.value)} placeholder="Tên" className={fieldClass} />
+          </label>
+          <label className="flex flex-col gap-1">
             <span className="text-caption text-text-secondary">Từ ngày</span>
             <input type="date" value={filter.from ?? ''} onChange={(e) => update({ from: e.target.value })} className={fieldClass} />
           </label>
@@ -66,7 +82,7 @@ export function AuditLogPage() {
             <input type="date" value={filter.to ?? ''} onChange={(e) => update({ to: e.target.value })} className={fieldClass} />
           </label>
           {hasFilters && (
-            <Button variant="text" onClick={() => update({ teamId: undefined, from: undefined, to: undefined })}>
+            <Button variant="text" onClick={() => update({ teamId: undefined, actor: undefined, from: undefined, to: undefined })}>
               Xóa bộ lọc
             </Button>
           )}
