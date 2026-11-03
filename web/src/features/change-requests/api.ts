@@ -45,6 +45,14 @@ export interface ChangeRequestDetail extends ChangeRequest {
   projectAfter?: { name: string; description?: string | null } | null
 }
 
+export interface PendingTeamChanges {
+  baselineMembers: ChangeStudent[]
+  pendingItems: ChangeItem[]
+  currentProject: { id?: string; name: string; description?: string | null } | null
+  wouldHaveMemberCount: number
+  wouldHaveSpecializationCount: number
+}
+
 export const changeRequestKeys = {
   all: ['change-requests'] as const,
   list: (status: ChangeRequestStatus | undefined, roundId: string | undefined, query: TableQuery) =>
@@ -72,6 +80,43 @@ export async function fetchChangeRequests(
 
 export async function fetchChangeRequest(id: string): Promise<ChangeRequestDetail> {
   return (await api.get<ChangeRequestDetail>(`/api/change-requests/${id}`)).data
+}
+
+export function useTeamChangeRequests(teamId: string | undefined) {
+  return useQuery({
+    queryKey: [...changeRequestKeys.all, 'team', teamId],
+    queryFn: async () => (await api.get<ChangeRequest[]>(`/api/teams/${teamId}/change-requests`)).data,
+    enabled: !!teamId,
+  })
+}
+
+export function usePendingTeamChanges(teamId: string | undefined) {
+  return useQuery({
+    queryKey: [...changeRequestKeys.all, 'pending', teamId],
+    queryFn: async () => (await api.get<PendingTeamChanges>(`/api/teams/${teamId}/pending-changes`)).data,
+    enabled: !!teamId,
+  })
+}
+
+export function useSetProjectChange(teamId: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { name: string; description: string }) =>
+      (await api.put<ChangeItem>(`/api/teams/${teamId}/pending-changes/project`, input)).data,
+    onSuccess: () => void client.invalidateQueries({ queryKey: [...changeRequestKeys.all, 'pending', teamId] }),
+  })
+}
+
+export function useSubmitTeamChangeRequest(teamId: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { itemIds: string[]; reason: string }) =>
+      (await api.post<ChangeRequest>(`/api/teams/${teamId}/change-requests`, input)).data,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: [...changeRequestKeys.all, 'team', teamId] })
+      void client.invalidateQueries({ queryKey: [...changeRequestKeys.all, 'pending', teamId] })
+    },
+  })
 }
 
 export function useChangeRequestDecision() {

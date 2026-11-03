@@ -4,14 +4,19 @@ import 'package:go_router/go_router.dart';
 import '../features/change_requests/change_request_screens.dart';
 import '../features/change_requests/routes.dart';
 import '../features/lecturers/routes.dart';
+import '../features/lecturer/lecturer_home_screen.dart';
+import '../features/lecturer/topic_interests_screen.dart';
 
 import '../features/discover/discover_screen.dart';
 import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/lecturer_profile/lecturer_profile_screen.dart';
 import '../features/lecturers/team_lecturer_screen.dart';
 import '../features/meeting_schedule/meeting_schedule_screen.dart';
+import '../features/meetings/meeting_detail_screen.dart';
+import '../features/meetings/meetings_screen.dart';
 import '../features/messages/channel_screen.dart';
 import '../features/messages/conversations_screen.dart';
 import '../features/notifications/notifications_screen.dart';
@@ -22,8 +27,10 @@ import '../features/my_team/recruitment_post_screen.dart';
 import '../features/my_team/requests_screen.dart';
 import '../features/my_team/team_history_screen.dart';
 import '../features/my_team/team_form_screen.dart';
+import '../features/profile/my_profile_screens.dart';
 import '../features/profile/student_profile_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
+import '../features/settings/settings_screen.dart';
 import '../features/round_closed/round_closed_screen.dart';
 import '../features/suggestions/invite_students_screen.dart';
 import '../features/suggestions/suggested_members_screen.dart';
@@ -39,9 +46,14 @@ import 'role_shell.dart';
 final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
   '/sv/nhom': (_) => const MyTeamScreen(),
-  '/sv': (_) => const HomeScreen(),
+  // A05 chặn trước S01, S02 khi sinh viên chưa đánh giá đủ 5 kỹ năng – MB-08, MB-12 (Nam).
+  '/sv': (_) => const ProfileGate(child: HomeScreen()),
+  '/sv/ho-so': (_) => const ProfileGate(child: MyProfileScreen()),
   '/sv/kham-pha': (_) => const DiscoverScreen(),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
+  '/gv': (_) => const LecturerHomeScreen(),
+  '/gv/de-tai': (_) => const TopicInterestsScreen(advisorKind: 'LECTURER'),
+  '/mentor/de-tai': (_) => const TopicInterestsScreen(advisorKind: 'MENTOR'),
   '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
   '/mentor/thong-bao': (_) => const NotificationsScreen(roleRoot: '/mentor'),
   // C02 của cố vấn – MB-39 (Cường).
@@ -66,12 +78,33 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: '/app://change-requests', redirect: (_, _) => changeRequestListPath),
         ],
       Shell.lecturer => [
+          GoRoute(
+            path: '/gv/de-tai/:teamId',
+            builder: (_, state) => TopicDetailScreen(
+              teamId: state.pathParameters['teamId']!,
+              advisorKind: 'LECTURER',
+            ),
+          ),
           _advisorWorkspace('/gv/du-an'),
           _channelRoute('/gv/tin-nhan'),
+          // L06 – MB-35, A07 – MB-10 (Nam). L01 (Thành) chưa có nút mở L06.
+          GoRoute(path: lecturerProfilePath, builder: (_, _) => const LecturerProfileScreen()),
+          GoRoute(path: lecturerSettingsPath, builder: (_, _) => const SettingsScreen()),
           // C09 – MB-46 (Cường); lối vào từ L01, C07 do màn đó thêm.
           GoRoute(path: '/gv/lich-hop', builder: (_, _) => const LecturerScheduleScreen()),
         ],
-      Shell.mentor => [_advisorWorkspace('/mentor/du-an'), _channelRoute('/mentor/tin-nhan')],
+      Shell.mentor => [
+          GoRoute(
+            path: '/mentor/de-tai/:teamId',
+            builder: (_, state) => TopicDetailScreen(
+              teamId: state.pathParameters['teamId']!,
+              advisorKind: 'MENTOR',
+            ),
+          ),
+          _advisorWorkspace('/mentor/du-an'),
+          _channelRoute('/mentor/tin-nhan'),
+          GoRoute(path: '/mentor/cai-dat', builder: (_, _) => const SettingsScreen()),
+        ],
     };
 
 /// S07 (trong Khám phá, chỉ mở trong đợt lập nhóm – quy tắc 18), S18, S19 (Nhóm của tôi), S30, S31 (sau hạn chót) – MB-15, MB-23, MB-31.
@@ -97,7 +130,10 @@ final _studentTeamRoutes = [
   GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),
   // S22 – MB-26 (Cường).
   GoRoute(path: '/sv/nhom/lich-su', builder: (_, _) => const TeamHistoryScreen()),
-  // S04 – MB-13 (Nam).
+  // S03 – MB-12, S04 – MB-13 (Nam).
+  GoRoute(path: editProfilePath, builder: (_, _) => const EditProfileScreen()),
+  // A07 – MB-10 (Nam).
+  GoRoute(path: studentSettingsPath, builder: (_, _) => const SettingsScreen()),
   GoRoute(path: '/sv/sinh-vien/:id', builder: (_, s) => StudentProfileScreen(studentId: s.pathParameters['id']!)),
 ];
 
@@ -112,7 +148,7 @@ GoRoute _advisorWorkspace(String base) => GoRoute(
       ),
     );
 
-/// C04, C05, C06 (MB-40, MB-41), Tin nhắn C02, C03 (MB-39); Lịch họp (C07, Nam) giữ chỗ tới khi module đó xong.
+/// C04, C05, C06 (MB-40, MB-41), Tin nhắn C02, C03 (MB-39), Lịch họp C07, C08 (MB-42).
 /// [prefix] là phần đầu đường dẫn (rỗng khi lồng trong route dự án của cố vấn).
 List<GoRoute> _workspaceRoutes(
   String prefix, {
@@ -140,22 +176,9 @@ List<GoRoute> _workspaceRoutes(
         null => ConversationsScreen(basePath: basePathOf(s)),
       },
     ),
-    GoRoute(path: '${prefix}lich-hop', builder: (_, _) => const _Pending(screen: 'C07', title: 'Lịch họp', owner: 'Nam')),
+    GoRoute(path: '${prefix}lich-hop', builder: (_, s) => MeetingsScreen(basePath: basePathOf(s), workspaceId: workspaceIdOf(s))),
+    GoRoute(path: '${prefix}lich-hop/:meetingId', builder: (_, s) => MeetingDetailScreen(meetingId: s.pathParameters['meetingId']!)),
   ];
-}
-
-class _Pending extends StatelessWidget {
-  const _Pending({required this.screen, required this.title, required this.owner});
-
-  final String screen;
-  final String title;
-  final String owner;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: EmptyState(icon: Icons.construction, title: '$screen · $title', description: 'Màn hình đang được làm – người phụ trách: $owner.'),
-      );
 }
 
 /// C03 mở từ tab Tin nhắn của cố vấn: `{base}/{channelId}?ws={workspaceId}` – MB-39 (Cường).

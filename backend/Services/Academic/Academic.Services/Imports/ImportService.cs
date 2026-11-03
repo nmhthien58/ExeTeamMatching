@@ -181,7 +181,6 @@ public sealed class ImportService(
 /// <summary>Lỗi của module Imports.</summary>
 public static class ImportErrors
 {
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException Conflict() =>
         new("import-conflict", "Dữ liệu sinh viên vừa thay đổi",
             "Có thao tác khác vừa ghi sinh viên trùng MSSV hoặc email trong file. Tải lại file để xem trước rồi xác nhận lại.");

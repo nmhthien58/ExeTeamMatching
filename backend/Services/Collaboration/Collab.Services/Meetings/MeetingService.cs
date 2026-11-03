@@ -473,11 +473,9 @@ public static class MeetingErrors
     public static ConflictException NotOpen() =>
         new("meeting-not-open", "Cuộc họp không còn mở", "Chỉ trả lời, thêm khung, chốt khi họp đang chờ chốt; họp đã hủy hoặc đã xong không sửa được.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException NotConfirmed() =>
         new("meeting-not-confirmed", "Cuộc họp chưa chốt", "Chỉ ghi biên bản cho họp đã chốt; chuyển dòng biên bản thành việc sau khi có biên bản.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException SlotLimit() =>
         new("meeting-slot-limit", "Đã đủ 3 khung giờ", $"Mỗi cuộc họp tối đa {MeetingInputValidator.MaxSlots} khung giờ.");
 

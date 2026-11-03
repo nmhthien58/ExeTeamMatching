@@ -189,15 +189,12 @@ public static class RoundErrors
     public static ConflictException RoundClosed() =>
         new("round-closed", "Đợt đăng ký chưa mở hoặc đã khóa", "Đợt đã khóa không sửa hay mở lại được; chỉ khóa được đợt đang mở.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException Overlap() =>
         new("round-overlap", "Trùng thời gian đợt khác", "Học kỳ đã có đợt cùng môn và cùng loại trong khoảng thời gian này.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException AlreadyOpen(string courseCode, string roundType) =>
         new("round-already-open", "Đã có đợt đang mở", $"Môn {courseCode} đang có một đợt {roundType} mở; khóa đợt đó trước.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException OpenRoundLocked() =>
         new("round-open-locked", "Đợt đang mở chỉ đổi được tên",
             "Đợt đã mở thì không đổi học kỳ, môn, loại, giờ mở hay hạn chót (Job đã hẹn giờ khóa). Khóa đợt rồi tạo đợt mới nếu cần.");

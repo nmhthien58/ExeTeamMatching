@@ -21,11 +21,8 @@ public sealed record LecturerInput(
 /// <summary>Body của <c>PUT /api/lecturers/me</c>: giảng viên chỉ sửa domain chuyên môn (số nhóm tối đa do Admin đặt).</summary>
 public sealed record LecturerProfileInput(IReadOnlyList<int>? DomainIds);
 
-/// <summary>
-/// Query của <c>GET /api/lecturers</c>. <see cref="AcceptingOnly"/> còn trong contract nhưng cờ "nhận nhóm mới" đã bỏ (đợt 2, 20/10/2026):
-/// hiểu là chỉ lấy giảng viên đang hoạt động. Người không phải Admin luôn chỉ thấy giảng viên đang hoạt động.
-/// </summary>
-public sealed record LecturerQuery(string? Search, bool? AcceptingOnly, int Page = 1, int PageSize = 20);
+/// <summary>Query của <c>GET /api/lecturers</c>. Người không phải Admin chỉ thấy giảng viên đang hoạt động.</summary>
+public sealed record LecturerQuery(string? Search, int Page = 1, int PageSize = 20);
 
 public sealed partial class LecturerInputValidator : AbstractValidator<LecturerInput>
 {
@@ -88,7 +85,6 @@ public static partial class LecturerRules
 }
 
 // Payload sự kiện exe.student (docs/contracts/events.md), key = lecturerId.
-// Số nhóm tối đa theo môn (đợt 2): maxTeamsExe101 / maxTeamsExe201 thay cho maxTeams; bỏ isAcceptingTeams – đề xuất sửa events.md.
 
 public static class LecturerEventTypes
 {

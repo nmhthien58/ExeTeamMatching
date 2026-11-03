@@ -217,17 +217,14 @@ public static class MeetingScheduleErrors
 
     public static ConflictException NotLeader() => new("not-leader", "Chỉ trưởng nhóm chọn được slot");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException NoTeams() =>
         new("no-exe201-team", "Bạn chưa hướng dẫn nhóm EXE201 nào", "Lịch họp hằng tuần tạo được sau khi có nhóm EXE201.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException NoSlots() => new("schedule-has-no-slot", "Lịch chưa có slot", "Thêm khung giờ trước khi đăng.");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException NotWeekly() => new("meeting-not-weekly", "Chỉ dời được họp hằng tuần");
 
-    // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung. Job gặp lỗi này sẽ thử lại.
+    // Job gặp lỗi này sẽ thử lại.
     public static HttpStatusException SemesterUnavailable(Guid semesterId) =>
         new(503, "semester-unavailable", "Không đọc được học kỳ", $"Chưa đọc được lịch học kỳ {semesterId} từ Academic.");
 }

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 
-// Model theo docs/contracts/openapi/academic.yaml – chỉ các trường màn hình S04 dùng.
+// Model theo docs/contracts/openapi/academic.yaml – chỉ các trường màn hình A05, S02–S04 dùng.
 
 /// 5 kỹ năng cố định, đúng thứ tự hiển thị (quy tắc 16).
 const skillLabels = {
@@ -24,6 +24,9 @@ class StudentProfile {
     this.classCode,
     this.email,
     this.hasTeam = false,
+    this.isSeekingTeam = false,
+    this.profileCompleted = true,
+    this.courseCode,
     this.skills = const {},
     this.description,
   });
@@ -37,6 +40,11 @@ class StudentProfile {
   /// Null với người ngoài nhóm (quy tắc 11).
   final String? email;
   final bool hasTeam;
+  final bool isSeekingTeam;
+
+  /// Đã đánh giá đủ 5 kỹ năng (quy tắc 16); false → A05.
+  final bool profileCompleted;
+  final String? courseCode;
 
   /// Mức 1–5 theo khóa của [skillLabels]; rỗng khi chưa đánh giá.
   final Map<String, int> skills;
@@ -53,6 +61,9 @@ class StudentProfile {
       classCode: j['classCode'] as String?,
       email: email == null || email.isEmpty ? null : email,
       hasTeam: j['hasTeam'] as bool? ?? false,
+      isSeekingTeam: j['isSeekingTeam'] as bool? ?? false,
+      profileCompleted: j['profileCompleted'] as bool? ?? true,
+      courseCode: j['courseCode'] as String?,
       skills: {for (final s in (j['skills'] as List? ?? const [])) (s as Map)['skill'] as String: s['level'] as int},
       description: j['description'] as String?,
     );
@@ -68,6 +79,30 @@ class ProfileApi {
   Future<StudentProfile> student(String id) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/api/students/$id');
+      return StudentProfile.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw e.apiError;
+    }
+  }
+
+  /// Hồ sơ của tôi (A05, S02, S03).
+  Future<StudentProfile> me() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('/api/students/me');
+      return StudentProfile.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw e.apiError;
+    }
+  }
+
+  /// Chỉ 5 kỹ năng, giới thiệu, công tắc tìm nhóm (quy tắc 16). [isSeekingTeam] null thì giữ nguyên.
+  Future<StudentProfile> saveMe({required Map<String, int> skills, required String description, bool? isSeekingTeam}) async {
+    try {
+      final response = await _dio.put<Map<String, dynamic>>('/api/students/me', data: {
+        'skills': [for (final skill in skillLabels.keys) {'skill': skill, 'level': skills[skill]}],
+        'description': description,
+        'isSeekingTeam': ?isSeekingTeam,
+      });
       return StudentProfile.fromJson(response.data!);
     } on DioException catch (e) {
       throw e.apiError;
@@ -95,3 +130,5 @@ final studentProfileProvider = FutureProvider.autoDispose.family<StudentProfile,
 
 final invitedStudentIdsProvider =
     FutureProvider.autoDispose.family<Set<String>, String>((ref, teamId) => ref.watch(profileApiProvider).invitedStudentIds(teamId));
+
+final myProfileProvider = FutureProvider.autoDispose<StudentProfile>((ref) => ref.watch(profileApiProvider).me(), retry: (_, _) => null);

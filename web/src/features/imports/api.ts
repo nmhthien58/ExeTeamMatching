@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/apiClient'
 import type { CourseCode } from '@/shared/phase/usePhase'
+import type { Paged } from '@/shared/components/DataTable'
 
 /** academic.yaml, tag Imports. */
 export interface ImportRow {
@@ -124,5 +125,13 @@ export function useBaselineImport() {
         })
       ).data
     },
+  })
+}
+
+/** W08 – lịch sử import, mới nhất trước. Khóa nằm dưới `['imports']` nên tự làm mới sau khi xác nhận import. */
+export function useImportHistory(semesterId: string | undefined, page: number) {
+  return useQuery({
+    queryKey: ['imports', 'history', semesterId ?? 'all', page],
+    queryFn: async () => (await api.get<Paged<ImportBatch>>('/api/imports', { params: { semesterId, page, pageSize: 10 } })).data,
   })
 }
