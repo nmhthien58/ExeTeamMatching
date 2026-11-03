@@ -1,19 +1,19 @@
 import type { RouteObject } from 'react-router-dom'
-import { ScreenPlaceholder } from '@/shared/components/ScreenPlaceholder'
 import { FilesPage } from '@/features/files/FilesPage'
+import { MeetingsPage } from '@/features/meetings/MeetingsPage'
 import { WorkspaceMessagesPage } from '@/features/messages/MessagesPage'
 import { TaskBoardPage } from '@/features/tasks/TaskBoardPage'
 import { ProjectOverviewPage } from './ProjectOverviewPage'
 import { WorkspaceLayout } from './WorkspaceLayout'
 
-/** Trang con của một dự án. Lịch họp (C07–C08, Nam) giữ chỗ tới khi module đó xong. */
+/** Trang con của một dự án. Lịch họp C07–C08 (FE-36, Nam). */
 const workspaceChildren: RouteObject[] = [
   { index: true, element: <ProjectOverviewPage /> },
   { path: 'viec', element: <TaskBoardPage /> },
   { path: 'viec/:taskId', element: <TaskBoardPage /> },
   { path: 'file', element: <FilesPage /> },
   { path: 'tin-nhan', element: <WorkspaceMessagesPage /> },
-  { path: 'lich-hop', element: <ScreenPlaceholder screen="C07" title="Lịch họp" owner="Nam" /> },
+  { path: 'lich-hop', element: <MeetingsPage /> },
 ]
 
 /**
