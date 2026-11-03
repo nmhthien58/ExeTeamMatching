@@ -328,6 +328,21 @@ services:
         condition: service_healthy
 
   # FE-01 – React build tĩnh phục vụ bằng nginx. Biến VITE_* được gắn lúc build.
+  # BE-57: seed dữ liệu demo ẩn danh qua API, chạy một lần: docker compose --profile seed run --rm seed
+  seed:
+    image: node:22-alpine
+    profiles: [seed]
+    working_dir: /seed
+    volumes:
+      - ./seed:/seed:ro
+    command: ["node", "seed-demo.mjs"]
+    environment:
+      SEED_GATEWAY_URL: http://gateway:8080
+      SEED_HEALTH_URLS: http://gateway:8080/health,http://identity-api:8080/health,http://academic-api:8080/health,http://team-api:8080/health,http://notification:8080/health,http://jobs:8080/health,http://collab-api:8080/health
+    depends_on:
+      gateway:
+        condition: service_healthy
+
   web:
     build:
       context: ../web
