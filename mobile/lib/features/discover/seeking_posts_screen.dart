@@ -11,8 +11,7 @@ import '../suggestions/suggestions_api.dart' show CatalogRef, specializationsPro
 import 'posts_api.dart';
 
 /// S10 – tab "Sinh viên tìm nhóm" của Khám phá (MB-17): bài của mình (→ S11), lọc chuyên ngành, danh sách bài phân trang.
-/// Trưởng nhóm còn chỗ thấy nút "Mời vào nhóm" (design-decisions B2).
-// shortcut: chạm thẻ chưa mở S04 (hồ sơ sinh viên khác – MB-13 của Nam); nối route khi S04 xong.
+/// Trưởng nhóm còn chỗ thấy nút "Mời vào nhóm" (design-decisions B2). Chạm thẻ mở S04.
 class SeekingPostsTab extends ConsumerStatefulWidget {
   const SeekingPostsTab({super.key});
 
@@ -173,32 +172,36 @@ class SeekingPostCard extends StatelessWidget {
     final student = post.student;
     return Card.outlined(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.s4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(student.fullName, style: theme.textTheme.titleMedium),
-            Text([student.studentCode, ?student.specialization?.name].join(' · '), style: theme.textTheme.bodyMedium),
-            const SizedBox(height: AppSpacing.s2),
-            Text('Vai trò: ${post.title}', style: theme.textTheme.bodyLarge),
-            if (post.description != null) ...[
-              const SizedBox(height: AppSpacing.s1),
-              Text(post.description!, style: theme.textTheme.bodyMedium, maxLines: 3, overflow: TextOverflow.ellipsis),
-            ],
-            if (post.skills.isNotEmpty || domains.isNotEmpty) ...[
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push('/sv/sinh-vien/${student.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.s4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(student.fullName, style: theme.textTheme.titleMedium),
+              Text([student.studentCode, ?student.specialization?.name].join(' · '), style: theme.textTheme.bodyMedium),
               const SizedBox(height: AppSpacing.s2),
-              Wrap(
-                spacing: AppSpacing.s2,
-                runSpacing: AppSpacing.s2,
-                children: [
-                  for (final s in post.skills) Chip(label: Text('${s.skill} ${s.level}/5')),
-                  for (final d in domains) Tooltip(message: d.name, child: Chip(avatar: const Icon(Icons.category_outlined, size: 18), label: Text(d.code))),
-                ],
-              ),
+              Text('Vai trò: ${post.title}', style: theme.textTheme.bodyLarge),
+              if (post.description != null) ...[
+                const SizedBox(height: AppSpacing.s1),
+                Text(post.description!, style: theme.textTheme.bodyMedium, maxLines: 3, overflow: TextOverflow.ellipsis),
+              ],
+              if (post.skills.isNotEmpty || domains.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.s2),
+                Wrap(
+                  spacing: AppSpacing.s2,
+                  runSpacing: AppSpacing.s2,
+                  children: [
+                    for (final s in post.skills) Chip(label: Text('${s.skill} ${s.level}/5')),
+                    for (final d in domains) Tooltip(message: d.name, child: Chip(avatar: const Icon(Icons.category_outlined, size: 18), label: Text(d.code))),
+                  ],
+                ),
+              ],
+              if (action != null) ...[const SizedBox(height: AppSpacing.s2), Align(alignment: Alignment.centerRight, child: action)],
             ],
-            if (action != null) ...[const SizedBox(height: AppSpacing.s2), Align(alignment: Alignment.centerRight, child: action)],
-          ],
+          ),
         ),
       ),
     );
