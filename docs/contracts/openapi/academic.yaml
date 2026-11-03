@@ -180,10 +180,9 @@ paths:
   /api/lecturers:
     get:
       tags: [Lecturers]
-      summary: Danh sách giảng viên (W11 Admin; S23 sinh viên). Số nhóm đang nhận lấy từ Team Service
+      summary: Danh sách giảng viên (W11 Admin; S23 sinh viên). Người không phải Admin chỉ thấy giảng viên đang hoạt động. Số nhóm đang nhận lấy từ Team Service
       parameters:
         - { name: search, in: query, schema: { type: string } }
-        - { name: acceptingOnly, in: query, schema: { type: boolean } }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
       responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Lecturer' } } } } ] } } } } }
@@ -211,7 +210,7 @@ paths:
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lecturer' } } } } }
     put:
       tags: [Lecturers]
-      summary: Sửa domain chuyên môn, số nhóm tối đa, công tắc nhận nhóm mới (L06). Phát LecturerProfileUpdated
+      summary: Sửa domain chuyên môn (L06). Số nhóm tối đa do Admin đặt (W11). Phát LecturerProfileUpdated
       requestBody:
         required: true
         content:
@@ -226,7 +225,7 @@ paths:
   /api/mentors:
     get:
       tags: [Mentors]
-      summary: Danh sách mentor (W27, W28 – Admin). Số nhóm đang mentor lấy từ Team Service
+      summary: Danh sách mentor (W27, W28 – Admin; Team đọc bằng token dịch vụ khi ghép mentor, có cả mentor đã khóa). Số nhóm đang mentor lấy từ Team Service
       parameters:
         - { name: search, in: query, schema: { type: string } }
         - { name: domainId, in: query, schema: { type: integer } }
@@ -237,21 +236,21 @@ paths:
       responses: { '200': { description: OK, content: { application/json: { schema: { allOf: [ { $ref: '#/components/schemas/PagedMeta' }, { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Mentor' } } } } ] } } } } }
     post:
       tags: [Mentors]
-      summary: Tạo mentor (Admin). Phát MentorRegistered để Identity tạo tài khoản role Mentor; email mời đăng nhập do Notification gửi
+      summary: Tạo mentor (Admin). Phát MentorRegistered để Identity tạo tài khoản role Mentor; email mời đăng nhập do Notification gửi. 400 khi thiếu email mà không gắn giảng viên, hoặc lecturerId sai
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MentorInput' } } } }
-      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '400': { $ref: '#/components/responses/Problem' }, '409': { description: "`.../errors/email-exists`", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } } }
+      responses: { '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '400': { $ref: '#/components/responses/Problem' }, '409': { description: "`.../errors/email-exists`, `lecturer-locked`, `lecturer-has-mentor`", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } } }
   /api/mentors/{id}:
     get:
       tags: [Mentors]
-      summary: Chi tiết mentor
+      summary: Chi tiết mentor. Chỉ Admin và chính mentor đó
       parameters: [ { $ref: '#/components/parameters/Id' } ]
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '404': { $ref: '#/components/responses/Problem' } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '403': { $ref: '#/components/responses/Problem' }, '404': { $ref: '#/components/responses/Problem' } }
     put:
       tags: [Mentors]
-      summary: Sửa mentor, đặt số nhóm tối đa, khóa / mở (Admin)
+      summary: Sửa mentor, đặt số nhóm tối đa, khóa / mở (Admin). isInternal, isActive, domainIds, lecturerId bỏ trống thì giữ nguyên; muốn gỡ liên kết giảng viên thì đặt isInternal = false. Hạ maxTeams dưới preferredTeams thì preferredTeams hạ theo
       parameters: [ { $ref: '#/components/parameters/Id' } ]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MentorInput' } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '409': { description: "`.../errors/max-below-current` – đổi maxTeams xuống nhỏ hơn số nhóm đang mentor trong học kỳ hiện hành; `.../errors/lecturer-locked` – gắn giảng viên đang khóa, hoặc mở khóa mentor (isActive false → true) khi giảng viên liên kết đang khóa; `.../errors/lecturer-has-mentor`; `.../errors/email-exists`", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }, '503': { description: "`.../errors/team-unavailable` – đổi maxTeams nhưng Team Service không trả lời nên chưa kiểm tra được số nhóm đang mentor", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } }, '400': { $ref: '#/components/responses/Problem' }, '404': { $ref: '#/components/responses/Problem' }, '409': { description: "`.../errors/email-exists`, `lecturer-locked`, `lecturer-has-mentor`, `.../errors/max-below-current` – đổi maxTeams xuống nhỏ hơn số nhóm đang mentor trong học kỳ hiện hành; `.../errors/lecturer-locked` – gắn giảng viên đang khóa, hoặc mở khóa mentor (isActive false → true) khi giảng viên liên kết đang khóa; `.../errors/lecturer-has-mentor`; `.../errors/email-exists`", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }, '503': { description: "`.../errors/team-unavailable` – đổi maxTeams nhưng Team Service không trả lời nên chưa kiểm tra được số nhóm đang mentor", content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } } }
   /api/mentors/me:
     get:
       tags: [Mentors]
@@ -259,7 +258,7 @@ paths:
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Mentor' } } } } }
     put:
       tags: [Mentors]
-      summary: Mentor sửa số nhóm mong muốn, giới thiệu, domain (M01)
+      summary: Mentor sửa số nhóm mong muốn, giới thiệu, domain (M01). Trường bỏ trống thì giữ nguyên; description rỗng thì xóa giới thiệu
       requestBody:
         required: true
         content:

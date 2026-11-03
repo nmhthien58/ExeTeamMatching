@@ -20,7 +20,9 @@ info:
 
     **Lỗi riêng:** `not-workspace-member` (403), `workspace-read-only` (403 – Admin ghi), `not-workspace-advisor` (403 – không phải
     cố vấn của nhóm), `archive-read-only` (409 – thư mục EXE101 kỳ trước), `instructor-only` (403 – bài nộp,
-    duyệt bài), `not-organizer` (403), `meeting-not-open` (409), `file-too-large` (413), `file-type-not-allowed` (415).
+    duyệt bài), `not-organizer` (403), `meeting-not-open` (409), `meeting-not-confirmed` (409), `meeting-slot-limit` (409),
+    `meeting-not-weekly` (409), `no-exe201-team` (409), `schedule-has-no-slot` (409), `semester-unavailable` (503 – Job thử lại),
+    `file-too-large` (413), `file-type-not-allowed` (415).
 servers:
   - url: http://localhost:8080
     description: API Gateway
@@ -313,7 +315,7 @@ paths:
       summary: Giảng viên dời một tuần của họp hằng tuần sang giờ khác kèm lý do (nhóm được báo)
       parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [startsAt, reason], properties: { startsAt: { type: string, format: date-time }, reason: { type: string, maxLength: 500 } } } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
 
   # ---------------- Lịch họp hằng tuần EXE201 (rule 25; C09) ----------------
   /api/meeting-schedules/me:
@@ -329,8 +331,8 @@ paths:
   /api/meeting-schedules/me/publish:
     post:
       tags: [MeetingSchedules]
-      summary: Đăng lịch cho các nhóm (MeetingSlotsPublished). Ít slot hơn số nhóm vẫn đăng được, response có warning
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } } }
+      summary: Đăng lịch cho các nhóm (MeetingSlotsPublished). Ít slot hơn số nhóm vẫn đăng được, response có warning. Đăng lại không báo lần nữa. 409 schedule-has-no-slot khi chưa có slot
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } }, '404': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
   /api/workspaces/{workspaceId}/meeting-schedule:
     get:
       tags: [MeetingSchedules]
@@ -395,7 +397,7 @@ paths:
   /internal/meeting-schedules/close-booking:
     post:
       tags: [Internal]
-      summary: SlotBookingCloseJob – tới hạn chọn slot, xếp nhóm chưa đặt vào slot trống và sinh họp hằng tuần. Gọi lại không tạo trùng
+      summary: SlotBookingCloseJob chạy định kỳ – đóng các lịch đã tới hạn chọn slot, xếp nhóm chưa đặt vào slot trống và sinh họp hằng tuần. Gọi lại không tạo trùng; 503 semester-unavailable thì Job thử lại
       responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { autoBooked: { type: integer }, teamsWithoutSlot: { type: integer }, meetingsCreated: { type: integer } } } } } } }
   /internal/tasks/due:
     get:

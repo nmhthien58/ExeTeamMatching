@@ -49,6 +49,13 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `team-unavailable` | 503: Team Service không trả lời nên chưa kiểm tra được số nhóm đang mentor |
 | `lecturer-locked` | Gắn mentor với giảng viên đang khóa; mở khóa giảng viên rồi mới gắn được (rule 20) |
 | `lecturer-has-mentor` | Giảng viên đã gắn với một hồ sơ mentor khác (rule 20) |
+| `preferred-above-max` (400) | Số nhóm mong muốn của mentor vượt số nhóm tối đa do Bộ môn đặt (rule 20) |
+| `round-overlap`, `round-already-open`, `round-open-locked` | Đợt bị chồng thời gian / đợt đã mở / sửa thời gian bắt đầu của đợt đang mở (rule 6) |
+| `import-conflict` | Xác nhận import khi có thao tác khác vừa ghi sinh viên trùng MSSV hoặc email |
+| `meeting-not-confirmed`, `meeting-slot-limit` | Ghi biên bản khi họp chưa chốt / họp đã đủ 3 khung giờ (rule 25) |
+| `meeting-not-weekly` | Dời một tuần với họp không phải họp hằng tuần (rule 25) |
+| `no-exe201-team`, `schedule-has-no-slot` | Giảng viên chưa hướng dẫn nhóm EXE201 nào / đăng lịch chưa có slot (rule 25) |
+| `semester-unavailable` | 503: chưa đọc được học kỳ từ Academic khi đóng chọn slot; Job thử lại (rule 25) |
 | `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
 | `skills-incomplete` | Hồ sơ chưa đánh giá đủ 5 kỹ năng (rule 16) |
 | `not-workspace-member` (403) | Không thuộc workspace của nhóm (rule 21) |
