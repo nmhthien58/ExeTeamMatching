@@ -1,4 +1,7 @@
-import '../suggestions/suggestions_api.dart' show CatalogRef;
+import '../meeting_schedule/meeting_schedule_api.dart' show TeamMeetingSchedule;
+import '../meetings/meetings_api.dart' show MeetingList;
+import '../suggestions/suggestions_api.dart' show CatalogRef, TeamDetail;
+import '../workspace/workspace_models.dart' show TaskCard;
 
 Map<String, dynamic> _map(dynamic v) => Map<String, dynamic>.from(v as Map);
 
@@ -60,6 +63,7 @@ class LecturerPreferenceMe {
     required this.courseCode,
     required this.memberCount,
     this.projectName,
+    this.classCode,
     this.domains = const [],
     required this.rank,
     required this.iAmInterested,
@@ -71,6 +75,7 @@ class LecturerPreferenceMe {
   final String courseCode;
   final int memberCount;
   final String? projectName;
+  final String? classCode;
   final List<CatalogRef> domains;
   final int rank;
   final bool iAmInterested;
@@ -84,6 +89,7 @@ class LecturerPreferenceMe {
       courseCode: (team['courseCode'] ?? 'EXE101') as String,
       memberCount: team['memberCount'] as int? ?? 0,
       projectName: team['projectName'] as String?,
+      classCode: team['classCode'] as String?,
       domains: [
         for (final d in team['domains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
@@ -211,6 +217,7 @@ class AdvisedTeamItem {
     required this.teamName,
     required this.courseCode,
     this.projectName,
+    this.classCode,
     required this.memberCount,
     required this.reason,
     this.preferenceRank,
@@ -221,6 +228,7 @@ class AdvisedTeamItem {
   final String teamName;
   final String courseCode;
   final String? projectName;
+  final String? classCode;
   final int memberCount;
   final String reason;
   final int? preferenceRank;
@@ -233,6 +241,7 @@ class AdvisedTeamItem {
       teamName: (team['name'] ?? '') as String,
       courseCode: (team['courseCode'] ?? 'EXE101') as String,
       projectName: team['projectName'] as String?,
+      classCode: team['classCode'] as String?,
       memberCount: team['memberCount'] as int? ?? 0,
       reason: (j['reason'] ?? '') as String,
       preferenceRank: j['preferenceRank'] as int?,
@@ -284,4 +293,149 @@ class LecturerSemesterStats {
   final int? meetingsTodayCount;
   final int missingCheckpointsCount;
   final bool hasPostedWeeklySchedule;
+}
+
+/// Workspace tối thiểu để ghép dữ liệu Team và Collaboration cho L04/L05/M01.
+/// Không dùng [WorkspaceOverview] vì contract danh sách có `teamId`, còn model màn C01
+/// hiện chưa giữ trường này.
+class AdvisorWorkspaceRef {
+  const AdvisorWorkspaceRef({
+    required this.id,
+    required this.teamId,
+    required this.teamName,
+    required this.courseCode,
+    required this.myRole,
+  });
+
+  final String id;
+  final String teamId;
+  final String teamName;
+  final String courseCode;
+  final String myRole;
+
+  factory AdvisorWorkspaceRef.fromJson(Map<String, dynamic> j) =>
+      AdvisorWorkspaceRef(
+        id: j['id'] as String? ?? '',
+        teamId: j['teamId'] as String? ?? '',
+        teamName: j['teamName'] as String? ?? '',
+        courseCode: j['courseCode'] as String? ?? 'EXE101',
+        myRole: j['myRole'] as String? ?? '',
+      );
+}
+
+class CheckpointItem {
+  const CheckpointItem({
+    required this.checkpointNo,
+    required this.presented,
+    this.presentedOn,
+    this.comment,
+    this.targetWeek,
+    this.overdue = false,
+    this.canUndo = false,
+  });
+
+  final int checkpointNo;
+  final bool presented;
+  final DateTime? presentedOn;
+  final String? comment;
+  final int? targetWeek;
+  final bool overdue;
+  final bool canUndo;
+
+  factory CheckpointItem.fromJson(Map<String, dynamic> j) => CheckpointItem(
+    checkpointNo: j['checkpointNo'] as int? ?? 0,
+    presented: j['presented'] as bool? ?? false,
+    presentedOn: j['presentedOn'] == null
+        ? null
+        : DateTime.tryParse(j['presentedOn'] as String),
+    comment: j['comment'] as String?,
+    targetWeek: j['targetWeek'] as int?,
+    overdue: j['overdue'] as bool? ?? false,
+    canUndo: j['canUndo'] as bool? ?? false,
+  );
+}
+
+class CheckpointProgress {
+  const CheckpointProgress({
+    required this.workspaceId,
+    required this.teamName,
+    required this.doneCount,
+    this.items = const [],
+  });
+
+  final String workspaceId;
+  final String teamName;
+  final int doneCount;
+  final List<CheckpointItem> items;
+
+  factory CheckpointProgress.fromJson(Map<String, dynamic> j) =>
+      CheckpointProgress(
+        workspaceId: j['workspaceId'] as String? ?? '',
+        teamName: j['teamName'] as String? ?? '',
+        doneCount: j['doneCount'] as int? ?? 0,
+        items: [
+          for (final item in j['items'] as List? ?? const [])
+            CheckpointItem.fromJson(_map(item)),
+        ],
+      );
+}
+
+class MentorProfile {
+  const MentorProfile({
+    required this.id,
+    required this.fullName,
+    required this.maxTeams,
+    required this.currentTeamCount,
+    this.preferredTeams,
+    this.domains = const [],
+  });
+
+  final String id;
+  final String fullName;
+  final int maxTeams;
+  final int currentTeamCount;
+  final int? preferredTeams;
+  final List<CatalogRef> domains;
+
+  factory MentorProfile.fromJson(Map<String, dynamic> j) => MentorProfile(
+    id: j['id'] as String? ?? '',
+    fullName: j['fullName'] as String? ?? '',
+    maxTeams: j['maxTeams'] as int? ?? 0,
+    currentTeamCount: j['currentTeamCount'] as int? ?? 0,
+    preferredTeams: j['preferredTeams'] as int?,
+    domains: [
+      for (final domain in j['domains'] as List? ?? const [])
+        CatalogRef.fromJson(_map(domain)),
+    ],
+  );
+}
+
+class AdvisorTeamActivity {
+  const AdvisorTeamActivity({
+    required this.workspace,
+    this.tasks = const [],
+    required this.meetings,
+    this.schedule,
+  });
+
+  final AdvisorWorkspaceRef workspace;
+  final List<TaskCard> tasks;
+  final MeetingList meetings;
+  final TeamMeetingSchedule? schedule;
+
+  int get completedTasks =>
+      tasks.where((task) => task.status.name == 'done').length;
+  int get pendingSubmissions => tasks
+      .where(
+        (task) =>
+            task.isDeliverable && task.submissionStatus?.name == 'pending',
+      )
+      .length;
+}
+
+class AdvisorTeamDetail {
+  const AdvisorTeamDetail({required this.team, this.ideaDescription});
+
+  final TeamDetail team;
+  final String? ideaDescription;
 }

@@ -682,7 +682,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     ),
                     const SizedBox(width: AppSpacing.s2),
                     FilledButton.tonal(
-                      onPressed: () => context.push('/gv/lich'),
+                      onPressed: () => context.push('/gv/lich-hop'),
                       child: const Text('Đăng lịch'),
                     ),
                   ],
