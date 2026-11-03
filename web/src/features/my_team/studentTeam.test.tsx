@@ -161,6 +161,7 @@ describe('student team screens (FE-37)', () => {
     expect(screen.getByText('SE180007 · Marketing')).toBeInTheDocument()
     expect(await screen.findByText('D05')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mời vào nhóm' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Xem hồ sơ Nguyễn An/ })).toHaveAttribute('href', '/sv/sinh-vien/s7')
   })
 
   it('S11 needs a role before posting, then saves domains and returns to Discover', async () => {
