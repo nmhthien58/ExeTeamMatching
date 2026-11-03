@@ -34,6 +34,7 @@ const xlsx = new File(['x'], 'ds.xlsx', { type: 'application/vnd.openxmlformats-
 function renderPage(list: unknown[] = semesters) {
   get.mockImplementation(async (url: string) => {
     if (url === '/api/semesters') return { data: list }
+    if (url === '/api/imports') return { data: { items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 } }
     throw new Error(`GET ${url} chưa giả lập`)
   })
   const router = createMemoryRouter([{ path: '/admin', children: adminImportRoutes }], { initialEntries: ['/admin/import'] })
