@@ -154,16 +154,26 @@ export function Dialog({
   actions: ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const previousFocusRef = useRef<HTMLElement | null>(null)
   useEffect(() => {
     const dialog = ref.current
     if (!dialog) return
-    if (open && !dialog.open) dialog.showModal?.()
-    if (!open && dialog.open) dialog.close()
+    if (open && !dialog.open) {
+      previousFocusRef.current = (document.activeElement as HTMLElement) ?? null
+      dialog.showModal?.()
+    }
+    if (!open && dialog.open) {
+      dialog.close()
+      previousFocusRef.current?.focus?.()
+    }
   }, [open])
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={() => {
+        onClose()
+        previousFocusRef.current?.focus?.()
+      }}
       aria-labelledby="dialog-title"
       className="m-auto w-[min(480px,calc(100vw-32px))] rounded-[16px] bg-surface p-6 text-text-primary shadow-elevation-2 backdrop:bg-text-primary/40"
     >
