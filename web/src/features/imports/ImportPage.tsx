@@ -9,6 +9,7 @@ import { COURSES } from '@/features/dashboard/adminApi'
 import { downloadTemplate, usePreviewImport, useSemesters, type ImportBatch, type ImportPreview } from './api'
 import { BaselineSection } from './BaselineSection'
 import { FileDrop } from './FileDrop'
+import { ImportHistory } from './ImportHistory'
 import { PreviewStep } from './PreviewStep'
 
 const selectClass = 'h-10 w-full rounded-sm border border-border-strong bg-surface px-3 text-body'
@@ -151,7 +152,7 @@ function UploadStep({ onPreview }: { onPreview: (preview: ImportPreview) => void
   )
 }
 
-/** W06 → W07 → tổng kết (FE-12, FE-13). Bản xem trước chỉ ở state: server giữ 30 phút và không có API đọc lại. */
+/** W06 → W07 → tổng kết (FE-12, FE-13); W08 lịch sử import dưới bước tải file (FE-14). Bản xem trước chỉ ở state: server giữ 30 phút và không có API đọc lại. */
 export function ImportPage() {
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [batch, setBatch] = useState<ImportBatch | null>(null)
@@ -169,7 +170,10 @@ export function ImportPage() {
       ) : preview ? (
         <PreviewStep preview={preview} onBack={restart} onDone={setBatch} />
       ) : (
-        <UploadStep onPreview={setPreview} />
+        <>
+          <UploadStep onPreview={setPreview} />
+          <ImportHistory />
+        </>
       )}
     </div>
   )
