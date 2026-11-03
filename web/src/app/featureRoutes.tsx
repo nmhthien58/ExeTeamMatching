@@ -16,6 +16,7 @@ import { changeRequestRoutes, studentChangeRequestRoutes } from '@/features/chan
 import { projectRoutes } from '@/features/projects/routes'
 import { completeProfileRoute, lecturerProfileRoutes, mentorProfileRoutes, requireCompletedProfile, studentProfileRoutes } from '@/features/profile/routes'
 import { advisorMessageRoutes } from '@/features/messages/routes'
+import { lecturerRoutes, mentorRoutes } from '@/features/advisor/routes'
 import { studentTeamRoutes } from '@/features/my_team/routes'
 import { suggestionRoutes } from '@/features/suggestions/routes'
 import { workspaceRoutes } from '@/features/workspace/routes'
@@ -29,6 +30,6 @@ import { studentNotificationRoutes, lecturerNotificationRoutes, mentorNotificati
 export const featureRoutes: Record<Shell, RouteObject[]> = {
   admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminStudentRoutes, ...adminLecturerRoutes, ...adminMentorRoutes, ...adminCatalogRoutes, ...adminRuleSettingsRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminLecturerMatchingRoutes, ...adminMentorMatchingRoutes, ...changeRequestRoutes, ...projectRoutes],
   student: [completeProfileRoute, ...requireCompletedProfile([workspaceRoutes('/sv'), ...suggestionRoutes, ...studentTeamRoutes, ...studentProfileRoutes, ...studentAdvisorRoutes, ...studentChangeRequestRoutes, ...studentNotificationRoutes])],
-  lecturer: [workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerProfileRoutes, ...lecturerNotificationRoutes],
-  mentor: [workspaceRoutes('/mentor'), ...advisorMessageRoutes, ...mentorProfileRoutes, ...mentorNotificationRoutes],
+  lecturer: [workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerProfileRoutes, ...lecturerRoutes, ...lecturerNotificationRoutes],
+  mentor: [workspaceRoutes('/mentor'), ...advisorMessageRoutes, ...mentorProfileRoutes, ...mentorRoutes, ...mentorNotificationRoutes],
 }

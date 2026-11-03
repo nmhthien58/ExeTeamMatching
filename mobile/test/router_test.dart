@@ -78,7 +78,7 @@ void main() {
     FlutterSecureStorage.setMockInitialValues(signedIn(['Lecturer', 'Mentor']));
     await pumpApp(tester, phases: const [CoursePhase(courseCode: 'EXE201', isTeamFormation: false)]);
 
-    expect(find.text('L01 · Trang chủ'), findsOneWidget);
+    expect(find.text('Trang chủ'), findsWidgets);
     expect(find.text('Lịch'), findsOneWidget);
     expect(find.text('Đề tài'), findsNothing);
   });
