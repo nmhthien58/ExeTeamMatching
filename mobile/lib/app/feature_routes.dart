@@ -11,6 +11,8 @@ import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/lecturers/team_lecturer_screen.dart';
+import '../features/meetings/meeting_detail_screen.dart';
+import '../features/meetings/meetings_screen.dart';
 import '../features/messages/channel_screen.dart';
 import '../features/messages/conversations_screen.dart';
 import '../features/notifications/notifications_screen.dart';
@@ -104,7 +106,7 @@ GoRoute _advisorWorkspace(String base) => GoRoute(
       ),
     );
 
-/// C04, C05, C06 (MB-40, MB-41), Tin nhắn C02, C03 (MB-39); Lịch họp (C07, Nam) giữ chỗ tới khi module đó xong.
+/// C04, C05, C06 (MB-40, MB-41), Tin nhắn C02, C03 (MB-39), Lịch họp C07, C08 (MB-42).
 /// [prefix] là phần đầu đường dẫn (rỗng khi lồng trong route dự án của cố vấn).
 List<GoRoute> _workspaceRoutes(
   String prefix, {
@@ -132,22 +134,9 @@ List<GoRoute> _workspaceRoutes(
         null => ConversationsScreen(basePath: basePathOf(s)),
       },
     ),
-    GoRoute(path: '${prefix}lich-hop', builder: (_, _) => const _Pending(screen: 'C07', title: 'Lịch họp', owner: 'Nam')),
+    GoRoute(path: '${prefix}lich-hop', builder: (_, s) => MeetingsScreen(basePath: basePathOf(s), workspaceId: workspaceIdOf(s))),
+    GoRoute(path: '${prefix}lich-hop/:meetingId', builder: (_, s) => MeetingDetailScreen(meetingId: s.pathParameters['meetingId']!)),
   ];
-}
-
-class _Pending extends StatelessWidget {
-  const _Pending({required this.screen, required this.title, required this.owner});
-
-  final String screen;
-  final String title;
-  final String owner;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(title)),
-        body: EmptyState(icon: Icons.construction, title: '$screen · $title', description: 'Màn hình đang được làm – người phụ trách: $owner.'),
-      );
 }
 
 /// C03 mở từ tab Tin nhắn của cố vấn: `{base}/{channelId}?ws={workspaceId}` – MB-39 (Cường).
