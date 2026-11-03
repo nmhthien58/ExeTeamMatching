@@ -11,6 +11,7 @@ import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/lecturers/team_lecturer_screen.dart';
+import '../features/meeting_schedule/meeting_schedule_screen.dart';
 import '../features/messages/channel_screen.dart';
 import '../features/messages/conversations_screen.dart';
 import '../features/notifications/notifications_screen.dart';
@@ -52,6 +53,8 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
 List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.student => [
           GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
+          // C09 – MB-46 (Cường).
+          GoRoute(path: '/sv/nhom/lich-hop', builder: (_, _) => const TeamScheduleScreen()),
           ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
           ..._studentTeamRoutes,
           ...changeRequestRoutes,
@@ -62,7 +65,12 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: '/sv/change-requests/:id', redirect: (_, s) => '$changeRequestListPath/${s.pathParameters['id']}'),
           GoRoute(path: '/app://change-requests', redirect: (_, _) => changeRequestListPath),
         ],
-      Shell.lecturer => [_advisorWorkspace('/gv/du-an'), _channelRoute('/gv/tin-nhan')],
+      Shell.lecturer => [
+          _advisorWorkspace('/gv/du-an'),
+          _channelRoute('/gv/tin-nhan'),
+          // C09 – MB-46 (Cường); lối vào từ L01, C07 do màn đó thêm.
+          GoRoute(path: '/gv/lich-hop', builder: (_, _) => const LecturerScheduleScreen()),
+        ],
       Shell.mentor => [_advisorWorkspace('/mentor/du-an'), _channelRoute('/mentor/tin-nhan')],
     };
 

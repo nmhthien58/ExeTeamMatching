@@ -7,8 +7,8 @@ import '../../core/phase.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import 'my_team_api.dart';
+import '../meeting_schedule/meeting_schedule_api.dart' show teamWorkspaceIdProvider;
 import '../lecturers/match_reason.dart';
 
 /// Cố vấn đang gán cho nhóm (LecturerAssignment, MentorAssignment – team.yaml): tên và nhãn lý do ghép (quy tắc 9, 20).
@@ -100,9 +100,11 @@ class CheckpointCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workspaces = ref.watch(myWorkspacesProvider).value;
-    if (team.courseCode != 'EXE101' || workspaces == null || workspaces.isEmpty) return const SizedBox.shrink();
-    final done = ref.watch(checkpointsDoneProvider(workspaces.first.id)).value;
+    if (team.courseCode != 'EXE101') return const SizedBox.shrink();
+    // Khớp dự án theo nhóm, không lấy dự án đầu tiên.
+    final workspaceId = ref.watch(teamWorkspaceIdProvider(team.id)).value;
+    if (workspaceId == null) return const SizedBox.shrink();
+    final done = ref.watch(checkpointsDoneProvider(workspaceId)).value;
     if (done == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.s3),

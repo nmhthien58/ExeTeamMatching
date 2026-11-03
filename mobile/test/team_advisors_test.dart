@@ -4,6 +4,7 @@ import 'package:exe_team_matching/core/theme/app_theme.dart';
 import 'package:exe_team_matching/features/my_team/my_team_api.dart';
 import 'package:exe_team_matching/features/my_team/my_team_screen.dart';
 import 'package:exe_team_matching/features/my_team/project_card.dart';
+import 'package:exe_team_matching/features/meeting_schedule/meeting_schedule_api.dart';
 import 'package:exe_team_matching/features/my_team/team_advisors.dart';
 import 'package:exe_team_matching/features/workspace/workspace_api.dart';
 import 'package:exe_team_matching/features/workspace/workspace_models.dart';
@@ -53,6 +54,7 @@ Future<void> _pump(WidgetTester tester, {required _Api api, MyTeam team = _team,
       teamProjectApiProvider.overrideWithValue(_NoProject()),
       myTeamDetailProvider.overrideWith((ref) async => team),
       myWorkspacesProvider.overrideWith((ref) async => workspaces),
+      teamWorkspaceIdProvider.overrideWith((ref, teamId) async => workspaces.isEmpty ? null : workspaces.first.id),
     ],
     child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
   ));
