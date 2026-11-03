@@ -12,6 +12,7 @@ import '../lecturers/paths.dart';
 import 'my_team_api.dart';
 import 'project_card.dart';
 import 'team_advisors.dart';
+import '../meeting_schedule/meeting_schedule_api.dart' show teamScheduleProvider, teamWorkspaceIdProvider;
 
 /// Nhãn và màu chip trạng thái nhóm (quy tắc 15) – luôn có chữ, không chỉ màu.
 (String, StatusTone, IconData) teamStatusChip(String status) => switch (status) {
@@ -168,6 +169,7 @@ class _TeamOverview extends StatelessWidget {
                   path: '/sv/yeu-cau-doi-nhom',
                 ),
               const _OpenProject(),
+              if (team.courseCode == 'EXE201') _WeeklyMeeting(teamId: team.id),
               const _Shortcut(icon: Icons.history, label: 'Lịch sử hoạt động', path: '/sv/nhom/lich-su'),
             ],
           ),
@@ -195,6 +197,21 @@ class _OpenProject extends ConsumerWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.go('/sv/du-an'),
     );
+  }
+}
+
+/// Lối vào C09 của nhóm EXE201: "Thứ Ba 09:15" khi đã chọn slot, chưa chọn thì "Chọn lịch họp"; ẩn khi nhóm chưa có dự án.
+class _WeeklyMeeting extends ConsumerWidget {
+  const _WeeklyMeeting({required this.teamId});
+
+  final String teamId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workspaceId = ref.watch(teamWorkspaceIdProvider(teamId)).value;
+    if (workspaceId == null) return const SizedBox.shrink();
+    final mySlot = ref.watch(teamScheduleProvider(workspaceId)).value?.mySlot;
+    return _Shortcut(icon: Icons.event_repeat_outlined, label: 'Lịch họp hằng tuần', detail: mySlot?.label ?? 'Chọn lịch họp', path: '/sv/nhom/lich-hop');
   }
 }
 

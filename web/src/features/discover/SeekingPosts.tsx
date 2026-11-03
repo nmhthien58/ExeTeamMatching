@@ -15,9 +15,8 @@ import { postErrors, useMySeekingPost, useSaveMySeeking, useSeekingPosts, type S
 
 /**
  * S10 – tab "Sinh viên tìm nhóm" của Khám phá (FE-37, cùng spec MB-17): bài của mình (→ S11), lọc chuyên ngành, phân trang.
- * Trưởng nhóm còn chỗ có nút "Mời vào nhóm" (design-decisions B2).
+ * Trưởng nhóm còn chỗ có nút "Mời vào nhóm" (design-decisions B2); "Xem hồ sơ" mở S04.
  */
-// shortcut: chạm thẻ chưa mở S04 (hồ sơ sinh viên khác – Nam); nối link khi S04 có trên web.
 export function SeekingPostsPanel() {
   const [specializationId, setSpecializationId] = useState<number>()
   const [page, setPage] = useState(1)
@@ -158,6 +157,14 @@ export function SeekingPostCard({ post, domains, action }: { post: SeekingPost; 
           ))}
         </span>
       )}
+      <Link
+        to={`/sv/sinh-vien/${post.student.id}`}
+        aria-label={`Xem hồ sơ ${post.student.fullName}`}
+        className="inline-flex min-h-10 items-center gap-1 self-start font-medium text-info-dark"
+      >
+        Xem hồ sơ
+        <Icon name="chevron_right" size={20} />
+      </Link>
     </StudentCard>
   )
 }

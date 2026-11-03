@@ -14,6 +14,7 @@ import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/lecturer_profile/lecturer_profile_screen.dart';
 import '../features/lecturers/team_lecturer_screen.dart';
+import '../features/meeting_schedule/meeting_schedule_screen.dart';
 import '../features/meetings/meeting_detail_screen.dart';
 import '../features/meetings/meetings_screen.dart';
 import '../features/messages/channel_screen.dart';
@@ -64,6 +65,8 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
 List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.student => [
           GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
+          // C09 – MB-46 (Cường).
+          GoRoute(path: '/sv/nhom/lich-hop', builder: (_, _) => const TeamScheduleScreen()),
           ..._workspaceRoutes('/sv/du-an/', workspaceIdOf: (_) => null, basePathOf: (_) => '/sv/du-an'),
           ..._studentTeamRoutes,
           ...changeRequestRoutes,
@@ -87,6 +90,8 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           // L06 – MB-35, A07 – MB-10 (Nam). L01 (Thành) chưa có nút mở L06.
           GoRoute(path: lecturerProfilePath, builder: (_, _) => const LecturerProfileScreen()),
           GoRoute(path: lecturerSettingsPath, builder: (_, _) => const SettingsScreen()),
+          // C09 – MB-46 (Cường); lối vào từ L01, C07 do màn đó thêm.
+          GoRoute(path: '/gv/lich-hop', builder: (_, _) => const LecturerScheduleScreen()),
         ],
       Shell.mentor => [
           GoRoute(

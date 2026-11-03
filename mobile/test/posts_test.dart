@@ -73,7 +73,10 @@ class _FakePosts extends PostsApi {
 
 Future<void> _pump(WidgetTester tester, Widget screen, {required _FakePosts api, MyTeam? myTeam}) async {
   final router = GoRouter(initialLocation: '/sv/man', routes: [
-    GoRoute(path: '/sv', builder: (_, _) => const Text('S01'), routes: [GoRoute(path: 'man', builder: (_, _) => screen)]),
+    GoRoute(path: '/sv', builder: (_, _) => const Text('S01'), routes: [
+      GoRoute(path: 'man', builder: (_, _) => screen),
+      GoRoute(path: 'sinh-vien/:id', builder: (_, s) => Text('S04 ${s.pathParameters['id']}')),
+    ]),
   ]);
   final overrides = <Override>[
     shellPhaseProvider.overrideWithValue(const ShellPhase(isTeamFormation: true, isMentoringWindow: false)),
@@ -97,6 +100,10 @@ void main() {
     expect(find.text('Vai trò: Frontend'), findsOneWidget);
     expect(find.text('D05'), findsOneWidget);
     expect(find.text('Mời vào nhóm'), findsNothing);
+
+    await tester.tap(find.text('Nguyễn An'));
+    await tester.pumpAndSettle();
+    expect(find.text('S04 ${_post.student.id}'), findsOneWidget);
   });
 
   testWidgets('S10: trưởng nhóm còn chỗ thấy nút Mời vào nhóm; lọc chuyên ngành không khớp → trống', (tester) async {

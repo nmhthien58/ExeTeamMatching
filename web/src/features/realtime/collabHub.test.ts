@@ -66,6 +66,39 @@ describe('CollabHub (FE-33)', () => {
     expect(received).toEqual([{ id: 'm1' }])
   })
 
+  it('tải lại trang: kết nối trước khi có token (401) → tự kết nối lại khi token được refresh', async () => {
+    const fake = fakeConnection()
+    fake.connection.start.mockRejectedValueOnce(new Error('401'))
+    let onToken: (user: unknown) => void = () => {}
+    let token: string | null = null
+    const hub = new CollabHub(() => fake.connection, { subscribe: (l) => ((onToken = l as never), () => {}), getAccessToken: () => token })
+    hub.acquire()
+    await flush()
+    expect(hub.status).toBe('disconnected')
+    onToken(null) // đăng xuất: không kết nối lại
+    await flush()
+    expect(fake.connection.start).toHaveBeenCalledTimes(1)
+    token = 'a'
+    onToken({ id: 'u' })
+    await flush()
+    expect(hub.status).toBe('connected')
+  })
+
+  it('token được refresh trong lúc đang kết nối, lần kết nối không token hỏng → thử lại ngay', async () => {
+    const fake = fakeConnection()
+    let token: string | null = null
+    fake.connection.start.mockImplementationOnce(async () => {
+      token = 'a' // REST refresh xong khi hub còn đang negotiate
+      throw new Error('401')
+    })
+    const hub = new CollabHub(() => fake.connection, { subscribe: () => () => {}, getAccessToken: () => token })
+    hub.acquire()
+    await flush()
+    await flush()
+    expect(fake.connection.start).toHaveBeenCalledTimes(2)
+    expect(hub.status).toBe('connected')
+  })
+
   it('không kết nối được → mất kết nối; Thử lại kết nối lần nữa', async () => {
     const fake = fakeConnection()
     fake.connection.start.mockRejectedValueOnce(new Error('401'))

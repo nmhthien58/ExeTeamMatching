@@ -10,6 +10,7 @@ interface LecturerAssignment {
 }
 
 interface MentorAssignment {
+  mentorId: string
   mentorName: string
   reason?: string | null
 }
