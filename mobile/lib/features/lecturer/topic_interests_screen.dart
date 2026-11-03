@@ -361,12 +361,15 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
                           color: Palette.infoDark,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Đã hướng dẫn ở EXE101',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: Palette.infoDark,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        // Flexible: thẻ hẹp + chữ 130% thì nhãn xuống dòng thay vì tràn (flutter-handoff §5).
+                        Flexible(
+                          child: Text(
+                            'Đã hướng dẫn ở EXE101',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Palette.infoDark,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
                         ),
                       ],
                     ),
