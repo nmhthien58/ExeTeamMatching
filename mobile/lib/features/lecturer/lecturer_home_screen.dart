@@ -39,7 +39,9 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     String teamName,
   ) async {
     try {
-      await ref.read(lecturerHomeApiProvider).openInterest(teamId, advisorKind: 'LECTURER');
+      await ref
+          .read(lecturerHomeApiProvider)
+          .openInterest(teamId, advisorKind: 'LECTURER');
       ref.invalidate(lecturerMyTopicInterestsProvider);
       ref.invalidate(lecturerPreferencesMeProvider);
       ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse));
@@ -54,15 +56,31 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
             label: 'Hoàn tác',
             onPressed: () async {
               try {
-                final myInterests = await ref.read(lecturerHomeApiProvider).getMyTopicInterests();
-                final current = myInterests.where((i) => i.teamId == teamId && i.status == 'OPEN').firstOrNull;
-                if (current != null) {
-                  await ref.read(lecturerHomeApiProvider).withdrawInterest(current.id);
-                  ref.invalidate(lecturerMyTopicInterestsProvider);
-                  ref.invalidate(lecturerPreferencesMeProvider);
-                  ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse));
+                final myInterests = await ref
+                    .read(lecturerHomeApiProvider)
+                    .getMyTopicInterests();
+                final current = myInterests
+                    .where((i) => i.teamId == teamId && i.status == 'OPEN')
+                    .firstOrNull;
+                if (current == null) {
+                  throw StateError('Không tìm thấy quan tâm');
                 }
-              } catch (_) {}
+                await ref
+                    .read(lecturerHomeApiProvider)
+                    .withdrawInterest(current.id);
+                ref.invalidate(lecturerMyTopicInterestsProvider);
+                ref.invalidate(lecturerPreferencesMeProvider);
+                ref.invalidate(
+                  lecturerTopicRecommendationsProvider(_selectedCourse),
+                );
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Không thể hoàn tác. Vui lòng thử lại.'),
+                  ),
+                );
+              }
             },
           ),
         ),
@@ -71,7 +89,11 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Không thể mở quan tâm'),
+          content: Text(
+            e is Exception
+                ? e.toString().replaceAll('Exception: ', '')
+                : 'Không thể mở quan tâm',
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -100,11 +122,22 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
             label: 'Hoàn tác',
             onPressed: () async {
               try {
-                await ref.read(lecturerHomeApiProvider).openInterest(teamId, advisorKind: 'LECTURER');
+                await ref
+                    .read(lecturerHomeApiProvider)
+                    .openInterest(teamId, advisorKind: 'LECTURER');
                 ref.invalidate(lecturerMyTopicInterestsProvider);
                 ref.invalidate(lecturerPreferencesMeProvider);
-                ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse));
-              } catch (_) {}
+                ref.invalidate(
+                  lecturerTopicRecommendationsProvider(_selectedCourse),
+                );
+              } catch (_) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Không thể hoàn tác. Vui lòng thử lại.'),
+                  ),
+                );
+              }
             },
           ),
         ),
@@ -113,7 +146,11 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Không thể rút quan tâm'),
+          content: Text(
+            e is Exception
+                ? e.toString().replaceAll('Exception: ', '')
+                : 'Không thể rút quan tâm',
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -121,6 +158,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
   }
 
   String _formatDateTime(DateTime dt) {
+    dt = dt.toLocal();
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
@@ -130,8 +168,13 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     final user = ref.watch(authControllerProvider).value;
     final phases = ref.watch(phasesProvider).value;
     final shellPhase = ref.watch(shellPhaseProvider);
-    final currentCoursePhase = phases?.where((p) => p.courseCode.toUpperCase() == _selectedCourse.toUpperCase()).firstOrNull;
-    final isTeamFormation = currentCoursePhase?.isTeamFormation ?? shellPhase.isTeamFormation;
+    final currentCoursePhase = phases
+        ?.where(
+          (p) => p.courseCode.toUpperCase() == _selectedCourse.toUpperCase(),
+        )
+        .firstOrNull;
+    final isTeamFormation =
+        currentCoursePhase?.isTeamFormation ?? shellPhase.isTeamFormation;
 
     return Scaffold(
       appBar: AppBar(
@@ -150,7 +193,9 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
           if (isTeamFormation) {
             ref.invalidate(lecturerPreferencesMeProvider);
             ref.invalidate(lecturerMyTopicInterestsProvider);
-            ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse));
+            ref.invalidate(
+              lecturerTopicRecommendationsProvider(_selectedCourse),
+            );
           } else {
             ref.invalidate(lecturerTeamsMeProvider(_selectedCourse));
             ref.invalidate(lecturerSemesterStatsProvider);
@@ -169,8 +214,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     (user?.fullName != null && user!.fullName.isNotEmpty)
                         ? user.fullName[0]
                         : 'G',
-                    style: TextStyle(
-                      fontSize: 18,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,
                     ),
@@ -230,7 +274,9 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     final theme = Theme.of(context);
     final preferencesMeAsync = ref.watch(lecturerPreferencesMeProvider);
     final myInterestsAsync = ref.watch(lecturerMyTopicInterestsProvider);
-    final recommendationsAsync = ref.watch(lecturerTopicRecommendationsProvider(_selectedCourse));
+    final recommendationsAsync = ref.watch(
+      lecturerTopicRecommendationsProvider(_selectedCourse),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +300,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
               child: _buildMetricCard(
                 context,
                 title: 'Đang quan tâm',
-                value: '${myInterestsAsync.value?.where((i) => i.status == 'OPEN').length ?? 0}',
+                value:
+                    '${myInterestsAsync.value?.where((i) => i.status == 'OPEN').length ?? 0}',
                 subtitle: 'Đã mở quan tâm',
                 icon: Icons.favorite_outline,
                 color: Palette.infoDark,
@@ -268,7 +315,10 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
         // Deadline matching banner (if available from recommendations)
         if (recommendationsAsync.value?.matchingAt != null) ...[
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4, vertical: AppSpacing.s3),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s4,
+              vertical: AppSpacing.s3,
+            ),
             decoration: BoxDecoration(
               color: Palette.warningContainer,
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -295,10 +345,14 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
         // Tab bar giữa "Nhóm chọn tôi" và "Đang quan tâm"
         Container(
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
+            border: Border(
+              bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+            ),
           ),
           child: TabBar(
             controller: _tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             labelColor: theme.colorScheme.primary,
             indicatorColor: theme.colorScheme.primary,
             unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
@@ -310,7 +364,12 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     const Text('Nhóm chọn tôi'),
                     if ((preferencesMeAsync.value?.length ?? 0) > 0) ...[
                       const SizedBox(width: 6),
-                      _buildCountBadge(context, preferencesMeAsync.value!.length, theme.colorScheme.primaryContainer, theme.colorScheme.onPrimaryContainer),
+                      _buildCountBadge(
+                        context,
+                        preferencesMeAsync.value!.length,
+                        theme.colorScheme.primaryContainer,
+                        theme.colorScheme.onPrimaryContainer,
+                      ),
                     ],
                   ],
                 ),
@@ -320,9 +379,20 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Đang quan tâm'),
-                    if ((myInterestsAsync.value?.where((i) => i.status == 'OPEN').length ?? 0) > 0) ...[
+                    if ((myInterestsAsync.value
+                                ?.where((i) => i.status == 'OPEN')
+                                .length ??
+                            0) >
+                        0) ...[
                       const SizedBox(width: 6),
-                      _buildCountBadge(context, myInterestsAsync.value!.where((i) => i.status == 'OPEN').length, Palette.infoContainer, Palette.infoDark),
+                      _buildCountBadge(
+                        context,
+                        myInterestsAsync.value!
+                            .where((i) => i.status == 'OPEN')
+                            .length,
+                        Palette.infoContainer,
+                        Palette.infoDark,
+                      ),
                     ],
                   ],
                 ),
@@ -334,7 +404,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
 
         // Nội dung của tab
         SizedBox(
-          height: 320,
+          height: MediaQuery.textScalerOf(context).scale(320),
           child: TabBarView(
             controller: _tabController,
             children: [
@@ -350,12 +420,14 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     return const EmptyState(
                       icon: Icons.groups_outlined,
                       title: 'Chưa có nhóm nào chọn bạn',
-                      description: 'Khi các nhóm xếp bạn vào nguyện vọng 1–3, thông tin sẽ hiển thị tại đây.',
+                      description:
+                          'Khi các nhóm xếp bạn vào nguyện vọng 1–3, thông tin sẽ hiển thị tại đây.',
                     );
                   }
                   return ListView.builder(
                     itemCount: preferences.length,
-                    itemBuilder: (context, i) => _buildPreferenceMeCard(context, preferences[i]),
+                    itemBuilder: (context, i) =>
+                        _buildPreferenceMeCard(context, preferences[i]),
                   );
                 },
               ),
@@ -365,20 +437,25 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, _) => ErrorState(
                   error: err,
-                  onRetry: () => ref.invalidate(lecturerMyTopicInterestsProvider),
+                  onRetry: () =>
+                      ref.invalidate(lecturerMyTopicInterestsProvider),
                 ),
                 data: (interests) {
-                  final openInterests = interests.where((i) => i.status == 'OPEN').toList();
+                  final openInterests = interests
+                      .where((i) => i.status == 'OPEN')
+                      .toList();
                   if (openInterests.isEmpty) {
                     return const EmptyState(
                       icon: Icons.favorite_border,
                       title: 'Chưa quan tâm nhóm nào',
-                      description: 'Khám phá các đề tài gợi ý phía dưới để mở quan tâm đến các nhóm phù hợp chuyên môn.',
+                      description:
+                          'Khám phá các đề tài gợi ý phía dưới để mở quan tâm đến các nhóm phù hợp chuyên môn.',
                     );
                   }
                   return ListView.builder(
                     itemCount: openInterests.length,
-                    itemBuilder: (context, i) => _buildOpenInterestCard(context, openInterests[i]),
+                    itemBuilder: (context, i) =>
+                        _buildOpenInterestCard(context, openInterests[i]),
                   );
                 },
               ),
@@ -392,10 +469,12 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Đề tài gợi ý cho bạn',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Đề tài gợi ý cho bạn',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             TextButton(
@@ -415,7 +494,9 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
           ),
           error: (err, _) => ErrorState(
             error: err,
-            onRetry: () => ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse)),
+            onRetry: () => ref.invalidate(
+              lecturerTopicRecommendationsProvider(_selectedCourse),
+            ),
           ),
           data: (response) {
             final recommendations = response.items;
@@ -453,7 +534,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Thống kê tương tác (phụ thuộc Collaboration Service / API /api/advisors/me/semester-stats)
+        // Thống kê tương tác từ Collaboration Service.
         if (statsAsync.isLoading) ...[
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.s4),
@@ -470,7 +551,11 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
             ),
             child: Row(
               children: [
-                const Icon(Icons.sync_problem, size: 24, color: Palette.textSecondary),
+                const Icon(
+                  Icons.sync_problem,
+                  size: 24,
+                  color: Palette.textSecondary,
+                ),
                 const SizedBox(width: AppSpacing.s3),
                 Expanded(
                   child: Column(
@@ -485,7 +570,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Chức năng phụ thuộc Collaboration Service (API /api/advisors/me/semester-stats chưa sẵn sàng).',
+                        'Vui lòng thử lại sau.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Palette.textSecondary,
                         ),
@@ -494,7 +579,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   ),
                 ),
                 TextButton(
-                  onPressed: () => ref.invalidate(lecturerSemesterStatsProvider),
+                  onPressed: () =>
+                      ref.invalidate(lecturerSemesterStatsProvider),
                   child: const Text('Thử lại'),
                 ),
               ],
@@ -503,7 +589,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
           const SizedBox(height: AppSpacing.s4),
         ] else if (stats != null) ...[
           // Ba thẻ số liệu bấm được (Rule 22, 23, 25, 27)
-          // Thẻ 3 chọn theo môn EXE201 ("Họp hôm nay") vs EXE101 ("Chưa trình bày checkpoint")
+          // Thẻ 3 chọn theo môn EXE201 (họp hôm nay) vs EXE101 (checkpoint quá hạn).
           Row(
             children: [
               Expanded(
@@ -535,11 +621,19 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                 child: _buildMetricCard(
                   context,
                   title: isExe201 ? 'Họp hôm nay' : 'Chưa trình bày checkpoint',
-                  value: isExe201 ? '${stats.meetingsTodayCount}' : '${stats.missingCheckpointsCount}',
-                  subtitle: isExe201 ? 'Buổi họp' : 'Nhóm chưa CP',
+                  value: isExe201
+                      ? (stats.meetingsTodayCount?.toString() ?? '—')
+                      : '${stats.missingCheckpointsCount}',
+                  subtitle: isExe201 && stats.meetingsTodayCount == null
+                      ? 'Chưa có số liệu'
+                      : isExe201
+                      ? 'Buổi họp'
+                      : 'Nhóm quá hạn CP',
                   icon: isExe201 ? Icons.event_available : Icons.flag_outlined,
                   color: isExe201 ? Palette.success : Palette.warning,
-                  bgColor: isExe201 ? Palette.successContainer : Palette.warningContainer,
+                  bgColor: isExe201
+                      ? Palette.successContainer
+                      : Palette.warningContainer,
                 ),
               ),
             ],
@@ -559,7 +653,11 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                 padding: const EdgeInsets.all(AppSpacing.s4),
                 child: Row(
                   children: [
-                    const Icon(Icons.event_note, size: 36, color: Palette.infoDark),
+                    const Icon(
+                      Icons.event_note,
+                      size: 36,
+                      color: Palette.infoDark,
+                    ),
                     const SizedBox(width: AppSpacing.s3),
                     Expanded(
                       child: Column(
@@ -599,10 +697,12 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Nhóm đang hướng dẫn',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Nhóm đang hướng dẫn',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             TextButton(
@@ -622,7 +722,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
           ),
           error: (err, _) => ErrorState(
             error: err,
-            onRetry: () => ref.invalidate(lecturerTeamsMeProvider(_selectedCourse)),
+            onRetry: () =>
+                ref.invalidate(lecturerTeamsMeProvider(_selectedCourse)),
           ),
           data: (response) {
             final allTeams = [...response.instructing, ...response.mentoring];
@@ -689,7 +790,11 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     child: Icon(icon, color: color, size: 20),
                   ),
                   if (onTap != null)
-                    Icon(Icons.chevron_right, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpacing.s2),
@@ -709,9 +814,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
               ),
               Text(
                 subtitle,
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 11,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -723,7 +827,12 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     );
   }
 
-  Widget _buildCountBadge(BuildContext context, int count, Color bg, Color text) {
+  Widget _buildCountBadge(
+    BuildContext context,
+    int count,
+    Color bg,
+    Color text,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -732,16 +841,18 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       ),
       child: Text(
         '$count',
-        style: TextStyle(
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: text,
-          fontSize: 11,
           fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  Widget _buildPreferenceMeCard(BuildContext context, LecturerPreferenceMe item) {
+  Widget _buildPreferenceMeCard(
+    BuildContext context,
+    LecturerPreferenceMe item,
+  ) {
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
@@ -752,83 +863,87 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/teams/${item.teamId}'),
+        onTap: () => context.push('/gv/de-tai/${item.teamId}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                child: Text(
-                  'NV${item.rank}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Text(
+                      'NV${item.rank}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.s3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                  const SizedBox(width: AppSpacing.s3),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            item.teamName,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        Text(
+                          item.teamName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                         if (item.iAmInterested)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Palette.successContainer,
                               borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Đôi bên quan tâm',
-                              style: TextStyle(
+                              style: theme.textTheme.bodyMedium?.copyWith(
                                 color: Palette.success,
-                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                    if (item.projectName != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        item.projectName!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.s1),
-                    Row(
-                      children: [
+                        if (item.projectName != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            item.projectName!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.s1),
                         Text(
                           '${item.courseCode} · ${item.memberCount} thành viên',
-                          style: theme.textTheme.bodySmall?.copyWith(
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.s2),
               if (!item.iAmInterested)
-                FilledButton.tonal(
-                  onPressed: () => _handleOpenInterestWithUndo(context, item.teamId, item.teamName),
-                  child: const Text('Quan tâm'),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.tonal(
+                    onPressed: () => _handleOpenInterestWithUndo(
+                      context,
+                      item.teamId,
+                      item.teamName,
+                    ),
+                    child: const Text('Quan tâm'),
+                  ),
                 ),
             ],
           ),
@@ -848,7 +963,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/teams/${item.teamId}'),
+        onTap: () => context.push('/gv/de-tai/${item.teamId}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Row(
@@ -859,19 +974,29 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   color: Palette.infoContainer,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: const Icon(Icons.favorite, size: 20, color: Palette.infoDark),
+                child: const Icon(
+                  Icons.favorite,
+                  size: 20,
+                  color: Palette.infoDark,
+                ),
               ),
               const SizedBox(width: AppSpacing.s3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      item.advisorName.isNotEmpty ? item.advisorName : 'Nhóm đã quan tâm',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    ref
+                        .watch(advisorTeamDetailProvider(item.teamId))
+                        .when(
+                          loading: () => const Text('Đang tải nhóm…'),
+                          error: (_, _) => const Text('Nhóm đã quan tâm'),
+                          data: (team) => Text(
+                            team['name']?.toString() ?? 'Nhóm đã quan tâm',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                     const SizedBox(height: 2),
                     Text(
                       'Đang mở quan tâm · Chờ hệ thống ghép',
@@ -887,7 +1012,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   context,
                   item.id,
                   item.teamId,
-                  item.advisorName,
+                  'đã quan tâm',
                 ),
                 child: const Text('Rút'),
               ),
@@ -898,7 +1023,10 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     );
   }
 
-  Widget _buildRecommendationCard(BuildContext context, TopicRecommendationItem rec) {
+  Widget _buildRecommendationCard(
+    BuildContext context,
+    TopicRecommendationItem rec,
+  ) {
     final theme = Theme.of(context);
     return Card(
       elevation: 0,
@@ -930,16 +1058,20 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                           ),
                           if (rec.wasMyEXE101Team)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Palette.infoContainer,
-                                borderRadius: BorderRadius.circular(AppRadius.sm),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.sm,
+                                ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Đề tài EXE101',
-                                style: TextStyle(
+                                style: theme.textTheme.bodyMedium?.copyWith(
                                   color: Palette.infoDark,
-                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -962,7 +1094,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
               ],
             ),
             const SizedBox(height: AppSpacing.s2),
-            Row(
+            Wrap(
+              spacing: AppSpacing.s2,
               children: [
                 Text(
                   '${rec.courseCode} · ${rec.memberCount} thành viên',
@@ -971,9 +1104,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   ),
                 ),
                 if (rec.otherInterestedCount > 0) ...[
-                  const SizedBox(width: 8),
                   Text(
-                    '· ${rec.otherInterestedCount} người khác quan tâm',
+                    '${rec.otherInterestedCount} người khác quan tâm',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Palette.warning,
                       fontWeight: FontWeight.w500,
@@ -983,14 +1115,15 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
               ],
             ),
             const SizedBox(height: AppSpacing.s2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AppSpacing.s2,
+              runSpacing: AppSpacing.s2,
               children: [
                 OutlinedButton(
-                  onPressed: () => context.push('/teams/${rec.teamId}'),
+                  onPressed: () => context.push('/gv/de-tai/${rec.teamId}'),
                   child: const Text('Chi tiết'),
                 ),
-                const SizedBox(width: AppSpacing.s2),
                 if (rec.isInterested)
                   FilledButton.tonal(
                     style: FilledButton.styleFrom(
@@ -999,14 +1132,23 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                     ),
                     onPressed: () {
                       if (rec.myInterestId != null) {
-                        _handleWithdrawInterestWithUndo(context, rec.myInterestId!, rec.teamId, rec.teamName);
+                        _handleWithdrawInterestWithUndo(
+                          context,
+                          rec.myInterestId!,
+                          rec.teamId,
+                          rec.teamName,
+                        );
                       }
                     },
                     child: const Text('Đã quan tâm'),
                   )
                 else
                   FilledButton.tonal(
-                    onPressed: () => _handleOpenInterestWithUndo(context, rec.teamId, rec.teamName),
+                    onPressed: () => _handleOpenInterestWithUndo(
+                      context,
+                      rec.teamId,
+                      rec.teamName,
+                    ),
                     child: const Text('Quan tâm'),
                   ),
               ],
@@ -1028,7 +1170,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/teams/${team.teamId}'),
+        onTap: () => context.push('/gv/de-tai/${team.teamId}'),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Row(
@@ -1074,7 +1216,11 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 20, color: Palette.textSecondary),
+              const Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: Palette.textSecondary,
+              ),
             ],
           ),
         ),

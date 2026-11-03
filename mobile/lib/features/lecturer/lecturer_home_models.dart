@@ -26,14 +26,23 @@ class TopicInterestItem {
   final bool wasPreviousInstructor;
 
   factory TopicInterestItem.fromJson(Map<String, dynamic> j) {
-    final advisor = j['advisor'] != null ? _map(j['advisor']) : <String, dynamic>{};
+    final advisor = j['advisor'] != null
+        ? _map(j['advisor'])
+        : <String, dynamic>{};
     return TopicInterestItem(
       id: (j['id'] ?? '') as String,
-      teamId: (j['teamId'] ?? (j['team'] != null ? _map(j['team'])['id'] : '')) as String,
+      teamId:
+          (j['teamId'] ?? (j['team'] != null ? _map(j['team'])['id'] : ''))
+              as String,
       advisorId: (j['advisorId'] ?? advisor['id'] ?? '') as String,
-      advisorName: (j['advisorName'] ?? advisor['fullName'] ?? (j['team'] != null ? _map(j['team'])['name'] : '')) as String,
+      advisorName:
+          (j['advisorName'] ??
+                  advisor['fullName'] ??
+                  (j['team'] != null ? _map(j['team'])['name'] : ''))
+              as String,
       advisorEmail: (j['advisorEmail'] ?? advisor['email'] ?? '') as String,
-      advisorRole: (j['advisorKind'] ?? advisor['role'] ?? 'LECTURER') as String,
+      advisorRole:
+          (j['advisorKind'] ?? advisor['role'] ?? 'LECTURER') as String,
       domains: [
         for (final d in advisor['domains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
@@ -92,6 +101,7 @@ class TopicRecommendationItem {
     this.projectDescription,
     this.domains = const [],
     required this.memberCount,
+    this.maxMemberCount,
     this.matchingDomains = const [],
     this.otherInterestedCount = 0,
     this.myPreferenceRank,
@@ -108,6 +118,7 @@ class TopicRecommendationItem {
   final String? projectDescription;
   final List<CatalogRef> domains;
   final int memberCount;
+  final int? maxMemberCount;
   final List<CatalogRef> matchingDomains;
   final int otherInterestedCount;
   final int? myPreferenceRank;
@@ -130,6 +141,9 @@ class TopicRecommendationItem {
           CatalogRef.fromJson(_map(d)),
       ],
       memberCount: team['memberCount'] as int? ?? 0,
+      maxMemberCount: team['requirement'] is Map
+          ? _map(team['requirement'])['maxSize'] as int?
+          : null,
       matchingDomains: [
         for (final d in j['matchedDomains'] ?? const [])
           CatalogRef.fromJson(_map(d)),
@@ -167,7 +181,9 @@ class TopicRecommendationsResponse {
       interestLimit: j['interestLimit'] as int? ?? 10,
       remainingCapacity: j['remainingCapacity'] as int?,
       interestOpen: j['interestOpen'] as bool? ?? true,
-      matchingAt: j['matchingAt'] != null ? DateTime.tryParse(j['matchingAt'] as String) : null,
+      matchingAt: j['matchingAt'] != null
+          ? DateTime.tryParse(j['matchingAt'] as String)
+          : null,
       items: [
         for (final item in j['items'] ?? const [])
           TopicRecommendationItem.fromJson(_map(item)),
@@ -245,14 +261,14 @@ class LecturerSemesterStats {
   const LecturerSemesterStats({
     this.needsReplyCount = 0,
     this.overdueSubmissionsCount = 0,
-    this.meetingsTodayCount = 0,
+    this.meetingsTodayCount,
     this.missingCheckpointsCount = 0,
     this.hasPostedWeeklySchedule = true,
   });
 
   final int needsReplyCount;
   final int overdueSubmissionsCount;
-  final int meetingsTodayCount;
+  final int? meetingsTodayCount;
   final int missingCheckpointsCount;
   final bool hasPostedWeeklySchedule;
 }

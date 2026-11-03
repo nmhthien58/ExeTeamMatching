@@ -5,6 +5,7 @@ import '../features/change_requests/change_request_screens.dart';
 import '../features/change_requests/routes.dart';
 import '../features/lecturers/routes.dart';
 import '../features/lecturer/lecturer_home_screen.dart';
+import '../features/lecturer/topic_interests_screen.dart';
 
 import '../features/discover/discover_screen.dart';
 import '../features/discover/seeking_posts_screen.dart';
@@ -50,6 +51,8 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/kham-pha': (_) => const DiscoverScreen(),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
   '/gv': (_) => const LecturerHomeScreen(),
+  '/gv/de-tai': (_) => const TopicInterestsScreen(advisorKind: 'LECTURER'),
+  '/mentor/de-tai': (_) => const TopicInterestsScreen(advisorKind: 'MENTOR'),
   '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
   '/mentor/thong-bao': (_) => const NotificationsScreen(roleRoot: '/mentor'),
   // C02 của cố vấn – MB-39 (Cường).
@@ -72,6 +75,13 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: '/app://change-requests', redirect: (_, _) => changeRequestListPath),
         ],
       Shell.lecturer => [
+          GoRoute(
+            path: '/gv/de-tai/:teamId',
+            builder: (_, state) => TopicDetailScreen(
+              teamId: state.pathParameters['teamId']!,
+              advisorKind: 'LECTURER',
+            ),
+          ),
           _advisorWorkspace('/gv/du-an'),
           _channelRoute('/gv/tin-nhan'),
           // L06 – MB-35, A07 – MB-10 (Nam). L01 (Thành) chưa có nút mở L06.
@@ -79,6 +89,13 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: lecturerSettingsPath, builder: (_, _) => const SettingsScreen()),
         ],
       Shell.mentor => [
+          GoRoute(
+            path: '/mentor/de-tai/:teamId',
+            builder: (_, state) => TopicDetailScreen(
+              teamId: state.pathParameters['teamId']!,
+              advisorKind: 'MENTOR',
+            ),
+          ),
           _advisorWorkspace('/mentor/du-an'),
           _channelRoute('/mentor/tin-nhan'),
           GoRoute(path: '/mentor/cai-dat', builder: (_, _) => const SettingsScreen()),
