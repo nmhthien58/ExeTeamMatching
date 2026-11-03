@@ -8,6 +8,31 @@ namespace Collab.Tests;
 
 public sealed class CheckpointsApiTests
 {
+    private static readonly TimeZoneInfo Vietnam = TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+
+    /// <summary>Ngày hôm nay theo giờ Việt Nam – cách server tính ngày trình bày.</summary>
+    private static DateOnly VietnamToday() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, Vietnam).DateTime);
+
+    [Fact]
+    public async Task Early_morning_in_Vietnam_counts_as_the_local_day_not_the_utc_day()
+    {
+        // 00:50 ngày 04/11 giờ Việt Nam = 17:50 ngày 03/11 UTC.
+        using var factory = new CollabApiFactory();
+        factory.Clock.Now = new DateTimeOffset(2026, 11, 3, 17, 50, 0, TimeSpan.Zero);
+        var instructor = TestPerson.Instructor();
+        var workspaceId = await factory.SeedWorkspaceAsync("Nhóm EXE101", "EXE101", null, instructor);
+        var client = factory.ClientFor(instructor);
+        var url = $"/api/workspaces/{workspaceId}/checkpoints";
+
+        var marked = await client.PutAsJsonAsync($"{url}/1", new { presentedOn = new DateOnly(2026, 11, 4) });
+        var tomorrow = await client.PutAsJsonAsync($"{url}/2", new { presentedOn = new DateOnly(2026, 11, 5) });
+        var progress = await CollabApiFactory.ReadAsync<CheckpointProgress>(await client.GetAsync(url));
+
+        Assert.Equal(HttpStatusCode.OK, marked.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, tomorrow.StatusCode);
+        Assert.True(progress.Items[0].CanUndo); // ghi nhận lúc 00:50 vẫn trong ngày 04/11
+    }
+
     [Fact]
     public async Task Instructor_marks_checkpoint_and_team_sees_progress_with_event()
     {
@@ -15,7 +40,7 @@ public sealed class CheckpointsApiTests
         var student = TestPerson.Leader();
         var instructor = TestPerson.Instructor();
         var workspaceId = await factory.SeedWorkspaceAsync("Nhóm EXE101", "EXE101", null, student, instructor);
-        var day = DateOnly.FromDateTime(DateTime.UtcNow);
+        var day = VietnamToday();
 
         var marked = await factory.ClientFor(instructor).PutAsJsonAsync(
             $"/api/workspaces/{workspaceId}/checkpoints/2", new { presentedOn = day, comment = "Đã trình bày" });
@@ -38,7 +63,7 @@ public sealed class CheckpointsApiTests
         var instructor = TestPerson.Instructor();
         var mentor = TestPerson.Mentor();
         var workspaceId = await factory.SeedWorkspaceAsync("Nhóm EXE101", "EXE101", null, instructor, mentor);
-        var day = DateOnly.FromDateTime(DateTime.UtcNow);
+        var day = VietnamToday();
         var url = $"/api/workspaces/{workspaceId}/checkpoints/1";
 
         var forbidden = await factory.ClientFor(mentor).PutAsJsonAsync(url, new { presentedOn = day });
@@ -62,7 +87,7 @@ public sealed class CheckpointsApiTests
         var instructor = TestPerson.Instructor();
         var first = await factory.SeedWorkspaceAsync("Nhóm A", "EXE101", null, instructor);
         var second = await factory.SeedWorkspaceAsync("Nhóm B", "EXE101", null, instructor);
-        var day = DateOnly.FromDateTime(DateTime.UtcNow);
+        var day = VietnamToday();
         await factory.ClientFor(instructor).PutAsJsonAsync($"/api/workspaces/{first}/checkpoints/1", new { presentedOn = day });
 
         var response = await factory.ClientFor(instructor).GetAsync("/api/checkpoints/me?missing=1");
@@ -79,7 +104,7 @@ public sealed class CheckpointsApiTests
         var instructor = TestPerson.Instructor();
         var workspaceId = await factory.SeedWorkspaceAsync("Nhóm EXE101", "EXE101", null, instructor);
         var client = factory.ClientFor(instructor);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = VietnamToday();
         var baseUrl = $"/api/workspaces/{workspaceId}/checkpoints";
 
         var zero = await client.PutAsJsonAsync($"{baseUrl}/0", new { presentedOn = today });
@@ -103,7 +128,7 @@ public sealed class CheckpointsApiTests
         var student = TestPerson.Leader();
         var outsider = TestPerson.Member("Người ngoài");
         var workspaceId = await factory.SeedWorkspaceAsync("Nhóm EXE201", "EXE201", null, instructor, student);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = VietnamToday();
         var url = $"/api/workspaces/{workspaceId}/checkpoints";
 
         var viewed = await factory.ClientFor(student).GetAsync(url);
@@ -156,7 +181,7 @@ public sealed class CheckpointsApiTests
         var student = TestPerson.Leader();
         var workspaceId = await factory.SeedWorkspaceAsync("Nhóm EXE101", "EXE101", null,
             first, second, student);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = VietnamToday();
         var url = $"/api/workspaces/{workspaceId}/checkpoints/1";
 
         var marked = await factory.ClientFor(first).PutAsJsonAsync(url,
@@ -208,7 +233,7 @@ public sealed class CheckpointsApiTests
         var workspaceId = await factory.SeedWorkspaceWithSemesterAsync("Nhóm EXE101 TargetWeek", "EXE101", semesterId, null, instructor, student);
 
         // Giả sử học kỳ bắt đầu cách đây 21 ngày (3 tuần tròn) -> hôm nay đang ở Tuần 4
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = VietnamToday();
         var startDate = today.AddDays(-21);
         factory.AcademicSemesters.Configs[semesterId] = new SemesterCheckpointConfig(startDate, new[] { 2, 3, 5, 8 });
 
