@@ -213,7 +213,7 @@ describe('student team screens (FE-37)', () => {
       '/api/teams/me': team('MEMBER'),
       '/api/teams/t1/lecturer': { lecturerName: 'Cô Hạnh', reason: 'PREFERENCE', preferenceRank: 1 },
       '/api/teams/t1/mentor': '',
-      '/api/workspaces/me': [{ id: 'w1', teamName: 'Nhóm Bình Minh', courseCode: 'EXE101', myRole: 'MEMBER' }],
+      '/api/workspaces/me': [{ id: 'w-old', teamId: 'other', teamName: 'Nhóm cũ', courseCode: 'EXE101', myRole: 'MEMBER' }, { id: 'w1', teamId: card.id, teamName: 'Nhóm Bình Minh', courseCode: 'EXE101', myRole: 'MEMBER' }],
       '/api/workspaces/w1/checkpoints': { workspaceId: 'w1', doneCount: 2, items: [] },
     }
     renderAt('/sv/nhom')

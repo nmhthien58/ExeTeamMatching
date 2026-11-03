@@ -5,6 +5,7 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { useIsTeamFormation, useMyCourse } from '@/shared/phase/usePhase'
 import { Card } from '@/features/workspace/components'
 import { useMyWorkspaces } from '@/features/workspace/api'
+import { slotLabel, useTeamSchedule } from '@/features/meeting-schedule/api'
 import { useMyTeam } from '@/features/suggestions/api'
 import { DomainChips, TeamRequirementBar } from '@/features/suggestions/components'
 import { AdvisorsCard, CheckpointCard } from './AdvisorsCard'
@@ -56,7 +57,10 @@ function Overview({ team }: { team: FullTeam }) {
   const isLeader = team.myRelation === 'LEADER'
   const maxSize = team.requirement?.maxSize ?? 6
   const canEdit = isLeader && (team.status === 'DRAFT' || team.status === 'ACTIVE')
-  const workspaceId = useMyWorkspaces().data?.[0]?.id
+  // Khớp theo nhóm: sinh viên EXE201 còn dự án EXE101 của kỳ trước.
+  const workspaceId = useMyWorkspaces().data?.find((w) => w.teamId === team.id)?.id
+  const isExe201 = team.courseCode === 'EXE201'
+  const mySlot = useTeamSchedule(isExe201 ? workspaceId : undefined).data?.mySlot
   const shortcuts = [
     { to: '/sv/nhom/thanh-vien', icon: 'groups', label: 'Thành viên', detail: `${team.memberCount}/${maxSize}`, show: true },
     { to: '/sv/nhom/yeu-cau', icon: 'mark_email_unread', label: 'Yêu cầu và lời mời', show: isLeader },
@@ -64,6 +68,7 @@ function Overview({ team }: { team: FullTeam }) {
     { to: '/sv/nhom/bai-tuyen', icon: 'campaign', label: 'Bài tuyển thành viên', detail: team.recruitmentPost ? 'Đang mở' : undefined, show: canEdit },
     { to: '/sv/nhom/sua', icon: 'edit', label: 'Sửa thông tin', show: canEdit },
     { to: '/sv/du-an', icon: 'rocket_launch', label: 'Mở dự án', show: !!workspaceId },
+    { to: '/sv/nhom/lich-hop', icon: 'event_repeat', label: 'Lịch họp hằng tuần', detail: mySlot ? slotLabel(mySlot) : 'Chọn lịch họp', show: isExe201 && !!workspaceId },
     { to: '/sv/nhom/lich-su', icon: 'history', label: 'Lịch sử hoạt động', show: true },
   ].filter((s) => s.show)
 
