@@ -21,6 +21,7 @@ import '../features/my_team/recruitment_post_screen.dart';
 import '../features/my_team/requests_screen.dart';
 import '../features/my_team/team_history_screen.dart';
 import '../features/my_team/team_form_screen.dart';
+import '../features/profile/my_profile_screens.dart';
 import '../features/profile/student_profile_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
 import '../features/round_closed/round_closed_screen.dart';
@@ -38,7 +39,9 @@ import 'role_shell.dart';
 final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
   '/sv/nhom': (_) => const MyTeamScreen(),
-  '/sv': (_) => const HomeScreen(),
+  // A05 chặn trước S01, S02 khi sinh viên chưa đánh giá đủ 5 kỹ năng – MB-08, MB-12 (Nam).
+  '/sv': (_) => const ProfileGate(child: HomeScreen()),
+  '/sv/ho-so': (_) => const ProfileGate(child: MyProfileScreen()),
   '/sv/kham-pha': (_) => const DiscoverScreen(),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
   '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
@@ -89,7 +92,8 @@ final _studentTeamRoutes = [
   GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),
   // S22 – MB-26 (Cường).
   GoRoute(path: '/sv/nhom/lich-su', builder: (_, _) => const TeamHistoryScreen()),
-  // S04 – MB-13 (Nam).
+  // S03 – MB-12, S04 – MB-13 (Nam).
+  GoRoute(path: editProfilePath, builder: (_, _) => const EditProfileScreen()),
   GoRoute(path: '/sv/sinh-vien/:id', builder: (_, s) => StudentProfileScreen(studentId: s.pathParameters['id']!)),
 ];
 
