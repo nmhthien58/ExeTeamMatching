@@ -14,6 +14,8 @@ Script tạo 6 database (mỗi service 1 database) trên một instance PostgreS
 | `90_seed_catalogs.sql` | 4 role, 16 chuyên ngành (tạm), domain D01–D18, mã lớp mẫu, học kỳ FA26, rule_settings |
 | `99_seed_admin.sh` | Tài khoản Admin đầu tiên từ biến `ADMIN_EMAIL` (dòng user_accounts + user_account_roles) |
 
+Dữ liệu demo không nằm ở đây: seed qua API, xem [`deploy/seed`](../seed/README.md) (BE-57).
+
 ## Chạy
 
 Postgres trong `deploy/docker-compose.yml` mount thư mục này vào `/docker-entrypoint-initdb.d`, nên script **tự chạy một lần khi volume còn trống**.

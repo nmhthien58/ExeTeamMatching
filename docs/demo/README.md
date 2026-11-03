@@ -12,6 +12,8 @@ Postman collection chạy các luồng demo ở [PROJECT_CONTEXT.md](../ux/PROJE
 
 > Chỉ chạy trên môi trường **local / demo**. Collection đặt học kỳ demo làm học kỳ hiện hành và khóa đợt lập nhóm EXE101 đang mở (nếu có). JWT lấy qua `POST /api/dev/token`, endpoint này chỉ có khi `ASPNETCORE_ENVIRONMENT=Development`.
 
+Muốn có sẵn dữ liệu đầy đủ để xem giao diện (mentor, nhóm đã ghép cố vấn, dự án, lịch họp hằng tuần) thì dùng seed ở [`deploy/seed`](../../deploy/seed/README.md).
+
 ## Chạy
 
 1. Bật hệ thống (xem [README](../../README.md) mục "Chạy bằng Docker"):
