@@ -8,6 +8,7 @@ import { AccountMenu } from './AccountMenu'
 import { Logo } from './AdminLayout'
 import { roleNav, type NavItem } from './navigation'
 import { PageHeaderProvider, usePageHeaderState } from './PageHeader'
+import { NotificationNavIcon } from '@/features/notifications/NotificationNavIcon'
 
 type Layout = 'tabbar' | 'rail' | 'sidebar'
 
@@ -101,7 +102,7 @@ function SideNav({ items, compact }: { items: NavItem[]; compact: boolean }) {
               >
                 {({ isActive }) => (
                   <>
-                    <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : undefined} />
+                    {item.screen === 'A06' ? <NotificationNavIcon filled={isActive} /> : <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : undefined} />}
                     <span className="truncate">{item.label}</span>
                   </>
                 )}
@@ -125,7 +126,7 @@ function TabBar({ items }: { items: NavItem[] }) {
               {({ isActive }) => (
                 <>
                   <span className={clsx('grid h-8 w-16 place-items-center rounded-full', isActive && 'bg-primary-container')}>
-                    <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : 'text-text-secondary'} />
+                    {item.screen === 'A06' ? <NotificationNavIcon filled={isActive} /> : <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : 'text-text-secondary'} />}
                   </span>
                   <span className={clsx('text-caption font-semibold', isActive ? 'text-primary-dark' : 'text-text-secondary')}>{item.label}</span>
                 </>
