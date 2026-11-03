@@ -12,6 +12,7 @@ import 'profile_form.dart';
 import 'skill_bars.dart';
 
 const editProfilePath = '/sv/ho-so/sua';
+const studentSettingsPath = '/sv/cai-dat';
 
 /// Sinh viên chưa đánh giá đủ 5 kỹ năng thì thấy A05 thay cho [child] (quy tắc 16). Đọc hồ sơ thật thay vì
 /// `profileCompleted` trong phiên vì cờ đó không đổi sau khi lưu. Không đọc được hồ sơ thì không chặn.
@@ -98,7 +99,10 @@ class MyProfileScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hồ sơ của tôi'),
-        actions: [IconButton(tooltip: 'Sửa hồ sơ', icon: const Icon(Icons.edit_outlined), onPressed: () => context.push(editProfilePath))],
+        actions: [
+          IconButton(tooltip: 'Sửa hồ sơ', icon: const Icon(Icons.edit_outlined), onPressed: () => context.push(editProfilePath)),
+          IconButton(tooltip: 'Cài đặt', icon: const Icon(Icons.settings_outlined), onPressed: () => context.push(studentSettingsPath)),
+        ],
       ),
       body: ref.watch(myProfileProvider).when(
             loading: () => const SkeletonList(count: 3),

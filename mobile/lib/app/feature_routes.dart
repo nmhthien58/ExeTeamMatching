@@ -10,6 +10,7 @@ import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/lecturer_profile/lecturer_profile_screen.dart';
 import '../features/lecturers/team_lecturer_screen.dart';
 import '../features/messages/channel_screen.dart';
 import '../features/messages/conversations_screen.dart';
@@ -24,6 +25,7 @@ import '../features/my_team/team_form_screen.dart';
 import '../features/profile/my_profile_screens.dart';
 import '../features/profile/student_profile_screen.dart';
 import '../features/round_closed/auto_assigned_screen.dart';
+import '../features/settings/settings_screen.dart';
 import '../features/round_closed/round_closed_screen.dart';
 import '../features/suggestions/invite_students_screen.dart';
 import '../features/suggestions/suggested_members_screen.dart';
@@ -65,8 +67,18 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
           GoRoute(path: '/sv/change-requests/:id', redirect: (_, s) => '$changeRequestListPath/${s.pathParameters['id']}'),
           GoRoute(path: '/app://change-requests', redirect: (_, _) => changeRequestListPath),
         ],
-      Shell.lecturer => [_advisorWorkspace('/gv/du-an'), _channelRoute('/gv/tin-nhan')],
-      Shell.mentor => [_advisorWorkspace('/mentor/du-an'), _channelRoute('/mentor/tin-nhan')],
+      Shell.lecturer => [
+          _advisorWorkspace('/gv/du-an'),
+          _channelRoute('/gv/tin-nhan'),
+          // L06 – MB-35, A07 – MB-10 (Nam). L01 (Thành) chưa có nút mở L06.
+          GoRoute(path: lecturerProfilePath, builder: (_, _) => const LecturerProfileScreen()),
+          GoRoute(path: lecturerSettingsPath, builder: (_, _) => const SettingsScreen()),
+        ],
+      Shell.mentor => [
+          _advisorWorkspace('/mentor/du-an'),
+          _channelRoute('/mentor/tin-nhan'),
+          GoRoute(path: '/mentor/cai-dat', builder: (_, _) => const SettingsScreen()),
+        ],
     };
 
 /// S07 (trong Khám phá, chỉ mở trong đợt lập nhóm – quy tắc 18), S18, S19 (Nhóm của tôi), S30, S31 (sau hạn chót) – MB-15, MB-23, MB-31.
@@ -94,6 +106,8 @@ final _studentTeamRoutes = [
   GoRoute(path: '/sv/nhom/lich-su', builder: (_, _) => const TeamHistoryScreen()),
   // S03 – MB-12, S04 – MB-13 (Nam).
   GoRoute(path: editProfilePath, builder: (_, _) => const EditProfileScreen()),
+  // A07 – MB-10 (Nam).
+  GoRoute(path: studentSettingsPath, builder: (_, _) => const SettingsScreen()),
   GoRoute(path: '/sv/sinh-vien/:id', builder: (_, s) => StudentProfileScreen(studentId: s.pathParameters['id']!)),
 ];
 
