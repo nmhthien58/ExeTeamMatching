@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:exe_team_matching/features/lecturer/lecturer_home_api.dart';
 import 'package:exe_team_matching/features/lecturer/lecturer_home_models.dart';
 import 'package:exe_team_matching/features/lecturer/topic_interests_screen.dart';
+import 'package:exe_team_matching/features/lecturer_profile/lecturer_profile_screen.dart'
+    show lecturerProfileProvider, LecturerProfile;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,8 +13,11 @@ class _Api extends LecturerHomeApi {
 
   String? openedKind;
   String? openedTeam;
+  String? withdrawnId;
   bool interestOpen = true;
   int interestCount = 0;
+  List<TopicRecommendationItem>? customItems;
+  List<TopicInterestItem>? customInterests;
 
   @override
   Future<TopicRecommendationsResponse> getRecommendations({
@@ -24,7 +29,7 @@ class _Api extends LecturerHomeApi {
     openInterestCount: interestCount,
     interestLimit: 2,
     interestOpen: interestOpen,
-    items: const [
+    items: customItems ?? const [
       TopicRecommendationItem(
         teamId: 'team-1',
         teamName: 'Nhóm Mây',
@@ -40,7 +45,16 @@ class _Api extends LecturerHomeApi {
   @override
   Future<List<TopicInterestItem>> getMyTopicInterests({
     String advisorKind = 'LECTURER',
-  }) async => [];
+  }) async => customInterests ?? (openedTeam != null ? [
+    TopicInterestItem(
+      id: 'interest-1',
+      teamId: openedTeam!,
+      advisorId: 'adv-1',
+      advisorName: 'Cố vấn 1',
+      status: 'OPEN',
+      advisorRole: advisorKind,
+    ),
+  ] : []);
 
   @override
   Future<List<LecturerPreferenceMe>> getMyPreferences() async => [];
@@ -52,6 +66,11 @@ class _Api extends LecturerHomeApi {
   }) async {
     openedTeam = teamId;
     openedKind = advisorKind;
+  }
+
+  @override
+  Future<void> withdrawInterest(String id) async {
+    withdrawnId = id;
   }
 }
 
@@ -131,6 +150,121 @@ void main() {
     },
   );
 
+  testWidgets('renders Rule 26 badge when wasMyEXE101Team is true', (tester) async {
+    final api = _Api()
+      ..customItems = const [
+        TopicRecommendationItem(
+          teamId: 'team-exe101',
+          teamName: 'Nhóm Cũ',
+          courseCode: 'EXE201',
+          projectName: 'Dự án Cũ',
+          memberCount: 5,
+          maxMemberCount: 6,
+          wasMyEXE101Team: true,
+        ),
+      ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [lecturerHomeApiProvider.overrideWithValue(api)],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Đã hướng dẫn ở EXE101'), findsOneWidget);
+  });
+
+  testWidgets('renders student preference rank chip when myPreferenceRank is set', (tester) async {
+    final api = _Api()
+      ..customItems = const [
+        TopicRecommendationItem(
+          teamId: 'team-pref',
+          teamName: 'Nhóm Chọn',
+          courseCode: 'EXE101',
+          projectName: 'Dự án AI',
+          memberCount: 4,
+          maxMemberCount: 5,
+          myPreferenceRank: 1,
+        ),
+      ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [lecturerHomeApiProvider.overrideWithValue(api)],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Nhóm chọn bạn: nguyện vọng 1'), findsOneWidget);
+  });
+
+  testWidgets('renders matched advisor status and disables interest action', (tester) async {
+    final api = _Api()
+      ..customItems = const [
+        TopicRecommendationItem(
+          teamId: 'team-matched',
+          teamName: 'Nhóm Đã Ghép',
+          courseCode: 'EXE101',
+          projectName: 'Dự án X',
+          memberCount: 5,
+          hasAdvisor: true,
+        ),
+      ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [lecturerHomeApiProvider.overrideWithValue(api)],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Đã có giảng viên'), findsOneWidget);
+    expect(find.text('Quan tâm'), findsNothing);
+  });
+
+  testWidgets('shows out-of-phase banner and disables button when interestOpen is false', (tester) async {
+    final api = _Api()..interestOpen = false;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [lecturerHomeApiProvider.overrideWithValue(api)],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Ngoài giai đoạn quan tâm: bạn vẫn có thể xem đề tài.'), findsOneWidget);
+    expect(find.text('Đã hết giai đoạn quan tâm'), findsOneWidget);
+  });
+
+  testWidgets('tapping Quan tâm shows 5s SnackBar with Hoàn tác, and tapping Hoàn tác withdraws', (tester) async {
+    final api = _Api();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [lecturerHomeApiProvider.overrideWithValue(api)],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Quan tâm'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Hoàn tác'), findsOneWidget);
+    expect(api.openedTeam, 'team-1');
+
+    await tester.tap(find.text('Hoàn tác'));
+    await tester.pumpAndSettle();
+
+    expect(api.withdrawnId, 'interest-1');
+  });
+
   for (final size in const [Size(360, 800), Size(412, 915)]) {
     testWidgets('L07 fits ${size.width}dp at 130% text scale', (tester) async {
       tester.view.physicalSize = size;
@@ -154,4 +288,55 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('shows EmptyState with CTA Cập nhật chuyên môn when lecturer has no domains', (tester) async {
+    final api = _Api()..customItems = [];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          lecturerHomeApiProvider.overrideWithValue(api),
+          lecturerProfileProvider.overrideWith((ref) async => const LecturerProfile(
+            fullName: 'Thầy Test',
+            email: 'test@fpt.edu.vn',
+            domains: [],
+          )),
+        ],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chưa khai báo chuyên môn'), findsOneWidget);
+    expect(find.text('Cập nhật chuyên môn'), findsOneWidget);
+  });
+
+  testWidgets('TopicDetailScreen displays Rule 26 badge when wasMyEXE101Team is true', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          advisorTeamDetailProvider('team-1').overrideWith((ref) async => {
+            'id': 'team-1',
+            'name': 'Nhóm Test',
+            'projectName': 'Đề tài Kế thừa',
+            'courseCode': 'EXE201',
+            'isProjectContinued': true,
+            'members': [],
+            'domains': [],
+          }),
+        ],
+        child: const MaterialApp(
+          home: TopicDetailScreen(
+            teamId: 'team-1',
+            advisorKind: 'LECTURER',
+            wasMyEXE101Team: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Đã hướng dẫn ở EXE101'), findsOneWidget);
+  });
 }

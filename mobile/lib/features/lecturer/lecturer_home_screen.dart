@@ -863,7 +863,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/gv/de-tai/${item.teamId}'),
+        onTap: () => context.push('/gv/de-tai/${item.teamId}', extra: {'wasMyEXE101Team': item.wasMyEXE101Team}),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Column(
@@ -963,7 +963,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => context.push('/gv/de-tai/${item.teamId}'),
+        onTap: () => context.push('/gv/de-tai/${item.teamId}', extra: {'wasMyEXE101Team': item.wasPreviousInstructor}),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.s3),
           child: Row(
@@ -1046,14 +1046,15 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: AppSpacing.s2,
+                        runSpacing: AppSpacing.s1,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Expanded(
-                            child: Text(
-                              rec.teamName,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          Text(
+                            rec.teamName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                           if (rec.wasMyEXE101Team)
@@ -1069,8 +1070,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                                 ),
                               ),
                               child: Text(
-                                'Đề tài EXE101',
-                                style: theme.textTheme.bodyMedium?.copyWith(
+                                'Đã hướng dẫn ở EXE101',
+                                style: theme.textTheme.labelSmall?.copyWith(
                                   color: Palette.infoDark,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -1121,7 +1122,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
               runSpacing: AppSpacing.s2,
               children: [
                 OutlinedButton(
-                  onPressed: () => context.push('/gv/de-tai/${rec.teamId}'),
+                  onPressed: () => context.push('/gv/de-tai/${rec.teamId}', extra: {'wasMyEXE101Team': rec.wasMyEXE101Team}),
                   child: const Text('Chi tiết'),
                 ),
                 if (rec.isInterested)

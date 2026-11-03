@@ -753,7 +753,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                       'Đã thêm ${lecturer.fullName} vào nguyện vọng',
                     );
                   },
-                  child: const Text('Chọn'),
+                  child: const Text('Thêm vào nguyện vọng'),
                 ),
             ],
           ),

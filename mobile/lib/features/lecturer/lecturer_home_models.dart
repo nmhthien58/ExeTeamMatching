@@ -63,6 +63,7 @@ class LecturerPreferenceMe {
     this.domains = const [],
     required this.rank,
     required this.iAmInterested,
+    this.wasMyEXE101Team = false,
   });
 
   final String teamId;
@@ -73,6 +74,7 @@ class LecturerPreferenceMe {
   final List<CatalogRef> domains;
   final int rank;
   final bool iAmInterested;
+  final bool wasMyEXE101Team;
 
   factory LecturerPreferenceMe.fromJson(Map<String, dynamic> j) {
     final team = j['team'] != null ? _map(j['team']) : j;
@@ -88,6 +90,11 @@ class LecturerPreferenceMe {
       ],
       rank: j['rank'] as int? ?? 1,
       iAmInterested: j['iAmInterested'] as bool? ?? false,
+      wasMyEXE101Team: (j['wasMyEXE101Team'] ??
+          j['wasMyExe101Team'] ??
+          team['wasMyEXE101Team'] ??
+          team['wasMyExe101Team'] ??
+          team['isProjectContinued']) as bool? ?? false,
     );
   }
 }
@@ -152,7 +159,13 @@ class TopicRecommendationItem {
       myPreferenceRank: j['myPreferenceRank'] as int?,
       myInterestId: myInterest?['id'] as String?,
       isInterested: myInterest != null && myInterest['status'] == 'OPEN',
-      wasMyEXE101Team: j['wasMyEXE101Team'] as bool? ?? false,
+      wasMyEXE101Team: (j['wasMyEXE101Team'] ??
+          j['wasMyExe101Team'] ??
+          j['wasLecturerExe101Team'] ??
+          team['wasMyEXE101Team'] ??
+          team['wasMyExe101Team'] ??
+          team['isProjectContinued'] ??
+          myInterest?['wasPreviousInstructor']) as bool? ?? false,
       hasAdvisor: j['hasAdvisor'] as bool? ?? false,
     );
   }
