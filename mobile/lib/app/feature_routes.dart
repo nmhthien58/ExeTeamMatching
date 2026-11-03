@@ -80,10 +80,14 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.lecturer => [
           GoRoute(
             path: '/gv/de-tai/:teamId',
-            builder: (_, state) => TopicDetailScreen(
-              teamId: state.pathParameters['teamId']!,
-              advisorKind: 'LECTURER',
-            ),
+            builder: (_, state) {
+              final extra = state.extra is Map ? state.extra as Map : null;
+              return TopicDetailScreen(
+                teamId: state.pathParameters['teamId']!,
+                advisorKind: 'LECTURER',
+                wasMyEXE101Team: extra?['wasMyEXE101Team'] as bool?,
+              );
+            },
           ),
           _advisorWorkspace('/gv/du-an'),
           _channelRoute('/gv/tin-nhan'),
@@ -96,10 +100,14 @@ List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.mentor => [
           GoRoute(
             path: '/mentor/de-tai/:teamId',
-            builder: (_, state) => TopicDetailScreen(
-              teamId: state.pathParameters['teamId']!,
-              advisorKind: 'MENTOR',
-            ),
+            builder: (_, state) {
+              final extra = state.extra is Map ? state.extra as Map : null;
+              return TopicDetailScreen(
+                teamId: state.pathParameters['teamId']!,
+                advisorKind: 'MENTOR',
+                wasMyEXE101Team: extra?['wasMyEXE101Team'] as bool?,
+              );
+            },
           ),
           _advisorWorkspace('/mentor/du-an'),
           _channelRoute('/mentor/tin-nhan'),

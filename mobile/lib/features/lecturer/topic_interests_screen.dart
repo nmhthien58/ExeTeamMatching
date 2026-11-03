@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../lecturer_profile/lecturer_profile_screen.dart'
-    show lecturerProfilePath, lecturerProfileProvider;
+    show lecturerProfilePath, lecturerProfileProvider, LecturerProfile;
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
 
@@ -134,6 +134,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
     final recommendations = ref.watch(
       advisorTopicRecommendationsProvider(widget.advisorKind),
     );
+    final profileAsync = _lecturer ? ref.watch(lecturerProfileProvider) : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Đề tài')),
@@ -143,16 +144,24 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
-            recommendations.when(
-              loading: () => const Center(
+            if (_lecturer && profileAsync != null && profileAsync.isLoading && !recommendations.hasError)
+              const Center(
                 child: Padding(
                   padding: EdgeInsets.all(AppSpacing.s6),
                   child: CircularProgressIndicator(),
                 ),
+              )
+            else
+              recommendations.when(
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.s6),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (error, _) => ErrorState(error: error, onRetry: _refresh),
+                data: (response) => _buildContent(context, response, profileAsync?.asData?.value),
               ),
-              error: (error, _) => ErrorState(error: error, onRetry: _refresh),
-              data: (response) => _buildContent(context, response),
-            ),
           ],
         ),
       ),
@@ -162,19 +171,22 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
   Widget _buildContent(
     BuildContext context,
     TopicRecommendationsResponse response,
+    LecturerProfile? profile,
   ) {
     final theme = Theme.of(context);
 
     // Check if lecturer hasn't declared expertise domains (L06)
     if (_lecturer) {
-      final profile = ref.watch(lecturerProfileProvider).asData?.value;
       if (profile != null && profile.domains.isEmpty) {
         return EmptyState(
           icon: Icons.school_outlined,
           title: 'Chưa khai báo chuyên môn',
           description: 'Cập nhật chuyên môn để xem đề tài phù hợp.',
           action: FilledButton(
-            onPressed: () => context.push(lecturerProfilePath),
+            onPressed: () async {
+              await context.push(lecturerProfilePath);
+              _refresh();
+            },
             child: const Text('Cập nhật chuyên môn'),
           ),
         );
@@ -264,11 +276,25 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
           ),
           const SizedBox(height: AppSpacing.s3),
           if (items.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppSpacing.s4),
-                child: Text('Chưa có đề tài gợi ý phù hợp.'),
-              ),
+            EmptyState(
+              icon: Icons.school_outlined,
+              title: (_lecturer && (profile != null && profile.domains.isEmpty))
+                  ? 'Chưa khai báo chuyên môn'
+                  : 'Chưa có đề tài gợi ý phù hợp',
+              description: _lecturer
+                  ? ((profile != null && profile.domains.isEmpty)
+                      ? 'Cập nhật chuyên môn để xem đề tài phù hợp.'
+                      : 'Chưa có đề tài nào phù hợp với chuyên môn của bạn trong đợt này. Bạn có thể cập nhật chuyên môn để xem thêm gợi ý.')
+                  : 'Chưa có đề tài nào phù hợp với lĩnh vực của bạn trong đợt này.',
+              action: _lecturer
+                  ? FilledButton(
+                      onPressed: () async {
+                        await context.push(lecturerProfilePath);
+                        _refresh();
+                      },
+                      child: const Text('Cập nhật chuyên môn'),
+                    )
+                  : null,
             ),
           for (final item in items) _recommendation(item, response),
         ] else if (_tab == 1 && _lecturer)
@@ -312,7 +338,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text(memberText),
-              onTap: () => _openDetail(item.teamId),
+              onTap: () => _openDetail(item.teamId, item.wasMyEXE101Team),
             ),
             if (item.wasMyEXE101Team) ...[
               Wrap(
@@ -449,7 +475,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
                     trailing: item.iAmInterested
                         ? const Icon(Icons.favorite, color: Palette.primary)
                         : null,
-                    onTap: () => _openDetail(item.teamId),
+                    onTap: () => _openDetail(item.teamId, item.wasMyEXE101Team),
                   ),
                 ),
             ],
@@ -519,7 +545,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
                               )
                           : null,
                     ),
-                    onTap: () => _openDetail(item.teamId),
+                    onTap: () => _openDetail(item.teamId, item.wasPreviousInstructor),
                   ),
                 ),
             ],
@@ -527,8 +553,11 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
         },
       );
 
-  void _openDetail(String teamId) =>
-      context.push('${_lecturer ? '/gv' : '/mentor'}/de-tai/$teamId');
+  void _openDetail(String teamId, [bool? wasMyEXE101Team]) =>
+      context.push(
+        '${_lecturer ? '/gv' : '/mentor'}/de-tai/$teamId',
+        extra: {'wasMyEXE101Team': wasMyEXE101Team},
+      );
 
   String _date(DateTime value) {
     final date = value.toLocal();
@@ -543,10 +572,12 @@ class TopicDetailScreen extends ConsumerStatefulWidget {
     super.key,
     required this.teamId,
     required this.advisorKind,
+    this.wasMyEXE101Team,
   });
 
   final String teamId;
   final String advisorKind;
+  final bool? wasMyEXE101Team;
 
   @override
   ConsumerState<TopicDetailScreen> createState() => _TopicDetailScreenState();
@@ -736,7 +767,12 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                             );
                           },
                         ),
-                  if (rec?.wasMyEXE101Team == true)
+                  if (widget.wasMyEXE101Team == true ||
+                      rec?.wasMyEXE101Team == true ||
+                      team['wasMyEXE101Team'] == true ||
+                      team['wasMyExe101Team'] == true ||
+                      team['isProjectContinued'] == true ||
+                      (project != null && project['originCourseCode'] == 'EXE101'))
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,

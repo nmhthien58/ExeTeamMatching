@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:exe_team_matching/features/lecturer/lecturer_home_api.dart';
 import 'package:exe_team_matching/features/lecturer/lecturer_home_models.dart';
 import 'package:exe_team_matching/features/lecturer/topic_interests_screen.dart';
+import 'package:exe_team_matching/features/lecturer_profile/lecturer_profile_screen.dart'
+    show lecturerProfileProvider, LecturerProfile;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -286,4 +288,55 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('shows EmptyState with CTA Cập nhật chuyên môn when lecturer has no domains', (tester) async {
+    final api = _Api()..customItems = [];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          lecturerHomeApiProvider.overrideWithValue(api),
+          lecturerProfileProvider.overrideWith((ref) async => const LecturerProfile(
+            fullName: 'Thầy Test',
+            email: 'test@fpt.edu.vn',
+            domains: [],
+          )),
+        ],
+        child: const MaterialApp(
+          home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chưa khai báo chuyên môn'), findsOneWidget);
+    expect(find.text('Cập nhật chuyên môn'), findsOneWidget);
+  });
+
+  testWidgets('TopicDetailScreen displays Rule 26 badge when wasMyEXE101Team is true', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          advisorTeamDetailProvider('team-1').overrideWith((ref) async => {
+            'id': 'team-1',
+            'name': 'Nhóm Test',
+            'projectName': 'Đề tài Kế thừa',
+            'courseCode': 'EXE201',
+            'isProjectContinued': true,
+            'members': [],
+            'domains': [],
+          }),
+        ],
+        child: const MaterialApp(
+          home: TopicDetailScreen(
+            teamId: 'team-1',
+            advisorKind: 'LECTURER',
+            wasMyEXE101Team: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Đã hướng dẫn ở EXE101'), findsOneWidget);
+  });
 }

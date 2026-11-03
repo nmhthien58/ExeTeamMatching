@@ -236,7 +236,7 @@ void main() {
 
         // Recommendation card
         expect(find.text('Fintech Mobile App'), findsOneWidget);
-        expect(find.text('Đề tài EXE101'), findsOneWidget);
+        expect(find.text('Đã hướng dẫn ở EXE101'), findsOneWidget);
       },
     );
 
