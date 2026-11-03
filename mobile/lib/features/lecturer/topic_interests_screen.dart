@@ -794,11 +794,14 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                             color: Palette.infoDark,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            'Đã hướng dẫn ở EXE101',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: Palette.infoDark,
-                              fontWeight: FontWeight.bold,
+                          // Flexible: chữ 130% thì nhãn xuống dòng thay vì tràn (flutter-handoff §5).
+                          Flexible(
+                            child: Text(
+                              'Đã hướng dẫn ở EXE101',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: Palette.infoDark,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -898,7 +901,9 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
                           .first,
                     ),
                   ),
-                  title: Row(
+                  // Wrap: tên dài hoặc chữ 130% thì nhãn "Trưởng nhóm" xuống dòng thay vì tràn (flutter-handoff §5).
+                  title: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         member['fullName']?.toString() ?? 'Thành viên',
