@@ -4,7 +4,7 @@ Postman collection chạy các luồng demo ở [PROJECT_CONTEXT.md](../ux/PROJE
 
 | File | Nội dung |
 |---|---|
-| [EXE_Team_Matching_Demo.postman_collection.json](EXE_Team_Matching_Demo.postman_collection.json) | Collection (Postman v2.1): 9 thư mục, mỗi request có test kiểm tra kết quả |
+| [EXE_Team_Matching_Demo.postman_collection.json](EXE_Team_Matching_Demo.postman_collection.json) | Collection (Postman v2.1): 11 thư mục, khoảng 180 request, mỗi request có test kiểm tra kết quả |
 | [sinh-vien-exe101-demo.xlsx](sinh-vien-exe101-demo.xlsx) | 10 sinh viên EXE101 **ẩn danh** (tên ghép ngẫu nhiên, email `@example.com`, không SĐT) theo mẫu import W07 |
 | [sinh-vien-exe201-demo.xlsx](sinh-vien-exe201-demo.xlsx) | 6 sinh viên EXE201 ẩn danh: 4 thành viên nhóm A ở EXE101 (cùng MSSV) và 2 bạn mới |
 | [moc-exe101-exe201-demo.csv](moc-exe101-exe201-demo.csv) | File mốc nhóm EXE101 → EXE201 (W06): tên nhóm, đề tài, trưởng nhóm, thành viên |
@@ -12,7 +12,7 @@ Postman collection chạy các luồng demo ở [PROJECT_CONTEXT.md](../ux/PROJE
 
 > Chỉ chạy trên môi trường **local / demo**. Collection đặt học kỳ demo làm học kỳ hiện hành và khóa đợt lập nhóm EXE101 đang mở (nếu có). JWT lấy qua `POST /api/dev/token`, endpoint này chỉ có khi `ASPNETCORE_ENVIRONMENT=Development`.
 
-Muốn có sẵn dữ liệu đầy đủ để xem giao diện (mentor, nhóm đã ghép cố vấn, dự án, lịch họp hằng tuần) thì dùng seed ở [`deploy/seed`](../../deploy/seed/README.md).
+Muốn có sẵn dữ liệu đầy đủ để **xem giao diện** (mentor, nhóm đã ghép cố vấn, dự án, lịch họp hằng tuần) thì dùng seed BE-57 ở [`deploy/seed`](../../deploy/seed/README.md). Collection và seed độc lập: collection tạo học kỳ demo riêng mỗi lần chạy, chạy được trước hoặc sau seed. Lưu ý cả hai đều đổi học kỳ hiện hành, nên chạy cái nào sau thì giao diện hiện học kỳ của cái đó; seed lại thì xem mục "Seed lại từ đầu" trong README của seed.
 
 ## Chạy
 
@@ -27,13 +27,13 @@ Muốn có sẵn dữ liệu đầy đủ để xem giao diện (mentor, nhóm �
      npx newman@6 run docs/demo/EXE_Team_Matching_Demo.postman_collection.json --working-dir docs/demo
      ```
    - **Postman:** *Settings → General → Working directory* chọn thư mục `docs/demo` (để Postman tìm được file `.xlsx`, `.pdf`), Import file collection rồi *Run collection* (Collection Runner).
-3. Cả lượt chạy mất khoảng 3–4 phút, vì luồng 4 chờ đợt lập nhóm **tự khóa đúng hạn chót**. Hạn chót = lúc tạo đợt + biến `roundMinutes` (mặc định 3 phút).
+3. Cả lượt chạy mất khoảng 5–6 phút, vì luồng 4 chờ đợt lập nhóm **tự khóa đúng hạn chót**. Hạn chót = lúc tạo đợt + biến `roundMinutes` (mặc định 5 phút).
 
 Các request tên "Chờ…" và vài request đọc dữ liệu sau sự kiện Kafka tự thử lại (`postman.setNextRequest`). Cơ chế này **chỉ chạy trong Runner / newman**. Bấm từng request bằng tay thì phải tự đợi rồi bấm lại.
 
 Muốn trình bày từng bước bằng tay:
 - Đặt biến collection `roundMinutes` lớn hơn (ví dụ `30`).
-- Tới luồng 4 (thư mục 6), mở Hangfire http://localhost:5006/hangfire → *Scheduled* → `RoundAutoCloseJob` → *Enqueue now* để khóa đợt ngay.
+- Tới luồng 4 (thư mục 7), mở Hangfire http://localhost:5006/hangfire → *Scheduled* → `RoundAutoCloseJob` → *Enqueue now* để khóa đợt ngay.
 - Email xem ở Mailpit http://localhost:8025, Kafka ở http://localhost:8085, file ở http://localhost:9001.
 
 ## Các luồng trong collection
@@ -46,19 +46,17 @@ Muốn trình bày từng bước bằng tay:
 | 3. Dự án của nhóm | 7 (phần sinh viên) | Collaboration tạo dự án từ sự kiện Kafka → tin nhắn kênh Nhóm → việc giao cho SV2, kéo sang Đang làm → tải file lên S3, lấy link tải |
 | 4. Họp nhóm | 6 (phần nhóm) | SV1 đề xuất họp 2 khung giờ (`MeetingProposed`) → SV2, SV3 trả lời → SV1 chốt khung 1 (`MeetingScheduled`, có thông báo) → kích hoạt `MeetingReminderJob` qua Hangfire → SV2 nhận đúng **một** nhắc họp trước 1 giờ (`MeetingReminder`) → biên bản → tạo 2 việc từ biên bản |
 | 5. Thông báo | 9 | Thông báo trong app của SV2 (Notification consume `InvitationSent`), số chưa đọc, email trong Mailpit |
-| 6. Hết hạn, chốt nhóm, ghép tự động | 4 | Nhóm B chỉ 2 người → dashboard, nhắc sinh viên chưa có nhóm → **đợt tự khóa** (`RoundAutoCloseJob`) → Team `finalize-round` (A `FINALIZED`, B `NEEDS_REVIEW`) → `AutoAssignUnmatchedJob` gọi Matching `PlanAutoAssignment` → 4 sinh viên còn lại được lấp vào B → xuất Excel → sinh viên gọi API của Bộ môn bị 403 (ProblemDetails) |
-| 7. Sang EXE201 | 8 | Học kỳ kế tiếp: import sinh viên EXE201 (4 bạn cũ giữ nguyên id) → **import mốc** chạy thử rồi ghi (`TeamCreated`, `MemberJoined`, `TeamLinkedToProject`) → nhóm kế thừa dùng tiếp đề tài EXE101 (chạy demo lần sau Bộ môn gắn tay như W29 vì trùng tên nhóm) → dự án EXE201 có thư mục "EXE101 (kỳ trước)": đọc được file, tải lên bị 409 `archive-read-only` |
-| 8. Đổi nhóm EXE201 | 3 | Mở đợt `CHANGE_REQUEST` → trưởng nhóm bỏ SV4, mời SV11 (chấp nhận nhưng chờ duyệt), đổi đề tài → 3 thay đổi chờ duyệt → gửi yêu cầu (`ChangeRequestSubmitted`) → Bộ môn duyệt (`ChangeRequestApproved`): thành viên và đề tài (phiên bản mới) đổi, có lịch sử, có thông báo → lần hai thêm SV12 → Bộ môn từ chối → nhóm giữ nguyên |
+| 6. Cố vấn EXE101 | 5, 7 (bài nộp), 11 | Bộ môn thêm 2 giảng viên → GV xem đề tài phù hợp (Team → Matching gRPC) → cả 2 quan tâm nhóm A (`TopicInterestOpened`) → nhóm xếp nguyện vọng A, B → Bộ môn **Ghép sớm** xem trước rồi xác nhận (`LecturerAssigned`): nhóm A → giảng viên A, lý do `MUTUAL` → quan tâm của GV B đóng (`TopicInterestClosed`) → GV A vào dự án → **bài nộp**: GV tạo, nhóm nộp bản 1, GV yêu cầu sửa, nhóm tải bản 2 (phiên bản mới của cùng file) và nộp lại, GV chấp nhận → **Checkpoint 1** kèm nhận xét, nhóm thấy 1/4 |
+| 7. Hết hạn, chốt nhóm, ghép tự động | 4 | Nhóm B chỉ 2 người → dashboard, nhắc sinh viên chưa có nhóm → **đợt tự khóa** (`RoundAutoCloseJob`) → Team `finalize-round` (A `FINALIZED`, B `NEEDS_REVIEW`) → `AutoAssignUnmatchedJob` gọi Matching `PlanAutoAssignment` → 4 sinh viên còn lại được lấp vào B → xuất Excel → sinh viên gọi API của Bộ môn bị 403 (ProblemDetails) |
+| 8. Sang EXE201 | 8 | Học kỳ kế tiếp: import sinh viên EXE201 (4 bạn cũ giữ nguyên id) → **import mốc** chạy thử rồi ghi (`TeamCreated`, `MemberJoined`, `TeamLinkedToProject`) → nhóm kế thừa dùng tiếp đề tài EXE101 (chạy demo lần sau Bộ môn gắn tay như W29 vì trùng tên nhóm) → dự án EXE201 có thư mục "EXE101 (kỳ trước)": đọc được file, tải lên bị 409 `archive-read-only` |
+| 9. Đổi nhóm EXE201 | 3 | Mở đợt `CHANGE_REQUEST` → trưởng nhóm bỏ SV4, mời SV11 (chấp nhận nhưng chờ duyệt), đổi đề tài → 3 thay đổi chờ duyệt → gửi yêu cầu (`ChangeRequestSubmitted`) → Bộ môn duyệt (`ChangeRequestApproved`): thành viên và đề tài (phiên bản mới) đổi, có lịch sử, có thông báo → lần hai thêm SV12 → Bộ môn từ chối → nhóm giữ nguyên |
+| 10. EXE201 – mentor, lịch họp hằng tuần | 6 (phần mentor), 10 | Bộ môn thêm mentor → mentor quan tâm nhóm kế thừa → Ghép sớm giảng viên EXE201 (nhóm kế thừa được ghép lại giảng viên EXE101, lý do `PREVIOUS_INSTRUCTOR`) và mentor (`MENTOR_INTEREST`, `MentorAssigned`) → mentor vào dự án, đề xuất **buổi mentor** → GV soạn và **đăng lịch họp hằng tuần** (`MeetingSlotsPublished`) → trưởng nhóm chọn slot (`MeetingSlotBooked`) → GV thấy slot đã có nhóm |
 
 ### Chưa có trong collection
 
 | Luồng (§11) | Lý do |
 |---|---|
-| 5. Nguyện vọng → ghép giảng viên | Chưa có API quan tâm đề tài và ghép giảng viên (module AdvisorMatching) |
-| 6. Phần mentor (mentor quan tâm nhóm, ghép mentor, buổi mentor) | Chờ ghép mentor (module AdvisorMatching). Phần họp của nhóm đã có ở thư mục 4 |
-| 7. Bài nộp (deliverable) | Bài nộp do giảng viên hướng dẫn của nhóm tạo, nên cần ghép giảng viên trước (như luồng 5) |
-| 10. Lịch họp hằng tuần EXE201 | Chờ BE-82 |
-| 11. Checkpoint EXE101 | Giảng viên chấm checkpoint, cần ghép giảng viên trước |
+| 10 (phần hết hạn chọn slot) | `SlotBookingCloseJob` xếp nhóm chưa chọn slot khi hết hạn – hạn tính theo tuần của học kỳ nên không chờ được trong một lượt chạy; xem trên dữ liệu seed hoặc Hangfire |
 
 ## Đối chiếu yêu cầu PRN232 (PROJECT_CONTEXT §10)
 
@@ -69,6 +67,6 @@ Muốn trình bày từng bước bằng tay:
 | Tìm kiếm, lọc, sắp xếp, phân trang | `Team.Services/Teams` (`TeamQuery`), Collaboration tin nhắn (cursor) | "SV3 tìm nhóm còn chỗ…", "SV2 đọc tin nhắn…" |
 | Background job | `backend/Services/Jobs/Jobs.Host/Jobs` (Hangfire), Outbox dispatcher (`BuildingBlocks/Outbox`) | "Chờ đợt tự khóa (RoundAutoCloseJob)", "Chờ ghép tự động…", "Kích hoạt MeetingReminderJob ngay (Hangfire)" |
 | Message broker: ≥ 1 producer, ≥ 1 consumer | Kafka: Academic / Team / Collaboration phát, Notification / Matching / Collaboration / Jobs nhận (`BuildingBlocks/Messaging`) | "Mở đợt…" (Jobs nhận `RoundOpened`), "SV3 (vào nhóm sau cùng…) thấy dự án…" (Collaboration nhận `MemberJoined`), "SV2 xem thông báo…" (Notification nhận `InvitationSent`) |
-| Service gRPC độc lập được gọi từ REST API | `backend/Protos/matching.proto`, `Matching.Grpc`; Team gọi qua `Team.Services/Matching/MatchingClient.cs` | "Gợi ý thành viên cho nhóm A…", luồng 4 (`PlanAutoAssignment`) |
+| Service gRPC độc lập được gọi từ REST API | `backend/Protos/matching.proto`, `Matching.Grpc`; Team gọi qua `Team.Services/Matching/MatchingClient.cs` | "Gợi ý thành viên cho nhóm A…", "GV A xem đề tài phù hợp…", "Bộ môn Ghép sớm…" (`PlanAdvisorMatching`), luồng 4 (`PlanAutoAssignment`) |
 | Triển khai Docker | `deploy/docker-compose.yml`, `deploy/docker/dotnet.Dockerfile` | "Health check các service" |
 | Thêm (không bắt buộc) | SignalR `/hubs/collab`, lưu file S3 (SeaweedFS) | "SV1 gửi tin…", "SV2 tải file lên dự án…" |

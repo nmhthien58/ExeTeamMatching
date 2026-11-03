@@ -19,7 +19,7 @@
     },
     {
       "key": "roundMinutes",
-      "value": "3"
+      "value": "5"
     }
   ],
   "item": [
@@ -1812,7 +1812,918 @@
       ]
     },
     {
-      "name": "6. Hết hạn, chốt nhóm, ghép tự động (luồng 4)",
+      "name": "6. Cố vấn EXE101 – quan tâm, nguyện vọng, ghép giảng viên, bài nộp, checkpoint (luồng 5, 7, 11)",
+      "description": "Hai giảng viên cùng quan tâm nhóm A (TopicInterestOpened), nhóm A xếp A là nguyện vọng 1 (LecturerPreferencesUpdated) → Bộ môn Ghép sớm (Matching PlanAdvisorMatching qua gRPC) → nhóm A được ghép giảng viên A, lý do MUTUAL (LecturerAssigned) → giảng viên vào dự án → bài nộp: tạo, nộp, yêu cầu sửa, nộp lại, chấp nhận → Checkpoint 1.",
+      "item": [
+        {
+          "name": "Bộ môn thêm giảng viên A",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('runKey', Date.now().toString(36));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('lecturerA', pm.response.json().id);",
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('baseUrl') + '/api/dev/token', method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ role: 'Lecturer', email: 'gva.' + pm.collectionVariables.get('runKey') + '@example.com', lecturerId: pm.collectionVariables.get('lecturerA') }) },",
+                  "}, (err, res) => {",
+                  "  pm.test('Token tokenGvA', () => pm.expect(res.code).to.equal(200));",
+                  "  pm.collectionVariables.set('tokenGvA', res.json().accessToken);",
+                  "});",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/lecturers",
+              "host": [
+                "{{baseUrl}}/api/lecturers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"TS. Demo An {{semesterCode}}\",\n  \"email\": \"gva.{{runKey}}@example.com\",\n  \"domainIds\": [\n    4\n  ],\n  \"maxTeamsExe101\": 3,\n  \"maxTeamsExe201\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Bộ môn thêm giảng viên B",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('lecturerB', pm.response.json().id);",
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('baseUrl') + '/api/dev/token', method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ role: 'Lecturer', email: 'gvb.' + pm.collectionVariables.get('runKey') + '@example.com', lecturerId: pm.collectionVariables.get('lecturerB') }) },",
+                  "}, (err, res) => {",
+                  "  pm.test('Token tokenGvB', () => pm.expect(res.code).to.equal(200));",
+                  "  pm.collectionVariables.set('tokenGvB', res.json().accessToken);",
+                  "});",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/lecturers",
+              "host": [
+                "{{baseUrl}}/api/lecturers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"ThS. Demo Bình {{semesterCode}}\",\n  \"email\": \"gvb.{{runKey}}@example.com\",\n  \"domainIds\": [\n    4\n  ],\n  \"maxTeamsExe101\": 3,\n  \"maxTeamsExe201\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "GV A xem đề tài phù hợp (Team gọi Matching SuggestTopicsForLecturer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topic-recommendations/me?advisorKind=LECTURER",
+              "host": [
+                "{{baseUrl}}/api/topic-recommendations/me?advisorKind=LECTURER"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GV A quan tâm nhóm A (TopicInterestOpened)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA}}/topic-interests",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA}}/topic-interests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"advisorKind\": \"LECTURER\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GV B quan tâm nhóm A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvB}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA}}/topic-interests",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA}}/topic-interests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"advisorKind\": \"LECTURER\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SV1 thấy 2 giảng viên quan tâm nhóm (S25)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const items = Array.isArray(body) ? body : body.items;",
+                  "pm.test('Có giảng viên A và B', () => pm.expect(JSON.stringify(items)).to.include(pm.collectionVariables.get('lecturerA')).and.include(pm.collectionVariables.get('lecturerB')));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA}}/topic-interests",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA}}/topic-interests"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 xếp nguyện vọng: A thứ 1, B thứ 2 (S23)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA}}/lecturer-preferences",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA}}/lecturer-preferences"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lecturerIds\": [\n    \"{{lecturerA}}\",\n    \"{{lecturerB}}\"\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Bộ môn Ghép sớm giảng viên EXE101 – xem trước phương án",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "const run = pm.response.json();",
+                  "console.log('Phương án giảng viên EXE101: ' + run.matchedCount + ' nhóm được ghép, ' + run.unmatchedCount + ' chưa ghép');",
+                  "const item = run.plan.find(p => p.teamId === pm.collectionVariables.get('teamA'));",
+                  "pm.test('Nhóm A → giảng viên A, lý do MUTUAL', () => { pm.expect(item.advisorId).to.equal(pm.collectionVariables.get('lecturerA')); pm.expect(item.reason).to.equal('MUTUAL'); });",
+                  "pm.collectionVariables.set('matchingRun', run.id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor-matching/LECTURER/preview",
+              "host": [
+                "{{baseUrl}}/api/advisor-matching/LECTURER/preview"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseCode\": \"EXE101\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Bộ môn xác nhận phương án giảng viên EXE101",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.test('Đã áp dụng', () => pm.expect(pm.response.json().appliedAt).to.not.equal(null));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor-matching/runs/{{matchingRun}}/confirm",
+              "host": [
+                "{{baseUrl}}/api/advisor-matching/runs/{{matchingRun}}/confirm"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 xem giảng viên của nhóm",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test('Giảng viên A, lý do MUTUAL, nguyện vọng 1', () => { pm.expect(a.lecturerId).to.equal(pm.collectionVariables.get('lecturerA')); pm.expect(a.reason).to.equal('MUTUAL'); pm.expect(a.preferenceRank).to.equal(1); });",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA}}/lecturer",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA}}/lecturer"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GV B: quan tâm nhóm A đã đóng (TopicInterestClosed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "const items = Array.isArray(body) ? body : body.items;",
+                  "const mine = items.find(i => (i.teamId || (i.team && i.team.id)) === pm.collectionVariables.get('teamA'));",
+                  "pm.test('Không còn OPEN', () => pm.expect(mine === undefined || mine.status !== 'OPEN').to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvB}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/topic-interests/me?advisorKind=LECTURER",
+              "host": [
+                "{{baseUrl}}/api/topic-interests/me?advisorKind=LECTURER"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GV A vào dự án nhóm A (Collaboration nhận LecturerAssigned)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const ws = pm.response.json().find(w => w.id === pm.collectionVariables.get('workspaceA'));",
+                  "",
+                  "const tries = Number(pm.collectionVariables.get('_tries') || 0);",
+                  "if (!(ws) && tries < 15) {",
+                  "  pm.collectionVariables.set('_tries', tries + 1);",
+                  "  console.log('Giảng viên chưa vào dự án – thử lại lần ' + (tries + 1));",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return setTimeout(() => {}, 2000);",
+                  "}",
+                  "pm.collectionVariables.unset('_tries');",
+                  "pm.test('Vai trò giảng viên hướng dẫn', () => pm.expect(ws.myRole).to.equal('INSTRUCTOR'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/me",
+              "host": [
+                "{{baseUrl}}/api/workspaces/me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GV A tạo bài nộp (DeliverableCreated)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('deliverableDue', new Date(Date.now() + 5 * 86400000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('deliverableA', pm.response.json().id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA}}/tasks",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA}}/tasks"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Báo cáo tuần 3\",\n  \"description\": \"Nộp bản PDF kế hoạch\",\n  \"kind\": \"DELIVERABLE\",\n  \"dueAt\": \"{{deliverableDue}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Lấy phiên bản file kế hoạch (bản 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const versions = pm.response.json().versions;",
+                  "pm.collectionVariables.set('fileVersion1', versions.reduce((a, b) => (b.version > a.version ? b : a)).id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/files/{{fileA}}",
+              "host": [
+                "{{baseUrl}}/api/files/{{fileA}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 nộp bài bản 1 (DeliverableSubmitted)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.collectionVariables.set('submission1', pm.response.json().id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/{{deliverableA}}/submissions",
+              "host": [
+                "{{baseUrl}}/api/tasks/{{deliverableA}}/submissions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileVersionId\": \"{{fileVersion1}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GV A yêu cầu sửa (NeedsRevision)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/submissions/{{submission1}}/review",
+              "host": [
+                "{{baseUrl}}/api/submissions/{{submission1}}/review"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"NEEDS_REVISION\",\n  \"comment\": \"Thêm số liệu khảo sát 30 sinh viên.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SV2 tải bản 2 cùng tên file (tạo phiên bản mới)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.test('Là phiên bản mới của file cũ', () => { pm.expect(pm.response.json().createdNewVersion).to.equal(true); pm.expect(pm.response.json().file.id).to.equal(pm.collectionVariables.get('fileA')); });",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA}}/files",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA}}/files"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "ke-hoach-du-an-demo.pdf"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Lấy phiên bản mới nhất (bản 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const versions = pm.response.json().versions;",
+                  "const latest = versions.reduce((a, b) => (b.version > a.version ? b : a));",
+                  "pm.test('Có ít nhất 2 phiên bản', () => pm.expect(versions.length).to.be.at.least(2));",
+                  "pm.collectionVariables.set('fileVersion2', latest.id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/files/{{fileA}}",
+              "host": [
+                "{{baseUrl}}/api/files/{{fileA}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 nộp lại bản 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.collectionVariables.set('submission2', pm.response.json().id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/{{deliverableA}}/submissions",
+              "host": [
+                "{{baseUrl}}/api/tasks/{{deliverableA}}/submissions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileVersionId\": \"{{fileVersion2}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GV A chấp nhận (DeliverableReviewed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/submissions/{{submission2}}/review",
+              "host": [
+                "{{baseUrl}}/api/submissions/{{submission2}}/review"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACCEPTED\",\n  \"comment\": \"Đạt yêu cầu.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Chi tiết bài nộp: lịch sử 2 lần nộp",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = JSON.stringify(pm.response.json());",
+                  "pm.test('Có NEEDS_REVISION và ACCEPTED', () => pm.expect(body).to.include('NEEDS_REVISION').and.include('ACCEPTED'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tasks/{{deliverableA}}",
+              "host": [
+                "{{baseUrl}}/api/tasks/{{deliverableA}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GV A đánh dấu Checkpoint 1 (CheckpointReviewed)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const d = new Date(); pm.collectionVariables.set('today', d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA}}/checkpoints/1",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA}}/checkpoints/1"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"presentedOn\": \"{{today}}\",\n  \"comment\": \"Trình bày rõ vấn đề, cần thêm số liệu thị trường.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "SV1 thấy Checkpoint 1/4 và nhận xét",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json();",
+                  "pm.test('Checkpoint 1/4', () => pm.expect(p.doneCount).to.equal(1));",
+                  "pm.test('Có nhận xét', () => pm.expect(JSON.stringify(p)).to.include('số liệu thị trường'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA}}/checkpoints",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA}}/checkpoints"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Hết hạn, chốt nhóm, ghép tự động (luồng 4)",
       "description": "Jobs hẹn RoundAutoCloseJob đúng hạn chót: khóa đợt → Team finalize-round → Matching PlanAutoAssignment (gRPC) → Team áp dụng. Chạy bằng Runner; các request \"Chờ…\" tự thử lại tới khi đợt khóa (khoảng {{roundMinutes}} phút sau khi tạo đợt).",
       "item": [
         {
@@ -2256,7 +3167,7 @@
       ]
     },
     {
-      "name": "7. Sang EXE201 – nhóm kế thừa, đề tài xuyên kỳ (luồng 8)",
+      "name": "8. Sang EXE201 – nhóm kế thừa, đề tài xuyên kỳ (luồng 8)",
       "description": "Học kỳ sau: import sinh viên EXE201 (4 thành viên nhóm A giữ nguyên MSSV và id, thêm 2 bạn mới) → import mốc EXE101 → EXE201 tạo nhóm kế thừa và gắn vào đề tài của nhóm A (TeamLinkedToProject) → dự án EXE201 đọc được file kỳ trước, không ghi được.",
       "item": [
         {
@@ -2853,7 +3764,7 @@
       ]
     },
     {
-      "name": "8. Đổi nhóm EXE201 (luồng 3)",
+      "name": "9. Đổi nhóm EXE201 (luồng 3)",
       "description": "Trong đợt đổi nhóm, nhóm kế thừa chỉ thay đổi qua yêu cầu được Bộ môn duyệt (rule 7): bỏ SV4, mời SV11, đổi đề tài → gửi yêu cầu → duyệt → thành viên và đề tài đổi, có lịch sử. Lần hai mời SV12 → Bộ môn từ chối → nhóm giữ nguyên.",
       "item": [
         {
@@ -3578,6 +4489,569 @@
               "raw": "{{baseUrl}}/api/teams/{{teamA2}}",
               "host": [
                 "{{baseUrl}}/api/teams/{{teamA2}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. EXE201 – mentor, ghép mentor, buổi mentor, lịch họp hằng tuần (luồng 6, 10)",
+      "description": "Bộ môn thêm mentor → mentor quan tâm nhóm kế thừa → Ghép sớm giảng viên và mentor EXE201 (LecturerAssigned, MentorAssigned) → mentor vào dự án, đề xuất buổi mentor → giảng viên hướng dẫn đăng lịch họp hằng tuần (MeetingSlotsPublished) → trưởng nhóm chọn slot (MeetingSlotBooked).",
+      "item": [
+        {
+          "name": "Bộ môn thêm mentor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('mentorId', pm.response.json().id);",
+                  "pm.sendRequest({",
+                  "  url: pm.collectionVariables.get('baseUrl') + '/api/dev/token', method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json' },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ role: 'Mentor', email: 'mentor.' + pm.collectionVariables.get('runKey') + '@example.com', mentorId: pm.collectionVariables.get('mentorId') }) },",
+                  "}, (err, res) => {",
+                  "  pm.test('Token tokenMentor', () => pm.expect(res.code).to.equal(200));",
+                  "  pm.collectionVariables.set('tokenMentor', res.json().accessToken);",
+                  "});",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/mentors",
+              "host": [
+                "{{baseUrl}}/api/mentors"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Demo Mentor {{semesterCode}}\",\n  \"email\": \"mentor.{{runKey}}@example.com\",\n  \"organization\": \"Công ty Demo\",\n  \"domainIds\": [\n    4\n  ],\n  \"maxTeams\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Mentor quan tâm nhóm kế thừa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenMentor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA2}}/topic-interests",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA2}}/topic-interests"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"advisorKind\": \"MENTOR\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Bộ môn Ghép sớm giảng viên EXE201 – xem trước phương án",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "const run = pm.response.json();",
+                  "console.log('Phương án giảng viên EXE201: ' + run.matchedCount + ' nhóm được ghép, ' + run.unmatchedCount + ' chưa ghép');",
+                  "pm.test('Nhóm kế thừa có giảng viên', () => pm.expect((run.plan.find(p => p.teamId === pm.collectionVariables.get('teamA2')) || {}).advisorId).to.not.equal(undefined));",
+                  "pm.collectionVariables.set('matchingRun', run.id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor-matching/LECTURER/preview",
+              "host": [
+                "{{baseUrl}}/api/advisor-matching/LECTURER/preview"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseCode\": \"EXE201\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Bộ môn xác nhận phương án giảng viên EXE201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.test('Đã áp dụng', () => pm.expect(pm.response.json().appliedAt).to.not.equal(null));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor-matching/runs/{{matchingRun}}/confirm",
+              "host": [
+                "{{baseUrl}}/api/advisor-matching/runs/{{matchingRun}}/confirm"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Giảng viên hướng dẫn của nhóm kế thừa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "console.log('Nhóm kế thừa: ' + a.lecturerName + ' (' + a.reason + ')');",
+                  "pm.collectionVariables.set('lecturerA2', a.lecturerId);",
+                  "const known = { [pm.collectionVariables.get('lecturerA')]: 'tokenGvA', [pm.collectionVariables.get('lecturerB')]: 'tokenGvB' }[a.lecturerId];",
+                  "if (known) { pm.collectionVariables.set('tokenGvA2', pm.collectionVariables.get(known)); return; }",
+                  "// Giảng viên của lượt chạy khác hoặc của seed: lấy email từ Academic rồi lấy token cho đúng tài khoản đó.",
+                  "const base = pm.collectionVariables.get('baseUrl');",
+                  "pm.sendRequest({ url: base + '/api/lecturers/' + a.lecturerId, header: { Authorization: 'Bearer ' + pm.collectionVariables.get('tokenAdmin') } }, (err, res) => {",
+                  "  pm.sendRequest({",
+                  "    url: base + '/api/dev/token', method: 'POST', header: { 'Content-Type': 'application/json' },",
+                  "    body: { mode: 'raw', raw: JSON.stringify({ role: 'Lecturer', email: res.json().email, lecturerId: a.lecturerId }) },",
+                  "  }, (e, t) => {",
+                  "    pm.test('Token giảng viên hướng dẫn', () => pm.expect(t.code).to.equal(200));",
+                  "    pm.collectionVariables.set('tokenGvA2', t.json().accessToken);",
+                  "  });",
+                  "});",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/teams/{{teamA2}}/lecturer",
+              "host": [
+                "{{baseUrl}}/api/teams/{{teamA2}}/lecturer"
+              ]
+            },
+            "description": "Giảng viên A, B của lượt chạy này dùng lại token; giảng viên khác (lượt trước hoặc seed) lấy token theo email trong Academic."
+          }
+        },
+        {
+          "name": "Bộ môn Ghép sớm mentor EXE201 – xem trước phương án",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "const run = pm.response.json();",
+                  "console.log('Phương án mentor EXE201: ' + run.matchedCount + ' nhóm được ghép, ' + run.unmatchedCount + ' chưa ghép');",
+                  "const item = run.plan.find(p => p.teamId === pm.collectionVariables.get('teamA2'));",
+                  "pm.test('Nhóm kế thừa → mentor vừa thêm, lý do MENTOR_INTEREST', () => { pm.expect(item.advisorId).to.equal(pm.collectionVariables.get('mentorId')); pm.expect(item.reason).to.equal('MENTOR_INTEREST'); });",
+                  "pm.collectionVariables.set('matchingRun', run.id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor-matching/MENTOR/preview",
+              "host": [
+                "{{baseUrl}}/api/advisor-matching/MENTOR/preview"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseCode\": \"EXE201\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Bộ môn xác nhận phương án mentor EXE201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.test('Đã áp dụng', () => pm.expect(pm.response.json().appliedAt).to.not.equal(null));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/advisor-matching/runs/{{matchingRun}}/confirm",
+              "host": [
+                "{{baseUrl}}/api/advisor-matching/runs/{{matchingRun}}/confirm"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mentor vào dự án EXE201 (MentorAssigned)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const ws = pm.response.json().find(w => w.id === pm.collectionVariables.get('workspaceA2'));",
+                  "",
+                  "const tries = Number(pm.collectionVariables.get('_tries') || 0);",
+                  "if (!(ws) && tries < 15) {",
+                  "  pm.collectionVariables.set('_tries', tries + 1);",
+                  "  console.log('Mentor chưa vào dự án – thử lại lần ' + (tries + 1));",
+                  "  postman.setNextRequest(pm.info.requestName);",
+                  "  return setTimeout(() => {}, 2000);",
+                  "}",
+                  "pm.collectionVariables.unset('_tries');",
+                  "pm.test('Vai trò mentor', () => pm.expect(ws.myRole).to.equal('MENTOR'));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenMentor}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/me",
+              "host": [
+                "{{baseUrl}}/api/workspaces/me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mentor đề xuất buổi mentor (MeetingProposed)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('mentorSlot1', new Date(Date.now() + 4 * 86400000).toISOString());",
+                  "pm.collectionVariables.set('mentorSlot2', new Date(Date.now() + 5 * 86400000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "pm.test('Tính là buổi mentor', () => pm.expect(pm.response.json().isMentorSession).to.equal(true));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenMentor}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA2}}/meetings",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA2}}/meetings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Buổi mentor 1\",\n  \"agenda\": \"Góp ý mô hình kinh doanh\",\n  \"location\": \"https://meet.google.com/demo-mentor\",\n  \"slots\": [\n    {\n      \"startsAt\": \"{{mentorSlot1}}\",\n      \"durationMinutes\": 60\n    },\n    {\n      \"startsAt\": \"{{mentorSlot2}}\",\n      \"durationMinutes\": 60\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "GV hướng dẫn soạn lịch họp hằng tuần (thứ Ba 09:00–10:00, slot 15 phút)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meeting-schedules/me",
+              "host": [
+                "{{baseUrl}}/api/meeting-schedules/me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"windows\": [\n    {\n      \"dayOfWeek\": 2,\n      \"startTime\": \"09:00\",\n      \"endTime\": \"10:00\"\n    }\n  ],\n  \"slotMinutes\": 15,\n  \"location\": \"https://meet.google.com/demo-weekly\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GV đăng lịch (MeetingSlotsPublished)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 2xx', () => pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]));",
+                  "const s = pm.response.json();",
+                  "pm.test('Đã đăng, có 4 slot 15 phút', () => { pm.expect(s.status).to.equal('PUBLISHED'); pm.expect(s.slots.length).to.be.at.least(4); });",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meeting-schedules/me/publish",
+              "host": [
+                "{{baseUrl}}/api/meeting-schedules/me/publish"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 xem lịch của nhóm (C09)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json();",
+                  "pm.test('Được chọn slot, còn slot trống', () => { pm.expect(s.canBook).to.equal(true); pm.expect(s.slots.some(x => x.state === 'FREE')).to.equal(true); });",
+                  "pm.collectionVariables.set('freeSlot', s.slots.find(x => x.state === 'FREE').id);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA2}}/meeting-schedule",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA2}}/meeting-schedule"
+              ]
+            }
+          }
+        },
+        {
+          "name": "SV1 chọn slot (MeetingSlotBooked)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Slot của nhóm', () => pm.expect(pm.response.json().mySlot.id).to.equal(pm.collectionVariables.get('freeSlot')));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenSv1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/workspaces/{{workspaceA2}}/slot-booking",
+              "host": [
+                "{{baseUrl}}/api/workspaces/{{workspaceA2}}/slot-booking"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slotId\": \"{{freeSlot}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GV thấy nhóm đã chọn slot",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const slot = pm.response.json().slots.find(x => x.id === pm.collectionVariables.get('freeSlot'));",
+                  "pm.test('Slot đã có nhóm', () => pm.expect(slot.workspaceId).to.equal(pm.collectionVariables.get('workspaceA2')));",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenGvA2}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/meeting-schedules/me",
+              "host": [
+                "{{baseUrl}}/api/meeting-schedules/me"
               ]
             }
           }
