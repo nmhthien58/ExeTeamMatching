@@ -6,6 +6,7 @@ import '../../core/auth/session.dart';
 import '../../core/config/env.dart';
 import '../../core/providers.dart';
 import '../../shared/widgets/states.dart';
+import 'realtime_status_view_model.dart';
 
 /// Trạng thái kết nối hiển thị cho người dùng.
 enum HubStatus { idle, connecting, connected, reconnecting, disconnected }
@@ -159,39 +160,16 @@ final collabHubProvider = Provider<CollabHub>((ref) {
 
 /// Dải trạng thái realtime đặt đầu màn workspace: giữ kết nối khi màn còn mở; "Đang kết nối lại…" khi rớt mạng,
 /// mất hẳn kết nối thì có Thử lại. Kết nối bình thường không hiện gì.
-class RealtimeStatusBanner extends ConsumerStatefulWidget {
+class RealtimeStatusBanner extends ConsumerWidget {
   const RealtimeStatusBanner({super.key});
 
   @override
-  ConsumerState<RealtimeStatusBanner> createState() => _RealtimeStatusBannerState();
-}
-
-class _RealtimeStatusBannerState extends ConsumerState<RealtimeStatusBanner> {
-  late final CollabHub _hub = ref.read(collabHubProvider);
-  late final VoidCallback _release;
-
-  @override
-  void initState() {
-    super.initState();
-    _release = _hub.acquire();
-  }
-
-  @override
-  void dispose() {
-    _release();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => ValueListenableBuilder(
-        valueListenable: _hub.status,
-        builder: (context, status, _) => switch (status) {
-          HubStatus.reconnecting => Semantics(
-              liveRegion: true,
-              child: const ListTile(dense: true, leading: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)), title: Text('Đang kết nối lại…')),
-            ),
-          HubStatus.disconnected => ErrorBanner(message: 'Mất kết nối realtime – tin mới không tự hiện.', onRetry: _hub.retry),
-          _ => const SizedBox.shrink(),
-        },
-      );
+  Widget build(BuildContext context, WidgetRef ref) => switch (ref.watch(realtimeStatusViewModelProvider)) {
+        HubStatus.reconnecting => Semantics(
+            liveRegion: true,
+            child: const ListTile(dense: true, leading: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)), title: Text('Đang kết nối lại…')),
+          ),
+        HubStatus.disconnected => ErrorBanner(message: 'Mất kết nối realtime – tin mới không tự hiện.', onRetry: ref.read(realtimeStatusViewModelProvider.notifier).retry),
+        _ => const SizedBox.shrink(),
+      };
 }
