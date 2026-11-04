@@ -1,11 +1,14 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, renderHook, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useOpenQuestions } from '@/features/messages/api'
 import { LecturerHomePage, MentorHomePage } from './AdvisorHomePages'
 import { AdvisedTeamDetailPage } from './AdvisedTeamsPage'
 import { TopicsPage } from './TopicsPage'
+import { useAdvisorQuestions } from './api'
 
 const get = vi.fn()
 const post = vi.fn()
@@ -78,6 +81,20 @@ describe('FE-41 advisor web', () => {
     await userEvent.setup().click(await screen.findByRole('button', { name: 'Đánh dấu Checkpoint' }))
     await userEvent.setup().click(screen.getByRole('button', { name: 'Lưu' }))
     await waitFor(() => expect(put).toHaveBeenCalledWith('/api/workspaces/w1/checkpoints/1', expect.objectContaining({ presentedOn: expect.any(String), comment: null })))
+  })
+
+  it('keeps the L01 question count and the C02 question list in separate caches', async () => {
+    get.mockImplementation(async () => ({ data: { items: [], totalCount: 3 } }))
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+
+    const count = renderHook(() => useAdvisorQuestions(), { wrapper })
+    await waitFor(() => expect(count.result.current.data).toBe(3))
+
+    // Từ L01 sang C02: nếu chung key, C02 đọc phải con số trong cache rồi sập ở `.map`.
+    const list = renderHook(() => useOpenQuestions(true), { wrapper })
+    expect(Array.isArray(list.result.current.data ?? [])).toBe(true)
+    await waitFor(() => expect(list.result.current.data).toEqual([]))
   })
 
   it('counts open questions and overdue deliverables from their own APIs on L01', async () => {
