@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart';
 import '../workspace/workspace_models.dart';
+import 'task_form_view_model.dart';
 
 /// Bottom sheet tạo / sửa việc (C04): tên, mô tả, người làm, hạn. Giảng viên hướng dẫn tạo bài nộp (bắt buộc hạn).
 /// Trả `true` khi đã lưu.
@@ -36,10 +35,8 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
   late final _description = TextEditingController(text: widget.task?.description);
   late DateTime? _due = widget.task?.card.dueAt?.toLocal();
   late final Set<String> _assignees = {...?widget.task?.card.assignees.map((a) => a.personId)};
-  bool _saving = false;
-  String? _titleError;
-  String? _dueError;
-  String? _error;
+
+  TaskFormKey get _key => (workspaceId: widget.workspace.id, taskId: widget.task?.card.id);
 
   bool get _deliverable => widget.task?.card.isDeliverable ?? widget.workspace.myRole == WorkspaceRole.instructor;
 
@@ -56,52 +53,25 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
     if (date == null || !mounted) return;
     final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_due ?? DateTime(now.year, now.month, now.day, 23, 59)));
     if (time == null) return;
-    setState(() {
-      _due = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-      _dueError = null;
-    });
+    setState(() => _due = DateTime(date.year, date.month, date.day, time.hour, time.minute));
+    ref.read(taskFormViewModelProvider(_key).notifier).clearDueError();
   }
 
   Future<void> _save() async {
-    final title = _title.text.trim();
-    setState(() {
-      _titleError = title.isEmpty ? 'Nhập tên việc.' : null;
-      _dueError = _deliverable && _due == null ? 'Bài nộp phải có hạn nộp.' : null;
-      _error = null;
-    });
-    if (_titleError != null || _dueError != null) return;
-
-    final input = TaskInput(
-      title: title,
-      description: _description.text.trim().isEmpty ? null : _description.text.trim(),
-      deliverable: _deliverable,
-      assigneeStudentIds: _assignees.toList(),
-      dueAt: _due,
-    );
-    setState(() => _saving = true);
-    try {
-      final api = ref.read(collabApiProvider);
-      final task = widget.task;
-      if (task == null) {
-        await api.createTask(widget.workspace.id, input);
-      } else {
-        await api.updateTask(task.card.id, input);
-      }
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      final error = e.apiError;
-      setState(() {
-        _titleError = error.fieldErrors['title']?.first ?? _titleError;
-        _error = error.fieldErrors.isEmpty ? (error.detail ?? error.title) : null;
-      });
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    final saved = await ref.read(taskFormViewModelProvider(_key).notifier).save(
+          title: _title.text,
+          description: _description.text,
+          deliverable: _deliverable,
+          assigneeStudentIds: _assignees.toList(),
+          dueAt: _due,
+        );
+    if (saved && mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final form = ref.watch(taskFormViewModelProvider(_key));
     final students = widget.workspace.people.where((p) => p.personType == 'STUDENT').toList();
     final heading = widget.task != null ? (_deliverable ? 'Sửa bài nộp' : 'Sửa việc') : (_deliverable ? 'Tạo bài nộp' : 'Tạo việc');
 
@@ -117,11 +87,11 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
               children: [
                 Text(heading, style: theme.textTheme.titleLarge),
                 const SizedBox(height: AppSpacing.s4),
-                if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+                if (form.error != null) ...[ErrorBanner(message: form.error!), const SizedBox(height: AppSpacing.s3)],
                 TextField(
                   controller: _title,
                   maxLength: 200,
-                  decoration: InputDecoration(labelText: 'Tên việc', errorText: _titleError),
+                  decoration: InputDecoration(labelText: 'Tên việc', errorText: form.titleError),
                 ),
                 const SizedBox(height: AppSpacing.s3),
                 TextField(
@@ -147,10 +117,10 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                       IconButton(tooltip: 'Bỏ hạn', onPressed: () => setState(() => _due = null), icon: const Icon(Icons.close)),
                   ],
                 ),
-                if (_dueError != null)
+                if (form.dueError != null)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.s1),
-                    child: Text(_dueError!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)),
+                    child: Text(form.dueError!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)),
                   ),
                 const SizedBox(height: AppSpacing.s4),
                 Text('Người làm (không bắt buộc)', style: theme.textTheme.labelLarge),
@@ -182,7 +152,7 @@ class _TaskFormSheetState extends ConsumerState<TaskFormSheet> {
                 children: [
                   Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy'))),
                   const SizedBox(width: AppSpacing.s3),
-                  Expanded(child: LoadingButton(label: widget.task == null ? heading : 'Lưu thay đổi', loading: _saving, onPressed: _save)),
+                  Expanded(child: LoadingButton(label: widget.task == null ? heading : 'Lưu thay đổi', loading: form.saving, onPressed: _save)),
                 ],
               ),
             ),
