@@ -8,6 +8,7 @@ import '../../shared/widgets/states.dart';
 import '../workspace/workspace_widgets.dart';
 import 'suggestion_widgets.dart';
 import 'suggestions_api.dart';
+import 'suggestions_view_model.dart';
 
 /// S19 – Tìm và mời sinh viên (MB-23): tìm theo tên / MSSV, lọc chuyên ngành, chỉ sinh viên chưa có nhóm, lời nhắn.
 /// Trạng thái: kết quả · không tìm thấy · nhóm đã đủ 6 người · đang gửi.
@@ -21,9 +22,8 @@ class InviteStudentsScreen extends ConsumerStatefulWidget {
 class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
   final _search = TextEditingController();
   Timer? _debounce;
-  String _query = '';
-  int? _specializationId;
-  final Set<String> _invited = {};
+
+  InviteStudentsViewModel get _vm => ref.read(inviteStudentsViewModelProvider.notifier);
 
   @override
   void dispose() {
@@ -34,12 +34,12 @@ class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
 
   void _onSearch(String text) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () => setState(() => _query = text.trim()));
+    _debounce = Timer(const Duration(milliseconds: 300), () => _vm.search(text));
   }
 
   Future<void> _invite(TeamDetail team, StudentRef student) async {
     if (!await showInviteSheet(context, teamId: team.card.id, student: student) || !mounted) return;
-    setState(() => _invited.add(student.id));
+    _vm.markInvited(student.id);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('Đã gửi lời mời')));
@@ -49,7 +49,8 @@ class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
   Widget build(BuildContext context) {
     final team = ref.watch(myTeamProvider).value;
     final specializations = ref.watch(specializationsProvider).value ?? const [];
-    final results = ref.watch(studentSearchProvider((search: _query, specializationId: _specializationId)));
+    final state = ref.watch(inviteStudentsViewModelProvider);
+    final results = ref.watch(studentSearchProvider(state.searchQuery));
     final isLeader = team?.isLeader ?? false;
     final isFull = team?.isFull ?? false;
 
@@ -81,8 +82,8 @@ class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
                           padding: const EdgeInsets.only(right: AppSpacing.s2),
                           child: FilterChip(
                             label: Text(s.name),
-                            selected: _specializationId == s.id,
-                            onSelected: (v) => setState(() => _specializationId = v ? s.id : null),
+                            selected: state.specializationId == s.id,
+                            onSelected: (v) => _vm.toggleSpecialization(s.id, v),
                           ),
                         ),
                     ],
@@ -95,7 +96,7 @@ class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
             child: results.when(
               skipLoadingOnReload: true,
               loading: () => const SkeletonList(count: 3),
-              error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(studentSearchProvider)),
+              error: (e, _) => ErrorState(error: e, onRetry: _vm.retry),
               data: (students) => students.isEmpty
                   ? const EmptyState(
                       icon: Icons.search_off,
@@ -112,7 +113,7 @@ class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
                           student: student,
                           action: !isLeader
                               ? null
-                              : _invited.contains(student.id)
+                              : state.invited.contains(student.id)
                                   ? const StatusChip(label: 'Đã mời', tone: StatusTone.warning)
                                   : OutlinedButton.icon(
                                       onPressed: isFull ? null : () => _invite(team!, student),
