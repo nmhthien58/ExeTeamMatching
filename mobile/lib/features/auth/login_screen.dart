@@ -8,6 +8,7 @@ import '../../core/auth/firebase_auth_service.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/states.dart';
 
 /// A03 – Đăng nhập Google (flutter-handoff mục 4, F1). Email không có trong danh sách → A04.
@@ -80,12 +81,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              Container(
-                width: 56,
-                height: 6,
-                decoration: BoxDecoration(color: context.appColors.brandOrange, borderRadius: BorderRadius.circular(AppRadius.full)),
-                alignment: Alignment.centerLeft,
-              ),
+              // flutter-handoff A03: logo và tên ứng dụng ở nửa trên.
+              const Align(alignment: Alignment.centerLeft, child: AppLogo()),
               const SizedBox(height: AppSpacing.s6),
               Text('EXE Team Matching', style: theme.textTheme.headlineSmall),
               const SizedBox(height: AppSpacing.s2),
@@ -93,7 +90,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               const Spacer(),
               if (_error != null) ...[ErrorBanner(message: _error!, onRetry: _signIn), const SizedBox(height: AppSpacing.s4)],
-              LoadingButton(label: 'Đăng nhập với Google', loading: _pending, onPressed: _signIn),
+              LoadingButton(
+                label: 'Đăng nhập với Google',
+                loading: _pending,
+                onPressed: _signIn,
+                // Logo G chính thức của Google trên nền tròn trắng (Sign in with Google branding guidelines).
+                leading: Image.asset('assets/images/google_g.png', width: 28, height: 28, excludeFromSemantics: true),
+              ),
               const SizedBox(height: AppSpacing.s3),
               Text('Dùng email đã đăng ký với bộ môn.',
                   textAlign: TextAlign.center,
