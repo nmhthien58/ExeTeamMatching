@@ -8,6 +8,7 @@ import '../lecturer_profile/lecturer_profile_screen.dart'
     show lecturerProfilePath, lecturerProfileProvider, LecturerProfile;
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
+import 'topic_interests_view_model.dart';
 
 /// L07: danh sách đề tài phù hợp cho giảng viên và mentor (Quy tắc 9, 19, 20, 26).
 class TopicInterestsScreen extends ConsumerStatefulWidget {
@@ -22,115 +23,68 @@ class TopicInterestsScreen extends ConsumerStatefulWidget {
 
 class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
   int _tab = 0;
-  String? _selectedCourse;
-  final Set<String> _pending = {};
 
   bool get _lecturer => widget.advisorKind == 'LECTURER';
   int get _interestTab => _lecturer ? 2 : 1;
 
-  Future<void> _refresh() async {
-    ref.invalidate(advisorTopicRecommendationsProvider(widget.advisorKind));
-    ref.invalidate(advisorMyInterestsProvider(widget.advisorKind));
-    if (_lecturer) {
-      ref.invalidate(lecturerPreferencesMeProvider);
-      ref.invalidate(lecturerProfileProvider);
-    }
-    try {
-      await ref.read(
-        advisorTopicRecommendationsProvider(widget.advisorKind).future,
-      );
-    } catch (_) {
-      // ErrorState displays the failed request and its retry action.
-    }
-  }
+  TopicInterestsViewModel get _vm =>
+      ref.read(topicInterestsViewModelProvider(widget.advisorKind).notifier);
+
+  /// `build()` đã watch ViewModel nên các hàm dựng con đọc giá trị mới nhất.
+  TopicInterestsState get _state =>
+      ref.read(topicInterestsViewModelProvider(widget.advisorKind));
+  String? get _selectedCourse => _state.course;
+  Set<String> get _pending => _state.pending;
+
+  Future<void> _refresh() => _vm.refresh();
 
   Future<void> _toggle(TopicRecommendationItem item) async {
-    if (!_pending.add(item.teamId)) return;
-    setState(() {});
-    final wasInterested = item.isInterested;
-    try {
-      final api = ref.read(lecturerHomeApiProvider);
-      if (wasInterested) {
-        var interestId = item.myInterestId;
-        if (interestId == null || interestId.isEmpty) {
-          final interests = await api.getMyTopicInterests(
-            advisorKind: widget.advisorKind,
-          );
-          interestId = interests
-              .where((i) => i.teamId == item.teamId && i.status == 'OPEN')
-              .firstOrNull
-              ?.id;
-        }
-        if (interestId != null && interestId.isNotEmpty) {
-          await api.withdrawInterest(interestId);
-        }
-      } else {
-        await api.openInterest(item.teamId, advisorKind: widget.advisorKind);
-      }
-      _refresh();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            wasInterested
-                ? 'Đã rút quan tâm'
-                : 'Đã quan tâm đề tài ${item.projectName ?? item.teamName}',
+    final vm = _vm;
+    final outcome = await vm.toggle(item);
+    if (!mounted) return;
+    switch (outcome) {
+      case TopicToggleIgnored():
+        return;
+      case TopicToggleFailed():
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không cập nhật được quan tâm. Vui lòng thử lại.'),
           ),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () async {
-              try {
-                if (wasInterested) {
-                  await api.openInterest(
-                    item.teamId,
-                    advisorKind: widget.advisorKind,
-                  );
-                } else {
-                  final interests = await api.getMyTopicInterests(
-                    advisorKind: widget.advisorKind,
-                  );
-                  final opened = interests
-                      .where(
-                        (i) => i.teamId == item.teamId && i.status == 'OPEN',
-                      )
-                      .firstOrNull;
-                  if (opened != null) {
-                    await api.withdrawInterest(opened.id);
-                  }
-                }
-                _refresh();
-              } catch (_) {
-                if (mounted) {
+        );
+      case TopicToggled(:final wasInterested):
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              wasInterested
+                  ? 'Đã rút quan tâm'
+                  : 'Đã quan tâm đề tài ${item.projectName ?? item.teamName}',
+            ),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Hoàn tác',
+              onPressed: () async {
+                final undone = await vm.undo(
+                  item.teamId,
+                  wasInterested: wasInterested,
+                );
+                if (!undone && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Không thể hoàn tác. Vui lòng thử lại.'),
                     ),
                   );
                 }
-              }
-            },
-          ),
-        ),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không cập nhật được quan tâm. Vui lòng thử lại.'),
+              },
+            ),
           ),
         );
-      }
-    } finally {
-      _pending.remove(item.teamId);
-      if (mounted) setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(topicInterestsViewModelProvider(widget.advisorKind));
     final recommendations = ref.watch(
       advisorTopicRecommendationsProvider(widget.advisorKind),
     );
@@ -201,10 +155,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
             ? ' · Ghép lúc ${_date(response.matchingAt!)}'
             : ' · Ghép tuần 6');
 
-    var items = response.items;
-    if (_selectedCourse != null) {
-      items = items.where((i) => i.courseCode == _selectedCourse).toList();
-    }
+    final items = _vm.byCourse(response.items, (i) => i.courseCode);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,17 +184,17 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
             FilterChip(
               label: const Text('Tất cả môn'),
               selected: _selectedCourse == null,
-              onSelected: (_) => setState(() => _selectedCourse = null),
+              onSelected: (_) => _vm.selectCourse(null),
             ),
             FilterChip(
               label: const Text('EXE101'),
               selected: _selectedCourse == 'EXE101',
-              onSelected: (_) => setState(() => _selectedCourse = 'EXE101'),
+              onSelected: (_) => _vm.selectCourse('EXE101'),
             ),
             FilterChip(
               label: const Text('EXE201'),
               selected: _selectedCourse == 'EXE201',
-              onSelected: (_) => setState(() => _selectedCourse = 'EXE201'),
+              onSelected: (_) => _vm.selectCourse('EXE201'),
             ),
           ],
         ),
@@ -439,11 +390,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
         ),
         error: (error, _) => ErrorState(error: error, onRetry: _refresh),
         data: (items) {
-          var filtered = items;
-          if (_selectedCourse != null) {
-            filtered =
-                filtered.where((i) => i.courseCode == _selectedCourse).toList();
-          }
+          final filtered = _vm.byCourse(items, (i) => i.courseCode);
 
           if (filtered.isEmpty) {
             return const Center(
@@ -587,85 +534,48 @@ class TopicDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
-  bool _submitting = false;
-
   bool get _lecturer => widget.advisorKind == 'LECTURER';
+
+  TopicDetailKey get _key =>
+      (teamId: widget.teamId, advisorKind: widget.advisorKind);
 
   Future<void> _toggleInterest(
     TopicRecommendationItem? rec,
     TopicInterestItem? currentInterest,
   ) async {
-    if (_submitting) return;
-    setState(() => _submitting = true);
-    final api = ref.read(lecturerHomeApiProvider);
-    final isInterested = currentInterest != null;
-
-    try {
-      if (isInterested) {
-        await api.withdrawInterest(currentInterest.id);
-      } else {
-        await api.openInterest(widget.teamId, advisorKind: widget.advisorKind);
-      }
-      ref.invalidate(advisorTopicRecommendationsProvider(widget.advisorKind));
-      ref.invalidate(advisorMyInterestsProvider(widget.advisorKind));
-      if (_lecturer) ref.invalidate(lecturerPreferencesMeProvider);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isInterested ? 'Đã rút quan tâm' : 'Đã quan tâm đề tài',
-          ),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () async {
-              try {
-                if (isInterested) {
-                  await api.openInterest(
-                    widget.teamId,
-                    advisorKind: widget.advisorKind,
-                  );
-                } else {
-                  final list = await api.getMyTopicInterests(
-                    advisorKind: widget.advisorKind,
-                  );
-                  final opened = list
-                      .where(
-                        (i) => i.teamId == widget.teamId && i.status == 'OPEN',
-                      )
-                      .firstOrNull;
-                  if (opened != null) {
-                    await api.withdrawInterest(opened.id);
-                  }
-                }
-                ref.invalidate(
-                  advisorTopicRecommendationsProvider(widget.advisorKind),
-                );
-                ref.invalidate(advisorMyInterestsProvider(widget.advisorKind));
-                if (_lecturer) ref.invalidate(lecturerPreferencesMeProvider);
-              } catch (_) {}
-            },
-          ),
-        ),
-      );
-    } catch (_) {
-      if (mounted) {
+    final vm = ref.read(topicDetailViewModelProvider(_key).notifier);
+    final outcome = await vm.toggle(currentInterest);
+    if (!mounted) return;
+    switch (outcome) {
+      case TopicToggleIgnored():
+        return;
+      case TopicToggleFailed():
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Không cập nhật được quan tâm. Vui lòng thử lại.'),
           ),
         );
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      case TopicToggled(:final wasInterested):
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              wasInterested ? 'Đã rút quan tâm' : 'Đã quan tâm đề tài',
+            ),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Hoàn tác',
+              onPressed: () => vm.undo(wasInterested: wasInterested),
+            ),
+          ),
+        );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final submitting = ref.watch(topicDetailViewModelProvider(_key));
     final teamAsync = ref.watch(advisorTeamDetailProvider(widget.teamId));
     final recAsync = ref.watch(
       advisorTopicRecommendationsProvider(widget.advisorKind),
@@ -706,17 +616,17 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
               )
               .firstOrNull;
           final isInterested =
-              myInterest != null || (rec?.isInterested == true);
+              TopicDetailViewModel.isInterested(myInterest, rec);
 
           final hasAdvisor = rec?.hasAdvisor == true ||
               (_lecturer
                   ? team['lecturerName'] != null
                   : team['mentorName'] != null);
-          final canToggle = recResponse != null &&
-              recResponse.interestOpen &&
-              !hasAdvisor &&
-              (isInterested ||
-                  recResponse.openInterestCount < recResponse.interestLimit);
+          final canToggle = TopicDetailViewModel.canToggle(
+            response: recResponse,
+            hasAdvisor: hasAdvisor,
+            isInterested: isInterested,
+          );
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.s4),
@@ -945,14 +855,14 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
               if (!hasAdvisor)
                 isInterested
                     ? FilledButton.tonalIcon(
-                        onPressed: _submitting
+                        onPressed: submitting
                             ? null
                             : () => _toggleInterest(rec, myInterest),
                         icon: const Icon(Icons.check),
                         label: const Text('Đã quan tâm · Rút lại'),
                       )
                     : FilledButton.icon(
-                        onPressed: (canToggle && !_submitting)
+                        onPressed: (canToggle && !submitting)
                             ? () => _toggleInterest(rec, myInterest)
                             : null,
                         icon: const Icon(Icons.star_outline),
