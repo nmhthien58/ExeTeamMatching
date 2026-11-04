@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../suggestions/suggestions_api.dart';
 import 'change_requests_api.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 /// Bộ lọc S26: trạng thái và đợt (null = tất cả).
 class ChangeRequestFilter {
@@ -91,6 +93,9 @@ class CreateChangeRequestViewModel extends Notifier<CreateChangeRequestState> {
   static const reasonTooShort = 'Lý do cần ít nhất 10 ký tự.';
   static const submitFailed = 'Không gửi được yêu cầu. Nội dung đã nhập được giữ lại.';
 
+  /// Lúc mở S27 – tham số `elapsed` của `submit_change_request`.
+  final DateTime _openedAt = DateTime.now();
+
   @override
   CreateChangeRequestState build() => const CreateChangeRequestState();
 
@@ -163,6 +168,7 @@ class CreateChangeRequestViewModel extends Notifier<CreateChangeRequestState> {
         if (!itemIds.contains(projectChange.id)) itemIds.add(projectChange.id);
       }
       final request = await api.create(teamId, itemIds: itemIds, reason: reason.trim());
+      unawaited(ref.read(analyticsServiceProvider).logSubmitChangeRequest(changeCount: itemIds.length, elapsed: DateTime.now().difference(_openedAt)));
       if (ref.mounted) ref.invalidate(changeRequestsProvider(teamId));
       return ChangeRequestCreated(request.id);
     } catch (_) {

@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
 import 'suggestions_api.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
+import '../../core/firebase/remote_config_service.dart';
 
 /// Câu báo lỗi nghiệp vụ khi gửi lời mời (S18, S19).
 const inviteErrors = {
@@ -35,6 +38,8 @@ class InviteViewModel extends Notifier<InviteState> {
     state = const InviteState(sending: true);
     try {
       await ref.read(suggestionsApiProvider).invite(key.teamId, key.studentId, message: message.trim());
+      // Sheet mời dùng chung cho S18 (gợi ý) và S19 (tìm) – chưa phân biệt nguồn, ghi là gợi ý.
+      unawaited(ref.read(analyticsServiceProvider).logSendInvitation(key.teamId, source: InviteSource.suggestions));
       if (ref.mounted) state = const InviteState();
       return true;
     } catch (e) {
@@ -96,3 +101,13 @@ class InviteStudentsViewModel extends Notifier<InviteStudentsState> {
 
 final inviteStudentsViewModelProvider =
     NotifierProvider.autoDispose<InviteStudentsViewModel, InviteStudentsState>(InviteStudentsViewModel.new);
+
+/// S07 – nhóm gợi ý, cắt theo Remote Config `suggestions_max_items` (MB-51); ghi `view_suggestions` mỗi lần tải.
+/// Làm mới bằng `ref.invalidate(teamsForMeProvider)` như trước.
+final suggestedTeamsProvider = FutureProvider.autoDispose<List<TeamSuggestion>>((ref) async {
+  final maxItems = ref.watch(remoteConfigProvider.select((c) => c.suggestionsMaxItems));
+  final all = await ref.watch(teamsForMeProvider.future);
+  final shown = all.take(maxItems).toList();
+  unawaited(ref.read(analyticsServiceProvider).logViewSuggestions(shown.length, maxItems: maxItems));
+  return shown;
+});

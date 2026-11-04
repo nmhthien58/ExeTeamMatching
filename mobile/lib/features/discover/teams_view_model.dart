@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/view_state.dart';
 import '../suggestions/suggestions_api.dart' show TeamCard;
 import 'discover_api.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 /// Kết quả đã tải của S05: các trang đã ghép lại và trạng thái tải trang kế.
 class TeamResults {
@@ -58,12 +60,12 @@ class TeamsViewModel extends Notifier<TeamsState> {
 
   Future<void> search(String query) {
     state = state.copyWith(query: query.trim());
-    return _loadFirstPage();
+    return _loadFirstPage(logSearch: true);
   }
 
   Future<void> applyFilter(TeamFilter filter) {
     state = state.copyWith(filter: filter);
-    return _loadFirstPage();
+    return _loadFirstPage(logSearch: true);
   }
 
   /// "Xóa n bộ lọc" giữ từ khóa; "Xóa bộ lọc" ở màn trống bỏ cả từ khóa.
@@ -89,13 +91,17 @@ class TeamsViewModel extends Notifier<TeamsState> {
     }
   }
 
-  Future<void> _loadFirstPage() async {
+  /// [logSearch]: người dùng chủ động tìm / lọc → sự kiện `search` (analytics-plan.md); mở màn, làm mới thì không.
+  Future<void> _loadFirstPage({bool logSearch = false}) async {
     final generation = ++_generation;
     // Đang có dữ liệu thì giữ trên màn khi tải lại (kéo để làm mới không làm nháy skeleton).
     if (state.results is! ViewData<TeamResults>) state = state.copyWith(results: const ViewLoading());
     try {
       final page = await _api.search(state.query, state.filter, 1);
       if (!ref.mounted || generation != _generation) return;
+      if (logSearch) {
+        unawaited(ref.read(analyticsServiceProvider).logSearch(state.query, page.items.length, filter: state.filter.count > 0 ? 'filtered' : null));
+      }
       state = state.copyWith(
         results: page.items.isEmpty
             ? const ViewEmpty()

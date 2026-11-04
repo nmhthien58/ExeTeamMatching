@@ -5,6 +5,8 @@ import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../my_team/my_team_api.dart';
 import '../suggestions/suggestions_api.dart' show TeamCard;
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 /// Bộ lọc S06 (query của `GET /api/teams`). Mã lớp chưa có: Team Service chưa lọc được theo lớp.
 class TeamFilter {
@@ -84,4 +86,9 @@ class DiscoverApi {
 
 final discoverApiProvider = Provider<DiscoverApi>((ref) => DiscoverApi(ref.watch(dioProvider)));
 
-final teamDetailProvider = FutureProvider.autoDispose.family<MyTeam, String>((ref, teamId) => ref.watch(discoverApiProvider).team(teamId));
+final teamDetailProvider = FutureProvider.autoDispose.family<MyTeam, String>((ref, teamId) async {
+  final team = await ref.watch(discoverApiProvider).team(teamId);
+  // Sự kiện `view_team` (analytics-plan.md): tải chi tiết xong.
+  unawaited(ref.read(analyticsServiceProvider).logViewTeam(teamId));
+  return team;
+});

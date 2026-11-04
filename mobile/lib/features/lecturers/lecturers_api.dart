@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import 'lecturers_models.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 class LecturersApi {
   LecturersApi(this._dio);
@@ -98,5 +100,9 @@ final lecturersListProvider = FutureProvider.autoDispose
 
 final lecturerDetailProvider = FutureProvider.autoDispose
     .family<LecturerSummary, String>(
-  (ref, lecturerId) => ref.watch(lecturersApiProvider).getLecturer(lecturerId),
+  (ref, lecturerId) async {
+    final lecturer = await ref.watch(lecturersApiProvider).getLecturer(lecturerId);
+    unawaited(ref.read(analyticsServiceProvider).logViewLecturer(lecturerId));
+    return lecturer;
+  },
 );

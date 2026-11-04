@@ -4,6 +4,8 @@ import '../../core/network/api_client.dart';
 import '../workspace/workspace_api.dart';
 import '../workspace/workspace_models.dart';
 import 'file_services.dart';
+import 'dart:async';
+import '../../core/firebase/analytics_service.dart';
 
 /// Lượt tải lên đang hiện: tiến độ hoặc lỗi (giữ file để Thử lại).
 class UploadState {
@@ -148,6 +150,7 @@ class FilesViewModel extends Notifier<FilesState> {
   Future<String?> open(ProjectFile file) async {
     try {
       await ref.read(openUrlProvider)(await _api.downloadUrl(file.id));
+      unawaited(ref.read(analyticsServiceProvider).logExportReport(reportType: 'workspace_file', format: _ext(file.name)));
       return null;
     } catch (e) {
       return e.apiError.title;
@@ -250,3 +253,9 @@ class ProjectFilePickerViewModel extends Notifier<FilePickerState> {
 
 final projectFilePickerViewModelProvider = NotifierProvider.autoDispose
     .family<ProjectFilePickerViewModel, FilePickerState, String>(ProjectFilePickerViewModel.new);
+
+/// Đuôi file cho tham số `format` của `export_report` ("pdf", "docx"…); không có đuôi thì "unknown".
+String _ext(String name) {
+  final dot = name.lastIndexOf('.');
+  return dot < 0 || dot == name.length - 1 ? 'unknown' : name.substring(dot + 1).toLowerCase();
+}
