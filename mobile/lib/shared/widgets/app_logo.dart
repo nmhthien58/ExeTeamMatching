@@ -16,7 +16,8 @@ class AppLogo extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             color: context.appColors.brandOrange,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            // Logo nhỏ (header) bo góc vừa, logo lớn (A03) bo góc thẻ.
+            borderRadius: BorderRadius.circular(size >= 56 ? AppRadius.lg : AppRadius.md),
           ),
           child: Icon(Icons.groups_rounded, size: size * 0.6, color: Theme.of(context).colorScheme.onPrimary),
         ),
