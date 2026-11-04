@@ -1,5 +1,5 @@
 import '../meeting_schedule/meeting_schedule_api.dart' show TeamMeetingSchedule;
-import '../meetings/meetings_api.dart' show MeetingList;
+import '../meetings/meetings_api.dart' show MeetingCard, MeetingList;
 import '../suggestions/suggestions_api.dart' show CatalogRef, TeamDetail;
 import '../workspace/workspace_models.dart' show TaskCard;
 
@@ -293,6 +293,47 @@ class LecturerSemesterStats {
   final int? meetingsTodayCount;
   final int missingCheckpointsCount;
   final bool hasPostedWeeklySchedule;
+}
+
+/// Schema `AdvisorOverview` của `GET /api/advisor/overview` (collab.yaml):
+/// số đếm là tổng, mảng tối đa 5 phần tử. L01 chỉ cần số đếm và họp sắp tới.
+class AdvisorOverview {
+  const AdvisorOverview({
+    this.needsReplyCount = 0,
+    this.overdueDeliverableCount = 0,
+    this.upcomingMeetingCount = 0,
+    this.pendingScheduleCount = 0,
+    this.upcomingMeetings = const [],
+  });
+
+  final int needsReplyCount;
+  final int overdueDeliverableCount;
+  final int upcomingMeetingCount;
+  final int pendingScheduleCount;
+  final List<MeetingCard> upcomingMeetings;
+
+  /// Số họp trong [upcomingMeetings] bắt đầu cùng ngày với [now], theo giờ máy.
+  int meetingsOn(DateTime now) {
+    final today = now.toLocal();
+    return upcomingMeetings.where((meeting) {
+      final start = meeting.startsAt?.toLocal();
+      return start != null &&
+          start.year == today.year &&
+          start.month == today.month &&
+          start.day == today.day;
+    }).length;
+  }
+
+  factory AdvisorOverview.fromJson(Map<String, dynamic> j) => AdvisorOverview(
+    needsReplyCount: j['needsReplyCount'] as int? ?? 0,
+    overdueDeliverableCount: j['overdueDeliverableCount'] as int? ?? 0,
+    upcomingMeetingCount: j['upcomingMeetingCount'] as int? ?? 0,
+    pendingScheduleCount: j['pendingScheduleCount'] as int? ?? 0,
+    upcomingMeetings: [
+      for (final item in j['upcomingMeetings'] as List? ?? const [])
+        MeetingCard.fromJson(_map(item)),
+    ],
+  );
 }
 
 /// Workspace tối thiểu để ghép dữ liệu Team và Collaboration cho L04/L05/M01.
