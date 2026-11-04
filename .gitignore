@@ -32,3 +32,5 @@ mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/android/local.properties
 mobile/ios/Runner/GoogleService-Info.plist
+deploy/.env.prod
+deploy/seaweedfs/s3.prod.json

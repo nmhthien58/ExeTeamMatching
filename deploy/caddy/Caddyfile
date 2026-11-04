@@ -1,0 +1,26 @@
+# BE-85 – HTTPS tự động (Let's Encrypt) cho 3 tên miền. Biến lấy từ deploy/.env.prod.
+{
+	email {$ACME_EMAIL}
+}
+
+# Web React (Bộ môn, sinh viên, giảng viên, mentor).
+{$WEB_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:80
+}
+
+# API Gateway: REST, SignalR (/hubs/collab, WebSocket), Swagger gộp ở /swagger.
+{$API_DOMAIN} {
+	encode zstd gzip
+	# /api/dev/token chỉ dành cho máy dev và seed (gọi thẳng gateway:8080 trong mạng Docker);
+	# mở ra Internet thì ai cũng tự cấp được JWT Admin.
+	@dev path /api/dev/*
+	respond @dev 404
+	reverse_proxy gateway:8080
+}
+
+# File dự án (S3 – SeaweedFS): link tải ký sẵn trỏ về đây (ObjectStorage__PublicUrl). Caddy giữ nguyên Host
+# nên chữ ký S3 vẫn khớp.
+{$FILES_DOMAIN} {
+	reverse_proxy object-storage:8333
+}

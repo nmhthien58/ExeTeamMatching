@@ -1,0 +1,87 @@
+# BE-85 – chạy trên VPS công khai. Dùng chồng lên file chính:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.prod.yml --env-file deploy/.env.prod up -d --build
+# Chỉ Caddy mở cổng 80/443; mọi service khác chỉ nghe trong mạng Docker. Hướng dẫn: docs/setup/deploy.md.
+# Các service vẫn chạy ASPNETCORE_ENVIRONMENT=Development vì cấu hình (ConnectionStrings, Kafka, Smtp…) nằm ở
+# appsettings.Development.json; Caddy chặn /api/dev/* từ ngoài vào.
+
+services:
+  postgres:
+    ports: !reset []
+  kafka:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  mailpit:
+    ports: !reset []
+  object-storage:
+    ports: !reset []
+    volumes:
+      # Khóa S3 riêng cho VPS (không commit) thay khóa dev trong repo – tạo từ seaweedfs/s3.prod.example.json.
+      - ./seaweedfs/s3.prod.json:/etc/seaweedfs/s3.json:ro
+  identity-api:
+    ports: !reset []
+  academic-api:
+    ports: !reset []
+  team-api:
+    ports: !reset []
+  matching-grpc:
+    ports: !reset []
+  notification:
+    ports: !reset []
+  jobs:
+    ports: !reset []
+  # Kafka UI chỉ để debug: không chạy trên VPS (bật bằng --profile debug nếu cần, qua SSH tunnel).
+  kafka-ui:
+    profiles: [debug]
+    ports: !reset []
+
+  collab-api:
+    ports: !reset []
+    environment:
+      ObjectStorage__PublicUrl: https://${FILES_DOMAIN:?FILES_DOMAIN chưa đặt}
+      ObjectStorage__AccessKey: ${S3_ACCESS_KEY:?S3_ACCESS_KEY chưa đặt}
+      ObjectStorage__SecretKey: ${S3_SECRET_KEY:?S3_SECRET_KEY chưa đặt}
+
+  gateway:
+    ports: !reset []
+    environment:
+      Cors__AllowedOrigins__0: https://${WEB_DOMAIN:?WEB_DOMAIN chưa đặt}
+
+  web:
+    ports: !reset []
+    build:
+      args:
+        VITE_API_BASE_URL: https://${API_DOMAIN:?API_DOMAIN chưa đặt}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-221888974127-ho8c6t3rqct6f7r5o2e8gott7i8lrd7s.apps.googleusercontent.com}
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+        VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-}
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: exe-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL chưa đặt}
+      WEB_DOMAIN: ${WEB_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN}
+      FILES_DOMAIN: ${FILES_DOMAIN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      gateway:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+volumes:
+  caddy-data:
+  caddy-config:
