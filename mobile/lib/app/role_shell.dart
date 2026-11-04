@@ -7,6 +7,7 @@ import '../core/theme/app_tokens.dart';
 import '../shared/widgets/states.dart';
 import '../features/notifications/notification_tab_icon.dart';
 import 'navigation.dart';
+import '../shared/widgets/brand_app_bar.dart';
 
 /// Shell theo vai trò (MB-05, MB-37): tab bar dưới, mục đổi theo giai đoạn. Màn cấp 1 không có nút Back.
 class RoleShell extends ConsumerWidget {
@@ -52,7 +53,7 @@ class ScreenPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(item.label), automaticallyImplyLeading: false),
+        appBar: BrandAppBar(title: item.label),
         body: EmptyState(
           icon: Icons.construction,
           title: '${item.screen} · ${item.label}',

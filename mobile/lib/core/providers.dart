@@ -11,7 +11,6 @@ import 'config/env.dart';
 import 'firebase/analytics_service.dart';
 import 'firebase/crash_reporter.dart';
 import 'network/api_client.dart';
-import 'phase.dart';
 
 /// Phiên đăng nhập (secure storage). Ghi đè trong test bằng `sessionStoreProvider.overrideWithValue(...)`.
 final sessionStoreProvider = Provider<SessionStore>((ref) => SessionStore());
@@ -63,8 +62,10 @@ class AuthController extends AsyncNotifier<UserInfo?> {
       await crash.setUser(user.id);
       await crash.setKey('role', (user.roles.map((r) => r.name).toList()..sort()).join(','));
       if (user.studentId == null) return;
-      // Môn của sinh viên lấy từ hồ sơ; đọc sau khi state đã có user nên không tạo vòng phụ thuộc provider.
-      final course = await ref.read(myCourseProvider.future);
+      // Môn của sinh viên lấy thẳng từ hồ sơ qua Dio: myCourseProvider watch AuthController, nên đọc nó từ đây
+      // là phụ thuộc vòng (Riverpod báo CircularDependencyError, key `course` không được gắn).
+      final profile = await ref.read(dioProvider).get<Map<String, dynamic>>('/api/students/me');
+      final course = profile.data?['courseCode'] as String?;
       if (ref.mounted && course != null) await crash.setKey('course', course);
     } catch (e) {
       debugPrint('identify user for Firebase failed: $e');

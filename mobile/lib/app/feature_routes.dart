@@ -43,19 +43,21 @@ import '../features/workspace/project_overview_screen.dart';
 import '../shared/widgets/states.dart';
 import 'navigation.dart';
 import 'role_shell.dart';
+import '../shared/widgets/brand_app_bar.dart';
 
-/// Màn tab không có AppBar thì bọc bằng hàm này, để nội dung không nằm dưới thanh trạng thái. Màn có AppBar
-/// thì không bọc (AppBar tự chừa chỗ; bọc thêm sẽ lộ dải nền xám phía trên AppBar trắng).
-Widget _noAppBar(Widget child) => SafeArea(bottom: false, child: child);
+/// Màn tab không có AppBar riêng: thêm [BrandAppBar] chung (logo, tên màn, môn / học kỳ). Màn có AppBar
+/// thì dùng thẳng BrandAppBar trong màn đó.
+Widget _brandTab(String title, Widget child, {bool showPhaseChip = false}) =>
+    Scaffold(appBar: BrandAppBar(title: title, showPhaseChip: showPhaseChip), body: child);
 
 /// Màn hình thật của các tab (thay ScreenPlaceholder). Mỗi mảng thêm tab của mình vào đây.
 final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
-  '/sv/nhom': (_) => _noAppBar(const MyTeamScreen()),
+  '/sv/nhom': (_) => _brandTab('Nhóm của tôi', const MyTeamScreen()),
   // A05 chặn trước S01, S02 khi sinh viên chưa đánh giá đủ 5 kỹ năng – MB-08, MB-12 (Nam).
-  '/sv': (_) => ProfileGate(child: _noAppBar(const HomeScreen())),
+  '/sv': (_) => ProfileGate(child: _brandTab('EXE Team Matching', const HomeScreen(), showPhaseChip: true)),
   '/sv/ho-so': (_) => const ProfileGate(child: MyProfileScreen()),
-  '/sv/kham-pha': (_) => _noAppBar(const DiscoverScreen()),
+  '/sv/kham-pha': (_) => _brandTab('Khám phá', const DiscoverScreen()),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
   '/gv': (_) => const LecturerHomeScreen(),
   '/gv/nhom': (_) => const AdvisedTeamsScreen(advisorKind: 'LECTURER'),
@@ -66,8 +68,8 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/gv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/gv'),
   '/mentor/thong-bao': (_) => const NotificationsScreen(roleRoot: '/mentor'),
   // C02 của cố vấn – MB-39 (Cường).
-  '/gv/tin-nhan': (_) => _noAppBar(const AdvisorConversationsScreen(basePath: '/gv/tin-nhan')),
-  '/mentor/tin-nhan': (_) => _noAppBar(const AdvisorConversationsScreen(basePath: '/mentor/tin-nhan')),
+  '/gv/tin-nhan': (_) => _brandTab('Tin nhắn', const AdvisorConversationsScreen(basePath: '/gv/tin-nhan')),
+  '/mentor/tin-nhan': (_) => _brandTab('Tin nhắn', const AdvisorConversationsScreen(basePath: '/mentor/tin-nhan')),
 };
 
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.

@@ -8,6 +8,7 @@ import '../../shared/widgets/states.dart';
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
 import 'lecturer_home_view_model.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 class LecturerHomeScreen extends ConsumerStatefulWidget {
   const LecturerHomeScreen({super.key});
@@ -119,8 +120,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     final isTeamFormation = ref.watch(lecturerHomeIsTeamFormationProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trang chủ'),
+      appBar: BrandAppBar(
+        title: 'EXE Team Matching',
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),

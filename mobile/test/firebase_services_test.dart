@@ -320,6 +320,10 @@ void main() {
         ..interceptors.add(
           InterceptorsWrapper(
             onRequest: (o, h) {
+              if (o.path == '/api/students/me') {
+                h.resolve(Response(requestOptions: o, statusCode: 200, data: {'courseCode': 'EXE101'}));
+                return;
+              }
               if (o.path == '/api/auth/google') {
                 h.resolve(
                   Response(

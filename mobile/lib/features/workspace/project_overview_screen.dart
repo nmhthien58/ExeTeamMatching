@@ -9,6 +9,7 @@ import 'project_overview_view_model.dart';
 import 'workspace_api.dart';
 import 'workspace_models.dart';
 import 'workspace_widgets.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 export 'project_overview_view_model.dart' show taskStats;
 
@@ -27,7 +28,7 @@ class ProjectOverviewScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workspace = ref.watch(currentWorkspaceProvider(workspaceId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Dự án'), automaticallyImplyLeading: workspaceId != null),
+      appBar: const BrandAppBar(title: 'Dự án'),
       body: workspace.when(
         loading: () => const SkeletonList(count: 3),
         error: (error, _) => ErrorState(error: error, onRetry: () => ref.invalidate(currentWorkspaceProvider(workspaceId))),
