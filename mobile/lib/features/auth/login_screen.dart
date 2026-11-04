@@ -1,78 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../core/auth/firebase_auth_service.dart';
-import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/states.dart';
+import 'login_view_model.dart';
 
 /// A03 – Đăng nhập Google (flutter-handoff mục 4, F1). Email không có trong danh sách → A04.
 /// Router tự chuyển vào đúng khung khi đăng nhập xong.
-class LoginScreen extends ConsumerStatefulWidget {
+/// View của [LoginViewModel] (MVVM, MB-48): vẽ theo [LoginState], xử lý kết quả một lần (A04, SnackBar hủy).
+class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
 
-  @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends ConsumerState<LoginScreen> {
-  bool _pending = false;
-  String? _error;
-
-  Future<void> _signIn() async {
-    setState(() {
-      _pending = true;
-      _error = null;
-    });
-    try {
-      // null = người dùng hủy chọn tài khoản: về trạng thái mặc định, báo nhẹ bằng SnackBar (Lab 3 §6).
-      final user = await ref.read(authControllerProvider.notifier).signInWithGoogle();
-      if (user == null) _showCancelled();
-    } on PlatformException catch (e) {
-      // Lỗi từ Google Sign-In (không phải từ Identity).
-      if (!mounted) return;
-      if (e.code == GoogleSignIn.kSignInCanceledError) {
-        _showCancelled();
-        return;
-      }
-      setState(() => _error = e.code == GoogleSignIn.kNetworkError
-          ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
-          : 'Không đăng nhập được với Google. Thử lại sau.');
-    } on SignInFailure catch (e) {
-      // Firebase Authentication từ chối credential hoặc mất mạng.
-      if (!mounted) return;
-      setState(() => _error = e.isNetwork
-          ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
-          : 'Không đăng nhập được với Google. Thử lại sau.');
-    } catch (e) {
-      final error = e.apiError;
-      if (!mounted) return;
-      if (error.code == 'not-in-list') {
+  Future<void> _signIn(BuildContext context, WidgetRef ref) async {
+    final outcome = await ref.read(loginViewModelProvider.notifier).signIn();
+    if (!context.mounted) return;
+    switch (outcome) {
+      case LoginNotInList(:final email):
         // A04 hiện email vừa dùng để người dùng nhận ra nhầm tài khoản.
-        context.go('/tai-khoan-chua-co', extra: ref.read(googleSignInProvider).currentUser?.email);
-        return;
-      }
-      setState(() => _error = error.isNetwork ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.' : error.title);
-    } finally {
-      if (mounted) setState(() => _pending = false);
+        context.go('/tai-khoan-chua-co', extra: email);
+      case LoginCancelled():
+        // Lab 3 §6: hủy đăng nhập phải có thông báo; không phải lỗi nên dùng SnackBar, không dùng banner.
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('Bạn đã hủy đăng nhập. Bấm "Đăng nhập với Google" để thử lại.')));
+      case LoginSignedIn() || LoginError():
+        break;
     }
   }
 
-  void _showCancelled() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Bạn đã hủy đăng nhập. Bấm "Đăng nhập với Google" để thử lại.')));
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final state = ref.watch(loginViewModelProvider);
+    void signIn() => _signIn(context, ref);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -89,11 +52,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               Text('Tìm nhóm, làm việc cùng giảng viên và mentor.',
                   style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               const Spacer(),
-              if (_error != null) ...[ErrorBanner(message: _error!, onRetry: _signIn), const SizedBox(height: AppSpacing.s4)],
+              if (state case LoginFailed(:final message)) ...[ErrorBanner(message: message, onRetry: signIn), const SizedBox(height: AppSpacing.s4)],
               LoadingButton(
                 label: 'Đăng nhập với Google',
-                loading: _pending,
-                onPressed: _signIn,
+                loading: state is LoginPending,
+                onPressed: signIn,
                 // Logo G chính thức của Google trên nền tròn trắng (Sign in with Google branding guidelines).
                 leading: Image.asset('assets/images/google_g.png', width: 28, height: 28, excludeFromSemantics: true),
               ),
