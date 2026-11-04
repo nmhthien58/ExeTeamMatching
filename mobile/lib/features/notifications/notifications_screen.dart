@@ -9,6 +9,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'notifications_api.dart';
 import 'notifications_view_model.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 /// A06 – màn dùng chung cho sinh viên, giảng viên và mentor.
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -84,8 +85,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final items = loaded?.items ?? const <AppNotification>[];
     final loadingMore = loaded?.loadingMore ?? false;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thông báo'),
+      appBar: BrandAppBar(
+        title: 'Thông báo',
         actions: [
           TextButton(
             onPressed: state.markingAll || !(loaded?.hasUnread ?? false)

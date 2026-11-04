@@ -9,6 +9,7 @@ import '../lecturer_profile/lecturer_profile_screen.dart'
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
 import 'topic_interests_view_model.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 /// L07: danh sách đề tài phù hợp cho giảng viên và mentor (Quy tắc 9, 19, 20, 26).
 class TopicInterestsScreen extends ConsumerStatefulWidget {
@@ -91,7 +92,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
     final profileAsync = _lecturer ? ref.watch(lecturerProfileProvider) : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Đề tài')),
+      appBar: const BrandAppBar(title: 'Đề tài'),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(

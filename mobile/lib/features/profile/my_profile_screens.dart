@@ -10,6 +10,7 @@ import '../workspace/workspace_widgets.dart';
 import 'profile_api.dart';
 import 'profile_form.dart';
 import 'skill_bars.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 const editProfilePath = '/sv/ho-so/sua';
 const studentSettingsPath = '/sv/cai-dat';
@@ -93,8 +94,8 @@ class MyProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hồ sơ của tôi'),
+      appBar: BrandAppBar(
+        title: 'Hồ sơ của tôi',
         actions: [
           IconButton(tooltip: 'Sửa hồ sơ', icon: const Icon(Icons.edit_outlined), onPressed: () => context.push(editProfilePath)),
           IconButton(tooltip: 'Cài đặt', icon: const Icon(Icons.settings_outlined), onPressed: () => context.push(studentSettingsPath)),

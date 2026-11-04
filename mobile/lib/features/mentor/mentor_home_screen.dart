@@ -10,6 +10,7 @@ import '../lecturer/lecturer_home_models.dart';
 import '../my_team/team_advisors.dart';
 import '../workspace/workspace_widgets.dart';
 import 'mentor_home_view_model.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 class MentorHomeScreen extends ConsumerStatefulWidget {
   const MentorHomeScreen({super.key});
@@ -32,7 +33,7 @@ class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
     final beforeWeekSix = !ref.watch(shellPhaseProvider).isMentoringWindow;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trang chủ mentor')),
+      appBar: const BrandAppBar(title: 'EXE Team Matching'),
       body: RefreshIndicator(
         onRefresh: _vm.refresh,
         child: ListView(

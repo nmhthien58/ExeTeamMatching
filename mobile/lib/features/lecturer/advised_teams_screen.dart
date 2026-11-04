@@ -12,6 +12,7 @@ import '../workspace/workspace_widgets.dart';
 import 'advised_teams_view_model.dart';
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
 class AdvisedTeamsScreen extends ConsumerStatefulWidget {
   const AdvisedTeamsScreen({super.key, required this.advisorKind});
@@ -34,10 +35,8 @@ class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
     final teams = ref.watch(advisedTeamsListProvider(widget.advisorKind));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.isMentor ? 'Nhóm đang mentor' : 'Nhóm tôi hướng dẫn',
-        ),
+      appBar: BrandAppBar(
+        title: widget.isMentor ? 'Nhóm đang mentor' : 'Nhóm tôi hướng dẫn',
       ),
       body: RefreshIndicator(
         onRefresh: _vm.refresh,
