@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_exception.dart';
+import '../../core/view_state.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../lecturers/match_reason.dart';
 import '../meeting_schedule/meeting_schedule_api.dart'
     show ScheduleSlot, dayNames;
 import '../workspace/workspace_widgets.dart';
+import 'advised_teams_view_model.dart';
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
 
@@ -24,32 +25,13 @@ class AdvisedTeamsScreen extends ConsumerStatefulWidget {
 }
 
 class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
-  String _course = 'EXE101';
-  int _missingCheckpoint = 0;
-  String _search = '';
+  AdvisedTeamsViewModel get _vm =>
+      ref.read(advisedTeamsViewModelProvider(widget.advisorKind).notifier);
 
   @override
   Widget build(BuildContext context) {
-    final workspaces = ref.watch(advisorWorkspacesProvider);
-    final checkpoints = ref.watch(advisorCheckpointsProvider);
-    final teams = widget.isMentor
-        ? ref
-              .watch(mentorTeamsMeProvider)
-              .whenData(
-                (items) => [
-                  for (final item in items) _AdvisorEntry(item, true),
-                ],
-              )
-        : ref
-              .watch(lecturerTeamsMeProvider(_course))
-              .whenData(
-                (response) => [
-                  for (final item in response.instructing)
-                    _AdvisorEntry(item, false),
-                  for (final item in response.mentoring)
-                    _AdvisorEntry(item, true),
-                ],
-              );
+    final filter = ref.watch(advisedTeamsViewModelProvider(widget.advisorKind));
+    final teams = ref.watch(advisedTeamsListProvider(widget.advisorKind));
 
     return Scaffold(
       appBar: AppBar(
@@ -58,22 +40,7 @@ class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(advisorWorkspacesProvider);
-          ref.invalidate(advisorCheckpointsProvider);
-          if (widget.isMentor) {
-            ref.invalidate(mentorTeamsMeProvider);
-          } else {
-            ref.invalidate(lecturerTeamsMeProvider(_course));
-          }
-          await Future.wait([
-            ref.read(advisorWorkspacesProvider.future),
-            if (widget.isMentor)
-              ref.read(mentorTeamsMeProvider.future)
-            else
-              ref.read(lecturerTeamsMeProvider(_course).future),
-          ]);
-        },
+        onRefresh: _vm.refresh,
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
@@ -82,13 +49,10 @@ class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
                 children: [
                   for (final course in const ['EXE101', 'EXE201']) ...[
                     Expanded(
-                      child: course == _course
+                      child: course == filter.course
                           ? FilledButton(onPressed: () {}, child: Text(course))
                           : OutlinedButton(
-                              onPressed: () => setState(() {
-                                _course = course;
-                                _missingCheckpoint = 0;
-                              }),
+                              onPressed: () => _vm.selectCourse(course),
                               child: Text(course),
                             ),
                     ),
@@ -104,13 +68,13 @@ class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
                 labelText: 'Tìm nhóm hoặc mã lớp',
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (value) => setState(() => _search = value.trim()),
+              onChanged: _vm.search,
             ),
-            if (!widget.isMentor && _course == 'EXE101') ...[
+            if (!widget.isMentor && filter.course == 'EXE101') ...[
               const SizedBox(height: AppSpacing.s3),
               DropdownButtonFormField<int>(
                 isExpanded: true,
-                initialValue: _missingCheckpoint,
+                initialValue: filter.missingCheckpoint,
                 decoration: const InputDecoration(labelText: 'Lọc Checkpoint'),
                 items: [
                   const DropdownMenuItem(value: 0, child: Text('Tất cả nhóm')),
@@ -120,105 +84,40 @@ class _AdvisedTeamsScreenState extends ConsumerState<AdvisedTeamsScreen> {
                       child: Text('Chưa trình bày CP$no'),
                     ),
                 ],
-                onChanged: (value) =>
-                    setState(() => _missingCheckpoint = value ?? 0),
+                onChanged: _vm.filterMissingCheckpoint,
               ),
             ],
             const SizedBox(height: AppSpacing.s4),
-            teams.when(
-              loading: () => const SkeletonList(),
-              error: (error, _) => ErrorState(
+            switch (teams) {
+              ViewLoading() => const SkeletonList(),
+              ViewError(:final error) => ErrorState(
                 error: error,
-                onRetry: () => widget.isMentor
-                    ? ref.invalidate(mentorTeamsMeProvider)
-                    : ref.invalidate(lecturerTeamsMeProvider(_course)),
+                onRetry: _vm.retry,
               ),
-              data: (entries) => workspaces.when(
-                loading: () => const SkeletonList(),
-                error: (error, _) => ErrorState(
-                  error: error,
-                  onRetry: () => ref.invalidate(advisorWorkspacesProvider),
-                ),
-                data: (workspaceItems) {
-                  if (_missingCheckpoint > 0 && checkpoints.hasError) {
-                    return ErrorState(
-                      error: checkpoints.error!,
-                      onRetry: () => ref.invalidate(advisorCheckpointsProvider),
-                    );
-                  }
-                  final checkpointItems = checkpoints.value ?? const [];
-                  final query = _search.toLowerCase();
-                  final displayed = entries.where((entry) {
-                    final item = entry.item;
-                    final matchesSearch =
-                        query.isEmpty ||
-                        item.teamName.toLowerCase().contains(query) ||
-                        (item.classCode?.toLowerCase().contains(query) ??
-                            false);
-                    if (!matchesSearch || _missingCheckpoint == 0) {
-                      return matchesSearch;
-                    }
-                    final workspace = workspaceItems
-                        .where((value) => value.teamId == item.teamId)
-                        .firstOrNull;
-                    final progress = checkpointItems
-                        .where((value) => value.workspaceId == workspace?.id)
-                        .firstOrNull;
-                    return progress?.items.any(
-                          (cp) =>
-                              cp.checkpointNo == _missingCheckpoint &&
-                              !cp.presented,
-                        ) ??
-                        false;
-                  }).toList();
-                  if (displayed.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.groups_outlined,
-                      title: query.isNotEmpty || _missingCheckpoint > 0
-                          ? 'Không tìm thấy nhóm'
-                          : 'Chưa có nhóm được ghép',
-                    );
-                  }
-                  return Column(
-                    children: [
-                      for (final entry in displayed) ...[
-                        _AdvisedTeamCard(
-                          entry: entry,
-                          advisorKind: widget.advisorKind,
-                          checkpoint: checkpointItems
-                              .where(
-                                (value) =>
-                                    value.workspaceId ==
-                                    workspaceItems
-                                        .where(
-                                          (workspace) =>
-                                              workspace.teamId ==
-                                              entry.item.teamId,
-                                        )
-                                        .firstOrNull
-                                        ?.id,
-                              )
-                              .firstOrNull,
-                        ),
-                        const SizedBox(height: AppSpacing.s3),
-                      ],
-                    ],
-                  );
-                },
+              ViewEmpty() => EmptyState(
+                icon: Icons.groups_outlined,
+                title: filter.isFiltering
+                    ? 'Không tìm thấy nhóm'
+                    : 'Chưa có nhóm được ghép',
               ),
-            ),
+              ViewData(value: final rows) => Column(
+                children: [
+                  for (final row in rows) ...[
+                    _AdvisedTeamCard(
+                      entry: row.entry,
+                      advisorKind: widget.advisorKind,
+                      checkpoint: row.checkpoint,
+                    ),
+                    const SizedBox(height: AppSpacing.s3),
+                  ],
+                ],
+              ),
+            },
           ],
         ),
       ),
     );
   }
-}
-
-class _AdvisorEntry {
-  const _AdvisorEntry(this.item, this.isMentorRole);
-
-  final AdvisedTeamItem item;
-  final bool isMentorRole;
 }
 
 class _AdvisedTeamCard extends StatelessWidget {
@@ -228,7 +127,7 @@ class _AdvisedTeamCard extends StatelessWidget {
     required this.checkpoint,
   });
 
-  final _AdvisorEntry entry;
+  final AdvisorEntry entry;
   final String advisorKind;
   final CheckpointProgress? checkpoint;
 
@@ -320,71 +219,24 @@ class AdvisedTeamDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final detail = ref.watch(advisorTypedTeamDetailProvider(teamId));
-    final workspaces = ref.watch(advisorWorkspacesProvider);
-    final assignments = isMentor
-        ? ref
-              .watch(mentorTeamsMeProvider)
-              .whenData(
-                (items) => [
-                  for (final item in items) _AdvisorEntry(item, true),
-                ],
-              )
-        : ref
-              .watch(lecturerTeamsMeProvider(null))
-              .whenData(
-                (response) => [
-                  for (final item in response.instructing)
-                    _AdvisorEntry(item, false),
-                  for (final item in response.mentoring)
-                    _AdvisorEntry(item, true),
-                ],
-              );
+    final key = (teamId: teamId, advisorKind: advisorKind);
+    final state = ref.watch(advisedTeamDetailViewModelProvider(key));
     return Scaffold(
       appBar: AppBar(title: const Text('Chi tiết nhóm')),
-      body: detail.when(
-        loading: () => const SkeletonList(),
-        error: (error, _) => ErrorState(
+      body: switch (state) {
+        ViewLoading() || ViewEmpty() => const SkeletonList(),
+        ViewError(:final error) => ErrorState(
           error: error,
-          onRetry: () => ref.invalidate(advisorTypedTeamDetailProvider(teamId)),
+          onRetry: ref
+              .read(advisedTeamDetailViewModelProvider(key).notifier)
+              .retry,
         ),
-        data: (teamDetail) => workspaces.when(
-          loading: () => const SkeletonList(),
-          error: (error, _) => ErrorState(
-            error: error,
-            onRetry: () => ref.invalidate(advisorWorkspacesProvider),
-          ),
-          data: (workspaceItems) => assignments.when(
-            loading: () => const SkeletonList(),
-            error: (error, _) => ErrorState(
-              error: error,
-              onRetry: () => isMentor
-                  ? ref.invalidate(mentorTeamsMeProvider)
-                  : ref.invalidate(lecturerTeamsMeProvider(null)),
-            ),
-            data: (entries) {
-              final assignment = entries
-                  .where((entry) => entry.item.teamId == teamId)
-                  .firstOrNull;
-              final workspace = workspaceItems
-                  .where((item) => item.teamId == teamId)
-                  .firstOrNull;
-              final courseCode =
-                  assignment?.item.courseCode ??
-                  workspace?.courseCode ??
-                  'EXE101';
-              return _TeamDetailBody(
-                teamId: teamId,
-                advisorKind: advisorKind,
-                detail: teamDetail,
-                assignment: assignment,
-                workspace: workspace,
-                courseCode: courseCode,
-              );
-            },
-          ),
+        ViewData(value: final data) => _TeamDetailBody(
+          teamId: teamId,
+          advisorKind: advisorKind,
+          data: data,
         ),
-      ),
+      },
     );
   }
 }
@@ -393,41 +245,42 @@ class _TeamDetailBody extends ConsumerWidget {
   const _TeamDetailBody({
     required this.teamId,
     required this.advisorKind,
-    required this.detail,
-    required this.assignment,
-    required this.workspace,
-    required this.courseCode,
+    required this.data,
   });
 
   final String teamId;
   final String advisorKind;
-  final AdvisorTeamDetail detail;
-  final _AdvisorEntry? assignment;
-  final AdvisorWorkspaceRef? workspace;
-  final String courseCode;
+  final AdvisedTeamDetailData data;
+
+  AdvisorTeamDetail get detail => data.detail;
+  AdvisorEntry? get assignment => data.assignment;
+  AdvisorWorkspaceRef? get workspace => data.workspace;
+  String get courseCode => data.courseCode;
 
   bool get isMentorRole =>
-      advisorKind == 'MENTOR' || (assignment?.isMentorRole ?? false);
+      AdvisedTeamDetailViewModel.isMentorRole(advisorKind, data);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activity = workspace == null
+    final activityQuery = workspace == null
         ? null
-        : ref.watch(
-            advisorTeamActivityProvider((
-              workspace: workspace!,
-              includeTasks: advisorKind == 'LECTURER',
-              includeSchedule:
-                  advisorKind == 'LECTURER' && courseCode == 'EXE201',
-            )),
+        : AdvisedTeamDetailViewModel.activityQuery(
+            advisorKind,
+            workspace!,
+            courseCode,
           );
-    final checkpoint =
-        workspace != null &&
-            courseCode == 'EXE101' &&
-            advisorKind == 'LECTURER' &&
-            !isMentorRole
+    final activity = activityQuery == null
+        ? null
+        : ref.watch(advisorTeamActivityProvider(activityQuery));
+    final showsCheckpoint = AdvisedTeamDetailViewModel.showsCheckpoint(
+      advisorKind,
+      data,
+    );
+    final checkpoint = showsCheckpoint
         ? ref.watch(advisorCheckpointProvider(workspace!.id))
         : null;
+    // Giữ ViewModel Checkpoint sống suốt màn để lệnh "Hoàn tác" trên SnackBar còn chạy được.
+    if (showsCheckpoint) ref.watch(checkpointViewModelProvider(workspace!.id));
     final reason = assignment == null
         ? null
         : isMentorRole
@@ -437,21 +290,14 @@ class _TeamDetailBody extends ConsumerWidget {
             assignment!.item.preferenceRank,
           );
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(advisorTypedTeamDetailProvider(teamId));
-        ref.invalidate(advisorWorkspacesProvider);
-        if (workspace != null) {
-          ref.invalidate(
-            advisorTeamActivityProvider((
-              workspace: workspace!,
-              includeTasks: advisorKind == 'LECTURER',
-              includeSchedule:
-                  advisorKind == 'LECTURER' && courseCode == 'EXE201',
-            )),
-          );
-          ref.invalidate(advisorCheckpointProvider(workspace!.id));
-        }
-      },
+      onRefresh: () async => ref
+          .read(
+            advisedTeamDetailViewModelProvider((
+              teamId: teamId,
+              advisorKind: advisorKind,
+            )).notifier,
+          )
+          .refresh(data),
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
@@ -558,13 +404,7 @@ class _TeamDetailBody extends ConsumerWidget {
                         error: (error, _) => ErrorState(
                           error: error,
                           onRetry: () => ref.invalidate(
-                            advisorTeamActivityProvider((
-                              workspace: workspace!,
-                              includeTasks: advisorKind == 'LECTURER',
-                              includeSchedule:
-                                  advisorKind == 'LECTURER' &&
-                                  courseCode == 'EXE201',
-                            )),
+                            advisorTeamActivityProvider(activityQuery!),
                           ),
                         ),
                         data: (value) => Column(
@@ -709,13 +549,18 @@ Future<void> _showCheckpointSheet(
       1;
   var presentedOn = DateTime.now();
   var comment = '';
-  var saving = false;
-  String? error;
+  final vm = ref.read(checkpointViewModelProvider(workspaceId).notifier)
+    ..reset();
   final marked = await showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (sheetContext) => StatefulBuilder(
+    builder: (sheetContext) => Consumer(
+      builder: (context, ref, _) {
+        final markState = ref.watch(checkpointViewModelProvider(workspaceId));
+        final saving = markState.saving;
+        final error = markState.error;
+        return StatefulBuilder(
       builder: (context, setState) => Padding(
         padding: EdgeInsets.fromLTRB(
           AppSpacing.s4,
@@ -781,7 +626,7 @@ Future<void> _showCheckpointSheet(
               ),
               if (error != null) ...[
                 const SizedBox(height: AppSpacing.s2),
-                ErrorBanner(message: error!),
+                ErrorBanner(message: error),
               ],
               const SizedBox(height: AppSpacing.s3),
               Row(
@@ -798,33 +643,14 @@ Future<void> _showCheckpointSheet(
                       onPressed: saving
                           ? null
                           : () async {
-                              setState(() {
-                                saving = true;
-                                error = null;
-                              });
-                              try {
-                                await ref
-                                    .read(lecturerHomeApiProvider)
-                                    .markCheckpoint(
-                                      workspaceId,
-                                      checkpointNo: checkpointNo,
-                                      presentedOn: presentedOn,
-                                      comment: comment,
-                                    );
-                                ref.invalidate(
-                                  advisorCheckpointProvider(workspaceId),
-                                );
-                                ref.invalidate(advisorCheckpointsProvider);
-                                if (context.mounted) {
-                                  Navigator.pop(context, checkpointNo);
-                                }
-                              } catch (cause) {
-                                setState(() {
-                                  saving = false;
-                                  error = cause is ApiException
-                                      ? cause.detail ?? cause.title
-                                      : 'Không thể ghi nhận Checkpoint. Hãy thử lại.';
-                                });
+                              final outcome = await vm.mark(
+                                checkpointNo: checkpointNo,
+                                presentedOn: presentedOn,
+                                comment: comment,
+                              );
+                              if (outcome is CheckpointDone &&
+                                  context.mounted) {
+                                Navigator.pop(context, checkpointNo);
                               }
                             },
                       child: saving
@@ -841,6 +667,8 @@ Future<void> _showCheckpointSheet(
           ),
         ),
       ),
+    );
+      },
     ),
   );
   if (marked == null || !context.mounted) return;
@@ -851,16 +679,10 @@ Future<void> _showCheckpointSheet(
       action: SnackBarAction(
         label: 'Hoàn tác',
         onPressed: () async {
-          try {
-            await ref
-                .read(lecturerHomeApiProvider)
-                .undoCheckpoint(workspaceId, marked);
-            ref.invalidate(advisorCheckpointProvider(workspaceId));
-            ref.invalidate(advisorCheckpointsProvider);
-          } catch (_) {
-            if (!context.mounted) return;
+          final outcome = await vm.undo(marked);
+          if (outcome is CheckpointFailed && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Không thể hoàn tác. Hãy thử lại.')),
+              SnackBar(content: Text(outcome.message)),
             );
           }
         },
