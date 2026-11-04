@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
@@ -11,6 +10,7 @@ import '../my_team/my_team_screen.dart' show teamStatusChip;
 import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../workspace/workspace_widgets.dart';
 import 'discover_api.dart';
+import 'join_request_view_model.dart';
 
 /// S08 – Chi tiết nhóm xem từ bên ngoài (MB-16): tên + trạng thái, domain, ý tưởng, thanh điều kiện đầy đủ, thành viên + chuyên ngành,
 /// bài tuyển; nút chính theo quan hệ: Xin tham gia (S09) · đã gửi yêu cầu · được mời (→ S12) · nhóm của bạn. Không hiện liên hệ.
@@ -151,10 +151,6 @@ class JoinRequestSheet extends ConsumerStatefulWidget {
 class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
   final _message = TextEditingController();
   final List<(TextEditingController, TextEditingController)> _ideas = [];
-  bool _noIdea = false;
-  bool _ideasMissing = false;
-  bool _sending = false;
-  String? _error;
 
   @override
   void dispose() {
@@ -166,38 +162,19 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
     super.dispose();
   }
 
-  List<Idea> get _filledIdeas => [
-        for (final (title, description) in _ideas)
-          if (title.text.trim().isNotEmpty) Idea(title.text.trim(), description.text.trim().isEmpty ? null : description.text.trim()),
-      ];
+  JoinRequestViewModel get _vm => ref.read(joinRequestViewModelProvider(widget.teamId).notifier);
 
   Future<void> _send() async {
-    final ideas = _noIdea ? <Idea>[] : _filledIdeas;
-    if (!_noIdea && ideas.isEmpty) {
-      setState(() => _ideasMissing = true);
-      return;
-    }
-    setState(() {
-      _sending = true;
-      _ideasMissing = false;
-      _error = null;
-    });
-    try {
-      await ref.read(discoverApiProvider).requestToJoin(widget.teamId, message: _message.text.trim(), ideas: ideas, hasNoIdea: _noIdea);
-      if (mounted) Navigator.pop(context, true);
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _sending = false;
-          _error = e.detail ?? e.title;
-        });
-      }
-    }
+    final outcome = await _vm.send(message: _message.text, ideas: [for (final (t, d) in _ideas) (t.text, d.text)]);
+    if (outcome is JoinRequestSent && mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = ref.watch(joinRequestViewModelProvider(widget.teamId));
+    final noIdea = state.noIdea;
+    final sending = state.sending;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -213,7 +190,7 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                   children: [
                     Text('Xin tham gia', style: theme.textTheme.titleLarge),
                     const SizedBox(height: AppSpacing.s3),
-                    if (_error != null) ...[ErrorBanner(message: _error!, onRetry: _sending ? null : _send), const SizedBox(height: AppSpacing.s3)],
+                    if (state.error != null) ...[ErrorBanner(message: state.error!, onRetry: sending ? null : _send), const SizedBox(height: AppSpacing.s3)],
                     TextField(
                       controller: _message,
                       maxLength: 500,
@@ -222,7 +199,7 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                       decoration: const InputDecoration(labelText: 'Lời nhắn cho trưởng nhóm', alignLabelWithHint: true),
                     ),
                     Text('Ý tưởng của bạn', style: theme.textTheme.titleSmall),
-                    if (!_noIdea)
+                    if (!noIdea)
                       for (final (i, (title, description)) in _ideas.indexed)
                         Card.outlined(
                           margin: const EdgeInsets.only(top: AppSpacing.s2),
@@ -247,7 +224,7 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                             ),
                           ),
                         ),
-                    if (!_noIdea && _ideas.length < 3)
+                    if (!noIdea && _ideas.length < 3)
                       Align(
                         alignment: Alignment.centerLeft,
                         child: TextButton.icon(
@@ -258,14 +235,11 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                       ),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
-                      value: _noIdea,
+                      value: noIdea,
                       title: const Text('Chưa có ý tưởng'),
-                      onChanged: (v) => setState(() {
-                        _noIdea = v ?? false;
-                        _ideasMissing = false;
-                      }),
+                      onChanged: (v) => _vm.setNoIdea(v ?? false),
                     ),
-                    if (_ideasMissing)
+                    if (state.ideasMissing)
                       Text('Thêm ít nhất 1 ý tưởng hoặc chọn "Chưa có ý tưởng".', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
                     const SizedBox(height: AppSpacing.s2),
                     Text('Yêu cầu hết hạn sau 72 giờ nếu trưởng nhóm chưa trả lời.', style: theme.textTheme.bodyMedium),
@@ -276,9 +250,9 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                 padding: const EdgeInsets.all(AppSpacing.s4),
                 child: Row(
                   children: [
-                    TextButton(onPressed: _sending ? null : () => Navigator.pop(context), child: const Text('Hủy')),
+                    TextButton(onPressed: sending ? null : () => Navigator.pop(context), child: const Text('Hủy')),
                     const Spacer(),
-                    LoadingButton(label: 'Xin tham gia', expand: false, loading: _sending, onPressed: _sending ? null : _send),
+                    LoadingButton(label: 'Xin tham gia', expand: false, loading: sending, onPressed: sending ? null : _send),
                   ],
                 ),
               ),
