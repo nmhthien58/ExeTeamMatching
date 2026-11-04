@@ -1,0 +1,6 @@
+{
+  "suggestions_max_items": 5,
+  "ai_idea_enabled": false,
+  "ai_model": "gemini-2.5-flash",
+  "ai_prompt": "Bạn là trợ lý gợi ý ý tưởng dự án khởi nghiệp cho sinh viên môn EXE. Dựa trên mô tả nhóm và kỹ năng của sinh viên, gợi ý 3 ý tưởng ngắn gọn bằng tiếng Việt, mỗi ý tưởng 1–2 câu."
+}

@@ -22,4 +22,11 @@ class Env {
   /// Mặc định bật ở bản debug; APK demo cài tay truyền `--dart-define=APP_CHECK_DEBUG=true` vì Play Integrity
   /// chỉ nhận app cài từ Google Play.
   static const appCheckDebug = bool.fromEnvironment('APP_CHECK_DEBUG', defaultValue: kDebugMode);
+
+  /// Bản debug mặc định không gửi báo cáo Crashlytics; truyền `--dart-define=CRASHLYTICS_DEBUG=true`
+  /// để thử Crashlytics khi chạy debug (MB-50). Bản release / profile luôn gửi.
+  static const crashlyticsDebug = bool.fromEnvironment('CRASHLYTICS_DEBUG');
+
+  /// Có thu thập Crashlytics không.
+  static const crashlyticsEnabled = !kDebugMode || crashlyticsDebug;
 }
