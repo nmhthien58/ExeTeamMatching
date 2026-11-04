@@ -24,9 +24,10 @@
 | MB-44 | Xong | #133 (L01 tạm hiện "—" cho Trễ hạn nộp và Họp hôm nay, chờ BE-86) |
 | BE-83 | Xong | #135 sửa ngày Checkpoint theo giờ Việt Nam |
 | MB-36 | Xong | #134, #138 (checklist §5 cho mọi màn còn lại) |
+| MB-09 | Xong | #41 (A06, badge, polling, đọc tất cả, chạm mở màn); 04/11 Thành kiểm lại trên emulator |
 | BE-59 | Xong | #136 (thêm luồng 5, 6, 7, 10, 11; newman 260/260 assertion), #139 (README đủ mục PRN232) |
 
-Còn dở trước khi đóng băng mobile: **MB-09** (Thành).
+Không còn task mobile dở dang – có thể **đóng băng `mobile/lib`** và bắt đầu MB-47.
 
 ## Task mới (20)
 
@@ -50,7 +51,7 @@ Còn dở trước khi đóng băng mobile: **MB-09** (Thành).
 
 | Mã | Giai đoạn | Module | Task | Mô tả / tiêu chí hoàn thành | Tham chiếu | Ưu tiên | Thành viên | Phụ thuộc |
 |---|---|---|---|---|---|---|---|---|
-| MB-47 | GĐ7 – PRM393 | Nền tảng | FlutterFire, Firebase Auth, App Check | `flutterfire configure`, `firebase_options.dart`, `google-services.json`; SHA-1 và SHA-256 debug + release trên Console; `Firebase.initializeApp()` trong `main()`; sau Google Sign-In gọi `signInWithCredential` rồi vẫn gửi ID token cho Identity; đăng xuất cả Firebase và xóa dữ liệu cục bộ; hủy đăng nhập / mất mạng hiện thông báo; App Check (Play Integrity, debug provider cho APK demo); ghi phiên bản đã pin vào README | Lab 3 §6 (Authentication); Final §6 (App Check) | P0 | Thiên | MB-09 |
+| MB-47 | GĐ7 – PRM393 | Nền tảng | FlutterFire, Firebase Auth, App Check | `flutterfire configure`, `firebase_options.dart`, `google-services.json`; SHA-1 và SHA-256 debug + release trên Console; `Firebase.initializeApp()` trong `main()`; sau Google Sign-In gọi `signInWithCredential` rồi vẫn gửi ID token cho Identity; đăng xuất cả Firebase và xóa dữ liệu cục bộ; hủy đăng nhập / mất mạng hiện thông báo; App Check (Play Integrity, debug provider cho APK demo); ghi phiên bản đã pin vào README | Lab 3 §6 (Authentication); Final §6 (App Check) | P0 | Thiên | – |
 | MB-48 | GĐ7 – PRM393 | Nền tảng | Mẫu MVVM và `docs/architecture.md` | Chốt mẫu: ViewModel (Riverpod Notifier) giữ trạng thái và nghiệp vụ, state model dạng sealed (đang tải / trống / lỗi / có dữ liệu), service inject qua provider để test bằng fake. Áp mẫu cho auth, shell và một feature có cả danh sách lẫn form (`discover`). `docs/architecture.md`: cấu trúc thư mục mỗi dòng một thư mục, sơ đồ lớp, một sơ đồ sequence cho cả luồng, bảng ViewModel ↔ service | Lab 3 §5 | P0 | Thiên | MB-47 |
 | MB-49 | GĐ7 – PRM393 | Nền tảng | Refactor MVVM toàn bộ mobile | Áp mẫu MB-48 cho mọi feature còn lại; widget không gọi API / SDK, không có nghiệp vụ trong `build()`; không đổi hành vi. Mỗi PR một hoặc vài feature, chủ mảng duyệt PR của mảng mình; `flutter analyze` sạch và `flutter test` qua sau mỗi PR. Trong thời gian làm, không mở PR mobile khác | Lab 3 §5, §10 (Architecture 0.75) | P0 | Thiên | MB-48 |
 | MB-50 | GĐ7 – PRM393 | Nền tảng | Crashlytics và Analytics | Service riêng cho mỗi SDK. Crashlytics: bộ xử lý lỗi Flutter, 1 lỗi non-fatal từ luồng lỗi thật, user ID, ≥ 1 custom key. Analytics: `docs/analytics-plan.md` theo Phụ lục A với ≥ 7 sự kiện (đăng nhập, đăng xuất, thao tác chính, xem từng loại màn chi tiết, xuất / tải file, `ai_request`, `ai_result_accepted`, `ai_error`), gắn với bước của luồng F1–F3, có câu hỏi sản phẩm; đặt user ID sau đăng nhập; không có email / tên trong tham số; bằng chứng DebugView từng sự kiện | Lab 3 §6, Phụ lục A | P0 | Thiên | MB-48 |
@@ -70,11 +71,11 @@ Còn dở trước khi đóng băng mobile: **MB-09** (Thành).
 | Mã | Thay đổi |
 |---|---|
 | MB-36 | **Ghi chú:** đã xong; kiểm thử sau refactor MVVM thuộc MB-58 |
-| MB-09 | **Ghi chú:** làm xong trước khi đóng băng mobile; phần push FCM vào A06 làm ở MB-52 |
+| MB-09 | **Ghi chú:** đã xong; phần push FCM vào A06 làm ở MB-52 |
 
 ## Thứ tự nên làm
 
-1. Thành xong MB-09 → **đóng băng `mobile/lib`**.
+1. **Đóng băng `mobile/lib`** (mọi task mobile cũ đã xong).
 2. MB-47 (Firebase + Auth) → MB-48 (mẫu MVVM). MB-57, BE-85 làm song song được.
 3. MB-49 (refactor), song song MB-50, MB-51 (chỉ đụng service mới trong `core/`).
 4. MB-52 + BE-84, MB-53, MB-55 → MB-56, MB-54, FE-46, BE-86.
