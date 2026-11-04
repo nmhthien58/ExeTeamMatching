@@ -7,6 +7,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../suggestions/suggestions_api.dart';
 import 'change_requests_api.dart';
+import 'change_requests_view_model.dart';
 
 const changeRequestListPath = '/sv/yeu-cau-doi-nhom';
 const changeRequestCreatePath = '/sv/yeu-cau-doi-nhom/tao';
@@ -78,32 +79,23 @@ class _RequestList extends StatefulWidget {
 }
 
 class _RequestListState extends State<_RequestList> {
-  String? _status;
-  String? _round;
-
   @override
   Widget build(BuildContext context) {
+    final filter = widget.ref.watch(
+      changeRequestListViewModelProvider(widget.teamId),
+    );
+    final vm = widget.ref.read(
+      changeRequestListViewModelProvider(widget.teamId).notifier,
+    );
     final requests = widget.ref.watch(changeRequestsProvider(widget.teamId));
     return requests.when(
       loading: () => const SkeletonList(),
-      error: (e, _) => ErrorState(
-        error: e,
-        onRetry: () =>
-            widget.ref.invalidate(changeRequestsProvider(widget.teamId)),
-      ),
+      error: (e, _) => ErrorState(error: e, onRetry: vm.refresh),
       data: (items) {
-        final rounds = items.map((item) => item.roundName).toSet().toList()
-          ..sort();
-        final visible = items
-            .where(
-              (item) =>
-                  (_status == null || item.status == _status) &&
-                  (_round == null || item.roundName == _round),
-            )
-            .toList();
+        final rounds = ChangeRequestListViewModel.rounds(items);
+        final visible = vm.visible(items);
         return RefreshIndicator(
-          onRefresh: () async =>
-              widget.ref.invalidate(changeRequestsProvider(widget.teamId)),
+          onRefresh: () async => vm.refresh(),
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.s4),
             children: [
@@ -126,7 +118,7 @@ class _RequestListState extends State<_RequestList> {
                 // isExpanded: tên đợt dài hoặc chữ 130% thì nhãn bị cắt bằng dấu … thay vì tràn (flutter-handoff §5).
                 DropdownButtonFormField<String>(
                   isExpanded: true,
-                  initialValue: _status,
+                  initialValue: filter.status,
                   decoration: const InputDecoration(labelText: 'Trạng thái'),
                   items: const [
                     DropdownMenuItem(
@@ -147,12 +139,12 @@ class _RequestListState extends State<_RequestList> {
                     ),
                     DropdownMenuItem(value: 'CANCELLED', child: Text('Đã hủy')),
                   ],
-                  onChanged: (value) => setState(() => _status = value),
+                  onChanged: vm.filterStatus,
                 ),
                 const SizedBox(height: AppSpacing.s3),
                 DropdownButtonFormField<String>(
                   isExpanded: true,
-                  initialValue: _round,
+                  initialValue: filter.round,
                   decoration: const InputDecoration(labelText: 'Đợt'),
                   items: [
                     const DropdownMenuItem(
@@ -162,7 +154,7 @@ class _RequestListState extends State<_RequestList> {
                     for (final round in rounds)
                       DropdownMenuItem(value: round, child: Text(round, overflow: TextOverflow.ellipsis)),
                   ],
-                  onChanged: (value) => setState(() => _round = value),
+                  onChanged: vm.filterRound,
                 ),
                 const SizedBox(height: AppSpacing.s3),
               ],
@@ -208,10 +200,6 @@ class _CreateChangeRequestScreenState
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _reason = TextEditingController();
-  final _selected = <String>{};
-  String? _error;
-  bool _busy = false;
-  int _step = 0;
 
   @override
   void dispose() {
@@ -221,14 +209,22 @@ class _CreateChangeRequestScreenState
     super.dispose();
   }
 
+  /// ViewModel theo nhóm của người dùng; chỉ dùng khi đã có nhóm.
+  CreateChangeRequestViewModel _vm(TeamDetail team) =>
+      ref.read(createChangeRequestViewModelProvider(team.card.id).notifier);
+
   @override
   Widget build(BuildContext context) {
     final course = ref.watch(myCourseProvider);
     final team = ref.watch(myTeamProvider);
+    final teamId = team.value?.card.id;
+    final step = teamId == null
+        ? 0
+        : ref.watch(createChangeRequestViewModelProvider(teamId)).step;
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _step == 0 ? 'Chọn thay đổi · Bước 1/2' : 'Lý do · Bước 2/2',
+          step == 0 ? 'Chọn thay đổi · Bước 1/2' : 'Lý do · Bước 2/2',
         ),
       ),
       body: course.when(
@@ -294,19 +290,22 @@ class _CreateChangeRequestScreenState
         onRetry: () => ref.invalidate(pendingChangesProvider(team.card.id)),
       ),
       data: (data) =>
-          _step == 0 ? _selectStep(team, data) : _reasonStep(team, data),
+          ref.watch(createChangeRequestViewModelProvider(team.card.id)).step ==
+              0
+          ? _selectStep(team, data)
+          : _reasonStep(team, data),
     );
   }
 
   Widget _selectStep(TeamDetail team, PendingChanges data) {
     final items = data.pendingItems;
-    final projected = _projectedMembers(team, data, _selected);
-    final count = projected.length;
-    final specializationCount = projected.values
-        .map((member) => member.specialization?.id)
-        .whereType<int>()
-        .toSet()
-        .length;
+    final vm = _vm(team);
+    final selected = ref.watch(
+      createChangeRequestViewModelProvider(team.card.id),
+    ).selected;
+    final summary = vm.summary(team, data, _name.text);
+    final count = summary.count;
+    final specializationCount = summary.specializationCount;
     final scheme = Theme.of(context).colorScheme;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
@@ -322,12 +321,8 @@ class _CreateChangeRequestScreenState
         for (final item in items)
           Card.outlined(
             child: CheckboxListTile(
-              value: _selected.contains(item.id),
-              onChanged: (value) => setState(
-                () => value == true
-                    ? _selected.add(item.id)
-                    : _selected.remove(item.id),
-              ),
+              value: selected.contains(item.id),
+              onChanged: (value) => vm.toggle(item.id, value == true),
               title: Text(item.title),
               controlAffinity: ListTileControlAffinity.leading,
             ),
@@ -378,13 +373,7 @@ class _CreateChangeRequestScreenState
           ),
         const SizedBox(height: AppSpacing.s4),
         FilledButton(
-          onPressed:
-              _selected.isEmpty && _name.text.trim().isEmpty ||
-                  count < 4 ||
-                  count > 6 ||
-                  (_name.text.trim().isNotEmpty && _name.text.trim().length < 2)
-              ? null
-              : () => setState(() => _step = 1),
+          onPressed: summary.canContinue ? () => vm.goToStep(1) : null,
           child: const Text('Tiếp tục'),
         ),
         const SizedBox(height: AppSpacing.s2),
@@ -397,15 +386,9 @@ class _CreateChangeRequestScreenState
   }
 
   Widget _reasonStep(TeamDetail team, PendingChanges data) {
-    final memberChangeCount = data.pendingItems
-        .where(
-          (item) =>
-              (item.action == 'ADD' || item.action == 'REMOVE') &&
-              _selected.contains(item.id),
-        )
-        .length;
-    final total = data.baselineMembers.length;
-    final percent = total == 0 ? 0 : (100 * memberChangeCount / total);
+    final vm = _vm(team);
+    final form = ref.watch(createChangeRequestViewModelProvider(team.card.id));
+    final (:memberChangeCount, :percent) = vm.changeRatio(data);
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
@@ -431,9 +414,7 @@ class _CreateChangeRequestScreenState
           'Xem lại thay đổi',
           style: Theme.of(context).textTheme.titleMedium,
         ),
-        for (final item in data.pendingItems.where(
-          (i) => _selected.contains(i.id),
-        ))
+        for (final item in vm.selectedItems(data))
           ListTile(
             leading: const Icon(Icons.change_circle_outlined),
             title: Text(item.title),
@@ -452,18 +433,18 @@ class _CreateChangeRequestScreenState
           decoration: InputDecoration(
             labelText: 'Lý do thay đổi',
             helperText: 'Nhập ít nhất 10 ký tự.',
-            errorText: _error,
+            errorText: form.error,
             border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: AppSpacing.s4),
-        if (_error != null) ErrorBanner(message: _error!),
+        if (form.error != null) ErrorBanner(message: form.error!),
         FilledButton(
-          onPressed: _busy ? null : () => _submit(team, data),
-          child: Text(_busy ? 'Đang gửi…' : 'Gửi yêu cầu đổi nhóm'),
+          onPressed: form.busy ? null : () => _submit(team, data),
+          child: Text(form.busy ? 'Đang gửi…' : 'Gửi yêu cầu đổi nhóm'),
         ),
         TextButton(
-          onPressed: _busy ? null : () => setState(() => _step = 0),
+          onPressed: form.busy ? null : () => vm.goToStep(0),
           child: const Text('Quay lại'),
         ),
       ],
@@ -471,11 +452,8 @@ class _CreateChangeRequestScreenState
   }
 
   Future<void> _submit(TeamDetail team, PendingChanges data) async {
-    final reason = _reason.text.trim();
-    if (reason.length < 10) {
-      setState(() => _error = 'Lý do cần ít nhất 10 ký tự.');
-      return;
-    }
+    final vm = _vm(team);
+    if (!vm.validateReason(_reason.text)) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -496,46 +474,14 @@ class _CreateChangeRequestScreenState
       ),
     );
     if (confirmed != true || !mounted) return;
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      final api = ref.read(changeRequestsApiProvider);
-      final itemIds = [..._selected];
-      if (_name.text.trim().isNotEmpty) {
-        final oldProjectIds = data.pendingItems
-            .where((item) => item.action == 'PROJECT_CHANGE')
-            .map((item) => item.id)
-            .toSet();
-        itemIds.removeWhere(oldProjectIds.contains);
-        final projectChange = await api.setProjectChange(
-          team.card.id,
-          name: _name.text.trim(),
-          description: _description.text,
-        );
-        if (!itemIds.contains(projectChange.id)) {
-          itemIds.add(projectChange.id);
-        }
-      }
-      final request = await api.create(
-        team.card.id,
-        itemIds: itemIds,
-        reason: reason,
-      );
-      ref.invalidate(changeRequestsProvider(team.card.id));
-      if (mounted) {
-        context.go(changeRequestDetailPath(request.id));
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(
-          () =>
-              _error = 'Không gửi được yêu cầu. Nội dung đã nhập được giữ lại.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
+    final outcome = await vm.submit(
+      data,
+      projectName: _name.text,
+      projectDescription: _description.text,
+      reason: _reason.text,
+    );
+    if (outcome case ChangeRequestCreated(:final requestId) when mounted) {
+      context.go(changeRequestDetailPath(requestId));
     }
   }
 }
@@ -754,18 +700,3 @@ String _date(DateTime value) {
   return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
 }
 
-Map<String, StudentRef> _projectedMembers(
-  TeamDetail team,
-  PendingChanges data,
-  Set<String> selected,
-) {
-  final members = {for (final member in team.members) member.id: member};
-  for (final item in data.pendingItems) {
-    if (!selected.contains(item.id)) continue;
-    final student = item.student;
-    if (student == null) continue;
-    if (item.action == 'ADD') members[student.id] = student;
-    if (item.action == 'REMOVE') members.remove(student.id);
-  }
-  return members;
-}
