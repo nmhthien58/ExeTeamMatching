@@ -6,7 +6,9 @@ Tạo qua Firebase vì khi bật nhà cung cấp Google trong Firebase Authentic
 - Web client "Web client (auto created by Google Service)";
 - màn hình đồng ý ở trạng thái **In production** với các quyền cơ bản (`openid`, `email`, `profile`). Các quyền này không nhạy cảm nên không cần Google xác minh.
 
-Hệ thống **không dùng Firebase Auth SDK** để đăng nhập. Client lấy Google ID token, gửi lên `POST /api/auth/google`, và Identity Service tự kiểm tra token rồi cấp JWT của hệ thống (xem `docs/contracts/openapi/identity.yaml`). Firebase chỉ dùng để tạo OAuth client cho nhanh.
+Phiên đăng nhập của hệ thống vẫn là **JWT do Identity cấp**: client lấy Google ID token, gửi lên `POST /api/auth/google`, Identity Service tự kiểm tra token rồi cấp JWT (xem `docs/contracts/openapi/identity.yaml`). Web chỉ dùng Firebase để tạo OAuth client.
+
+**Mobile (từ MB-47, 04/11/2026)** dùng thêm Firebase SDK theo yêu cầu PRM393 Lab 3: cùng Google ID token đó được dùng để `signInWithCredential` vào **Firebase Authentication** trước khi gọi Identity, nên người dùng mobile hiện trong Firebase Console → Authentication → Users. Identity từ chối (ví dụ `not-in-list`) thì app đăng xuất Firebase ngay. Đăng xuất trong app đăng xuất cả Firebase, Google và Identity. Mobile cũng bật **App Check** (debug provider ở bản debug).
 
 ## 1. Tạo project và bật đăng nhập Google (Thiên làm một lần)
 
@@ -44,7 +46,7 @@ Thêm SHA-1 xong, Google tự tạo OAuth client loại Android. Nếu thiếu S
 > **Đã điền (20/10/2026)** – project Firebase của nhóm, Web client ID `221888974127-ho8c6t3rqct6f7r5o2e8gott7i8lrd7s.apps.googleusercontent.com`:
 > `web/.env.example` (sao chép thành `web/.env.local`), giá trị mặc định `GOOGLE_SERVER_CLIENT_ID` trong `mobile/lib/core/config/env.dart`,
 > `Google:ClientId` trong `backend/Services/Identity/Identity.Api/appsettings.json`. Thành viên khác chỉ cần nhờ Thiên thêm **SHA-1 máy mình** vào app Android trong Firebase.
-> Không cần `google-services.json` và không cần thêm plugin Gradle của Firebase (hệ thống không dùng Firebase SDK).
+> Mobile (MB-47): `mobile/android/app/google-services.json` và `mobile/lib/firebase_options.dart` do `flutterfire configure --project=exe-team-matching --platforms=android` tạo và **được commit** (Lab 3 cho phép; quyền truy cập do Security Rules và App Check quyết định). Gradle có thêm plugin `com.google.gms.google-services`.
 
 Client ID không phải bí mật, nhưng vẫn để trong file môi trường để mỗi máy tự đặt.
 
@@ -92,3 +94,10 @@ Swagger của Identity (Development): http://localhost:5001/swagger, nhóm **Dev
 | Identity trả 401 `invalid-token` | ID token sai, hết hạn, `aud` khác `Google:ClientId`, hoặc email Google chưa xác minh |
 | Identity trả 403 `wrong-client` | Tài khoản chỉ có vai trò Admin đăng nhập bằng mobile (Admin chỉ dùng web) |
 | `/api/auth/refresh` trả 401 `invalid-refresh-token` | Refresh token đã dùng (rotation), đã đăng xuất hoặc hết hạn. Dùng lại token cũ sẽ thu hồi mọi phiên của tài khoản → đăng nhập lại |
+
+## 7. App Check trên mobile (MB-47)
+
+- Bản debug dùng **debug provider**: lần chạy đầu, logcat (`adb logcat | grep DebugAppCheckProvider`) in dòng `Firebase App Check debug token: <token>`. Đăng ký token ở Firebase Console → **App Check** → app Android → **Manage debug tokens**, hoặc `firebase appcheck:debugtokens:create <token> --project exe-team-matching --app 1:221888974127:android:46dffe346bb217ef3165da`. Mỗi máy / emulator một token; token là bí mật, không commit, xóa khi không dùng nữa.
+- Chạy trên điện thoại thật với backend Docker trên máy tính: `adb reverse tcp:8080 tcp:8080` rồi `flutter run --dart-define=API_BASE_URL=http://localhost:8080`.
+- APK demo cài tay không qua Google Play nên Play Integrity không nhận: build bằng `flutter build apk --dart-define=APP_CHECK_DEBUG=true` và đăng ký token của thiết bị demo như trên.
+- Chưa bật **Enforce** cho dịch vụ nào. Bật khi dùng Firebase AI Logic (MB-55).

@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../core/auth/firebase_auth_service.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../shared/widgets/app_logo.dart';
 import '../../shared/widgets/states.dart';
 
 /// A03 – Đăng nhập Google (flutter-handoff mục 4, F1). Email không có trong danh sách → A04.
@@ -28,12 +30,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      // null = người dùng hủy chọn tài khoản: về trạng thái mặc định, không báo lỗi.
-      await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      // null = người dùng hủy chọn tài khoản: về trạng thái mặc định, báo nhẹ bằng SnackBar (Lab 3 §6).
+      final user = await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      if (user == null) _showCancelled();
     } on PlatformException catch (e) {
       // Lỗi từ Google Sign-In (không phải từ Identity).
-      if (!mounted || e.code == GoogleSignIn.kSignInCanceledError) return;
+      if (!mounted) return;
+      if (e.code == GoogleSignIn.kSignInCanceledError) {
+        _showCancelled();
+        return;
+      }
       setState(() => _error = e.code == GoogleSignIn.kNetworkError
+          ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
+          : 'Không đăng nhập được với Google. Thử lại sau.');
+    } on SignInFailure catch (e) {
+      // Firebase Authentication từ chối credential hoặc mất mạng.
+      if (!mounted) return;
+      setState(() => _error = e.isNetwork
           ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
           : 'Không đăng nhập được với Google. Thử lại sau.');
     } catch (e) {
@@ -50,6 +63,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showCancelled() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Bạn đã hủy đăng nhập. Bấm "Đăng nhập với Google" để thử lại.')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -61,12 +81,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(),
-              Container(
-                width: 56,
-                height: 6,
-                decoration: BoxDecoration(color: context.appColors.brandOrange, borderRadius: BorderRadius.circular(AppRadius.full)),
-                alignment: Alignment.centerLeft,
-              ),
+              // flutter-handoff A03: logo và tên ứng dụng ở nửa trên.
+              const Align(alignment: Alignment.centerLeft, child: AppLogo()),
               const SizedBox(height: AppSpacing.s6),
               Text('EXE Team Matching', style: theme.textTheme.headlineSmall),
               const SizedBox(height: AppSpacing.s2),
@@ -74,7 +90,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               const Spacer(),
               if (_error != null) ...[ErrorBanner(message: _error!, onRetry: _signIn), const SizedBox(height: AppSpacing.s4)],
-              LoadingButton(label: 'Đăng nhập với Google', loading: _pending, onPressed: _signIn),
+              LoadingButton(
+                label: 'Đăng nhập với Google',
+                loading: _pending,
+                onPressed: _signIn,
+                // Logo G chính thức của Google trên nền tròn trắng (Sign in with Google branding guidelines).
+                leading: Image.asset('assets/images/google_g.png', width: 28, height: 28, excludeFromSemantics: true),
+              ),
               const SizedBox(height: AppSpacing.s3),
               Text('Dùng email đã đăng ký với bộ môn.',
                   textAlign: TextAlign.center,

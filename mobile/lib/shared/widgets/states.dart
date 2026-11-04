@@ -173,21 +173,37 @@ class SkeletonList extends StatelessWidget {
 
 /// Nút chính khi đang gửi: vòng xoay 20 px thay chữ, giữ chiều rộng, khóa bấm lần hai (DESIGN.md 6.1).
 class LoadingButton extends StatelessWidget {
-  const LoadingButton({super.key, required this.label, required this.onPressed, this.loading = false, this.expand = true});
+  const LoadingButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+    this.expand = true,
+    this.leading,
+  });
 
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
   final bool expand;
 
+  /// Icon đứng trước nhãn (ví dụ logo Google ở A03); ẩn cùng nhãn khi đang gửi.
+  final Widget? leading;
+
   @override
   Widget build(BuildContext context) {
+    final content = leading == null
+        ? Text(label)
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [leading!, const SizedBox(width: AppSpacing.s3), Flexible(child: Text(label))],
+          );
     final button = FilledButton(
       onPressed: loading ? null : onPressed,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Opacity(opacity: loading ? 0 : 1, child: Text(label)),
+          Opacity(opacity: loading ? 0 : 1, child: content),
           if (loading)
             SizedBox.square(
               dimension: 20,
