@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'notifications_api.dart';
+import 'notifications_view_model.dart';
 
 /// Biểu tượng A06 cho NavigationDestination: tự cập nhật badge khi ứng dụng đang mở.
 class NotificationTabIcon extends ConsumerStatefulWidget {
@@ -18,7 +18,6 @@ class NotificationTabIcon extends ConsumerStatefulWidget {
 
 class _NotificationTabIconState extends ConsumerState<NotificationTabIcon> {
   Timer? _poll;
-  int _count = 0;
 
   @override
   void initState() {
@@ -28,12 +27,7 @@ class _NotificationTabIconState extends ConsumerState<NotificationTabIcon> {
   }
 
   Future<void> _load() async {
-    try {
-      final count = await ref.read(notificationsApiProvider).unreadCount();
-      if (mounted) setState(() => _count = count);
-    } catch (_) {
-      // Giữ badge gần nhất; màn A06 hiển thị lỗi và nút thử lại.
-    }
+    if (mounted) await ref.read(unreadCountViewModelProvider.notifier).load();
   }
 
   @override
@@ -43,9 +37,12 @@ class _NotificationTabIconState extends ConsumerState<NotificationTabIcon> {
   }
 
   @override
-  Widget build(BuildContext context) => Badge.count(
-    count: _count > 99 ? 99 : _count,
-    isLabelVisible: _count > 0,
-    child: Icon(widget.icon),
-  );
+  Widget build(BuildContext context) {
+    final count = ref.watch(unreadCountViewModelProvider);
+    return Badge.count(
+      count: count > 99 ? 99 : count,
+      isLabelVisible: count > 0,
+      child: Icon(widget.icon),
+    );
+  }
 }
