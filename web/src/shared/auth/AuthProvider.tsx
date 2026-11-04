@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/apiClient'
 import { tokenStore, type Role, type TokenResponse, type UserInfo } from '@/shared/api/tokenStore'
+import { analytics } from '@/shared/firebase/analytics'
 
 interface AuthContextValue {
   user: UserInfo | null
@@ -22,6 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = useCallback(async (idToken: string) => {
     const { data } = await api.post<TokenResponse>('/api/auth/google', { idToken, client: 'web' })
     tokenStore.save(data)
+    // FE-46: id nội bộ, không email.
+    void analytics.setUserId(data.user.id)
+    void analytics.logLogin()
     return data.user
   }, [])
 
@@ -34,6 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     tokenStore.clear()
     queryClient.clear()
+    void analytics.logLogout()
+    void analytics.setUserId(null)
   }, [queryClient])
 
   const value = useMemo<AuthContextValue>(

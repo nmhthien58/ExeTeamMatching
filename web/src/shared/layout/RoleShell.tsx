@@ -9,6 +9,7 @@ import { Logo } from './AdminLayout'
 import { roleNav, type NavItem } from './navigation'
 import { PageHeaderProvider, usePageHeaderState } from './PageHeader'
 import { NotificationNavIcon } from '@/features/notifications/NotificationNavIcon'
+import { RemoteNotice } from '@/shared/firebase/RemoteNotice'
 
 type Layout = 'tabbar' | 'rail' | 'sidebar'
 
@@ -59,6 +60,7 @@ export function RoleShell({ shell }: { shell: Exclude<Shell, 'admin'> }) {
               mode === 'tabbar' && 'pb-24',
             )}
           >
+            <RemoteNotice />
             <Outlet />
           </main>
         </div>
