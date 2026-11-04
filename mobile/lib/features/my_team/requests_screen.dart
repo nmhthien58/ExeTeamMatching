@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/workspace_widgets.dart';
 import 'my_team_api.dart';
+import 'requests_view_model.dart';
 
 /// S20 – Yêu cầu tham gia và lời mời đã gửi (MB-24, trưởng nhóm). Tab 1: yêu cầu kèm ý tưởng hoặc "Chưa có ý tưởng" (quy tắc 17),
 /// Nhận / Từ chối. Tab 2: lời mời đã gửi, thu hồi khi còn chờ.
@@ -34,58 +34,34 @@ class RequestsScreen extends ConsumerWidget {
   }
 }
 
-class _JoinRequests extends ConsumerStatefulWidget {
+class _JoinRequests extends ConsumerWidget {
   const _JoinRequests({required this.team});
 
   final MyTeam team;
 
   @override
-  ConsumerState<_JoinRequests> createState() => _JoinRequestsState();
-}
-
-class _JoinRequestsState extends ConsumerState<_JoinRequests> {
-  String? _busyId;
-  String? _error;
-
-  Future<void> _decide(JoinRequestItem request, bool accept) async {
-    setState(() {
-      _busyId = request.id;
-      _error = null;
-    });
-    final api = ref.read(myTeamApiProvider);
-    try {
-      String message;
-      if (accept) {
-        final applied = (await api.acceptJoinRequest(request.id)).applied;
-        message = applied ? 'Đã nhận ${request.student.fullName}' : 'Đã ghi nhận, chờ Bộ môn duyệt';
-      } else {
-        await api.declineJoinRequest(request.id);
-        message = 'Đã từ chối';
-      }
-      if (!mounted) return;
-      ref.invalidate(joinRequestsProvider(widget.team.id));
-      refreshMyTeam(ref);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.detail ?? e.title);
-    } finally {
-      if (mounted) setState(() => _busyId = null);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final requests = ref.watch(joinRequestsProvider(widget.team.id));
+    final vm = ref.read(joinRequestsViewModelProvider(team.id).notifier);
+    final state = ref.watch(joinRequestsViewModelProvider(team.id));
+    final busyId = state.busyId;
+    final requests = ref.watch(joinRequestsProvider(team.id));
+    Future<void> decide(JoinRequestItem request, bool accept) async {
+      final outcome = await vm.decide(request, accept: accept);
+      if (outcome case DecisionDone(:final message) when context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
+    }
+
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(joinRequestsProvider(widget.team.id)),
+      onRefresh: () async => vm.refresh(),
       child: requests.when(
         loading: () => const SkeletonList(),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(joinRequestsProvider(widget.team.id))),
+        error: (e, _) => ErrorState(error: e, onRetry: vm.refresh),
         data: (items) => ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
-            if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+            if (state.error != null) ...[ErrorBanner(message: state.error!), const SizedBox(height: AppSpacing.s3)],
             if (items.isEmpty)
               const EmptyState(icon: Icons.inbox_outlined, title: 'Chưa có yêu cầu', description: 'Yêu cầu tham gia sẽ hiện ở đây.'),
             for (final r in items)
@@ -115,12 +91,12 @@ class _JoinRequestsState extends ConsumerState<_JoinRequests> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          TextButton(onPressed: _busyId == null ? () => _decide(r, false) : null, child: const Text('Từ chối')),
+                          TextButton(onPressed: busyId == null ? () => decide(r, false) : null, child: const Text('Từ chối')),
                           const SizedBox(width: AppSpacing.s2),
-                          if (widget.team.isFull)
+                          if (team.isFull)
                             const Text('Nhóm đã đủ')
                           else
-                            LoadingButton(label: 'Nhận', expand: false, loading: _busyId == r.id, onPressed: _busyId == null ? () => _decide(r, true) : null),
+                            LoadingButton(label: 'Nhận', expand: false, loading: busyId == r.id, onPressed: busyId == null ? () => decide(r, true) : null),
                         ],
                       ),
                     ],
@@ -134,29 +110,10 @@ class _JoinRequestsState extends ConsumerState<_JoinRequests> {
   }
 }
 
-class _SentInvitations extends ConsumerStatefulWidget {
+class _SentInvitations extends ConsumerWidget {
   const _SentInvitations({required this.team});
 
   final MyTeam team;
-
-  @override
-  ConsumerState<_SentInvitations> createState() => _SentInvitationsState();
-}
-
-class _SentInvitationsState extends ConsumerState<_SentInvitations> {
-  String? _error;
-
-  MyTeam get team => widget.team;
-
-  Future<void> _cancel(SentInvitation invitation) async {
-    try {
-      await ref.read(myTeamApiProvider).cancelInvitation(invitation.id);
-      setState(() => _error = null);
-    } on ApiException catch (e) {
-      setState(() => _error = e.detail ?? e.title);
-    }
-    ref.invalidate(sentInvitationsProvider(team.id));
-  }
 
   static (String, StatusTone) _status(String s) => switch (s) {
         'PENDING' => ('Đang chờ', StatusTone.warning),
@@ -167,19 +124,21 @@ class _SentInvitationsState extends ConsumerState<_SentInvitations> {
       };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vm = ref.read(sentInvitationsViewModelProvider(team.id).notifier);
+    final error = ref.watch(sentInvitationsViewModelProvider(team.id));
     final invitations = ref.watch(sentInvitationsProvider(team.id));
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(sentInvitationsProvider(team.id)),
+      onRefresh: () async => vm.refresh(),
       child: invitations.when(
         loading: () => const SkeletonList(),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(sentInvitationsProvider(team.id))),
+        error: (e, _) => ErrorState(error: e, onRetry: vm.refresh),
         data: (items) => items.isEmpty
             ? ListView(children: const [EmptyState(icon: Icons.outgoing_mail, title: 'Chưa gửi lời mời nào')])
             : ListView(
                 padding: const EdgeInsets.all(AppSpacing.s4),
                 children: [
-                  if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+                  if (error != null) ...[ErrorBanner(message: error), const SizedBox(height: AppSpacing.s3)],
                   for (final i in items)
                     Card.outlined(
                       margin: const EdgeInsets.only(bottom: AppSpacing.s3),
@@ -194,7 +153,7 @@ class _SentInvitationsState extends ConsumerState<_SentInvitations> {
                               IconButton(
                                 tooltip: 'Thu hồi lời mời',
                                 icon: const Icon(Icons.undo),
-                                onPressed: () => _cancel(i),
+                                onPressed: () => vm.cancel(i),
                               ),
                           ],
                         ),
