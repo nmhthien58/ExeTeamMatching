@@ -93,7 +93,8 @@ export function MeetingsPage() {
   )
 }
 
-function MeetingRow({ meeting: m, onOpen }: { meeting: MeetingCard; onOpen: () => void }) {
+/** Một dòng cuộc họp; `showTeam` hiện tên nhóm khi gom nhiều nhóm (lịch của giảng viên). */
+export function MeetingRow({ meeting: m, onOpen, showTeam = false }: { meeting: MeetingCard; onOpen: () => void; showTeam?: boolean }) {
   return (
     <button
       type="button"
@@ -101,7 +102,7 @@ function MeetingRow({ meeting: m, onOpen }: { meeting: MeetingCard; onOpen: () =
       className="flex w-full flex-wrap items-center gap-3 rounded-lg bg-surface p-4 text-left shadow-elevation-1 hover:bg-background"
     >
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="font-medium">{m.title}</span>
+        <span className="font-medium">{showTeam ? `${m.teamName} · ${m.title}` : m.title}</span>
         <span className="text-caption text-text-secondary">
           {m.startsAt ? formatDateTime(m.startsAt) : `${m.slotCount} khung giờ đề xuất`} · {m.organizer.displayName}
           {m.location ? ` · ${m.location}` : ''}
