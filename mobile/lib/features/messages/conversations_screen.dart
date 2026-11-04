@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_tokens.dart';
+import '../../core/view_state.dart';
 import '../../shared/widgets/states.dart';
 import '../realtime/collab_hub.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart' show currentWorkspaceProvider, myWorkspacesProvider;
+import '../workspace/workspace_api.dart' show currentWorkspaceProvider;
+import 'conversations_view_model.dart';
 import 'messages_api.dart';
 
 /// C02 của sinh viên trong dự án (MB-39): kênh Nhóm và Cố vấn của nhóm mình → C03. Cố vấn mở từ dự án của nhóm cũng dùng màn này
@@ -40,36 +42,21 @@ class ConversationsScreen extends ConsumerWidget {
 
 /// C02 của giảng viên / mentor – tab Tin nhắn (MB-39): một dòng kênh Cố vấn cho mỗi nhóm, sắp theo tin mới nhất,
 /// lọc "Tất cả / Cần trả lời", số chưa đọc.
-class AdvisorConversationsScreen extends ConsumerStatefulWidget {
+class AdvisorConversationsScreen extends ConsumerWidget {
   const AdvisorConversationsScreen({super.key, required this.basePath});
 
   /// `/gv/tin-nhan` hoặc `/mentor/tin-nhan`.
   final String basePath;
 
   @override
-  ConsumerState<AdvisorConversationsScreen> createState() => _AdvisorConversationsScreenState();
-}
-
-class _AdvisorConversationsScreenState extends ConsumerState<AdvisorConversationsScreen> {
-  bool _needsReplyOnly = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final workspaces = ref.watch(myWorkspacesProvider);
-    final waiting = ref.watch(openQuestionChannelsProvider).value ?? const <String>{};
-    return workspaces.when(
-      loading: () => const SkeletonList(),
-      error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(myWorkspacesProvider)),
-      data: (list) {
-        final teamName = {for (final w in list) w.id: w.teamName};
-        final perWorkspace = [for (final w in list) ref.watch(channelsProvider(w.id))];
-        final error = perWorkspace.where((c) => c.hasError).firstOrNull?.error;
-        final loading = perWorkspace.any((c) => c.isLoading);
-        final channels = [
-          for (final c in perWorkspace) ...?c.value,
-        ].where((c) => !_needsReplyOnly || waiting.contains(c.id)).toList()
-          ..sort((a, b) => (b.lastMessage?.createdAt ?? DateTime(0)).compareTo(a.lastMessage?.createdAt ?? DateTime(0)));
-        return Column(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vm = ref.read(advisorConversationsViewModelProvider.notifier);
+    final state = ref.watch(advisorConversationsViewModelProvider);
+    final waiting = state.waiting;
+    return switch (state.inbox) {
+      ViewLoading() || ViewEmpty() => const SkeletonList(),
+      ViewError(:final error) => ErrorState(error: error, onRetry: vm.retry),
+      ViewData(value: final inbox) => Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s3, AppSpacing.s4, 0),
@@ -78,33 +65,27 @@ class _AdvisorConversationsScreenState extends ConsumerState<AdvisorConversation
                   const ButtonSegment(value: false, label: Text('Tất cả')),
                   ButtonSegment(value: true, label: Text(waiting.isEmpty ? 'Cần trả lời' : 'Cần trả lời (${waiting.length})')),
                 ],
-                selected: {_needsReplyOnly},
-                onSelectionChanged: (s) => setState(() => _needsReplyOnly = s.first),
+                selected: {state.needsReplyOnly},
+                onSelectionChanged: (s) => vm.setNeedsReplyOnly(s.first),
               ),
             ),
             Expanded(
-              child: error != null
-                  ? ErrorState(error: error, onRetry: () => ref.invalidate(myWorkspacesProvider))
-                  : loading
-                      ? const SkeletonList()
-                      : _ChannelList(
-                          channels: AsyncData(channels),
-                          emptyTitle: _needsReplyOnly ? 'Không còn câu hỏi chờ trả lời' : 'Bạn chưa được ghép với nhóm nào',
-                          waiting: waiting,
-                          onRefresh: () async {
-                            ref.invalidate(openQuestionChannelsProvider);
-                            for (final w in list) {
-                              ref.invalidate(channelsProvider(w.id));
-                            }
-                          },
-                          titleOf: (c) => '${teamName[c.workspaceId] ?? 'Nhóm'} · ${c.label}',
-                          onOpen: (c) => context.push('${widget.basePath}/${c.id}?ws=${c.workspaceId}'),
-                        ),
+              child: switch (inbox.channels) {
+                ViewError(:final error) => ErrorState(error: error, onRetry: vm.retry),
+                ViewLoading() => const SkeletonList(),
+                ViewEmpty() || ViewData() => _ChannelList(
+                    channels: AsyncData(inbox.channels.valueOrNull ?? const []),
+                    emptyTitle: state.emptyTitle,
+                    waiting: waiting,
+                    onRefresh: vm.refresh,
+                    titleOf: inbox.titleOf,
+                    onOpen: (c) => context.push('$basePath/${c.id}?ws=${c.workspaceId}'),
+                  ),
+              },
             ),
           ],
-        );
-      },
-    );
+        ),
+    };
   }
 }
 
