@@ -9,6 +9,7 @@ import '../lecturer/lecturer_home_api.dart';
 import '../lecturer/lecturer_home_models.dart';
 import '../my_team/team_advisors.dart';
 import '../workspace/workspace_widgets.dart';
+import 'mentor_home_view_model.dart';
 
 class MentorHomeScreen extends ConsumerStatefulWidget {
   const MentorHomeScreen({super.key});
@@ -18,33 +19,11 @@ class MentorHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
-  bool _editingPreferred = false;
-  int _preferredTeams = 1;
-  bool _saving = false;
-  String? _saveError;
-
-  Future<void> _savePreferred(MentorProfile profile) async {
-    setState(() {
-      _saving = true;
-      _saveError = null;
-    });
-    try {
-      await ref
-          .read(lecturerHomeApiProvider)
-          .savePreferredTeams(_preferredTeams);
-      ref.invalidate(mentorProfileProvider);
-      if (mounted) setState(() => _editingPreferred = false);
-    } catch (_) {
-      if (mounted) {
-        setState(() => _saveError = 'Không thể lưu số nhóm mong muốn.');
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
+  MentorHomeViewModel get _vm => ref.read(mentorHomeViewModelProvider.notifier);
 
   @override
   Widget build(BuildContext context) {
+    final edit = ref.watch(mentorHomeViewModelProvider);
     final profile = ref.watch(mentorProfileProvider);
     final teams = ref.watch(mentorTeamsMeProvider);
     final workspaces = ref.watch(advisorWorkspacesProvider);
@@ -55,17 +34,7 @@ class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Trang chủ mentor')),
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(mentorProfileProvider);
-          ref.invalidate(mentorTeamsMeProvider);
-          ref.invalidate(advisorWorkspacesProvider);
-          ref.invalidate(advisorOpenQuestionCountProvider);
-          ref.invalidate(advisorTopicRecommendationsProvider('MENTOR'));
-          await Future.wait([
-            ref.read(mentorProfileProvider.future),
-            ref.read(mentorTeamsMeProvider.future),
-          ]);
-        },
+        onRefresh: _vm.refresh,
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
@@ -91,18 +60,14 @@ class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
                         'mong muốn ${value.preferredTeams ?? value.maxTeams} · '
                         'tối đa ${value.maxTeams}',
                       ),
-                      if (_saveError != null) ...[
+                      if (edit.saveError != null) ...[
                         const SizedBox(height: AppSpacing.s2),
-                        ErrorBanner(message: _saveError!),
+                        ErrorBanner(message: edit.saveError!),
                       ],
                       const SizedBox(height: AppSpacing.s2),
-                      if (!_editingPreferred)
+                      if (!edit.editing)
                         TextButton.icon(
-                          onPressed: () => setState(() {
-                            _preferredTeams =
-                                value.preferredTeams ?? value.maxTeams;
-                            _editingPreferred = true;
-                          }),
+                          onPressed: () => _vm.startEdit(value),
                           icon: const Icon(Icons.edit_outlined),
                           label: const Text('Sửa số nhóm mong muốn'),
                         )
@@ -112,7 +77,7 @@ class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<int>(
-                                initialValue: _preferredTeams,
+                                initialValue: edit.preferredTeams,
                                 decoration: const InputDecoration(
                                   labelText: 'Số nhóm mong muốn',
                                 ),
@@ -127,20 +92,13 @@ class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
                                       child: Text('$count'),
                                     ),
                                 ],
-                                onChanged: _saving
-                                    ? null
-                                    : (selected) => setState(
-                                        () => _preferredTeams =
-                                            selected ?? _preferredTeams,
-                                      ),
+                                onChanged: edit.saving ? null : _vm.choose,
                               ),
                             ),
                             const SizedBox(width: AppSpacing.s2),
                             FilledButton(
-                              onPressed: _saving
-                                  ? null
-                                  : () => _savePreferred(value),
-                              child: _saving
+                              onPressed: edit.saving ? null : _vm.save,
+                              child: edit.saving
                                   ? const SizedBox.square(
                                       dimension: 20,
                                       child: CircularProgressIndicator(
@@ -151,11 +109,7 @@ class _MentorHomeScreenState extends ConsumerState<MentorHomeScreen> {
                             ),
                             IconButton(
                               tooltip: 'Hủy',
-                              onPressed: _saving
-                                  ? null
-                                  : () => setState(
-                                      () => _editingPreferred = false,
-                                    ),
+                              onPressed: edit.saving ? null : _vm.cancelEdit,
                               icon: const Icon(Icons.close),
                             ),
                           ],
@@ -243,51 +197,20 @@ class _MentoringWindowContent extends ConsumerWidget {
           onRetry: () => ref.invalidate(advisorWorkspacesProvider),
         ),
         data: (workspaceItems) {
-          final activities = <AdvisorTeamActivity>[];
-          var activityLoading = false;
-          Object? activityError;
-          for (final workspace in workspaceItems) {
-            final value = ref.watch(
-              advisorTeamActivityProvider((
-                workspace: workspace,
-                includeTasks: false,
-                includeSchedule: false,
-              )),
-            );
-            activityLoading |= value.isLoading;
-            activityError ??= value.error;
-            if (value.value != null) activities.add(value.value!);
-          }
-          final now = DateTime.now();
-          final upcomingMeetings = activities
-              .expand((value) => value.meetings.items)
-              .where(
-                (meeting) =>
-                    meeting.startsAt?.isAfter(now) == true &&
-                    meeting.status.name == 'scheduled',
-              )
-              .length;
-          final pendingSchedules = activities
-              .expand((value) => value.meetings.items)
-              .where((meeting) => meeting.status.name == 'proposed')
-              .length;
+          final summary = ref.watch(mentorActivitySummaryProvider);
+          final activityLoading = summary.loading;
+          final activityError = summary.error;
+          final upcomingMeetings = summary.upcomingMeetings;
+          final pendingSchedules = summary.pendingSchedules;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (activityError != null)
                 ErrorBanner(
                   message: 'Chưa tải được số liệu lịch họp.',
-                  onRetry: () {
-                    for (final workspace in workspaceItems) {
-                      ref.invalidate(
-                        advisorTeamActivityProvider((
-                          workspace: workspace,
-                          includeTasks: false,
-                          includeSchedule: false,
-                        )),
-                      );
-                    }
-                  },
+                  onRetry: ref
+                      .read(mentorHomeViewModelProvider.notifier)
+                      .retryActivities,
                 )
               else
                 Row(
@@ -329,12 +252,8 @@ class _MentoringWindowContent extends ConsumerWidget {
               for (final team in teamItems) ...[
                 _MentorTeamCard(
                   team: team,
-                  workspace: workspaceItems
-                      .where((item) => item.teamId == team.teamId)
-                      .firstOrNull,
-                  activity: activities
-                      .where((item) => item.workspace.teamId == team.teamId)
-                      .firstOrNull,
+                  workspace: workspaceOfTeam(workspaceItems, team.teamId),
+                  activity: summary.activityOf(team.teamId),
                 ),
                 const SizedBox(height: AppSpacing.s3),
               ],
