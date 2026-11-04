@@ -20,7 +20,10 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final home = ref.watch(homeProvider);
-    return RefreshIndicator(
+    // S01 không có AppBar: SafeArea để lời chào không nằm dưới thanh trạng thái (tai thỏ, camera đục lỗ).
+    return SafeArea(
+      bottom: false,
+      child: RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(homeProvider);
         ref.invalidate(teamsForMeProvider);
@@ -29,6 +32,7 @@ class HomeScreen extends ConsumerWidget {
         loading: () => const SkeletonList(),
         error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(homeProvider)),
         data: (h) => _Home(home: h),
+      ),
       ),
     );
   }

@@ -6,7 +6,9 @@ import '../../shared/widgets/states.dart';
 import 'profile_api.dart';
 
 /// Thanh kéo 1–5 (flutter-handoff.md mục 2): [value] null = "Chưa đánh giá"; chạm vào thanh mới tính là đã đánh giá.
-class SkillSlider extends StatelessWidget {
+/// Khi kéo, nút đi liền theo ngón tay (không nhảy theo nấc), thả tay mới làm tròn về 1–5. Lúc không kéo vẫn có
+/// `divisions` để TalkBack tăng / giảm từng nấc.
+class SkillSlider extends StatefulWidget {
   const SkillSlider({super.key, required this.label, required this.value, required this.onChanged});
 
   final String label;
@@ -14,14 +16,22 @@ class SkillSlider extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   @override
+  State<SkillSlider> createState() => _SkillSliderState();
+}
+
+class _SkillSliderState extends State<SkillSlider> {
+  double? _drag;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final value = _drag?.round() ?? widget.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+            Expanded(child: Text(widget.label, style: theme.textTheme.bodyMedium)),
             Text(
               value == null ? 'Chưa đánh giá' : '$value/5',
               style: theme.textTheme.bodySmall?.copyWith(color: value == null ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.primary),
@@ -31,13 +41,19 @@ class SkillSlider extends StatelessWidget {
         Slider(
           min: 1,
           max: 5,
-          divisions: 4,
-          value: (value ?? 1).toDouble(),
-          label: value == null ? null : '$value',
+          divisions: _drag == null ? 4 : null,
+          value: _drag ?? (widget.value ?? 1).toDouble(),
           // Chưa đánh giá: thanh nhạt để người dùng thấy cần chạm.
           activeColor: value == null ? context.appColors.neutralContainer : null,
-          semanticFormatterCallback: (v) => value == null ? '$label, chưa đánh giá' : '$label, ${v.round()} trên 5',
-          onChanged: (v) => onChanged(v.round()),
+          semanticFormatterCallback: (v) => value == null ? '${widget.label}, chưa đánh giá' : '${widget.label}, ${v.round()} trên 5',
+          onChanged: (v) {
+            setState(() => _drag = v);
+            if (v.round() != widget.value) widget.onChanged(v.round());
+          },
+          onChangeEnd: (v) {
+            setState(() => _drag = null);
+            widget.onChanged(v.round());
+          },
         ),
       ],
     );
