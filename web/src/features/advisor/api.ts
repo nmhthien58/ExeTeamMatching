@@ -193,7 +193,8 @@ export function useAdvisorDomains(kind: AdvisorKind) {
 }
 
 export function useAdvisorQuestions() {
-  return useQuery({ queryKey: ['advisor', 'questions', 'OPEN'], queryFn: async () =>
+  // Key riêng: `useOpenQuestions` của tin nhắn lưu danh sách ở ['advisor', 'questions', 'OPEN'], còn đây chỉ lưu con số.
+  return useQuery({ queryKey: ['advisor', 'questions', 'OPEN', 'count'], queryFn: async () =>
     (await api.get<{ totalCount: number }>('/api/advisor/questions', { params: { status: 'OPEN', page: 1, pageSize: 1 } })).data.totalCount })
 }
 
