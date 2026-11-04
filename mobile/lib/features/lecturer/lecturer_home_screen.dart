@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/phase.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'lecturer_home_api.dart';
 import 'lecturer_home_models.dart';
+import 'lecturer_home_view_model.dart';
 
 class LecturerHomeScreen extends ConsumerStatefulWidget {
   const LecturerHomeScreen({super.key});
@@ -19,7 +19,6 @@ class LecturerHomeScreen extends ConsumerStatefulWidget {
 class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedCourse = 'EXE201';
 
   @override
   void initState() {
@@ -33,71 +32,25 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     super.dispose();
   }
 
+  LecturerHomeViewModel get _vm => ref.read(lecturerHomeViewModelProvider.notifier);
+
+  /// Môn đang xem; `build()` đã watch ViewModel nên các hàm dựng con đọc giá trị mới nhất.
+  String get _selectedCourse => ref.read(lecturerHomeViewModelProvider).course;
+
   Future<void> _handleOpenInterestWithUndo(
     BuildContext context,
     String teamId,
     String teamName,
   ) async {
-    try {
-      await ref
-          .read(lecturerHomeApiProvider)
-          .openInterest(teamId, advisorKind: 'LECTURER');
-      ref.invalidate(lecturerMyTopicInterestsProvider);
-      ref.invalidate(lecturerPreferencesMeProvider);
-      ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse));
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã mở quan tâm nhóm "$teamName"'),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () async {
-              try {
-                final myInterests = await ref
-                    .read(lecturerHomeApiProvider)
-                    .getMyTopicInterests();
-                final current = myInterests
-                    .where((i) => i.teamId == teamId && i.status == 'OPEN')
-                    .firstOrNull;
-                if (current == null) {
-                  throw StateError('Không tìm thấy quan tâm');
-                }
-                await ref
-                    .read(lecturerHomeApiProvider)
-                    .withdrawInterest(current.id);
-                ref.invalidate(lecturerMyTopicInterestsProvider);
-                ref.invalidate(lecturerPreferencesMeProvider);
-                ref.invalidate(
-                  lecturerTopicRecommendationsProvider(_selectedCourse),
-                );
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Không thể hoàn tác. Vui lòng thử lại.'),
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e is Exception
-                ? e.toString().replaceAll('Exception: ', '')
-                : 'Không thể mở quan tâm',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
+    final vm = _vm;
+    final outcome = await vm.openInterest(teamId);
+    if (!context.mounted) return;
+    _showInterestOutcome(
+      context,
+      outcome,
+      'Đã mở quan tâm nhóm "$teamName"',
+      () => vm.undoOpen(teamId),
+    );
   }
 
   Future<void> _handleWithdrawInterestWithUndo(
@@ -106,54 +59,50 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
     String teamId,
     String teamName,
   ) async {
-    try {
-      await ref.read(lecturerHomeApiProvider).withdrawInterest(interestId);
-      ref.invalidate(lecturerMyTopicInterestsProvider);
-      ref.invalidate(lecturerPreferencesMeProvider);
-      ref.invalidate(lecturerTopicRecommendationsProvider(_selectedCourse));
+    final vm = _vm;
+    final outcome = await vm.withdrawInterest(interestId);
+    if (!context.mounted) return;
+    _showInterestOutcome(
+      context,
+      outcome,
+      'Đã rút quan tâm nhóm "$teamName"',
+      () => vm.undoWithdraw(teamId),
+    );
+  }
 
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đã rút quan tâm nhóm "$teamName"'),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () async {
-              try {
-                await ref
-                    .read(lecturerHomeApiProvider)
-                    .openInterest(teamId, advisorKind: 'LECTURER');
-                ref.invalidate(lecturerMyTopicInterestsProvider);
-                ref.invalidate(lecturerPreferencesMeProvider);
-                ref.invalidate(
-                  lecturerTopicRecommendationsProvider(_selectedCourse),
-                );
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Không thể hoàn tác. Vui lòng thử lại.'),
-                  ),
-                );
-              }
-            },
+  void _showInterestOutcome(
+    BuildContext context,
+    InterestOutcome outcome,
+    String doneMessage,
+    Future<InterestOutcome> Function() undo,
+  ) {
+    switch (outcome) {
+      case InterestDone():
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(doneMessage),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Hoàn tác',
+              onPressed: () async {
+                final result = await undo();
+                if (result is InterestFailed && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(result.message)),
+                  );
+                }
+              },
+            ),
           ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e is Exception
-                ? e.toString().replaceAll('Exception: ', '')
-                : 'Không thể rút quan tâm',
+        );
+      case InterestFailed(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+        );
     }
   }
 
@@ -166,15 +115,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(authControllerProvider).value;
-    final phases = ref.watch(phasesProvider).value;
-    final shellPhase = ref.watch(shellPhaseProvider);
-    final currentCoursePhase = phases
-        ?.where(
-          (p) => p.courseCode.toUpperCase() == _selectedCourse.toUpperCase(),
-        )
-        .firstOrNull;
-    final isTeamFormation =
-        currentCoursePhase?.isTeamFormation ?? shellPhase.isTeamFormation;
+    ref.watch(lecturerHomeViewModelProvider);
+    final isTeamFormation = ref.watch(lecturerHomeIsTeamFormationProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -188,19 +130,8 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(phasesProvider);
-          if (isTeamFormation) {
-            ref.invalidate(lecturerPreferencesMeProvider);
-            ref.invalidate(lecturerMyTopicInterestsProvider);
-            ref.invalidate(
-              lecturerTopicRecommendationsProvider(_selectedCourse),
-            );
-          } else {
-            ref.invalidate(lecturerTeamsMeProvider(_selectedCourse));
-            ref.invalidate(lecturerSemesterStatsProvider);
-          }
-        },
+        onRefresh: () async =>
+            _vm.refresh(teamFormation: isTeamFormation),
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
@@ -254,7 +185,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
               ],
               selected: {_selectedCourse},
               onSelectionChanged: (val) {
-                setState(() => _selectedCourse = val.first);
+                _vm.selectCourse(val.first);
               },
             ),
             const SizedBox(height: AppSpacing.s4),
@@ -301,7 +232,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                 context,
                 title: 'Đang quan tâm',
                 value:
-                    '${myInterestsAsync.value?.where((i) => i.status == 'OPEN').length ?? 0}',
+                    '${openInterestsOf(myInterestsAsync.value ?? const []).length}',
                 subtitle: 'Đã mở quan tâm',
                 icon: Icons.favorite_outline,
                 color: Palette.infoDark,
@@ -379,17 +310,12 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Đang quan tâm'),
-                    if ((myInterestsAsync.value
-                                ?.where((i) => i.status == 'OPEN')
-                                .length ??
-                            0) >
-                        0) ...[
+                    if (openInterestsOf(myInterestsAsync.value ?? const [])
+                        .isNotEmpty) ...[
                       const SizedBox(width: 6),
                       _buildCountBadge(
                         context,
-                        myInterestsAsync.value!
-                            .where((i) => i.status == 'OPEN')
-                            .length,
+                        openInterestsOf(myInterestsAsync.value!).length,
                         Palette.infoContainer,
                         Palette.infoDark,
                       ),
@@ -441,9 +367,7 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                       ref.invalidate(lecturerMyTopicInterestsProvider),
                 ),
                 data: (interests) {
-                  final openInterests = interests
-                      .where((i) => i.status == 'OPEN')
-                      .toList();
+                  final openInterests = openInterestsOf(interests);
                   if (openInterests.isEmpty) {
                     return const EmptyState(
                       icon: Icons.favorite_border,
