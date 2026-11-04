@@ -10,6 +10,7 @@ import '../workspace/format.dart';
 import '../workspace/workspace_api.dart';
 import '../workspace/workspace_widgets.dart';
 import 'meetings_api.dart';
+import 'meetings_view_model.dart';
 
 /// C07 – Lịch họp (MB-42, quy tắc 25): Chờ chốt · Sắp tới · Đã họp, số buổi mentor; trưởng nhóm, giảng viên, mentor đề xuất họp.
 /// Trạng thái: có dữ liệu · trống · đang tải · lỗi.
@@ -178,11 +179,8 @@ class _ProposeMeetingSheetState extends ConsumerState<ProposeMeetingSheet> {
   final _title = TextEditingController();
   final _location = TextEditingController();
   final _agenda = TextEditingController();
-  final _slots = <DateTime>[];
-  String? _titleError;
-  String? _slotError;
-  String? _error;
-  bool _saving = false;
+
+  ProposeMeetingViewModel get _vm => ref.read(proposeMeetingViewModelProvider(widget.workspaceId).notifier);
 
   @override
   void dispose() {
@@ -194,41 +192,18 @@ class _ProposeMeetingSheetState extends ConsumerState<ProposeMeetingSheet> {
 
   Future<void> _addSlot() async {
     final at = await widget.pickTime(context);
-    if (at == null) return;
-    setState(() {
-      _slotError = at.isAfter(DateTime.now()) ? null : 'Khung giờ phải ở tương lai.';
-      if (_slotError == null) _slots.add(at);
-    });
+    if (at != null) _vm.addSlot(at);
   }
 
   Future<void> _submit() async {
-    setState(() {
-      _titleError = _title.text.trim().isEmpty ? 'Nhập tiêu đề.' : null;
-      _slotError = _slots.isEmpty ? 'Thêm ít nhất một khung giờ.' : null;
-      _error = null;
-    });
-    if (_titleError != null || _slotError != null) return;
-    setState(() => _saving = true);
-    try {
-      final meeting = await ref.read(meetingsApiProvider).propose(
-            widget.workspaceId,
-            title: _title.text.trim(),
-            location: _location.text.trim().isEmpty ? null : _location.text.trim(),
-            agenda: _agenda.text.trim().isEmpty ? null : _agenda.text.trim(),
-            slots: [for (final s in _slots) SlotInput(s)],
-          );
-      ref.invalidate(meetingListProvider(widget.workspaceId));
-      if (mounted) Navigator.pop(context, meeting.card.id);
-    } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    final id = await _vm.submit(title: _title.text, location: _location.text, agenda: _agenda.text);
+    if (id != null && mounted) Navigator.pop(context, id);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = ref.watch(proposeMeetingViewModelProvider(widget.workspaceId));
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -238,26 +213,26 @@ class _ProposeMeetingSheetState extends ConsumerState<ProposeMeetingSheet> {
           children: [
             Text('Đề xuất họp', style: theme.textTheme.titleLarge),
             const SizedBox(height: AppSpacing.s3),
-            if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
-            TextField(controller: _title, maxLength: 200, decoration: InputDecoration(labelText: 'Tiêu đề', errorText: _titleError)),
+            if (state.error != null) ...[ErrorBanner(message: state.error!), const SizedBox(height: AppSpacing.s3)],
+            TextField(controller: _title, maxLength: 200, decoration: InputDecoration(labelText: 'Tiêu đề', errorText: state.titleError)),
             TextField(controller: _location, maxLength: 500, decoration: const InputDecoration(labelText: 'Nơi họp – phòng hoặc link (không bắt buộc)')),
             TextField(controller: _agenda, maxLength: 2000, maxLines: 3, decoration: const InputDecoration(labelText: 'Nội dung (không bắt buộc)')),
             Text('Khung giờ (60 phút)', style: theme.textTheme.titleSmall),
-            for (final (i, s) in _slots.indexed)
+            for (final (i, s) in state.slots.indexed)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.schedule),
                 title: Text(formatDateTime(s)),
-                trailing: IconButton(tooltip: 'Bỏ khung ${i + 1}', icon: const Icon(Icons.close), onPressed: () => setState(() => _slots.removeAt(i))),
+                trailing: IconButton(tooltip: 'Bỏ khung ${i + 1}', icon: const Icon(Icons.close), onPressed: () => _vm.removeSlot(i)),
               ),
-            if (_slots.length < maxSlots) TextButton.icon(onPressed: _addSlot, icon: const Icon(Icons.add), label: const Text('Thêm khung giờ')),
-            if (_slotError != null) Text(_slotError!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+            if (state.canAddSlot) TextButton.icon(onPressed: _addSlot, icon: const Icon(Icons.add), label: const Text('Thêm khung giờ')),
+            if (state.slotError != null) Text(state.slotError!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
             Text(
               'Một khung giờ thì cuộc họp được chốt luôn; nhiều khung thì mọi người chọn Có / Không rồi người tổ chức chốt.',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.s4),
-            LoadingButton(label: _slots.length > 1 ? 'Gửi đề xuất' : 'Tạo cuộc họp', loading: _saving, onPressed: _submit),
+            LoadingButton(label: state.submitLabel, loading: state.saving, onPressed: _submit),
           ],
         ),
       ),
