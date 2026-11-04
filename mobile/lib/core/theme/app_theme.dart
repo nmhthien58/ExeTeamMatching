@@ -73,6 +73,10 @@ abstract final class AppTheme {
       textTheme: text,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       extensions: const [AppColors.light],
+      // Màn cấp 2 (push): kiểu chuyển trang mới của Android (trượt + mờ dần), mượt hơn kiểu zoom mặc định.
+      pageTransitionsTheme: PageTransitionsTheme(builders: {
+        TargetPlatform.android: const FadeForwardsPageTransitionsBuilder(),
+      }),
       appBarTheme: AppBarTheme(
         backgroundColor: Palette.surface,
         foregroundColor: Palette.textPrimary,

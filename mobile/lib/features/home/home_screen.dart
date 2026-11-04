@@ -160,7 +160,8 @@ class _Suggestions extends ConsumerWidget {
     final items = ref.watch(teamsForMeProvider).value ?? const [];
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      // stretch: thẻ gợi ý rộng hết hàng; start làm thẻ co theo nội dung (nhóm tên ngắn bị hẹp hơn).
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: AppSpacing.s4),
         Row(

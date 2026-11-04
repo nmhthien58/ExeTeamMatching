@@ -26,11 +26,17 @@ class BrandHeader extends ConsumerWidget {
             child: ExcludeSemantics(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.full),
-                child: LinearProgressIndicator(
-                  value: data.semesterProgress,
-                  minHeight: 3,
-                  backgroundColor: context.appColors.neutralContainer,
-                  color: context.appColors.brandOrange,
+                // Vạch chạy dần tới giá trị khi mở màn (tắt khi người dùng bật giảm chuyển động).
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: data.semesterProgress),
+                  duration: AppMotion.of(context, const Duration(milliseconds: 700)),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: 3,
+                    backgroundColor: context.appColors.neutralContainer,
+                    color: context.appColors.brandOrange,
+                  ),
                 ),
               ),
             ),

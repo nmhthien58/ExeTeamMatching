@@ -11,6 +11,7 @@ import '../shared/widgets/states.dart';
 import 'feature_routes.dart';
 import 'navigation.dart';
 import 'role_shell.dart';
+import '../core/theme/app_tokens.dart';
 
 /// Router (MB-05): chưa đăng nhập → A03; đăng nhập xong vào đúng khung theo vai trò; mỗi khung có tab bar riêng.
 /// Màn cấp 2 của từng mảng thêm vào `routes` của khung tương ứng.
@@ -67,10 +68,10 @@ ShellRoute _shellRoute(Shell shell) {
       for (final tab in tabs)
         GoRoute(
           path: tab.path,
-          // Tab là màn cấp 1: không có hiệu ứng trượt, không có Back.
-          pageBuilder: (_, state) => NoTransitionPage(
-            key: state.pageKey,
-            child: tab.path == '/sv/kham-pha'
+          // Tab là màn cấp 1: không trượt, không có Back; đổi tab bằng hiệu ứng "fade through" ngắn.
+          pageBuilder: (_, state) => _tabPage(
+            state,
+            tab.path == '/sv/kham-pha'
                 ? TeamFormationOnly(child: tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab))
                 : tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab),
           ),
@@ -81,3 +82,20 @@ ShellRoute _shellRoute(Shell shell) {
     ],
   );
 }
+
+/// Đổi tab: màn mới hiện dần và phóng nhẹ 98% → 100% (Material "fade through"), 200 ms.
+/// Người dùng bật giảm chuyển động thì đổi ngay (AppMotion, DESIGN.md 4.5).
+Page<void> _tabPage(GoRouterState state, Widget child) => CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: AppMotion.base,
+      reverseTransitionDuration: Duration.zero,
+      transitionsBuilder: (context, animation, _, child) {
+        if (MediaQuery.maybeDisableAnimationsOf(context) == true) return child;
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(scale: Tween<double>(begin: 0.98, end: 1).animate(curved), child: child),
+        );
+      },
+    );
