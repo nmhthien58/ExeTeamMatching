@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../core/auth/firebase_auth_service.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
@@ -28,12 +29,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       _error = null;
     });
     try {
-      // null = người dùng hủy chọn tài khoản: về trạng thái mặc định, không báo lỗi.
-      await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      // null = người dùng hủy chọn tài khoản: về trạng thái mặc định, báo nhẹ bằng SnackBar (Lab 3 §6).
+      final user = await ref.read(authControllerProvider.notifier).signInWithGoogle();
+      if (user == null) _showCancelled();
     } on PlatformException catch (e) {
       // Lỗi từ Google Sign-In (không phải từ Identity).
-      if (!mounted || e.code == GoogleSignIn.kSignInCanceledError) return;
+      if (!mounted) return;
+      if (e.code == GoogleSignIn.kSignInCanceledError) {
+        _showCancelled();
+        return;
+      }
       setState(() => _error = e.code == GoogleSignIn.kNetworkError
+          ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
+          : 'Không đăng nhập được với Google. Thử lại sau.');
+    } on SignInFailure catch (e) {
+      // Firebase Authentication từ chối credential hoặc mất mạng.
+      if (!mounted) return;
+      setState(() => _error = e.isNetwork
           ? 'Mất kết nối. Kiểm tra mạng rồi thử lại.'
           : 'Không đăng nhập được với Google. Thử lại sau.');
     } catch (e) {
@@ -48,6 +60,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } finally {
       if (mounted) setState(() => _pending = false);
     }
+  }
+
+  void _showCancelled() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Bạn đã hủy đăng nhập. Bấm "Đăng nhập với Google" để thử lại.')));
   }
 
   @override

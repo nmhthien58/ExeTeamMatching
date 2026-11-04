@@ -31,5 +31,4 @@ mobile/build/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/android/local.properties
-mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist

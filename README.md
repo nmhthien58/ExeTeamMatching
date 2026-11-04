@@ -74,7 +74,7 @@ Mỗi service theo 3 lớp API – Services – Repositories. Quy tắc nghiệp
 | Dữ liệu | PostgreSQL 16 (mỗi service một database), Redis 7, lưu file S3 (SeaweedFS 3.97, `AWSSDK.S3`) |
 | Xác thực | Google OAuth 2.0 / OpenID Connect, JWT Bearer |
 | Web | React 18, TypeScript 5.6, Vite 6, Tailwind CSS 4, TanStack Query 5, React Router 6, `@microsoft/signalr` |
-| Mobile | Flutter (Dart 3.12, Material 3), Riverpod 3, go_router 18, Dio 5, `signalr_netcore` |
+| Mobile | Flutter 3.47.8 (Dart 3.12, Material 3), Riverpod 3, go_router 18, Dio 5, `signalr_netcore`; Firebase: `firebase_core` 5.1, `firebase_auth` 7.0, `firebase_app_check` 0.5 (project `exe-team-matching`) |
 | Triển khai | Docker, Docker Compose |
 | Kiểm thử | xUnit (có test tích hợp trên PostgreSQL), Flutter widget test, Postman / newman ([kịch bản demo](docs/demo/README.md)) |
 
