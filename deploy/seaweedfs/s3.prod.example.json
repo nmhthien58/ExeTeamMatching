@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "collab",
+      "credentials": [
+        { "accessKey": "THAY_BANG_S3_ACCESS_KEY", "secretKey": "THAY_BANG_S3_SECRET_KEY" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
