@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_client.dart';
+import '../../core/view_state.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'notifications_api.dart';
+import 'notifications_view_model.dart';
 
 /// A06 – màn dùng chung cho sinh viên, giảng viên và mentor.
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -24,22 +25,17 @@ class NotificationsScreen extends ConsumerStatefulWidget {
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   final _scroll = ScrollController();
   Timer? _poll;
-  List<AppNotification> _items = [];
-  int _page = 0;
-  int _totalPages = 1;
-  bool _loading = true;
-  bool _loadingMore = false;
-  bool _markingAll = false;
-  Object? _error;
+
+  NotificationsViewModel get _vm =>
+      ref.read(notificationsViewModelProvider(widget.roleRoot).notifier);
 
   @override
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    Future<void>.microtask(_refresh);
     _poll = Timer.periodic(
       const Duration(seconds: 30),
-      (_) => _refresh(silent: true),
+      (_) => _vm.refresh(silent: true),
     );
   }
 
@@ -50,123 +46,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     }
   }
 
-  Future<void> _refresh({bool silent = false}) async {
-    if (silent && (_page > 1 || _loadingMore || _loading)) return;
-    if (!silent && mounted) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
-    try {
-      final result = await ref.read(notificationsApiProvider).list();
-      if (!mounted) return;
-      setState(() {
-        _items = result.items;
-        _page = 1;
-        _totalPages = result.totalPages;
-        _loading = false;
-        _error = null;
-      });
-    } catch (error) {
-      if (mounted && !silent) {
-        setState(() {
-          _error = error.apiError;
-          _loading = false;
-        });
-      }
-    }
-  }
+  Future<void> _refresh() => _vm.refresh();
 
-  Future<void> _nextPage() async {
-    if (_loading || _loadingMore || _page >= _totalPages) return;
-    setState(() => _loadingMore = true);
-    try {
-      final result = await ref
-          .read(notificationsApiProvider)
-          .list(page: _page + 1);
-      if (!mounted) return;
-      setState(() {
-        _items = [..._items, ...result.items];
-        _page++;
-        _totalPages = result.totalPages;
-      });
-    } catch (error) {
-      if (mounted) {
+  Future<void> _nextPage() async => _handle(await _vm.loadMore());
+
+  Future<void> _read(AppNotification item) async =>
+      _handle(await _vm.open(item));
+
+  Future<void> _readAll() async => _handle(await _vm.readAll());
+
+  void _handle(NotificationOutcome outcome) {
+    if (!mounted) return;
+    switch (outcome) {
+      case NotificationDone():
+        return;
+      case NotificationOpen(:final route):
+        context.go(route);
+      case NotificationFailed(:final message):
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.apiError.title)));
-      }
-    } finally {
-      if (mounted) setState(() => _loadingMore = false);
+        ).showSnackBar(SnackBar(content: Text(message)));
     }
-  }
-
-  Future<void> _read(AppNotification item) async {
-    try {
-      if (!item.isRead) {
-        await ref.read(notificationsApiProvider).read(item.id);
-        if (mounted) {
-          setState(
-            () => _items = [
-              for (final row in _items) row.id == item.id ? row.read() : row,
-            ],
-          );
-        }
-      }
-      if (mounted) _open(item.linkUrl);
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.apiError.title)));
-      }
-    }
-  }
-
-  Future<void> _readAll() async {
-    if (_markingAll) return;
-    setState(() => _markingAll = true);
-    try {
-      await ref.read(notificationsApiProvider).readAll();
-      if (mounted) {
-        setState(() => _items = [for (final item in _items) item.read()]);
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.apiError.title)));
-      }
-    } finally {
-      if (mounted) setState(() => _markingAll = false);
-    }
-  }
-
-  void _open(String? link) {
-    if (link == null) return;
-    final uri = Uri.tryParse(link);
-    if (uri == null || uri.scheme != 'app') return;
-    final route = switch (uri.host) {
-      'teams' => '${widget.roleRoot}/nhom',
-      'invitations' when widget.roleRoot == '/sv' => '/sv/loi-moi',
-      'invitations' => widget.roleRoot,
-      'change-requests' when widget.roleRoot == '/sv' =>
-        '/sv/yeu-cau-doi-nhom',
-      'change-requests' => '${widget.roleRoot}/nhom',
-      'workspaces' when widget.roleRoot == '/sv' => '/sv/du-an',
-      'workspaces' when uri.pathSegments.isNotEmpty =>
-        '${widget.roleRoot}/du-an/${uri.pathSegments.first}',
-      'meeting-schedule' =>
-        widget.roleRoot == '/sv'
-            ? '/sv/du-an/lich-hop'
-            : widget.roleRoot == '/gv'
-            ? '/gv/lich'
-            : widget.roleRoot,
-      'lecturer' => '${widget.roleRoot}/de-tai',
-      _ => widget.roleRoot,
-    };
-    context.go(route);
   }
 
   @override
@@ -179,24 +79,26 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = ref.watch(notificationsViewModelProvider(widget.roleRoot));
+    final loaded = state.list.valueOrNull;
+    final items = loaded?.items ?? const <AppNotification>[];
+    final loadingMore = loaded?.loadingMore ?? false;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Thông báo'),
         actions: [
           TextButton(
-            onPressed: _markingAll || !_items.any((x) => !x.isRead)
+            onPressed: state.markingAll || !(loaded?.hasUnread ?? false)
                 ? null
                 : _readAll,
             child: const Text('Đọc tất cả'),
           ),
         ],
       ),
-      body: _loading
-          ? const SkeletonList()
-          : _error != null
-          ? ErrorState(error: _error!, onRetry: _refresh)
-          : _items.isEmpty
-          ? EmptyState(
+      body: switch (state.list) {
+        ViewLoading() => const SkeletonList(),
+        ViewError(:final error) => ErrorState(error: error, onRetry: _refresh),
+        ViewEmpty() => EmptyState(
               icon: Icons.notifications_none,
               title: 'Chưa có thông báo',
               description: 'Thông báo mới sẽ xuất hiện ở đây.',
@@ -204,22 +106,22 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 onPressed: _refresh,
                 child: const Text('Làm mới'),
               ),
-            )
-          : RefreshIndicator(
+            ),
+        ViewData() => RefreshIndicator(
               onRefresh: _refresh,
               child: ListView.builder(
                 controller: _scroll,
                 physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: _items.length + (_loadingMore ? 1 : 0),
+                itemCount: items.length + (loadingMore ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if (index == _items.length) {
+                  if (index == items.length) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  final item = _items[index];
+                  final item = items[index];
                   final date = item.createdAt.toLocal();
                   final previous = index == 0
                       ? null
-                      : _items[index - 1].createdAt.toLocal();
+                      : items[index - 1].createdAt.toLocal();
                   final header = previous == null || !_sameDay(previous, date);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -266,6 +168,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 },
               ),
             ),
+      },
     );
   }
 

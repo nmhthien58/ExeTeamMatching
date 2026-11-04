@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/navigation.dart';
-import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import 'onboarding_store.dart';
+import 'onboarding_view_model.dart';
 
 /// A01. Chờ đọc phiên trước khi quyết định màn tiếp theo.
 class SplashScreen extends ConsumerStatefulWidget {
@@ -29,25 +28,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _resolve() async {
-    try {
-      final user = await ref.read(authControllerProvider.future);
-      if (!mounted) return;
-      if (user != null) {
-        final shell = shellOf(user);
-        widget.onResolved(shell == null ? '/chi-dung-web' : shellHome[shell]!);
-        return;
-      }
-      final seen = await (widget.onboardingStore ?? OnboardingStore())
-          .hasSeen();
-      if (mounted) widget.onResolved(seen ? '/dang-nhap' : '/gioi-thieu');
-    } catch (_) {
-      if (mounted) widget.onResolved('/dang-nhap');
-    }
+    final route = await ref
+        .read(splashViewModelProvider.notifier)
+        .resolve(store: widget.onboardingStore);
+    if (mounted) widget.onResolved(route);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    ref.watch(splashViewModelProvider);
     return Scaffold(
       body: SafeArea(
         child: Center(

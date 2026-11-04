@@ -7,6 +7,7 @@ import '../../shared/widgets/states.dart';
 import '../workspace/workspace_widgets.dart';
 import 'suggestion_widgets.dart';
 import 'suggestions_api.dart';
+import 'suggestions_view_model.dart';
 
 /// S18 – Gợi ý thành viên (MB-23, flutter-handoff F2): "Nhóm bạn đang thiếu: …", thẻ sinh viên do Matching gợi ý kèm lý do,
 /// nút phụ "Gửi lời mời" (chỉ trưởng nhóm). Trạng thái: có gợi ý · không có gợi ý · đã mời · đang tải; nhóm đủ 6.
@@ -18,12 +19,11 @@ class SuggestedMembersScreen extends ConsumerStatefulWidget {
 }
 
 class _SuggestedMembersScreenState extends ConsumerState<SuggestedMembersScreen> {
-  /// Đã mời trong phiên này – hiện "Đã mời" ngay, không chờ tải lại.
-  final Set<String> _invited = {};
+  SuggestedMembersViewModel get _vm => ref.read(suggestedMembersViewModelProvider.notifier);
 
   Future<void> _invite(TeamDetail team, StudentRef student) async {
     if (!await showInviteSheet(context, teamId: team.card.id, student: student) || !mounted) return;
-    setState(() => _invited.add(student.id));
+    _vm.markInvited(student.id);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('Đã gửi lời mời')));
@@ -32,11 +32,12 @@ class _SuggestedMembersScreenState extends ConsumerState<SuggestedMembersScreen>
   @override
   Widget build(BuildContext context) {
     final team = ref.watch(myTeamProvider);
+    ref.watch(suggestedMembersViewModelProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Gợi ý thành viên')),
       body: team.when(
         loading: () => const SkeletonList(),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(myTeamProvider)),
+        error: (e, _) => ErrorState(error: e, onRetry: _vm.retryTeam),
         data: (t) => t == null
             ? const EmptyState(icon: Icons.group_off_outlined, title: 'Bạn chưa có nhóm', description: 'Tạo nhóm hoặc xin vào một nhóm trước.')
             : _suggestions(t),
@@ -59,10 +60,10 @@ class _SuggestedMembersScreenState extends ConsumerState<SuggestedMembersScreen>
     ];
 
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(memberSuggestionsProvider(team.card.id)),
+      onRefresh: () async => _vm.refresh(team.card.id),
       child: suggestions.when(
         loading: () => ListView(padding: const EdgeInsets.all(AppSpacing.s4), children: [...header, const SkeletonList(count: 3)]),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(memberSuggestionsProvider(team.card.id))),
+        error: (e, _) => ErrorState(error: e, onRetry: () => _vm.refresh(team.card.id)),
         data: (data) => ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
@@ -86,7 +87,7 @@ class _SuggestedMembersScreenState extends ConsumerState<SuggestedMembersScreen>
                       FitChip(score: item.score),
                       Reasons(reasons: item.reasons),
                     ],
-                    action: item.alreadyInvited || _invited.contains(item.student.id)
+                    action: item.alreadyInvited || ref.read(suggestedMembersViewModelProvider).contains(item.student.id)
                         ? const Padding(padding: EdgeInsets.only(top: AppSpacing.s2), child: StatusChip(label: 'Đã mời', tone: StatusTone.warning))
                         : team.isLeader
                             ? Padding(
