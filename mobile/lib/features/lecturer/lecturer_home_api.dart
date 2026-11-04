@@ -10,9 +10,13 @@ import '../workspace/workspace_models.dart';
 import 'lecturer_home_models.dart';
 
 class LecturerHomeApi {
-  LecturerHomeApi(this._dio);
+  LecturerHomeApi(this._dio, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
   final Dio _dio;
+
+  /// Giờ máy, để test đếm "Họp hôm nay" ổn định.
+  final DateTime Function() _now;
 
   Future<T> _call<T>(Future<T> Function() fn) async {
     try {
@@ -233,8 +237,15 @@ class LecturerHomeApi {
     );
   });
 
+  Future<AdvisorOverview> getAdvisorOverview() => _call(() async {
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/api/advisor/overview',
+    );
+    return AdvisorOverview.fromJson(response.data ?? <String, dynamic>{});
+  });
+
   Future<LecturerSemesterStats> getSemesterStats() => _call(() async {
-    final needsReplyCount = await getOpenQuestionCount();
+    final overview = await getAdvisorOverview();
     final checkpoints = await _dio.get<List<dynamic>>('/api/checkpoints/me');
     final schedule = await _dio.get<dynamic>('/api/meeting-schedules/me');
     final missingCheckpoints = (checkpoints.data ?? const []).where((progress) {
@@ -247,7 +258,9 @@ class LecturerHomeApi {
       );
     }).length;
     return LecturerSemesterStats(
-      needsReplyCount: needsReplyCount,
+      needsReplyCount: overview.needsReplyCount,
+      overdueSubmissionsCount: overview.overdueDeliverableCount,
+      meetingsTodayCount: overview.meetingsOn(_now()),
       missingCheckpointsCount: missingCheckpoints,
       hasPostedWeeklySchedule:
           schedule.data is Map &&

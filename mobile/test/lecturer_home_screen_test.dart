@@ -423,11 +423,15 @@ void main() {
       },
     );
 
-    testWidgets('keeps L01 usable when aggregate overview is unavailable', (
+    testWidgets('shows zero overview totals as numbers instead of —', (
       tester,
     ) async {
       final fakeApi = FakeLecturerHomeApi(
-        semesterStats: const LecturerSemesterStats(needsReplyCount: 2),
+        semesterStats: const LecturerSemesterStats(
+          needsReplyCount: 2,
+          overdueSubmissionsCount: 0,
+          meetingsTodayCount: 0,
+        ),
       );
 
       await tester.pumpWidget(buildApp(api: fakeApi, isTeamFormation: false));
@@ -435,7 +439,9 @@ void main() {
 
       expect(find.text('Cần trả lời'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
-      expect(find.text('—'), findsNWidgets(2));
+      expect(find.text('0'), findsNWidgets(2));
+      expect(find.text('—'), findsNothing);
+      expect(find.text('Chưa có số liệu'), findsNothing);
       expect(find.text('Chưa tải được số liệu tương tác học kỳ'), findsNothing);
     });
 
