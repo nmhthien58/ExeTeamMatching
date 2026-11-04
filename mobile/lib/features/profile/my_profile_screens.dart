@@ -60,10 +60,6 @@ class CompleteProfileScreen extends ConsumerWidget {
             ],
           ),
         ),
-        onSubmit: ({required skills, required description, isSeekingTeam}) async {
-          await ref.read(profileApiProvider).saveMe(skills: skills, description: description);
-          ref.invalidate(myProfileProvider);
-        },
       ),
     );
   }
@@ -188,10 +184,7 @@ class EditProfileScreen extends ConsumerWidget {
               profile: profile,
               submitLabel: 'Lưu',
               showSeekingSwitch: isTeamFormation && !profile.hasTeam,
-              onSubmit: ({required skills, required description, isSeekingTeam}) async {
-                await ref.read(profileApiProvider).saveMe(skills: skills, description: description, isSeekingTeam: isSeekingTeam);
-                ref.invalidate(myProfileProvider);
-                if (!context.mounted) return;
+              onSaved: () {
                 ScaffoldMessenger.of(context)
                   ..hideCurrentSnackBar()
                   ..showSnackBar(const SnackBar(content: Text('Đã lưu hồ sơ')));
