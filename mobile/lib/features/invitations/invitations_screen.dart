@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
-import '../home/home_api.dart';
-import '../my_team/my_team_api.dart' show refreshMyTeam;
 import '../workspace/workspace_widgets.dart';
 import 'invitations_api.dart';
+import 'invitations_view_model.dart';
 
 /// Nhãn trạng thái lời mời / yêu cầu – luôn có chữ, không chỉ màu.
 (String, StatusTone) requestStatusChip(String status) => switch (status) {
@@ -45,8 +43,7 @@ class _Received extends ConsumerStatefulWidget {
 }
 
 class _ReceivedState extends ConsumerState<_Received> {
-  String? _busyId;
-  String? _error;
+  ReceivedInvitationsViewModel get _vm => ref.read(receivedInvitationsViewModelProvider.notifier);
 
   Future<void> _accept(MyRequest invitation) async {
     final ok = await showDialog<bool>(
@@ -61,43 +58,27 @@ class _ReceivedState extends ConsumerState<_Received> {
       ),
     );
     if (ok != true) return;
-    final applied = await _run(invitation, () async => (await ref.read(invitationsApiProvider).accept(invitation.id)).applied);
-    if (applied == null || !mounted) return;
-    refreshMyTeam(ref);
-    ref.invalidate(homeProvider);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(applied ? 'Đã vào nhóm' : 'Đã ghi nhận, chờ Bộ môn duyệt')));
+    final outcome = await _vm.accept(invitation);
+    if (outcome is! AcceptJoined || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(outcome.message)));
     context.go('/sv/nhom');
-  }
-
-  Future<T?> _run<T>(MyRequest r, Future<T> Function() call) async {
-    setState(() {
-      _busyId = r.id;
-      _error = null;
-    });
-    try {
-      return await call();
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.detail ?? e.title);
-      return null;
-    } finally {
-      if (mounted) setState(() => _busyId = null);
-      ref.invalidate(myInvitationsProvider);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = ref.watch(receivedInvitationsViewModelProvider);
+    final busyId = state.busyId;
     final invitations = ref.watch(myInvitationsProvider);
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(myInvitationsProvider),
+      onRefresh: () async => _vm.refresh(),
       child: invitations.when(
         loading: () => const SkeletonList(),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(myInvitationsProvider)),
+        error: (e, _) => ErrorState(error: e, onRetry: _vm.refresh),
         data: (items) => ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
-            if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+            if (state.error != null) ...[ErrorBanner(message: state.error!), const SizedBox(height: AppSpacing.s3)],
             if (items.isEmpty) const EmptyState(icon: Icons.mail_outline, title: 'Chưa có lời mời'),
             for (final i in items)
               Card.outlined(
@@ -130,10 +111,10 @@ class _ReceivedState extends ConsumerState<_Received> {
                             if (i.team != null)
                               TextButton(onPressed: () => context.push('/sv/kham-pha/nhom/${i.team!.id}'), child: const Text('Xem nhóm')),
                             TextButton(
-                              onPressed: _busyId == null ? () => _run(i, () => ref.read(invitationsApiProvider).decline(i.id)) : null,
+                              onPressed: busyId == null ? () => _vm.decline(i) : null,
                               child: const Text('Từ chối'),
                             ),
-                            LoadingButton(label: 'Chấp nhận', expand: false, loading: _busyId == i.id, onPressed: _busyId == null ? () => _accept(i) : null),
+                            LoadingButton(label: 'Chấp nhận', expand: false, loading: busyId == i.id, onPressed: busyId == null ? () => _accept(i) : null),
                           ],
                         ),
                       ],
@@ -148,38 +129,23 @@ class _ReceivedState extends ConsumerState<_Received> {
   }
 }
 
-class _Sent extends ConsumerStatefulWidget {
+class _Sent extends ConsumerWidget {
   const _Sent();
 
   @override
-  ConsumerState<_Sent> createState() => _SentState();
-}
-
-class _SentState extends ConsumerState<_Sent> {
-  String? _error;
-
-  Future<void> _cancel(MyRequest request) async {
-    try {
-      await ref.read(invitationsApiProvider).cancelJoinRequest(request.id);
-      setState(() => _error = null);
-    } on ApiException catch (e) {
-      setState(() => _error = e.detail ?? e.title);
-    }
-    ref.invalidate(myJoinRequestsProvider);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vm = ref.read(sentJoinRequestsViewModelProvider.notifier);
+    final error = ref.watch(sentJoinRequestsViewModelProvider);
     final requests = ref.watch(myJoinRequestsProvider);
     return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(myJoinRequestsProvider),
+      onRefresh: () async => vm.refresh(),
       child: requests.when(
         loading: () => const SkeletonList(),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(myJoinRequestsProvider)),
+        error: (e, _) => ErrorState(error: e, onRetry: vm.refresh),
         data: (items) => ListView(
           padding: const EdgeInsets.all(AppSpacing.s4),
           children: [
-            if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+            if (error != null) ...[ErrorBanner(message: error), const SizedBox(height: AppSpacing.s3)],
             if (items.isEmpty) const EmptyState(icon: Icons.outgoing_mail, title: 'Chưa gửi yêu cầu nào'),
             for (final r in items)
               Card.outlined(
@@ -189,7 +155,7 @@ class _SentState extends ConsumerState<_Sent> {
                   subtitle: Text(r.status == 'PENDING' ? timeLeft(r.expiresAt) : requestStatusChip(r.status).$1),
                   onTap: r.team == null ? null : () => context.push('/sv/kham-pha/nhom/${r.team!.id}'),
                   trailing: r.status == 'PENDING'
-                      ? TextButton(onPressed: () => _cancel(r), child: const Text('Hủy'))
+                      ? TextButton(onPressed: () => vm.cancel(r), child: const Text('Hủy'))
                       : StatusChip(label: requestStatusChip(r.status).$1, tone: requestStatusChip(r.status).$2),
                 ),
               ),
