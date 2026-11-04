@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
-import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
+import 'settings_view_model.dart';
 
 /// Phiên bản hiển thị ở A07; giữ khớp `version` trong pubspec.yaml.
 const appVersion = '1.0.0';
@@ -48,23 +48,13 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  /// Giá trị đang gửi: công tắc đổi ngay, lỗi thì trả lại.
-  bool? _pending;
+  SettingsViewModel get _vm => ref.read(settingsViewModelProvider.notifier);
 
   Future<void> _toggleEmail(bool value) async {
-    setState(() => _pending = value);
-    try {
-      await ref.read(settingsApiProvider).setEmailEnabled(value);
-      ref.invalidate(emailEnabledProvider);
-      await ref.read(emailEnabledProvider.future);
-    } on ApiException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Chưa lưu được cài đặt email. Thử lại sau.')));
-    } finally {
-      if (mounted) setState(() => _pending = null);
-    }
+    if (await _vm.setEmailEnabled(value) || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Chưa lưu được cài đặt email. Thử lại sau.')));
   }
 
   Future<void> _signOut() async {
@@ -79,7 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
-    if (confirmed == true) await ref.read(authControllerProvider.notifier).signOut();
+    if (confirmed == true) await _vm.signOut();
   }
 
   @override
@@ -87,6 +77,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
     final user = ref.watch(authControllerProvider).value;
     final email = ref.watch(emailEnabledProvider);
+    final pending = ref.watch(settingsViewModelProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Cài đặt')),
       body: ListView(
@@ -104,14 +95,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             error: (_, _) => ListTile(
               leading: Icon(Icons.error_outline, color: theme.colorScheme.error),
               title: const Text('Không tải được cài đặt email'),
-              trailing: TextButton(onPressed: () => ref.invalidate(emailEnabledProvider), child: const Text('Thử lại')),
+              trailing: TextButton(onPressed: _vm.retryEmail, child: const Text('Thử lại')),
             ),
             data: (enabled) => SwitchListTile(
               secondary: const Icon(Icons.mail_outline),
               title: const Text('Nhận email thông báo'),
               subtitle: const Text('Lời mời, hạn chót, kết quả ghép nhóm. Thông báo trong ứng dụng vẫn nhận đủ.'),
-              value: _pending ?? enabled,
-              onChanged: _pending == null ? _toggleEmail : null,
+              value: pending ?? enabled,
+              onChanged: pending == null ? _toggleEmail : null,
             ),
           ),
           const Divider(),
