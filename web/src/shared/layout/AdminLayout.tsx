@@ -4,6 +4,7 @@ import { Icon } from '@/shared/components/ui'
 import { AccountMenu } from './AccountMenu'
 import { adminNav } from './navigation'
 import { PageHeaderProvider, usePageHeaderState } from './PageHeader'
+import { RemoteNotice } from '@/shared/firebase/RemoteNotice'
 
 /**
  * W25 – khung trang web quản trị (DESIGN.md 8.1): sidebar 240 px nền trắng, mục đang chọn nền Primary Container
@@ -47,6 +48,7 @@ export function AdminLayout() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Header />
           <main id="main" className="mx-auto w-full max-w-[1440px] flex-1 px-6 pb-8">
+            <RemoteNotice />
             <Outlet />
           </main>
         </div>
