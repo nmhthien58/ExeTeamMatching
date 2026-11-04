@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
-import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../suggestions/suggestions_api.dart';
+import 'lecturer_profile_view_model.dart';
 
 const lecturerProfilePath = '/gv/ho-so';
 const lecturerSettingsPath = '/gv/cai-dat';
@@ -92,53 +92,32 @@ class LecturerProfileScreen extends ConsumerWidget {
       ),
       body: ref.watch(lecturerProfileProvider).when(
             loading: () => const SkeletonList(count: 2),
-            error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(lecturerProfileProvider)),
+            error: (e, _) => ErrorState(error: e, onRetry: () => ref.read(lecturerProfileViewModelProvider.notifier).refresh()),
             data: (profile) => _LecturerProfileView(profile: profile),
           ),
     );
   }
 }
 
-class _LecturerProfileView extends ConsumerStatefulWidget {
+class _LecturerProfileView extends ConsumerWidget {
   const _LecturerProfileView({required this.profile});
 
   final LecturerProfile profile;
 
   @override
-  ConsumerState<_LecturerProfileView> createState() => _LecturerProfileViewState();
-}
-
-class _LecturerProfileViewState extends ConsumerState<_LecturerProfileView> {
-  /// null = đang xem; khác null = đang sửa.
-  Set<int>? _editing;
-  bool _saving = false;
-  String? _error;
-
-  Future<void> _save() async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await ref.read(lecturerProfileApiProvider).saveDomains(_editing!.toList()..sort());
-      ref.invalidate(lecturerProfileProvider);
-      if (!mounted) return;
-      setState(() => _editing = null);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vm = ref.read(lecturerProfileViewModelProvider.notifier);
+    final state = ref.watch(lecturerProfileViewModelProvider);
+    Future<void> save() async {
+      if (!await vm.save() || !context.mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('Đã lưu chuyên môn')));
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.fieldErrors['domainIds']?.first ?? e.detail ?? e.title);
-    } finally {
-      if (mounted) setState(() => _saving = false);
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final p = widget.profile;
-    final editing = _editing;
+    final p = profile;
+    final editing = state.editing;
     String limit(int? n) => n == null ? 'Không giới hạn' : '$n nhóm';
 
     return ListView(
@@ -156,7 +135,7 @@ class _LecturerProfileViewState extends ConsumerState<_LecturerProfileView> {
         Row(
           children: [
             Expanded(child: Text('Chuyên môn (domain)', style: theme.textTheme.titleMedium)),
-            if (editing == null) TextButton(onPressed: () => setState(() => _editing = {for (final d in p.domains) d.id}), child: const Text('Sửa')),
+            if (editing == null) TextButton(onPressed: () => vm.startEditing(p), child: const Text('Sửa')),
           ],
         ),
         Text('Dùng để gợi ý đề tài phù hợp với bạn.', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -173,14 +152,11 @@ class _LecturerProfileViewState extends ConsumerState<_LecturerProfileView> {
           _DomainEditor(
             selected: editing,
             current: p.domains,
-            saving: _saving,
-            error: _error,
-            onToggle: (id) => setState(() => editing.contains(id) ? editing.remove(id) : editing.add(id)),
-            onCancel: () => setState(() {
-              _editing = null;
-              _error = null;
-            }),
-            onSave: _save,
+            saving: state.saving,
+            error: state.error,
+            onToggle: vm.toggle,
+            onCancel: vm.cancel,
+            onSave: save,
           ),
       ],
     );

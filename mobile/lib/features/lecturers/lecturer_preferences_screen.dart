@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../my_team/my_team_api.dart' show myTeamDetailProvider;
+import 'lecturer_preferences_view_model.dart';
 import 'lecturers_api.dart';
 import 'lecturers_models.dart';
 import 'paths.dart';
@@ -17,7 +18,6 @@ class LecturerPreferencesScreen extends ConsumerStatefulWidget {
 }
 
 class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesScreen> {
-  String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -33,35 +33,27 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
     List<String> previousIds,
     String message,
   ) async {
-    try {
-      await ref.read(lecturersApiProvider).updatePreferences(teamId, newIds);
-      ref.invalidate(lecturerPreferencesProvider(teamId));
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () async {
-              try {
-                await ref.read(lecturersApiProvider).updatePreferences(teamId, previousIds);
-                ref.invalidate(lecturerPreferencesProvider(teamId));
-              } catch (_) {}
-            },
+    final vm = ref.read(lecturerPreferencesViewModelProvider(teamId).notifier);
+    final outcome = await vm.update(newIds);
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    switch (outcome) {
+      case PreferenceUpdated():
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(label: 'Hoàn tác', onPressed: () => vm.undo(previousIds)),
           ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Không thể cập nhật nguyện vọng'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+        );
+      case PreferenceUpdateFailed():
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(outcome.messageOr('Không thể cập nhật nguyện vọng')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
     }
   }
 
@@ -73,6 +65,8 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final myTeamAsync = ref.watch(myTeamDetailProvider);
+    final searchQuery = ref.watch(lecturerSearchViewModelProvider);
+    final search = ref.read(lecturerSearchViewModelProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -95,7 +89,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
 
           final isLeader = team.isLeader;
           final preferencesAsync = ref.watch(lecturerPreferencesProvider(team.id));
-          final lecturersAsync = ref.watch(lecturersListProvider(_searchQuery));
+          final lecturersAsync = ref.watch(lecturersListProvider(searchQuery));
 
           return preferencesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
@@ -112,10 +106,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
               final interestedLecturers = response.interestedLecturers;
 
               return RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(lecturerPreferencesProvider(team.id));
-                  ref.invalidate(lecturersListProvider(_searchQuery));
-                },
+                onRefresh: () async => search.refresh(team.id),
                 child: ListView(
                   padding: const EdgeInsets.all(AppSpacing.s4),
                   children: [
@@ -282,12 +273,12 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                       decoration: InputDecoration(
                         hintText: 'Tìm theo tên hoặc lĩnh vực chuyên môn...',
                         prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isNotEmpty
+                        suffixIcon: searchQuery.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear),
                                 onPressed: () {
                                   _searchController.clear();
-                                  setState(() => _searchQuery = '');
+                                  search.clear();
                                 },
                               )
                             : null,
@@ -299,7 +290,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                           vertical: AppSpacing.s2,
                         ),
                       ),
-                      onSubmitted: (val) => setState(() => _searchQuery = val.trim()),
+                      onSubmitted: search.search,
                     ),
                     const SizedBox(height: AppSpacing.s3),
 
@@ -312,7 +303,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                       ),
                       error: (err, _) => ErrorState(
                         error: err,
-                        onRetry: () => ref.invalidate(lecturersListProvider(_searchQuery)),
+                        onRetry: () => ref.invalidate(lecturersListProvider(searchQuery)),
                       ),
                       data: (lecturers) {
                         if (lecturers.isEmpty) {
@@ -320,7 +311,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                             padding: const EdgeInsets.symmetric(vertical: AppSpacing.s4),
                             child: Center(
                               child: Text(
-                                _searchQuery.isEmpty
+                                searchQuery.isEmpty
                                     ? 'Chưa có giảng viên nào'
                                     : 'Không tìm thấy giảng viên phù hợp',
                                 style: theme.textTheme.bodyMedium?.copyWith(

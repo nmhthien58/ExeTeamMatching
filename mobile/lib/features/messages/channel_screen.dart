@@ -1,40 +1,29 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
-import '../files/file_services.dart' show fileIcon, openUrlProvider;
+import '../files/file_services.dart' show fileIcon;
 import '../realtime/collab_hub.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart' show collabApiProvider, folderProvider, workspaceProvider;
+import '../workspace/workspace_api.dart' show folderProvider, workspaceProvider;
 import '../workspace/workspace_models.dart' show PersonRef, ProjectFile, WorkspaceRole;
 import '../workspace/workspace_widgets.dart' show Avatar, RoleChip;
+import '../../core/network/api_client.dart';
+import '../../core/view_state.dart';
+import 'channel_view_model.dart';
 import 'messages_api.dart';
+
+export 'channel_view_model.dart' show MessageDraft, newClientId;
 
 const maxMessageLength = 2000;
 const maxAttachments = 5;
-
-/// Nội dung khung soạn tin khi bấm Gửi.
-typedef MessageDraft = ({String body, bool asQuestion, List<String> fileIds, List<String> mentionIds});
 
 /// Người được @nhắc: trừ mình; kênh Nhóm chỉ có sinh viên (quy tắc 22).
 List<PersonRef> mentionable(Channel channel, List<PersonRef> people, Set<String> mine) => [
       for (final p in people)
         if (!mine.contains(p.personId) && (!channel.isTeam || p.role == WorkspaceRole.leader || p.role == WorkspaceRole.member)) p,
     ];
-
-/// clientMessageId dạng UUID v4 – gửi lại cùng id thì server không tạo tin trùng.
-String newClientId() {
-  final r = Random.secure();
-  final b = List<int>.generate(16, (_) => r.nextInt(256));
-  b[6] = (b[6] & 0x0f) | 0x40;
-  b[8] = (b[8] & 0x3f) | 0x80;
-  final h = b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
-  return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
-}
 
 /// C03 – Kênh tin nhắn (MB-39): nạp workspace và kênh rồi mở [ChannelView]. Mở từ C02, C01 hoặc thông báo câu hỏi.
 class ChannelScreen extends ConsumerWidget {
@@ -64,14 +53,6 @@ class ChannelScreen extends ConsumerWidget {
   }
 }
 
-class _Pending {
-  _Pending({required this.clientId, required this.draft});
-
-  final String clientId;
-  final MessageDraft draft;
-  bool failed = false;
-}
-
 /// Danh sách tin (mới nhất ở dưới, chia theo ngày), khung soạn tin, cập nhật realtime, đánh dấu đã đọc.
 // shortcut: chưa có sửa / xóa tin trên giao diện; bổ sung khi cần.
 class ChannelView extends ConsumerStatefulWidget {
@@ -87,119 +68,9 @@ class ChannelView extends ConsumerStatefulWidget {
 }
 
 class _ChannelViewState extends ConsumerState<ChannelView> {
-  final List<Message> _items = [];
-  final List<_Pending> _pending = [];
-  final List<VoidCallback> _unsubscribe = [];
-  final Set<String> _countedReplies = {};
-  String? _cursor;
-  bool _hasMore = false;
-  bool _loading = true;
-  Object? _error;
-  String? _lastRead;
+  ChannelArgs get _args => (channelId: widget.channel.id, readOnly: widget.readOnly);
 
-  String get _channelId => widget.channel.id;
-
-  @override
-  void initState() {
-    super.initState();
-    final hub = ref.read(collabHubProvider);
-    _unsubscribe.addAll([
-      hub.join(HubGroup.channel, _channelId),
-      hub.on('messageCreated', (p) => _onMessage(p, created: true)),
-      hub.on('messageUpdated', (p) => _onMessage(p, created: false)),
-      hub.on('messageDeleted', (p) => _updateRoot(p, (m) => m.copyWith(isDeleted: true))),
-      hub.on('questionStatusChanged', (p) => _updateRoot(p, (m) => m.copyWith(questionStatus: (p as Map)['status'] as String?))),
-    ]);
-    _load();
-  }
-
-  @override
-  void dispose() {
-    for (final u in _unsubscribe) {
-      u();
-    }
-    super.dispose();
-  }
-
-  Future<void> _load({bool older = false}) async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final (items, next) = await ref.read(messagesApiProvider).history(_channelId, before: older ? _cursor : null);
-      if (!mounted) return;
-      setState(() {
-        if (!older) _items.clear();
-        _items.insertAll(0, items.reversed.where((m) => _items.every((x) => x.id != m.id)));
-        _cursor = next;
-        _hasMore = next != null;
-      });
-      if (!older) _markRead();
-    } catch (e) {
-      if (mounted) setState(() => _error = e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  void _onMessage(Object? payload, {required bool created}) {
-    if (payload is! Map || !mounted) return;
-    _apply(Message.fromJson(Map<String, dynamic>.from(payload)), created: created);
-  }
-
-  /// Tin mới / đã sửa từ REST hoặc hub; bỏ trùng theo id (REST và hub cùng báo một tin).
-  void _apply(Message m, {required bool created}) {
-    if (m.channelId != _channelId) return;
-    if (created && m.parentMessageId != null && !_countedReplies.add(m.id)) return;
-    setState(() {
-      final i = _items.indexWhere((x) => x.id == m.id);
-      if (m.parentMessageId == null) {
-        i >= 0 ? _items[i] = m : _items.add(m);
-      } else if (created) {
-        final root = _items.indexWhere((x) => x.id == m.parentMessageId);
-        if (root >= 0) _items[root] = _items[root].copyWith(replyCount: _items[root].replyCount + 1);
-      }
-    });
-    _markRead();
-  }
-
-  void _updateRoot(Object? payload, Message Function(Message) update) {
-    if (payload is! Map || payload['channelId'] != _channelId || !mounted) return;
-    setState(() {
-      final i = _items.indexWhere((x) => x.id == payload['messageId']);
-      if (i >= 0) _items[i] = update(_items[i]);
-    });
-  }
-
-  void _markRead() {
-    final newest = _items.lastOrNull;
-    if (widget.readOnly || newest == null || newest.id == _lastRead) return;
-    _lastRead = newest.id;
-    ref.read(messagesApiProvider).markRead(_channelId, newest.id).ignore();
-  }
-
-  Future<void> _send(_Pending p) async {
-    setState(() {
-      p.failed = false;
-      if (!_pending.contains(p)) _pending.add(p);
-    });
-    try {
-      final m = await ref.read(messagesApiProvider).send(
-            _channelId,
-            clientMessageId: p.clientId,
-            body: p.draft.body,
-            isAdvisorQuestion: p.draft.asQuestion,
-            attachmentFileIds: p.draft.fileIds,
-            mentionPersonIds: p.draft.mentionIds,
-          );
-      if (!mounted) return;
-      setState(() => _pending.remove(p));
-      _apply(m, created: true);
-    } catch (_) {
-      if (mounted) setState(() => p.failed = true);
-    }
-  }
+  ChannelViewModel get _vm => ref.read(channelViewModelProvider(_args).notifier);
 
   Future<void> _openThread(Message root) => showModalBottomSheet<void>(
         context: context,
@@ -212,33 +83,34 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
   @override
   Widget build(BuildContext context) {
     final mine = ref.watch(myPersonIdsProvider);
+    final state = ref.watch(channelViewModelProvider(_args));
+    final items = state.items;
     return Column(
       children: [
         const RealtimeStatusBanner(),
         Expanded(
-          child: _error != null && _items.isEmpty
-              ? ErrorState(error: _error!, onRetry: _load)
-              : _loading && _items.isEmpty
-                  ? const SkeletonList(count: 3)
-                  : _items.isEmpty && _pending.isEmpty
-                      ? EmptyState(icon: Icons.forum_outlined, title: 'Chưa có tin nhắn.', description: 'Bắt đầu trò chuyện ở kênh ${widget.channel.label}.')
-                      : ListView(
-                          reverse: true,
-                          padding: const EdgeInsets.all(AppSpacing.s3),
-                          children: [
-                            for (final p in _pending.reversed) _PendingBubble(pending: p, onRetry: () => _send(p)),
-                            for (var i = _items.length - 1; i >= 0; i--) ...[
-                              MessageBubble(message: _items[i], mine: mine.contains(_items[i].author.personId), onThread: () => _openThread(_items[i])),
-                              if (i == 0 || !_sameDay(_items[i - 1].createdAt, _items[i].createdAt)) _DayDivider(date: _items[i].createdAt),
-                            ],
-                            if (_hasMore)
-                              Center(
-                                child: _loading
-                                    ? const Padding(padding: EdgeInsets.all(AppSpacing.s2), child: CircularProgressIndicator())
-                                    : TextButton(onPressed: () => _load(older: true), child: const Text('Tải tin cũ hơn')),
-                              ),
-                          ],
-                        ),
+          child: switch (state.view) {
+            ViewError(:final error) => ErrorState(error: error, onRetry: _vm.load),
+            ViewLoading() => const SkeletonList(count: 3),
+            ViewEmpty() => EmptyState(icon: Icons.forum_outlined, title: 'Chưa có tin nhắn.', description: 'Bắt đầu trò chuyện ở kênh ${widget.channel.label}.'),
+            ViewData() => ListView(
+                reverse: true,
+                padding: const EdgeInsets.all(AppSpacing.s3),
+                children: [
+                  for (final p in state.pending.reversed) _PendingBubble(pending: p, onRetry: () => _vm.retry(p)),
+                  for (var i = items.length - 1; i >= 0; i--) ...[
+                    MessageBubble(message: items[i], mine: mine.contains(items[i].author.personId), onThread: () => _openThread(items[i])),
+                    if (i == 0 || !_sameDay(items[i - 1].createdAt, items[i].createdAt)) _DayDivider(date: items[i].createdAt),
+                  ],
+                  if (state.hasMore)
+                    Center(
+                      child: state.loading
+                          ? const Padding(padding: EdgeInsets.all(AppSpacing.s2), child: CircularProgressIndicator())
+                          : TextButton(onPressed: () => _vm.load(older: true), child: const Text('Tải tin cũ hơn')),
+                    ),
+                ],
+              ),
+          },
         ),
         if (widget.readOnly)
           const Padding(padding: EdgeInsets.all(AppSpacing.s4), child: Text('Bộ môn chỉ xem kênh này.'))
@@ -247,7 +119,7 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
             workspaceId: widget.channel.workspaceId,
             people: mentionable(widget.channel, widget.people, mine),
             allowQuestion: !widget.channel.isTeam && widget.isStudent,
-            onSend: (draft) => _send(_Pending(clientId: newClientId(), draft: draft)),
+            onSend: _vm.send,
           ),
       ],
     );
@@ -359,7 +231,7 @@ class _Attachment extends ConsumerWidget {
           onTap: () async {
             final messenger = ScaffoldMessenger.of(context);
             try {
-              await ref.read(openUrlProvider)(await ref.read(collabApiProvider).downloadUrl(file.id));
+              await ref.read(openAttachmentProvider)(file.id);
             } catch (e) {
               messenger.showSnackBar(SnackBar(content: Text(e.apiError.title)));
             }
@@ -371,7 +243,7 @@ class _Attachment extends ConsumerWidget {
 class _PendingBubble extends StatelessWidget {
   const _PendingBubble({required this.pending, required this.onRetry});
 
-  final _Pending pending;
+  final PendingMessage pending;
   final VoidCallback onRetry;
 
   @override
@@ -623,65 +495,15 @@ class ThreadSheet extends ConsumerStatefulWidget {
 }
 
 class _ThreadSheetState extends ConsumerState<ThreadSheet> {
-  Message? _root;
-  final List<Message> _replies = [];
-  Object? _error;
-  String? _sendError;
-  late final VoidCallback _off;
-
-  @override
-  void initState() {
-    super.initState();
-    _off = ref.read(collabHubProvider).on('messageCreated', (p) {
-      if (p is! Map || p['parentMessageId'] != widget.root.id || !mounted) return;
-      final m = Message.fromJson(Map<String, dynamic>.from(p));
-      if (_replies.every((r) => r.id != m.id)) setState(() => _replies.add(m));
-    });
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _off();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    try {
-      final (root, replies) = await ref.read(messagesApiProvider).thread(widget.root.id);
-      if (!mounted) return;
-      setState(() {
-        _root = root;
-        _replies
-          ..clear()
-          ..addAll(replies);
-      });
-    } catch (e) {
-      if (mounted) setState(() => _error = e);
-    }
-  }
-
-  Future<void> _reply(MessageDraft draft) async {
-    setState(() => _sendError = null);
-    try {
-      final m = await ref.read(messagesApiProvider).send(
-            widget.channel.id,
-            clientMessageId: newClientId(),
-            body: draft.body,
-            parentMessageId: widget.root.id,
-            attachmentFileIds: draft.fileIds,
-            mentionPersonIds: draft.mentionIds,
-          );
-      if (mounted && _replies.every((r) => r.id != m.id)) setState(() => _replies.add(m));
-    } catch (e) {
-      if (mounted) setState(() => _sendError = e.apiError.detail ?? e.apiError.title);
-    }
-  }
+  ThreadArgs get _args => (rootId: widget.root.id, channelId: widget.channel.id);
 
   @override
   Widget build(BuildContext context) {
     final mine = ref.watch(myPersonIdsProvider);
-    final root = _root ?? widget.root;
+    final vm = ref.read(threadViewModelProvider(_args).notifier);
+    final state = ref.watch(threadViewModelProvider(_args));
+    final root = state.root ?? widget.root;
+    final replies = state.replies;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: ConstrainedBox(
@@ -691,26 +513,26 @@ class _ThreadSheetState extends ConsumerState<ThreadSheet> {
           children: [
             Text('Luồng trả lời', style: Theme.of(context).textTheme.titleMedium),
             Flexible(
-              child: _error != null
-                  ? ErrorState(error: _error!, onRetry: _load)
+              child: state.error != null
+                  ? ErrorState(error: state.error!, onRetry: vm.load)
                   : ListView(
                       shrinkWrap: true,
                       padding: const EdgeInsets.all(AppSpacing.s3),
                       children: [
                         MessageBubble(message: root, mine: mine.contains(root.author.personId)),
                         const Divider(),
-                        Text('${_replies.length} trả lời', style: Theme.of(context).textTheme.bodySmall),
-                        for (final r in _replies) MessageBubble(message: r, mine: mine.contains(r.author.personId)),
+                        Text('${replies.length} trả lời', style: Theme.of(context).textTheme.bodySmall),
+                        for (final r in replies) MessageBubble(message: r, mine: mine.contains(r.author.personId)),
                       ],
                     ),
             ),
-            if (_sendError != null) ErrorBanner(message: _sendError!),
+            if (state.sendError != null) ErrorBanner(message: state.sendError!),
             if (!widget.readOnly)
               MessageComposer(
                 workspaceId: widget.channel.workspaceId,
                 people: mentionable(widget.channel, widget.people, mine),
                 hint: 'Trả lời trong luồng',
-                onSend: _reply,
+                onSend: vm.reply,
               ),
           ],
         ),

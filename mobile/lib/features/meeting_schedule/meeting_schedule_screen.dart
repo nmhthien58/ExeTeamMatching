@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
-import '../files/file_services.dart' show openUrlProvider;
 import '../my_team/my_team_api.dart' show myTeamDetailProvider;
 import '../realtime/collab_hub.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import 'meeting_schedule_api.dart';
-
-String _errorText(Object e) => scheduleErrors[e.apiError.code] ?? e.apiError.detail ?? e.apiError.title;
+import 'meeting_schedule_view_model.dart';
 
 /// WeeklySlotGrid (flutter-handoff C09): slot theo ngày, mỗi ô là nút có nhãn đọc được "Thứ Ba 09:15, còn trống";
 /// trạng thái có chữ + icon, không chỉ màu. `canPick` quyết định ô nào bấm được.
@@ -90,24 +86,6 @@ class WeeklySlotGrid extends StatelessWidget {
   }
 }
 
-/// Nghe `slotsChanged` của các workspace (payload chỉ có scheduleId) rồi tải lại lịch qua REST.
-mixin _SlotsChanged<T extends ConsumerStatefulWidget> on ConsumerState<T> {
-  final List<VoidCallback> _unsubscribe = [];
-
-  void listenSlots(Iterable<String> workspaceIds, VoidCallback reload) {
-    final hub = ref.read(collabHubProvider);
-    _unsubscribe.addAll([for (final id in workspaceIds) hub.join(HubGroup.workspace, id), hub.on('slotsChanged', (_) => reload())]);
-  }
-
-  @override
-  void dispose() {
-    for (final u in _unsubscribe) {
-      u();
-    }
-    super.dispose();
-  }
-}
-
 /// C09 – Lịch họp hằng tuần của nhóm (MB-46, quy tắc 25): trưởng nhóm chọn / đổi một slot cố định tới hạn, ai chọn trước được trước;
 /// slot vừa bị nhóm khác chọn thì báo tại ô và lưới tự tải lại. Thành viên chỉ xem slot của nhóm.
 class TeamScheduleScreen extends ConsumerWidget {
@@ -141,15 +119,8 @@ class _TeamSchedule extends ConsumerStatefulWidget {
   ConsumerState<_TeamSchedule> createState() => _TeamScheduleState();
 }
 
-class _TeamScheduleState extends ConsumerState<_TeamSchedule> with _SlotsChanged {
-  String? _failedSlot;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    listenSlots([widget.workspaceId], () => ref.invalidate(teamScheduleProvider(widget.workspaceId)));
-  }
+class _TeamScheduleState extends ConsumerState<_TeamSchedule> {
+  TeamScheduleViewModel get _vm => ref.read(teamScheduleViewModelProvider(widget.workspaceId).notifier);
 
   Future<void> _pick(ScheduleSlot slot, bool change) async {
     final ok = await showModalBottomSheet<bool>(
@@ -174,22 +145,13 @@ class _TeamScheduleState extends ConsumerState<_TeamSchedule> with _SlotsChanged
     );
     if (ok != true || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      await ref.read(meetingScheduleApiProvider).book(widget.workspaceId, slot.id);
-      setState(() => _failedSlot = _error = null);
-      messenger.showSnackBar(SnackBar(content: Text('Đã chọn ${slot.label}')));
-    } catch (e) {
-      setState(() {
-        _failedSlot = slot.id;
-        _error = _errorText(e);
-      });
-    }
-    ref.invalidate(teamScheduleProvider(widget.workspaceId));
+    if (await _vm.book(slot)) messenger.showSnackBar(SnackBar(content: Text('Đã chọn ${slot.label}')));
   }
 
   @override
   Widget build(BuildContext context) {
     final schedule = ref.watch(teamScheduleProvider(widget.workspaceId));
+    final action = ref.watch(teamScheduleViewModelProvider(widget.workspaceId));
     final theme = Theme.of(context);
     return Column(
       children: [
@@ -197,7 +159,7 @@ class _TeamScheduleState extends ConsumerState<_TeamSchedule> with _SlotsChanged
         Expanded(
           child: schedule.when(
             loading: () => const SkeletonList(count: 3),
-            error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(teamScheduleProvider(widget.workspaceId))),
+            error: (e, _) => ErrorState(error: e, onRetry: _vm.refresh),
             data: (data) => data == null
                 ? const EmptyState(icon: Icons.event_note_outlined, title: 'Giảng viên chưa đăng lịch', description: 'Bạn sẽ nhận thông báo khi giảng viên đăng lịch họp hằng tuần.')
                 : RefreshIndicator(
@@ -211,7 +173,7 @@ class _TeamScheduleState extends ConsumerState<_TeamSchedule> with _SlotsChanged
                           Align(
                             alignment: Alignment.centerLeft,
                             child: TextButton.icon(
-                              onPressed: () => ref.read(openUrlProvider)(data.location),
+                              onPressed: () => _vm.openLink(data.location),
                               icon: const Icon(Icons.videocam_outlined),
                               label: const Text('Link họp'),
                             ),
@@ -224,14 +186,14 @@ class _TeamScheduleState extends ConsumerState<_TeamSchedule> with _SlotsChanged
                                   : 'Trưởng nhóm chọn slot cho nhóm.',
                           style: theme.textTheme.bodyMedium,
                         ),
-                        if (_error != null) ...[const SizedBox(height: AppSpacing.s3), ErrorBanner(message: _error!)],
+                        if (action.error != null) ...[const SizedBox(height: AppSpacing.s3), ErrorBanner(message: action.error!)],
                         if (widget.isLeader) ...[
                           const SizedBox(height: AppSpacing.s3),
                           WeeklySlotGrid(
                             slots: data.slots,
                             canPick: (s) => data.canBook && s.state == 'FREE',
                             onPick: (s) => _pick(s, data.mySlot != null),
-                            errorSlotId: _failedSlot,
+                            errorSlotId: action.failedSlot,
                           ),
                         ],
                       ],
@@ -246,27 +208,12 @@ class _TeamScheduleState extends ConsumerState<_TeamSchedule> with _SlotsChanged
 
 /// C09 – Lịch họp hằng tuần của giảng viên (MB-46): khung giờ, độ dài slot, link họp, xem trước số slot; lưu thì cắt slot, "Đăng lịch"
 /// cho các nhóm EXE201 (thiếu slot vẫn đăng, có cảnh báo). Chạm ô có nhóm → bottom sheet đổi slot cho nhóm đó.
-class LecturerScheduleScreen extends ConsumerStatefulWidget {
+class LecturerScheduleScreen extends ConsumerWidget {
   const LecturerScheduleScreen({super.key});
 
   @override
-  ConsumerState<LecturerScheduleScreen> createState() => _LecturerScheduleScreenState();
-}
-
-class _LecturerScheduleScreenState extends ConsumerState<LecturerScheduleScreen> with _SlotsChanged {
-  final _joined = <String>{};
-
-  @override
-  void initState() {
-    super.initState();
-    ref.listenManual(myWorkspacesProvider, (_, next) {
-      final ids = (next.value ?? const []).where((w) => w.courseCode == 'EXE201').map((w) => w.id).where(_joined.add).toList();
-      if (ids.isNotEmpty) listenSlots(ids, () => ref.invalidate(myScheduleProvider));
-    }, fireImmediately: true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(lecturerScheduleSyncProvider);
     final schedule = ref.watch(myScheduleProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Lịch họp hằng tuần')),
@@ -296,19 +243,10 @@ class _LecturerSchedule extends ConsumerStatefulWidget {
 }
 
 class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
-  static const _defaultWindow = ScheduleWindow(dayOfWeek: 2, startTime: '09:00', endTime: '11:00');
-  late List<ScheduleWindow> _windows = [...?widget.schedule?.windows];
   late final _minutes = TextEditingController(text: '${widget.schedule?.slotMinutes ?? 15}');
   late final _location = TextEditingController(text: widget.schedule?.location ?? '');
-  bool _submitted = false;
-  bool _busy = false;
-  String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    if (_windows.isEmpty) _windows = [_defaultWindow];
-  }
+  LecturerScheduleViewModel get _vm => ref.read(lecturerScheduleViewModelProvider(widget.schedule?.id).notifier);
 
   @override
   void dispose() {
@@ -317,39 +255,19 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
     super.dispose();
   }
 
-  int get _slotMinutes => int.tryParse(_minutes.text) ?? 0;
-  int get _badWindow => _windows.indexWhere((w) => w.startTime.compareTo(w.endTime) >= 0);
-
-  Future<void> _run(Future<MeetingSchedule> Function(MeetingScheduleApi api) action, String done) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+  Future<void> _run(Future<String?> pending) async {
     final messenger = ScaffoldMessenger.of(context);
-    try {
-      await action(ref.read(meetingScheduleApiProvider));
-      ref.invalidate(myScheduleProvider);
-      messenger.showSnackBar(SnackBar(content: Text(done)));
-    } catch (e) {
-      if (mounted) setState(() => _error = _errorText(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    final done = await pending;
+    if (done != null) messenger.showSnackBar(SnackBar(content: Text(done)));
   }
 
-  void _save() {
-    setState(() => _submitted = true);
-    if (_badWindow >= 0 || _location.text.trim().isEmpty || _slotMinutes < 5 || _slotMinutes > 60) return;
-    _run((api) => api.save(_windows, _slotMinutes, _location.text.trim()), 'Đã lưu khung giờ');
-  }
-
-  Future<void> _pickTime(int i, bool start) async {
-    final current = start ? _windows[i].startTime : _windows[i].endTime;
+  Future<void> _pickTime(ScheduleWindow window, int i, bool start) async {
+    final current = start ? window.startTime : window.endTime;
     final parts = current.split(':');
     final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
     if (picked == null) return;
     final text = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
-    setState(() => _windows[i] = start ? _windows[i].copyWith(startTime: text) : _windows[i].copyWith(endTime: text));
+    _vm.setWindow(i, start ? window.copyWith(startTime: text) : window.copyWith(endTime: text));
   }
 
   Future<void> _move(MeetingSchedule schedule, ScheduleSlot slot) async {
@@ -384,14 +302,16 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
         ),
       ),
     );
-    if (target != null) await _run((api) => api.move(slot.workspaceId!, target.id), 'Đã đổi slot cho ${slot.teamName}');
+    if (target != null) await _run(_vm.move(slot, target));
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final schedule = widget.schedule;
-    final locationError = _submitted && _location.text.trim().isEmpty ? 'Nhập link họp.' : null;
+    final state = ref.watch(lecturerScheduleViewModelProvider(schedule?.id));
+    final windows = state.windows;
+    final busy = state.busy;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
@@ -401,8 +321,8 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
             if (schedule != null) Chip(label: Text(switch (schedule.status) { 'DRAFT' => 'Chưa đăng', 'PUBLISHED' => 'Đã đăng', _ => 'Đã chốt slot' })),
           ],
         ),
-        if (_error != null) ErrorBanner(message: _error!),
-        for (var i = 0; i < _windows.length; i++)
+        if (state.error != null) ErrorBanner(message: state.error!),
+        for (var i = 0; i < windows.length; i++)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s2),
             child: Wrap(
@@ -410,45 +330,45 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
               spacing: AppSpacing.s2,
               children: [
                 DropdownButton<int>(
-                  value: _windows[i].dayOfWeek,
+                  value: windows[i].dayOfWeek,
                   items: [for (var d = 1; d <= 7; d++) DropdownMenuItem(value: d, child: Text(dayNames[d]))],
-                  onChanged: (d) => setState(() => _windows[i] = _windows[i].copyWith(dayOfWeek: d)),
+                  onChanged: (d) => _vm.setWindow(i, windows[i].copyWith(dayOfWeek: d)),
                 ),
-                OutlinedButton(onPressed: () => _pickTime(i, true), child: Text('Từ ${_windows[i].startTime}')),
-                OutlinedButton(onPressed: () => _pickTime(i, false), child: Text('Đến ${_windows[i].endTime}')),
-                if (_windows.length > 1)
-                  IconButton(tooltip: 'Xóa khung ${i + 1}', onPressed: () => setState(() => _windows.removeAt(i)), icon: const Icon(Icons.delete_outline)),
-                if (_submitted && _badWindow == i) Text('Giờ kết thúc phải sau giờ bắt đầu.', style: TextStyle(color: theme.colorScheme.error)),
+                OutlinedButton(onPressed: () => _pickTime(windows[i], i, true), child: Text('Từ ${windows[i].startTime}')),
+                OutlinedButton(onPressed: () => _pickTime(windows[i], i, false), child: Text('Đến ${windows[i].endTime}')),
+                if (windows.length > 1)
+                  IconButton(tooltip: 'Xóa khung ${i + 1}', onPressed: () => _vm.removeWindow(i), icon: const Icon(Icons.delete_outline)),
+                if (state.shownBadWindow == i) Text('Giờ kết thúc phải sau giờ bắt đầu.', style: TextStyle(color: theme.colorScheme.error)),
               ],
             ),
           ),
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(onPressed: () => setState(() => _windows.add(_defaultWindow)), icon: const Icon(Icons.add), label: const Text('Thêm khung giờ')),
+          child: TextButton.icon(onPressed: _vm.addWindow, icon: const Icon(Icons.add), label: const Text('Thêm khung giờ')),
         ),
         TextField(
           controller: _minutes,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'Độ dài slot (phút)', helperText: '5–60 phút'),
-          onChanged: (_) => setState(() {}),
+          onChanged: _vm.minutesChanged,
         ),
         const SizedBox(height: AppSpacing.s3),
         TextField(
           controller: _location,
           keyboardType: TextInputType.url,
-          decoration: InputDecoration(labelText: 'Link họp', errorText: locationError),
-          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(labelText: 'Link họp', errorText: state.locationError),
+          onChanged: _vm.locationChanged,
         ),
         const SizedBox(height: AppSpacing.s2),
-        Text('Xem trước: ${countSlots(_windows, _slotMinutes)} slot', style: theme.textTheme.bodyMedium),
+        Text('Xem trước: ${state.previewCount} slot', style: theme.textTheme.bodyMedium),
         const SizedBox(height: AppSpacing.s3),
         Wrap(
           spacing: AppSpacing.s2,
           children: [
-            OutlinedButton(onPressed: _busy ? null : _save, child: const Text('Lưu khung giờ')),
+            OutlinedButton(onPressed: busy ? null : () => _run(_vm.save()), child: const Text('Lưu khung giờ')),
             if (schedule?.status == 'DRAFT')
               FilledButton.icon(
-                onPressed: _busy ? null : () => _run((api) => api.publish(), 'Đã đăng lịch cho các nhóm'),
+                onPressed: busy ? null : () => _run(_vm.publish()),
                 icon: const Icon(Icons.campaign_outlined),
                 label: const Text('Đăng lịch'),
               ),

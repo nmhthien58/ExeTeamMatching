@@ -6,9 +6,11 @@ import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/view_state.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/format.dart';
 import 'my_team_api.dart';
+import 'team_history_view_model.dart';
 
 /// Schema AuditLog (team.yaml tag AuditLog) – một dòng lịch sử nhóm.
 class AuditLogEntry {
@@ -70,79 +72,47 @@ class TeamHistoryScreen extends ConsumerWidget {
       );
 }
 
-class _HistoryList extends ConsumerStatefulWidget {
+class _HistoryList extends ConsumerWidget {
   const _HistoryList({required this.teamId});
 
   final String teamId;
 
   @override
-  ConsumerState<_HistoryList> createState() => _HistoryListState();
-}
-
-class _HistoryListState extends ConsumerState<_HistoryList> {
-  final List<AuditLogEntry> _items = [];
-  int _page = 0;
-  bool _hasMore = true;
-  bool _loading = false;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load(reset: true);
-  }
-
-  Future<void> _load({bool reset = false}) async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final next = reset ? 1 : _page + 1;
-      final (items, hasMore) = await ref.read(teamHistoryApiProvider).page(widget.teamId, next);
-      if (!mounted) return;
-      setState(() {
-        if (reset) _items.clear();
-        _items.addAll(items);
-        _page = next;
-        _hasMore = hasMore;
-      });
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    if (_error != null && _items.isEmpty) return ErrorState(error: _error!, onRetry: () => _load(reset: true));
-    if (_loading && _items.isEmpty) return const SkeletonList();
-    return RefreshIndicator(
-      onRefresh: () => _load(reset: true),
-      child: _items.isEmpty
-          ? ListView(children: const [EmptyState(icon: Icons.history, title: 'Chưa có hoạt động', description: 'Các thay đổi của nhóm sẽ hiện ở đây.')])
-          : ListView(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
-              children: [
-                for (final e in _items)
-                  ListTile(
-                    leading: Icon(_iconOf(e.action)),
-                    title: Text(e.summary),
-                    subtitle: Text([e.actorName, formatDateTime(e.occurredAt), ?e.reason].join(' · ')),
-                  ),
-                if (_hasMore)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpacing.s4),
-                    child: _loading ? const Center(child: CircularProgressIndicator()) : OutlinedButton(onPressed: _load, child: const Text('Xem thêm')),
-                  ),
-                if (_error != null) ErrorBanner(message: 'Không tải được trang tiếp theo.', onRetry: _load),
-                if (!_hasMore) Center(child: Padding(padding: const EdgeInsets.all(AppSpacing.s4), child: Text('Đã hết lịch sử', style: theme.textTheme.bodyMedium))),
-              ],
-            ),
-    );
+    final vm = ref.read(teamHistoryViewModelProvider(teamId).notifier);
+    return switch (ref.watch(teamHistoryViewModelProvider(teamId))) {
+      ViewError(:final error) => ErrorState(error: error, onRetry: vm.refresh),
+      ViewLoading() => const SkeletonList(),
+      ViewEmpty() => RefreshIndicator(
+          onRefresh: vm.refresh,
+          child: ListView(children: const [EmptyState(icon: Icons.history, title: 'Chưa có hoạt động', description: 'Các thay đổi của nhóm sẽ hiện ở đây.')]),
+        ),
+      ViewData(value: final history) => RefreshIndicator(
+          onRefresh: vm.refresh,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
+            children: [
+              for (final e in history.items)
+                ListTile(
+                  leading: Icon(_iconOf(e.action)),
+                  title: Text(e.summary),
+                  subtitle: Text([e.actorName, formatDateTime(e.occurredAt), ?e.reason].join(' · ')),
+                ),
+              if (history.hasMore)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.s4),
+                  child: history.loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : OutlinedButton(onPressed: vm.loadMore, child: const Text('Xem thêm')),
+                ),
+              if (history.loadMoreError != null) ErrorBanner(message: 'Không tải được trang tiếp theo.', onRetry: vm.loadMore),
+              if (!history.hasMore)
+                Center(child: Padding(padding: const EdgeInsets.all(AppSpacing.s4), child: Text('Đã hết lịch sử', style: theme.textTheme.bodyMedium))),
+            ],
+          ),
+        ),
+    };
   }
 
   static IconData _iconOf(String action) => switch (action) {

@@ -7,6 +7,7 @@ import '../workspace/format.dart';
 import '../workspace/workspace_widgets.dart';
 import 'meetings_api.dart';
 import 'meetings_screen.dart';
+import 'meetings_view_model.dart';
 
 /// C08 – Chi tiết cuộc họp (MB-42, quy tắc 25): trả lời Có / Không từng khung; người tổ chức chốt khung, thêm khung, hủy có lý do;
 /// ghi biên bản và chuyển dòng thành việc. Trạng thái: chờ trả lời · đã chốt · đã hủy · đã họp (có / chưa có biên bản) · lỗi lưu.
@@ -21,44 +22,28 @@ class MeetingDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
-  bool _busy = false;
-  String? _error;
+  MeetingDetailViewModel get _vm => ref.read(meetingDetailViewModelProvider(widget.meetingId).notifier);
 
-  MeetingsApi get _api => ref.read(meetingsApiProvider);
-
-  /// Chạy một thao tác trả MeetingDetail mới; lỗi hiện banner, dữ liệu đang nhập giữ nguyên.
-  Future<bool> _run(Future<Object?> Function() action, {String? done}) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await action();
-      ref.invalidate(meetingDetailProvider(widget.meetingId));
-      if (done != null && mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(done)));
-      }
-      return true;
-    } catch (e) {
-      if (mounted) setState(() => _error = errorText(e));
-      return false;
-    } finally {
-      if (mounted) setState(() => _busy = false);
+  /// Hiện câu SnackBar của thao tác thành công; trả true khi thành công.
+  Future<bool> _show(Future<MeetingActionOutcome> pending) async {
+    final outcome = await pending;
+    if (outcome case MeetingActionDone(:final message?) when mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
     }
+    return outcome.ok;
   }
 
   Future<void> _cancel() async {
     final reason = await showDialog<String>(context: context, builder: (_) => const _CancelDialog());
-    if (reason != null) await _run(() => _api.cancel(widget.meetingId, reason), done: 'Đã hủy cuộc họp');
+    if (reason != null) await _show(_vm.cancel(reason));
   }
 
   Future<void> _addSlot() async {
     final at = await widget.pickTime(context);
     if (at == null) return;
-    if (!at.isAfter(DateTime.now())) return setState(() => _error = 'Khung giờ phải ở tương lai.');
-    await _run(() => _api.addSlot(widget.meetingId, SlotInput(at)), done: 'Đã thêm khung giờ');
+    await _show(_vm.addSlot(at));
   }
 
   @override
@@ -69,7 +54,7 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
       body: meeting.when(
         skipLoadingOnRefresh: true,
         loading: () => const SkeletonList(count: 2),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(meetingDetailProvider(widget.meetingId))),
+        error: (e, _) => ErrorState(error: e, onRetry: _vm.refresh),
         data: (m) => _details(context, m),
       ),
     );
@@ -79,6 +64,8 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
     final theme = Theme.of(context);
     final c = m.card;
     final organizer = isOrganizer(ref, c.organizer);
+    final action = ref.watch(meetingDetailViewModelProvider(widget.meetingId));
+    final busy = action.busy;
     final open = c.status == MeetingStatus.proposed || c.status == MeetingStatus.scheduled;
     final (label, tone, icon) = switch (c.status) {
       MeetingStatus.proposed => ('Chờ chốt', StatusTone.warning, Icons.how_to_vote_outlined),
@@ -103,16 +90,16 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
         Text('Nơi họp: ${c.location?.isNotEmpty == true ? c.location : 'Chưa có'}', style: theme.textTheme.bodyMedium),
         if (m.agenda?.isNotEmpty == true) ...[const SizedBox(height: AppSpacing.s2), Text(m.agenda!, style: theme.textTheme.bodyMedium)],
         const SizedBox(height: AppSpacing.s3),
-        if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+        if (action.error != null) ...[ErrorBanner(message: action.error!), const SizedBox(height: AppSpacing.s3)],
         if (c.status == MeetingStatus.cancelled) ErrorBanner(message: 'Cuộc họp đã hủy. ${m.cancelReason ?? ''}'),
         if (c.status == MeetingStatus.proposed) ...[
           Text('Khung giờ – chọn Có / Không', style: theme.textTheme.titleMedium),
           const SizedBox(height: AppSpacing.s2),
-          for (final s in m.slots) _SlotCard(slot: s, suggested: s.id == m.suggestedSlotId, organizer: organizer, busy: _busy, onAnswer: (a) => _run(() => _api.answer(c.id, s.id, a)), onConfirm: () => _run(() => _api.confirm(c.id, s.id), done: 'Đã chốt khung giờ')),
-          if (organizer && m.slots.length < maxSlots) TextButton.icon(onPressed: _busy ? null : _addSlot, icon: const Icon(Icons.add), label: const Text('Thêm khung giờ')),
+          for (final s in m.slots) _SlotCard(slot: s, suggested: s.id == m.suggestedSlotId, organizer: organizer, busy: busy, onAnswer: (a) => _show(_vm.answer(s.id, a)), onConfirm: () => _show(_vm.confirm(s.id))),
+          if (organizer && m.slots.length < maxSlots) TextButton.icon(onPressed: busy ? null : _addSlot, icon: const Icon(Icons.add), label: const Text('Thêm khung giờ')),
         ],
         if ((c.status == MeetingStatus.scheduled || c.status == MeetingStatus.done) && organizer)
-          _MinutesEditor(key: ValueKey(m.minutes), initial: m.minutes ?? '', busy: _busy, onSave: (text) => _run(() => _api.saveMinutes(c.id, text), done: 'Đã lưu biên bản')),
+          _MinutesEditor(key: ValueKey(m.minutes), initial: m.minutes ?? '', busy: busy, onSave: (text) => _show(_vm.saveMinutes(text))),
         if (c.status == MeetingStatus.done && !organizer) ...[
           Text('Biên bản', style: theme.textTheme.titleMedium),
           const SizedBox(height: AppSpacing.s2),
@@ -124,14 +111,14 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
             key: ValueKey(m.createdTasks.length),
             created: m.createdTasks,
             lines: organizer && m.minutes != null ? minutesLines(m.minutes!).take(20).toList() : const [],
-            busy: _busy,
-            onCreate: (titles) => _run(() => _api.minutesToTasks(c.id, titles), done: 'Đã tạo ${titles.length} việc'),
+            busy: busy,
+            onCreate: (titles) => _show(_vm.createTasks(titles)),
           ),
         ],
         if (organizer && open) ...[
           const SizedBox(height: AppSpacing.s4),
           TextButton.icon(
-            onPressed: _busy ? null : _cancel,
+            onPressed: busy ? null : _cancel,
             icon: Icon(Icons.event_busy_outlined, color: theme.colorScheme.error),
             label: Text('Hủy cuộc họp', style: TextStyle(color: theme.colorScheme.error)),
           ),

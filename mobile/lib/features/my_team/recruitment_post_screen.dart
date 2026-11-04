@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
-import '../discover/posts_api.dart';
+import '../discover/post_form_view_model.dart';
 import '../suggestions/suggestions_api.dart' show CatalogRef, specializationsProvider;
 import 'my_team_api.dart';
 
@@ -41,11 +40,10 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
   late final _title = TextEditingController(text: _post?.title);
   late final _description = TextEditingController(text: _post?.description);
   late final Set<int> _specializationIds = {...?_post?.specializationIds};
-  bool _saving = false;
-  bool _submitted = false;
-  ApiException? _error;
 
   bool get _isEdit => _post != null;
+
+  RecruitmentPostViewModel get _vm => ref.read(recruitmentPostViewModelProvider(widget.team.id).notifier);
 
   @override
   void dispose() {
@@ -54,39 +52,16 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
     super.dispose();
   }
 
-  String? get _titleError {
-    if (_error?.fieldErrors['title'] case [final first, ...]) return first;
-    return _submitted && _title.text.trim().isEmpty ? 'Nhập tiêu đề bài tuyển.' : null;
-  }
-
-  Future<void> _run(Future<void> Function(PostsApi api) action, String done) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await action(ref.read(postsApiProvider));
-      if (!mounted) return;
-      refreshMyTeam(ref);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
+  void _handle(PostFormOutcome outcome) {
+    if (outcome case PostFormDone(:final message) when mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       context.pop();
-    } on ApiException catch (e) {
-      setState(() {
-        _saving = false;
-        _error = e;
-      });
     }
   }
 
-  Future<void> _save() async {
-    setState(() => _submitted = true);
-    if (_titleError != null) return;
-    await _run(
-      (api) => api.saveRecruitment(widget.team.id,
-          title: _title.text.trim(), description: _description.text.trim(), specializationIds: _specializationIds.toList()),
-      _isEdit ? 'Đã lưu bài tuyển' : 'Đã đăng bài tuyển',
-    );
-  }
+  Future<void> _save() async => _handle(
+        await _vm.save(title: _title.text, description: _description.text, specializationIds: _specializationIds.toList(), isEdit: _isEdit),
+      );
 
   Future<void> _close() async {
     final ok = await showDialog<bool>(
@@ -100,7 +75,7 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
         ],
       ),
     );
-    if (ok == true) await _run((api) => api.closeRecruitment(widget.team.id), 'Đã đóng bài tuyển');
+    if (ok == true) _handle(await _vm.close());
   }
 
   @override
@@ -108,14 +83,15 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
     final theme = Theme.of(context);
     final specializations = ref.watch(specializationsProvider).value ?? const <CatalogRef>[];
     final openSlots = widget.team.maxSize - widget.team.memberCount;
-    final generalError = _error != null && _error!.fieldErrors.isEmpty;
+    final state = ref.watch(recruitmentPostViewModelProvider(widget.team.id));
+    final saving = state.saving;
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Sửa bài tuyển' : 'Đăng bài tuyển')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
-          if (generalError) ...[
-            ErrorBanner(message: postErrors[_error!.code] ?? _error!.detail ?? _error!.title, onRetry: _saving ? null : _save),
+          if (state.generalError case final message?) ...[
+            ErrorBanner(message: message, onRetry: saving ? null : _save),
             const SizedBox(height: AppSpacing.s4),
           ],
           Card.outlined(
@@ -130,8 +106,8 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
           TextField(
             controller: _title,
             maxLength: 150,
-            decoration: InputDecoration(labelText: 'Tiêu đề', hintText: 'Ví dụ: Cần 1 bạn Marketing', errorText: _titleError),
-            onChanged: (_) => setState(() => _error = null),
+            decoration: InputDecoration(labelText: 'Tiêu đề', hintText: 'Ví dụ: Cần 1 bạn Marketing', errorText: state.titleError),
+            onChanged: _vm.titleChanged,
           ),
           const SizedBox(height: AppSpacing.s3),
           Text('Chuyên ngành cần tìm', style: theme.textTheme.titleSmall),
@@ -148,7 +124,7 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
                 ),
             ],
           ),
-          if (_error?.fieldErrors['specializationIds'] case [final message, ...])
+          if (state.fieldError('specializationIds') case final message?)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s2),
               child: Text(message, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
@@ -159,13 +135,13 @@ class _RecruitmentFormState extends ConsumerState<_RecruitmentForm> {
             maxLength: 2000,
             minLines: 3,
             maxLines: 6,
-            decoration: InputDecoration(labelText: 'Mô tả yêu cầu', alignLabelWithHint: true, errorText: _error?.fieldErrors['description']?.first),
+            decoration: InputDecoration(labelText: 'Mô tả yêu cầu', alignLabelWithHint: true, errorText: state.fieldError('description')),
           ),
           const SizedBox(height: AppSpacing.s6),
-          LoadingButton(label: _isEdit ? 'Lưu' : 'Đăng bài', loading: _saving, onPressed: _saving ? null : _save),
+          LoadingButton(label: _isEdit ? 'Lưu' : 'Đăng bài', loading: saving, onPressed: saving ? null : _save),
           if (_isEdit) ...[
             const SizedBox(height: AppSpacing.s2),
-            TextButton.icon(onPressed: _saving ? null : _close, icon: const Icon(Icons.campaign_outlined), label: const Text('Đóng bài')),
+            TextButton.icon(onPressed: saving ? null : _close, icon: const Icon(Icons.campaign_outlined), label: const Text('Đóng bài')),
           ],
         ],
       ),

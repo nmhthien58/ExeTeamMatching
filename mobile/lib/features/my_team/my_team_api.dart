@@ -84,6 +84,9 @@ class MyTeam {
   /// Còn sửa / mời được (Nháp, Hoạt động); sau hạn chót thì khóa.
   bool get isOpen => status == 'DRAFT' || status == 'ACTIVE';
 
+  /// Trưởng nhóm còn mời thêm được (S10, S18: nút "Mời vào nhóm").
+  bool get canInvite => isLeader && isOpen && !isFull;
+
   factory MyTeam.fromJson(Map<String, dynamic> j) {
     final r = j['requirement'] == null ? const <String, dynamic>{} : _map(j['requirement']);
     return MyTeam(
@@ -259,6 +262,12 @@ final sentInvitationsProvider =
 
 /// Sau khi nhóm thay đổi: tải lại cả bản của S15 và bản gợi ý (S18) của Nguyên.
 void refreshMyTeam(WidgetRef ref) {
+  ref.invalidate(myTeamDetailProvider);
+  ref.invalidate(myTeamProvider);
+}
+
+/// Như [refreshMyTeam], gọi từ ViewModel (MB-49).
+void refreshMyTeamFrom(Ref ref) {
   ref.invalidate(myTeamDetailProvider);
   ref.invalidate(myTeamProvider);
 }

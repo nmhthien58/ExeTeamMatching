@@ -2,74 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_exception.dart';
+import '../../core/view_state.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../my_team/my_team_api.dart' show domainsProvider, myTeamDetailProvider;
 import '../suggestions/suggestion_widgets.dart' show showInviteSheet;
 import '../suggestions/suggestions_api.dart' show CatalogRef, specializationsProvider;
+import 'post_form_view_model.dart';
 import 'posts_api.dart';
+import 'seeking_posts_view_model.dart';
 
 /// S10 – tab "Sinh viên tìm nhóm" của Khám phá (MB-17): bài của mình (→ S11), lọc chuyên ngành, danh sách bài phân trang.
 /// Trưởng nhóm còn chỗ thấy nút "Mời vào nhóm" (design-decisions B2). Chạm thẻ mở S04.
-class SeekingPostsTab extends ConsumerStatefulWidget {
+class SeekingPostsTab extends ConsumerWidget {
   const SeekingPostsTab({super.key});
 
   @override
-  ConsumerState<SeekingPostsTab> createState() => _SeekingPostsTabState();
-}
-
-class _SeekingPostsTabState extends ConsumerState<SeekingPostsTab> {
-  int? _specializationId;
-  final List<SeekingPost> _items = [];
-  final Set<String> _invited = {};
-  int _page = 0;
-  bool _hasMore = true;
-  bool _loading = false;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load(reset: true);
-  }
-
-  Future<void> _load({bool reset = false}) async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final page = await ref.read(postsApiProvider).seeking(specializationId: _specializationId, page: reset ? 1 : _page + 1);
-      if (!mounted) return;
-      setState(() {
-        if (reset) _items.clear();
-        _items.addAll(page.items);
-        _page = page.page;
-        _hasMore = page.hasMore;
-      });
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _refresh() async {
-    ref.invalidate(mySeekingPostProvider);
-    await _load(reset: true);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final vm = ref.read(seekingPostsViewModelProvider.notifier);
+    final state = ref.watch(seekingPostsViewModelProvider);
     final myTeam = ref.watch(myTeamDetailProvider).value;
-    final canInvite = myTeam != null && myTeam.isLeader && myTeam.isOpen && !myTeam.isFull;
+    final canInvite = myTeam != null && myTeam.canInvite;
     final specializations = ref.watch(specializationsProvider).value ?? const <CatalogRef>[];
     final domains = {for (final d in ref.watch(domainsProvider).value ?? const <CatalogRef>[]) d.id: d};
     return RefreshIndicator(
-      onRefresh: _refresh,
+      onRefresh: vm.refresh,
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
@@ -84,54 +42,52 @@ class _SeekingPostsTabState extends ConsumerState<SeekingPostsTab> {
                       padding: const EdgeInsets.only(right: AppSpacing.s2),
                       child: ChoiceChip(
                         label: Text(s?.name ?? 'Tất cả'),
-                        selected: _specializationId == s?.id,
-                        onSelected: (_) {
-                          setState(() => _specializationId = s?.id);
-                          _load(reset: true);
-                        },
+                        selected: state.specializationId == s?.id,
+                        onSelected: (_) => vm.selectSpecialization(s?.id),
                       ),
                     ),
                 ],
               ),
             ),
           const SizedBox(height: AppSpacing.s3),
-          if (_error != null && _items.isEmpty)
-            ErrorState(error: _error!, onRetry: () => _load(reset: true))
-          else if (_loading && _items.isEmpty)
-            const SkeletonList(count: 3)
-          else if (_items.isEmpty)
-            const EmptyState(
-              icon: Icons.person_search_outlined,
-              title: 'Chưa có sinh viên đang tìm nhóm',
-              description: 'Kéo xuống để làm mới, hoặc thử chuyên ngành khác.',
-            )
-          else ...[
-            for (final post in _items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.s3),
-                child: SeekingPostCard(
-                  post: post,
-                  domains: [for (final id in post.domainIds) ?domains[id]],
-                  action: !canInvite
-                      ? null
-                      : _invited.contains(post.student.id)
-                          ? const Chip(avatar: Icon(Icons.check, size: 18), label: Text('Đã mời'))
-                          : OutlinedButton.icon(
-                              icon: const Icon(Icons.person_add_alt_outlined),
-                              label: const Text('Mời vào nhóm'),
-                              onPressed: () async {
-                                if (await showInviteSheet(context, teamId: myTeam.id, student: post.student) && mounted) {
-                                  setState(() => _invited.add(post.student.id));
-                                }
-                              },
-                            ),
+          ...switch (state.results) {
+            ViewError(:final error) => [ErrorState(error: error, onRetry: vm.retry)],
+            ViewLoading() => [const SkeletonList(count: 3)],
+            ViewEmpty() => [
+                const EmptyState(
+                  icon: Icons.person_search_outlined,
+                  title: 'Chưa có sinh viên đang tìm nhóm',
+                  description: 'Kéo xuống để làm mới, hoặc thử chuyên ngành khác.',
                 ),
-              ),
-            if (_hasMore)
-              _loading ? const Center(child: CircularProgressIndicator()) : OutlinedButton(onPressed: _load, child: const Text('Xem thêm')),
-            if (_error != null) ErrorBanner(message: 'Không tải được trang tiếp theo.', onRetry: _load),
-            if (!_hasMore) Center(child: Text('Đã hết danh sách', style: theme.textTheme.bodyMedium)),
-          ],
+              ],
+            ViewData(value: final results) => [
+                for (final post in results.items)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.s3),
+                    child: SeekingPostCard(
+                      post: post,
+                      domains: [for (final id in post.domainIds) ?domains[id]],
+                      action: !canInvite
+                          ? null
+                          : state.invited.contains(post.student.id)
+                              ? const Chip(avatar: Icon(Icons.check, size: 18), label: Text('Đã mời'))
+                              : OutlinedButton.icon(
+                                  icon: const Icon(Icons.person_add_alt_outlined),
+                                  label: const Text('Mời vào nhóm'),
+                                  onPressed: () async {
+                                    if (await showInviteSheet(context, teamId: myTeam.id, student: post.student) && context.mounted) {
+                                      vm.markInvited(post.student.id);
+                                    }
+                                  },
+                                ),
+                    ),
+                  ),
+                if (results.hasMore)
+                  results.loading ? const Center(child: CircularProgressIndicator()) : OutlinedButton(onPressed: vm.loadMore, child: const Text('Xem thêm')),
+                if (results.loadMoreError != null) ErrorBanner(message: 'Không tải được trang tiếp theo.', onRetry: vm.loadMore),
+                if (!results.hasMore) Center(child: Text('Đã hết danh sách', style: theme.textTheme.bodyMedium)),
+              ],
+          },
         ],
       ),
     );
@@ -234,11 +190,10 @@ class _SeekingPostFormState extends ConsumerState<_SeekingPostForm> {
   late final _title = TextEditingController(text: widget.post?.title);
   late final _description = TextEditingController(text: widget.post?.description);
   late final Set<int> _domainIds = {...?widget.post?.domainIds};
-  bool _saving = false;
-  bool _submitted = false;
-  ApiException? _error;
 
   bool get _isEdit => widget.post != null;
+
+  SeekingPostFormViewModel get _vm => ref.read(seekingPostFormViewModelProvider.notifier);
 
   @override
   void dispose() {
@@ -247,38 +202,16 @@ class _SeekingPostFormState extends ConsumerState<_SeekingPostForm> {
     super.dispose();
   }
 
-  String? get _titleError {
-    if (_error?.fieldErrors['title'] case [final first, ...]) return first;
-    return _submitted && _title.text.trim().isEmpty ? 'Nhập vai trò mong muốn.' : null;
-  }
-
-  Future<void> _run(Future<void> Function(PostsApi api) action, String done) async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await action(ref.read(postsApiProvider));
-      if (!mounted) return;
-      ref.invalidate(mySeekingPostProvider);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(done)));
+  void _handle(PostFormOutcome outcome) {
+    if (outcome case PostFormDone(:final message) when mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       context.pop();
-    } on ApiException catch (e) {
-      setState(() {
-        _saving = false;
-        _error = e;
-      });
     }
   }
 
-  Future<void> _save() async {
-    setState(() => _submitted = true);
-    if (_titleError != null) return;
-    await _run(
-      (api) => api.saveMySeeking(title: _title.text.trim(), description: _description.text.trim(), domainIds: _domainIds.toList()),
-      _isEdit ? 'Đã lưu bài' : 'Đã đăng bài',
-    );
-  }
+  Future<void> _save() async => _handle(
+        await _vm.save(title: _title.text, description: _description.text, domainIds: _domainIds.toList(), isEdit: _isEdit),
+      );
 
   Future<void> _remove() async {
     final ok = await showDialog<bool>(
@@ -292,28 +225,29 @@ class _SeekingPostFormState extends ConsumerState<_SeekingPostForm> {
         ],
       ),
     );
-    if (ok == true) await _run((api) => api.removeMySeeking(), 'Đã gỡ bài');
+    if (ok == true) _handle(await _vm.remove());
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final domains = ref.watch(domainsProvider).value ?? const <CatalogRef>[];
-    final generalError = _error != null && _error!.fieldErrors.isEmpty;
+    final state = ref.watch(seekingPostFormViewModelProvider);
+    final saving = state.saving;
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Sửa bài tìm nhóm' : 'Tôi đang tìm nhóm')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
-          if (generalError) ...[
-            ErrorBanner(message: postErrors[_error!.code] ?? _error!.detail ?? _error!.title, onRetry: _saving ? null : _save),
+          if (state.generalError case final message?) ...[
+            ErrorBanner(message: message, onRetry: saving ? null : _save),
             const SizedBox(height: AppSpacing.s4),
           ],
           TextField(
             controller: _title,
             maxLength: 150,
-            decoration: InputDecoration(labelText: 'Vai trò mong muốn', hintText: 'Ví dụ: Lập trình mobile, thiết kế UI', errorText: _titleError),
-            onChanged: (_) => setState(() => _error = null),
+            decoration: InputDecoration(labelText: 'Vai trò mong muốn', hintText: 'Ví dụ: Lập trình mobile, thiết kế UI', errorText: state.titleError),
+            onChanged: _vm.titleChanged,
           ),
           const SizedBox(height: AppSpacing.s3),
           TextField(
@@ -324,7 +258,7 @@ class _SeekingPostFormState extends ConsumerState<_SeekingPostForm> {
             decoration: InputDecoration(
               labelText: 'Bạn có thể đóng góp gì',
               alignLabelWithHint: true,
-              errorText: _error?.fieldErrors['description']?.first,
+              errorText: state.fieldError('description'),
             ),
           ),
           const SizedBox(height: AppSpacing.s3),
@@ -346,10 +280,10 @@ class _SeekingPostFormState extends ConsumerState<_SeekingPostForm> {
           const SizedBox(height: AppSpacing.s3),
           Text('Kỹ năng lấy theo hồ sơ của bạn.', style: theme.textTheme.bodyMedium),
           const SizedBox(height: AppSpacing.s6),
-          LoadingButton(label: _isEdit ? 'Lưu' : 'Đăng bài', loading: _saving, onPressed: _saving ? null : _save),
+          LoadingButton(label: _isEdit ? 'Lưu' : 'Đăng bài', loading: saving, onPressed: saving ? null : _save),
           if (_isEdit) ...[
             const SizedBox(height: AppSpacing.s2),
-            TextButton.icon(onPressed: _saving ? null : _remove, icon: const Icon(Icons.delete_outline), label: const Text('Gỡ bài')),
+            TextButton.icon(onPressed: saving ? null : _remove, icon: const Icon(Icons.delete_outline), label: const Text('Gỡ bài')),
           ],
         ],
       ),

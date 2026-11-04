@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'profile_api.dart';
+import 'profile_form_view_model.dart';
 
 /// Thanh kéo 1–5 (flutter-handoff.md mục 2): [value] null = "Chưa đánh giá"; chạm vào thanh mới tính là đã đánh giá.
 /// Khi kéo, nút đi liền theo ngón tay (không nhảy theo nấc), thả tay mới làm tròn về 1–5. Lúc không kéo vẫn có
@@ -61,12 +62,13 @@ class _SkillSliderState extends State<SkillSlider> {
 }
 
 /// Phần chung của A05 và S03: 5 thanh kỹ năng, giới thiệu (≤ 500), công tắc "Tôi đang tìm nhóm" khi [showSeekingSwitch].
-class ProfileForm extends StatefulWidget {
+/// View của [ProfileFormViewModel]; lưu xong gọi [onSaved] để màn cha điều hướng.
+class ProfileForm extends ConsumerStatefulWidget {
   const ProfileForm({
     super.key,
     required this.profile,
     required this.submitLabel,
-    required this.onSubmit,
+    this.onSaved,
     this.showSeekingSwitch = false,
     this.header,
   });
@@ -76,19 +78,17 @@ class ProfileForm extends StatefulWidget {
   final bool showSeekingSwitch;
   final Widget? header;
 
-  /// Lưu; lỗi ném [ApiException] để form hiện banner và giữ dữ liệu đã nhập.
-  final Future<void> Function({required Map<String, int> skills, required String description, bool? isSeekingTeam}) onSubmit;
+  /// Gọi sau khi lưu thành công (lỗi thì form hiện banner và giữ dữ liệu đã nhập).
+  final VoidCallback? onSaved;
 
   @override
-  State<ProfileForm> createState() => _ProfileFormState();
+  ConsumerState<ProfileForm> createState() => _ProfileFormState();
 }
 
-class _ProfileFormState extends State<ProfileForm> {
-  late final Map<String, int> _levels = {...widget.profile.skills};
+class _ProfileFormState extends ConsumerState<ProfileForm> {
   late final _description = TextEditingController(text: widget.profile.description ?? '');
-  late bool _seeking = widget.profile.isSeekingTeam;
-  bool _saving = false;
-  String? _error;
+
+  ProfileFormViewModel get _vm => ref.read(profileFormViewModelProvider(widget.profile).notifier);
 
   @override
   void dispose() {
@@ -96,38 +96,25 @@ class _ProfileFormState extends State<ProfileForm> {
     super.dispose();
   }
 
-  int get _missing => skillLabels.keys.where((k) => !_levels.containsKey(k)).length;
-
   Future<void> _submit() async {
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    try {
-      await widget.onSubmit(
-        skills: Map.of(_levels),
-        description: _description.text.trim(),
-        isSeekingTeam: widget.showSeekingSwitch ? _seeking : null,
-      );
-    } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.detail ?? e.title);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    final saved = await _vm.save(description: _description.text, withSeeking: widget.showSeekingSwitch);
+    if (saved && mounted) widget.onSaved?.call();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final state = ref.watch(profileFormViewModelProvider(widget.profile));
+    final missing = state.missing;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
         ?widget.header,
-        if (_error != null) ...[ErrorBanner(message: 'Chưa lưu được hồ sơ. $_error', onRetry: _submit), const SizedBox(height: AppSpacing.s4)],
+        if (state.error != null) ...[ErrorBanner(message: 'Chưa lưu được hồ sơ. ${state.error}', onRetry: _submit), const SizedBox(height: AppSpacing.s4)],
         Text('Kỹ năng', style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSpacing.s2),
         for (final MapEntry(key: skill, value: label) in skillLabels.entries)
-          SkillSlider(label: label, value: _levels[skill], onChanged: (v) => setState(() => _levels[skill] = v)),
+          SkillSlider(label: label, value: state.levels[skill], onChanged: (v) => _vm.setLevel(skill, v)),
         const SizedBox(height: AppSpacing.s4),
         TextField(
           controller: _description,
@@ -140,15 +127,15 @@ class _ProfileFormState extends State<ProfileForm> {
             contentPadding: EdgeInsets.zero,
             title: const Text('Tôi đang tìm nhóm'),
             subtitle: const Text('Nhóm khác thấy bạn trong danh sách tìm thành viên.'),
-            value: _seeking,
-            onChanged: (v) => setState(() => _seeking = v),
+            value: state.seeking,
+            onChanged: _vm.setSeeking,
           ),
         const SizedBox(height: AppSpacing.s4),
-        if (_missing > 0) ...[
-          Text('Còn $_missing kỹ năng chưa đánh giá', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        if (missing > 0) ...[
+          Text('Còn $missing kỹ năng chưa đánh giá', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: AppSpacing.s2),
         ],
-        LoadingButton(label: widget.submitLabel, loading: _saving, onPressed: _missing > 0 ? null : _submit),
+        LoadingButton(label: widget.submitLabel, loading: state.saving, onPressed: missing > 0 ? null : _submit),
       ],
     );
   }
