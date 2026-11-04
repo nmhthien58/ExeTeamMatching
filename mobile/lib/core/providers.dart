@@ -1,11 +1,17 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'auth/firebase_auth_service.dart';
 import 'auth/session.dart';
 import 'config/env.dart';
+import 'firebase/analytics_service.dart';
+import 'firebase/crash_reporter.dart';
 import 'network/api_client.dart';
+import 'phase.dart';
 
 /// Phiên đăng nhập (secure storage). Ghi đè trong test bằng `sessionStoreProvider.overrideWithValue(...)`.
 final sessionStoreProvider = Provider<SessionStore>((ref) => SessionStore());
@@ -42,7 +48,37 @@ class AuthController extends AsyncNotifier<UserInfo?> {
     final user = await session.readUser();
     // Có user nhưng không có refresh token = phiên hỏng.
     if (user != null && await session.readRefreshToken() == null) return null;
+    // Mở lại app với phiên cũ: gắn lại người dùng cho Crashlytics / Analytics (không log `login`).
+    if (user != null) Future.microtask(() => _identify(user));
     return user;
+  }
+
+  /// MB-50/51: gắn báo cáo với id nội bộ (không phải email), custom key `role`, `course`.
+  /// Analytics / Crashlytics lỗi (hoặc chưa khởi tạo Firebase, như trong test) không ảnh hưởng đăng nhập.
+  Future<void> _identify(UserInfo user) async {
+    try {
+      final analytics = ref.read(analyticsServiceProvider);
+      final crash = ref.read(crashReporterProvider);
+      await analytics.setUserId(user.id);
+      await crash.setUser(user.id);
+      await crash.setKey('role', (user.roles.map((r) => r.name).toList()..sort()).join(','));
+      if (user.studentId == null) return;
+      // Môn của sinh viên lấy từ hồ sơ; đọc sau khi state đã có user nên không tạo vòng phụ thuộc provider.
+      final course = await ref.read(myCourseProvider.future);
+      if (ref.mounted && course != null) await crash.setKey('course', course);
+    } catch (e) {
+      debugPrint('identify user for Firebase failed: $e');
+    }
+  }
+
+  Future<void> _forget() async {
+    try {
+      await ref.read(analyticsServiceProvider).logLogout();
+      await ref.read(analyticsServiceProvider).setUserId(null);
+      await ref.read(crashReporterProvider).clearUser();
+    } catch (e) {
+      debugPrint('clear Firebase user failed: $e');
+    }
   }
 
   /// A03: Google Sign-In → Firebase Auth → gửi ID token cho Identity → lưu phiên. Trả `null` khi người dùng hủy.
@@ -77,6 +113,8 @@ class AuthController extends AsyncNotifier<UserInfo?> {
       final tokens = TokenResponse.fromJson(response.data!);
       await ref.read(sessionStoreProvider).save(tokens);
       state = AsyncData(tokens.user);
+      unawaited(ref.read(analyticsServiceProvider).logLogin(method: 'google'));
+      unawaited(_identify(tokens.user));
       return tokens.user;
     } on DioException catch (e) {
       throw e.apiError;
@@ -94,6 +132,7 @@ class AuthController extends AsyncNotifier<UserInfo?> {
       // Đăng xuất trên máy vẫn tiếp tục.
     }
     await session.clear();
+    await _forget();
     try {
       await ref.read(firebaseAuthProvider).signOut();
     } catch (_) {}
