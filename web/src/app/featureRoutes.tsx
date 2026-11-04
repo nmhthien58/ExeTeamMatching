@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router-dom'
 import type { Shell } from '@/shared/auth/AuthProvider'
+import { adminAnnouncementRoutes } from '@/features/announcements/routes'
 import { adminAuditLogRoutes } from '@/features/audit-log/routes'
 import { adminTeamRoutes } from '@/features/teams/routes'
 import { adminAutoAssignRoutes } from '@/features/auto-assign/routes'
@@ -30,7 +31,7 @@ import { studentNotificationRoutes, lecturerNotificationRoutes, mentorNotificati
  * Route trùng với mục điều hướng sẽ thay ScreenPlaceholder của mục đó; mỗi mảng thêm route của mình vào đây.
  */
 export const featureRoutes: Record<Shell, RouteObject[]> = {
-  admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminStudentRoutes, ...adminLecturerRoutes, ...adminMentorRoutes, ...adminCatalogRoutes, ...adminRuleSettingsRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminLecturerMatchingRoutes, ...adminMentorMatchingRoutes, ...changeRequestRoutes, ...projectRoutes],
+  admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminStudentRoutes, ...adminLecturerRoutes, ...adminMentorRoutes, ...adminCatalogRoutes, ...adminRuleSettingsRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminLecturerMatchingRoutes, ...adminMentorMatchingRoutes, ...changeRequestRoutes, ...projectRoutes, ...adminAnnouncementRoutes],
   student: [completeProfileRoute, ...requireCompletedProfile([workspaceRoutes('/sv'), ...suggestionRoutes, ...studentTeamRoutes, ...studentScheduleRoutes, ...studentProfileRoutes, ...studentAdvisorRoutes, ...studentChangeRequestRoutes, ...studentNotificationRoutes])],
   lecturer: [workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerScheduleRoutes, ...lecturerCalendarRoutes, ...lecturerProfileRoutes, ...lecturerRoutes, ...lecturerNotificationRoutes],
   mentor: [workspaceRoutes('/mentor'), ...advisorMessageRoutes, ...mentorProfileRoutes, ...mentorRoutes, ...mentorNotificationRoutes],

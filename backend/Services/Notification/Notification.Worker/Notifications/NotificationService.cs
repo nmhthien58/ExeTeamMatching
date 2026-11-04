@@ -107,6 +107,9 @@ public sealed class NotificationService(NotificationDbContext db)
 
         var now = DateTimeOffset.UtcNow;
         var sourceEventId = Guid.NewGuid();
+        // Giảng viên kiêm mentor có 2 contact cùng email: mỗi vai trò có thông báo trong app, nhưng chỉ gửi một email
+        // (uq_email_logs_event_to chặn trùng source_event_id + to_email, không lọc thì cả lượt gửi lỗi 500).
+        var emailed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var contact in contacts)
         {
@@ -125,7 +128,8 @@ public sealed class NotificationService(NotificationDbContext db)
             };
             db.Notifications.Add(notification);
 
-            if (request.SendEmail && contact.EmailEnabled && !string.IsNullOrWhiteSpace(contact.Email))
+            if (request.SendEmail && contact.EmailEnabled && !string.IsNullOrWhiteSpace(contact.Email)
+                && emailed.Add(contact.Email))
             {
                 db.EmailLogs.Add(new EmailLog
                 {

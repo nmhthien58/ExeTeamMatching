@@ -179,6 +179,34 @@ public sealed class AnnouncementsApiTests
     }
 
     [Fact]
+    public async Task Announcement_to_lecturer_who_is_also_mentor_sends_one_email()
+    {
+        using var factory = new AnnouncementApiFactory();
+        var lecturerId = Guid.NewGuid();
+        var mentorId = Guid.NewGuid();
+
+        await factory.SeedAsync(db =>
+        {
+            db.Contacts.AddRange(
+                new Contact { Id = lecturerId, PersonType = "LECTURER", Email = "gv@fpt.edu.vn", FullName = "GV kiêm mentor", EmailEnabled = true },
+                new Contact { Id = mentorId, PersonType = "MENTOR", Email = "GV@fpt.edu.vn", FullName = "GV kiêm mentor", EmailEnabled = true }
+            );
+        });
+
+        var adminClient = factory.ClientForRole(Roles.Admin);
+        var response = await adminClient.PostAsJsonAsync("/api/announcements", new AnnouncementRequest("EVERYONE", "Thông báo", "Nội dung", SendEmail: true));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+
+        await factory.QueryAsync(async db =>
+        {
+            // Mỗi vai trò vẫn thấy thông báo trong app; email thì một địa chỉ chỉ một thư (uq_email_logs_event_to).
+            Assert.Equal(2, await db.Notifications.CountAsync(n => n.Type == "Announcement"));
+            Assert.Equal(1, await db.EmailLogs.CountAsync(e => e.TemplateCode == "Announcement"));
+            return 0;
+        });
+    }
+
+    [Fact]
     public async Task Announcement_with_send_email_false_creates_no_email_logs()
     {
         using var factory = new AnnouncementApiFactory();
