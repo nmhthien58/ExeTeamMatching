@@ -97,6 +97,7 @@ Swagger của Identity (Development): http://localhost:5001/swagger, nhóm **Dev
 
 ## 7. App Check trên mobile (MB-47)
 
-- Bản debug dùng **debug provider**: lần chạy đầu, logcat in dòng `Enter this debug secret into the allow list in the Firebase Console for your project: <token>`. Vào Firebase Console → **App Check** → app Android → **Manage debug tokens** → thêm token đó. Mỗi máy / emulator một token.
+- Bản debug dùng **debug provider**: lần chạy đầu, logcat (`adb logcat | grep DebugAppCheckProvider`) in dòng `Firebase App Check debug token: <token>`. Đăng ký token ở Firebase Console → **App Check** → app Android → **Manage debug tokens**, hoặc `firebase appcheck:debugtokens:create <token> --project exe-team-matching --app 1:221888974127:android:46dffe346bb217ef3165da`. Mỗi máy / emulator một token; token là bí mật, không commit, xóa khi không dùng nữa.
+- Chạy trên điện thoại thật với backend Docker trên máy tính: `adb reverse tcp:8080 tcp:8080` rồi `flutter run --dart-define=API_BASE_URL=http://localhost:8080`.
 - APK demo cài tay không qua Google Play nên Play Integrity không nhận: build bằng `flutter build apk --dart-define=APP_CHECK_DEBUG=true` và đăng ký token của thiết bị demo như trên.
 - Chưa bật **Enforce** cho dịch vụ nào. Bật khi dùng Firebase AI Logic (MB-55).
