@@ -8,7 +8,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../suggestions/suggestions_api.dart';
-import 'lecturers_api.dart' show lecturersApiProvider;
+import 'lecturer_preferences_view_model.dart';
 import 'match_reason.dart';
 import 'paths.dart';
 
@@ -371,48 +371,26 @@ class TeamLecturerScreen extends ConsumerWidget {
               FilledButton.tonal(
                 onPressed: () async {
                   final newIds = [...currentIds, lecturerId];
-                  try {
-                    await ref
-                        .read(lecturersApiProvider)
-                        .updatePreferences(teamId, newIds);
-                    ref.invalidate(teamLecturerDetailsProvider(teamId));
-                    if (context.mounted) {
+                  final vm = ref.read(lecturerPreferencesViewModelProvider(teamId).notifier);
+                  final outcome = await vm.update(newIds);
+                  if (!context.mounted) return;
+                  switch (outcome) {
+                    case PreferenceUpdated():
                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            'Đã thêm $fullName vào nguyện vọng ${newIds.length}',
-                          ),
+                          content: Text('Đã thêm $fullName vào nguyện vọng ${newIds.length}'),
                           duration: const Duration(seconds: 5),
-                          action: SnackBarAction(
-                            label: 'Hoàn tác',
-                            onPressed: () async {
-                              try {
-                                await ref
-                                    .read(lecturersApiProvider)
-                                    .updatePreferences(teamId, currentIds);
-                                ref.invalidate(
-                                  teamLecturerDetailsProvider(teamId),
-                                );
-                              } catch (_) {}
-                            },
-                          ),
+                          action: SnackBarAction(label: 'Hoàn tác', onPressed: () => vm.undo(currentIds)),
                         ),
                       );
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
+                    case PreferenceUpdateFailed():
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(
-                            e is Exception
-                                ? e.toString().replaceAll('Exception: ', '')
-                                : 'Không thể thêm nguyện vọng',
-                          ),
+                          content: Text(outcome.messageOr('Không thể thêm nguyện vọng')),
                           backgroundColor: theme.colorScheme.error,
                         ),
                       );
-                    }
                   }
                 },
                 child: const Text('Thêm vào nguyện vọng'),

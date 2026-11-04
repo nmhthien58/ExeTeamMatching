@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../my_team/my_team_api.dart' show myTeamDetailProvider;
+import 'lecturer_preferences_view_model.dart';
 import 'lecturers_api.dart';
 
 class LecturerDetailScreen extends ConsumerWidget {
@@ -19,35 +20,27 @@ class LecturerDetailScreen extends ConsumerWidget {
     List<String> previousIds,
     String message,
   ) async {
-    try {
-      await ref.read(lecturersApiProvider).updatePreferences(teamId, newIds);
-      ref.invalidate(lecturerPreferencesProvider(teamId));
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'Hoàn tác',
-            onPressed: () async {
-              try {
-                await ref.read(lecturersApiProvider).updatePreferences(teamId, previousIds);
-                ref.invalidate(lecturerPreferencesProvider(teamId));
-              } catch (_) {}
-            },
+    final vm = ref.read(lecturerPreferencesViewModelProvider(teamId).notifier);
+    final outcome = await vm.update(newIds);
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    switch (outcome) {
+      case PreferenceUpdated():
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(label: 'Hoàn tác', onPressed: () => vm.undo(previousIds)),
           ),
-        ),
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Không thể cập nhật nguyện vọng'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+        );
+      case PreferenceUpdateFailed():
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(outcome.messageOr('Không thể cập nhật nguyện vọng')),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
     }
   }
 
