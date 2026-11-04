@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../suggestions/suggestions_api.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 class ChangeRequest {
   const ChangeRequest({
@@ -220,7 +222,11 @@ final pendingChangesProvider = FutureProvider.autoDispose
     );
 final changeRequestDetailProvider = FutureProvider.autoDispose
     .family<ChangeRequestDetail, String>(
-      (ref, id) => ref.watch(changeRequestsApiProvider).detail(id),
+      (ref, id) async {
+        final detail = await ref.watch(changeRequestsApiProvider).detail(id);
+        unawaited(ref.read(analyticsServiceProvider).logViewChangeRequest(id, status: detail.request.status));
+        return detail;
+      },
     );
 final openChangeRoundProvider = FutureProvider.autoDispose<bool>(
   (ref) => ref.watch(changeRequestsApiProvider).hasOpenChangeRound(),

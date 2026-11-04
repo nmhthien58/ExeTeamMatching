@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_exception.dart';
 import '../my_team/my_team_api.dart' show Idea;
 import 'discover_api.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 /// Trạng thái form S09: "Chưa có ý tưởng", lỗi thiếu ý tưởng, đang gửi, lỗi gửi (banner + Thử lại).
 class JoinRequestState {
@@ -63,6 +65,7 @@ class JoinRequestViewModel extends Notifier<JoinRequestState> {
     state = state.copyWith(sending: true, ideasMissing: false, error: () => null);
     try {
       await ref.read(discoverApiProvider).requestToJoin(teamId, message: message.trim(), ideas: filled, hasNoIdea: noIdea);
+      unawaited(ref.read(analyticsServiceProvider).logJoinGroup(teamId, ideaCount: filled.length));
       return const JoinRequestSent();
     } on ApiException catch (e) {
       if (ref.mounted) state = state.copyWith(sending: false, error: () => e.detail ?? e.title);

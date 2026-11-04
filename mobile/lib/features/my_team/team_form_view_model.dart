@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_exception.dart';
 import '../suggestions/suggestions_api.dart' show CatalogRef;
 import 'my_team_api.dart';
+import '../../core/firebase/analytics_service.dart';
+import 'dart:async';
 
 /// Trạng thái form S13 / S16: tên đang gõ (kiểm tra lại khi gõ), domain đã chọn (đầu tiên là domain chính), lưu, lỗi.
 class TeamFormState {
@@ -88,7 +90,12 @@ class TeamFormViewModel extends Notifier<TeamFormState> {
     );
     try {
       final api = ref.read(myTeamApiProvider);
-      isEdit ? await api.update(team!.id, input) : await api.create(input);
+      if (isEdit) {
+        await api.update(team!.id, input);
+      } else {
+        final created = await api.create(input);
+        unawaited(ref.read(analyticsServiceProvider).logCreateTeam(created.id, course: created.courseCode));
+      }
       if (!ref.mounted) return const TeamFormNotSaved();
       refreshMyTeamFrom(ref);
       return TeamFormSaved(created: !isEdit);

@@ -6,6 +6,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'suggestion_widgets.dart';
 import 'suggestions_api.dart';
+import 'suggestions_view_model.dart';
 
 /// S07 – Nhóm gợi ý cho bạn (MB-15): danh sách từ Matching kèm mức phù hợp và lý do.
 /// Trạng thái: có gợi ý · hồ sơ chưa đủ dữ liệu để gợi ý · đang tải · lỗi.
@@ -14,7 +15,7 @@ class SuggestedTeamsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final suggestions = ref.watch(teamsForMeProvider);
+    final suggestions = ref.watch(suggestedTeamsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Gợi ý cho bạn')),
       body: suggestions.when(
