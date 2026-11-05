@@ -2,7 +2,7 @@
 
 > PRM393 Lab 3 §7, Phụ lục B; Final §9. Công cụ: [Google ARTEMIS](https://github.com/google/artemis), không dùng Patrol. Mỗi ca là một hàm pytest trong `e2e_test/`, gửi một câu lệnh qua `ArtemisClient` và kiểm tra giá trị agent báo về.
 >
-> **Trạng thái:** kế hoạch viết trước khi có kết quả. Cột Kết quả ở mục 5 còn trống cho tới khi chạy trên máy thật. Bản này chưa đối chiếu trực tiếp với file đề PDF; nội dung lấy theo `docs/task-changes-2026-11-04.md`.
+> **Trạng thái:** code `e2e_test/` đã viết nhưng **chưa chạy lần nào**, vì máy viết code chưa có Python, thiết bị Android và key Gemini. Commit ARTEMIS pin ở `e2e_test/README.md`. Cột Kết quả ở mục 5 còn trống cho tới khi chạy trên máy thật. Bản này chưa đối chiếu trực tiếp với file đề PDF; nội dung lấy theo `docs/task-changes-2026-11-04.md`.
 
 ## 1. Môi trường
 
@@ -10,7 +10,7 @@
 |---|---|
 | Thiết bị | Điện thoại Android thật, cắm cáp, bật USB debugging |
 | Backend | Docker Compose trên laptop, dữ liệu seed `SP90` (`deploy/seed`) |
-| Kết nối | `adb reverse tcp:8080 tcp:8080` |
+| Kết nối | `adb reverse tcp:8080 tcp:8080` và `adb reverse tcp:9000 tcp:9000` (link tải file S3) |
 | Bản app | `flutter build apk --debug --dart-define=API_BASE_URL=http://localhost:8080 --dart-define=FIREBASE_DEMO=true --dart-define=CRASHLYTICS_DEBUG=true` |
 | Tài khoản | Sinh viên chưa có nhóm theo `SEED_STUDENT_EMAIL`; trưởng nhóm EXE201 và giảng viên theo seed. Đăng nhập Google làm tay một lần trước khi chạy, ARTEMIS không nhập mật khẩu |
 | Model | Profile Flash cho hồi quy, Pro cho phiên khám phá. Key Gemini đặt trong `e2e_test/.env` (đã gitignore) |
@@ -70,7 +70,7 @@ uv sync
 uv run pytest --runs 3
 ```
 
-Mỗi ca chạy 3 lần. Trace lưu ở `evidence/artemis/<ca>/<lần chạy>/`.
+Mỗi ca chạy 3 lần. Kết quả từng lần ghi ở `evidence/artemis/results.csv`, kèm `trace_id` để mở trace trên console ARTEMIS. Ca chờ task khác có marker `pending`, bật bằng biến `ENABLED_PENDING`.
 
 ## 5. Kết quả
 

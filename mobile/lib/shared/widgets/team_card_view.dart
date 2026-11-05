@@ -65,7 +65,14 @@ class TeamCardView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        // Nhãn đọc màn hình cho cả thẻ (MB-58): TalkBack và ARTEMIS tìm thẻ theo tên nhóm.
+                        Semantics(
+                          header: true,
+                          label: '$name, $memberCount trên $maxSize thành viên',
+                          child: ExcludeSemantics(
+                            child: Text(name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
                         if (projectName != null)
                           Text(
                             projectName!,

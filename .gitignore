@@ -37,3 +37,8 @@ deploy/secrets/
 *firebase-adminsdk*.json
 deploy/seaweedfs/s3.prod.json
 web/.firebase/
+
+# E2E (Python)
+e2e_test/.venv/
+__pycache__/
+.pytest_cache/
