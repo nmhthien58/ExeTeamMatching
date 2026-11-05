@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/env.dart';
 import '../../app/navigation.dart';
 import '../../core/auth/session.dart';
-import '../../core/config/env.dart';
 import '../../core/firebase/crash_reporter.dart';
-import '../../core/firebase/remote_config_service.dart';
 import '../../core/providers.dart';
+import '../../core/firebase/remote_config_service.dart';
 
 /// Lỗi thử gửi lên Crashlytics từ mục Demo Firebase (Lab 3 §6: một lỗi non-fatal và một crash thử).
 class DemoNonFatalError implements Exception {
