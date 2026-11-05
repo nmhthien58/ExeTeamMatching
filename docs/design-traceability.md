@@ -3,7 +3,14 @@
 > MB-57, cập nhật 05/11/2026. Nguồn thiết kế: Figma `03 Final UI` (https://www.figma.com/design/tX0K0MdkTKt5wJcvWnPbxr), [flutter-handoff.md](ux/flutter-handoff.md), [user-flow.md](ux/user-flow.md), [DESIGN.md](ux/DESIGN.md). Kiến trúc và ViewModel: [architecture.md](architecture.md). Route khai báo ở `mobile/lib/app/router.dart`, `navigation.dart` (tab), `feature_routes.dart` (màn cấp 2).
 >
 > **Trạng thái:** ✅ khớp thiết kế · ⚠️ khác thiết kế, có lý do ở mục 4 · ⏳ chưa có màn thật.
-> **Figma:** frame A03, header các tab và thanh kỹ năng **chưa vẽ lại** theo app (việc còn lại của MB-57); cho tới khi cập nhật, mục 4 là bản ghi chính thức của các chỗ khác.
+> **Figma (vẽ lại 05/11/2026, page Mobile):** đã cập nhật theo app các chỗ D1–D5, D9:
+> - component `Navigation/App bar` variant `Level=1`: logo, tên màn, dòng "môn · học kỳ", chip giai đoạn; thêm thuộc tính `Ngữ cảnh`, `Chip giai đoạn`, `Nhãn chip`;
+> - `Button/Primary` thêm thuộc tính `Logo Google` (lớp `Leading`);
+> - `Skill/Slider` thêm variant `Đang kéo`;
+> - frame A03 (7 frame), S01 (khối lời chào, vạch tiến độ học kỳ), tiêu đề các tab theo nhãn tab trong app;
+> - frame L02, L03 đổi tên "· Đã bỏ (D9)" và làm mờ.
+>
+> D6 (đã thay bằng D3), D7 (animation) và D8 (lỗi code) không cần vẽ. D10, D11 thuộc page Web và chưa vẽ lại (FE-49).
 
 ## 1. Màn hình
 
@@ -107,7 +114,7 @@ Cột Widget là component React; nguồn dữ liệu qua `web/src/shared/api`. 
 | Loading / Empty / Error / Forbidden | `SkeletonList`, `EmptyState`, `ErrorState`, `ErrorBanner`, `ForbiddenState` | `shared/widgets/states.dart` |
 | TeamRequirementBar (chấm thành viên + điều kiện) | `TeamRequirementBar` | `shared/widgets/team_requirement_bar.dart` |
 | DeadlineBanner | `DeadlineBanner` | `shared/widgets/deadline_banner.dart` |
-| SkillSlider (1–5) | `SkillSlider` | `features/profile/profile_form.dart` |
+| SkillSlider (1–5, nhãn "Mới bắt đầu" / "Thành thạo") | `SkillSlider` | `features/profile/profile_form.dart` |
 | Thẻ nhóm (người ngoài / gợi ý) | `TeamListCard`, `TeamSuggestionCard`, `FitChip`, `DomainChips` | `features/discover/`, `features/suggestions/` |
 | Thanh tab theo vai trò | `RoleShell` (Material `NavigationBar`) | `app/role_shell.dart` |
 | App bar | `BrandAppBar` (mới, D3) | `shared/widgets/brand_app_bar.dart` |
