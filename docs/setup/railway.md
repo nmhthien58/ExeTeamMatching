@@ -109,3 +109,20 @@ Lưu ý khi chạy lại:
 - Muốn demo bằng Docker trên laptop như cũ: build web với `VITE_API_BASE_URL=http://localhost:8080` rồi deploy lại Hosting.
 - Không demo thì tắt bớt để tiết kiệm: `railway down -s <service>` cho từng service (dữ liệu trong volume vẫn giữ); bật lại bằng `railway redeploy -s <service>` theo thứ tự ở mục 6.
 - Biến bí mật (mật khẩu DB, JWT, khóa S3) chỉ nằm trong Railway Variables, sinh ngẫu nhiên lúc tạo service, không có trong repo.
+
+## 8. APK demo dùng chung một debug token App Check (05/11/2026)
+
+**App Check** là lớp bảo vệ của Firebase: chỉ cho app thật của nhóm gọi Gemini (Firebase AI Logic). App cài từ Google Play được Google xác nhận qua **Play Integrity**; APK demo cài tay thì không, nên phải dùng **debug token** – một mã do nhóm đăng ký trên Console để Firebase coi máy đó là máy test.
+
+Thay vì đăng ký token riêng cho từng máy, APK demo được build kèm một token chung, nên máy nào cài APK này cũng gọi được AI:
+
+1. Token nằm ở `deploy/secrets/app-check-debug-token.txt` (đã gitignore, không commit, không gửi nhóm chat chung).
+2. Đăng ký một lần: Firebase Console → App Check → Apps → app Android → ⋮ → Manage debug tokens → Add debug token → tên `APK demo dùng chung` → dán nội dung file → Save.
+3. Build (PowerShell, trong thư mục `mobile`):
+   ```powershell
+   $t = Get-Content -Raw ..\deploy\secrets\app-check-debug-token.txt
+   flutter build apk --release --dart-define=API_BASE_URL=https://gateway-production-6183.up.railway.app --dart-define=APP_CHECK_DEBUG=true --dart-define=APP_CHECK_DEBUG_TOKEN=$t --dart-define=FIREBASE_DEMO=true
+   ```
+4. Sau buổi demo: xóa token này trên Console. APK cũ sẽ không gọi được AI nữa.
+
+Ai có file APK này đều gọi được Gemini bằng quota của nhóm, nên chỉ chia sẻ APK trong nhóm và với giảng viên chấm.

@@ -12,14 +12,17 @@ import 'crash_reporter.dart';
 import 'remote_config_service.dart';
 
 /// Khởi tạo Firebase trước `runApp` (MB-47). App Check dùng debug provider khi [Env.appCheckDebug]
-/// (bản debug, hoặc APK demo cài tay không qua Google Play); còn lại dùng Play Integrity.
+/// (bản debug, hoặc APK demo cài tay không qua Google Play), có thể kèm token dùng chung [Env.appCheckDebugToken];
+/// còn lại dùng Play Integrity.
 /// MB-50/51: bật Crashlytics và tải Remote Config (có timeout, lỗi thì giữ mặc định).
 Future<void> initFirebase() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initCrashlytics();
   try {
     await FirebaseAppCheck.instance.activate(
-      providerAndroid: Env.appCheckDebug ? const AndroidDebugProvider() : const AndroidPlayIntegrityProvider(),
+      providerAndroid: Env.appCheckDebug
+          ? AndroidDebugProvider(debugToken: Env.appCheckDebugToken.isEmpty ? null : Env.appCheckDebugToken)
+          : const AndroidPlayIntegrityProvider(),
     );
   } catch (e) {
     // App Check chưa bật enforcement thì app vẫn chạy được; lỗi chỉ ghi log.
