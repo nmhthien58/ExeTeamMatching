@@ -6,10 +6,7 @@ import '../../core/firebase/analytics_service.dart';
 import '../../core/firebase/remote_config_service.dart';
 import '../my_team/my_team_api.dart' show domainsProvider;
 import '../suggestions/suggestions_api.dart' show CatalogRef;
-import 'idea_ai_contract.dart';
-
-/// Tên tính năng trong sự kiện Analytics.
-const ideaSuggestFeature = 'idea_suggest';
+import '../../core/ai/ai_service.dart';
 
 const _minDescriptionLength = 10;
 
@@ -110,7 +107,7 @@ class IdeaSuggestViewModel extends Notifier<IdeaSuggestState> {
     final current = state;
     if (current is! IdeaSuggestReady) return null;
     final domains = await ref.read(domainsProvider.future);
-    unawaited(ref.read(analyticsServiceProvider).logAiResultAccepted(feature: ideaSuggestFeature, index: 0));
+    unawaited(ref.read(analyticsServiceProvider).logAiResultAccepted(feature: aiFeatureIdeaSuggest, index: 0));
     return ideaFieldsFrom(current.draft, domains);
   }
 

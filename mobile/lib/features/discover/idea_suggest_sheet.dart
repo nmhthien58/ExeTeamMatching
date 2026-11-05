@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_tokens.dart';
-import 'idea_ai_contract.dart';
+import '../../core/ai/ai_service.dart';
 import 'idea_suggest_view_model.dart';
 
 /// Nhãn đánh dấu nội dung do AI đề xuất.
