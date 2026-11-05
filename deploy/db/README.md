@@ -35,7 +35,7 @@ docker exec exe-postgres psql -U postgres -d academic_db -c "SET ROLE academic_s
 docker exec exe-postgres psql -U postgres -d team_db -c "SET ROLE team_svc; ALTER TABLE team.audit_logs ADD COLUMN IF NOT EXISTS actor_name varchar(150);"
 ```
 
-Thêm bảng mới trên volume cũ: chạy script trong `migrations/` (thư mục con nên không tự chạy lúc khởi tạo), ví dụ BE-87:
+Thêm bảng mới trên volume cũ: chạy script trong `migrations/`. Thư mục con không tự chạy lúc khởi tạo; volume mới có bảng vì `01_identity_db.sql` gọi script đó bằng `ir`. Ví dụ BE-87:
 
 ```bash
 docker exec -i exe-postgres psql -U postgres -d identity_db -v ON_ERROR_STOP=1 < deploy/db/migrations/BE-87_client_error_reports.sql

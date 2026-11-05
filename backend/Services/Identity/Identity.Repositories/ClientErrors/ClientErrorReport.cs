@@ -1,4 +1,4 @@
-// Map deploy/db/01_identity_db.sql (BE-87). Sửa DB script trước, rồi sửa file này cho khớp.
+// Map deploy/db/migrations/BE-87_client_error_reports.sql. Sửa DB script trước, rồi sửa file này cho khớp.
 namespace Identity.Repositories.ClientErrors;
 
 /// <summary>Giá trị cột <c>kind</c>.</summary>
