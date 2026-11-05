@@ -58,8 +58,8 @@ export type AdminTeamAction =
   | { kind: 'finalize' | 'reopen' }
   | { kind: 'add'; studentId: string; reason?: string }
   | { kind: 'move'; studentId: string; targetTeamId: string }
-  | { kind: 'remove'; studentId: string }
-  | { kind: 'unassignMentor' }
+  | { kind: 'remove'; studentId: string; reason?: string }
+  | { kind: 'unassignMentor'; reason?: string }
 
 /** W16 – Admin chốt / mở lại nhóm, thêm / bớt sinh viên, chuyển thành viên sang nhóm khác (BE-48), gỡ mentor (BE-80). */
 export function useAdminTeamAction(teamId: string) {
@@ -72,9 +72,9 @@ export function useAdminTeamAction(teamId: string) {
         case 'move':
           return (await api.post(`/api/teams/${teamId}/members/${action.studentId}/move`, { targetTeamId: action.targetTeamId })).data
         case 'remove':
-          return (await api.post(`/api/teams/${teamId}/members/${action.studentId}/remove`, {})).data
+          return (await api.post(`/api/teams/${teamId}/members/${action.studentId}/remove`, { reason: action.reason })).data
         case 'unassignMentor':
-          return (await api.delete(`/api/teams/${teamId}/mentor-assignment`)).data
+          return (await api.delete(`/api/teams/${teamId}/mentor-assignment`, { data: { reason: action.reason } })).data
         default:
           return (await api.post(`/api/teams/${teamId}/${action.kind}`)).data
       }
