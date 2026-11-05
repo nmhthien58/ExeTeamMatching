@@ -43,8 +43,13 @@ public interface IObjectStorage
 
     Task DeleteAsync(string key, CancellationToken ct);
 
+    /// <summary>Các object có key bắt đầu bằng <paramref name="prefix"/>.</summary>
+    Task<IReadOnlyList<StoredObject>> ListAsync(string prefix, CancellationToken ct);
+
     Task EnsureBucketAsync(CancellationToken ct);
 }
+
+public sealed record StoredObject(string Key, long SizeBytes, DateTimeOffset LastModified);
 
 public static class FileKey
 {
@@ -103,6 +108,21 @@ public sealed class S3ObjectStorage : IObjectStorage, IDisposable
 
     public Task DeleteAsync(string key, CancellationToken ct) =>
         _client.DeleteObjectAsync(_options.Bucket, key, ct);
+
+    public async Task<IReadOnlyList<StoredObject>> ListAsync(string prefix, CancellationToken ct)
+    {
+        var objects = new List<StoredObject>();
+        var request = new ListObjectsV2Request { BucketName = _options.Bucket, Prefix = prefix };
+        ListObjectsV2Response response;
+        do
+        {
+            response = await _client.ListObjectsV2Async(request, ct);
+            objects.AddRange((response.S3Objects ?? []).Select(o =>
+                new StoredObject(o.Key, o.Size, new DateTimeOffset(o.LastModified.ToUniversalTime()))));
+            request.ContinuationToken = response.NextContinuationToken;
+        } while (response.IsTruncated);
+        return objects;
+    }
 
     public async Task EnsureBucketAsync(CancellationToken ct)
     {

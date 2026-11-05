@@ -33,9 +33,55 @@ tags:
   - { name: Messages, description: "Cường – C02, C03 (rule 22)" }
   - { name: Tasks, description: "Nguyên – C04, C05 (rule 23)" }
   - { name: Files, description: "Nguyên – C06 (rule 24)" }
+  - { name: Reports, description: "Nguyên – báo cáo PDF từ C01 (MB-53), chỉ chủ báo cáo đọc, ghi được" }
   - { name: Meetings, description: "Nam – C07, C08 (rule 25)" }
   - { name: Internal, description: "Job Service gọi, có service token, không qua Gateway" }
 paths:
+  # ---------------- Reports ----------------
+  /api/reports/{ownerId}:
+    parameters:
+      - { name: ownerId, in: path, required: true, description: Id tài khoản, phải trùng claim sub, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reports]
+      summary: Báo cáo của tôi, mới nhất trước
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Report' } } } } }
+        '403': { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [Reports]
+      summary: Tải lên PDF, lưu ở reports/{ownerId}/
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '201':
+          description: Đã lưu, kèm link ký sẵn
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Report' }
+                  - { type: object, properties: { url: { type: string }, expiresAt: { type: string, format: date-time } } }
+        '403': { description: `type` = `.../errors/not-report-owner`, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /api/reports/{ownerId}/{fileName}/download-url:
+    get:
+      tags: [Reports]
+      summary: Link ký sẵn mới cho một báo cáo
+      parameters:
+        - { name: ownerId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: fileName, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { url: { type: string }, expiresAt: { type: string, format: date-time } } }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   # ---------------- Workspaces ----------------
   /api/workspaces/me:
     get:
@@ -424,6 +470,12 @@ components:
       description: Lỗi theo RFC 7807
       content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
   schemas:
+    Report:
+      type: object
+      properties:
+        fileName: { type: string, description: "Do server đặt, dạng 20261105-093000-ab12cd34.pdf" }
+        sizeBytes: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
     Problem:
       type: object
       properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string }, traceId: { type: string }, errors: { type: object, additionalProperties: { type: array, items: { type: string } } } }

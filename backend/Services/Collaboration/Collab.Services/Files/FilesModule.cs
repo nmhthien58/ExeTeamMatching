@@ -1,4 +1,5 @@
 using Collab.Repositories.Files;
+using Collab.Services.Reports;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -14,6 +15,7 @@ public static class FilesModule
         services.AddScoped<IWorkspaceLookup, WorkspaceLookup>();
         services.AddScoped<IWorkspaceReader, WorkspaceReader>();
         services.AddScoped<IFileService, FileService>();
+        services.AddScoped<IReportService, ReportService>();
         return services;
     }
 }

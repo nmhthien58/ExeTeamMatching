@@ -24,7 +24,7 @@
 | §4 `design-traceability.md`, `architecture.md` | ✅ | đã có; architecture mục 5 đủ 47 ViewModel (#151) |
 | §5 MVVM: widget không gọi SDK / HTTP, nghiệp vụ ngoài `build()`, state model rõ, service inject | ✅ | MB-48 (#146), MB-49 (#148, #149); 492 test gồm unit test ViewModel với fake |
 | §6 Authentication: Google, route theo phiên, đăng xuất xóa dữ liệu, hủy có thông báo | ✅ | MB-47 (#142); user có trên Console → Authentication. **Còn:** ảnh trước / sau đăng nhập cho báo cáo 👤 |
-| §6 Cloud Storage: file tạo ra, tải lên `reports/{uid}/`, tiến độ, URL, `storage.rules` | ⬜ | MB-53 (Nguyên); kiểm tra trước gói Blaze 👤 |
+| §6 Cloud Storage: file tạo ra, tải lên `reports/{uid}/`, tiến độ, URL, phân quyền chủ file | 🟡 | MB-53 (Nguyên): S3 thay Firebase Storage theo góp ý giảng viên 05/11, xem `file-storage.md`; chưa thử trên máy thật |
 | §6 Cloud Messaging: 3 trạng thái app, xin quyền Android 13+, lưu vào A06, chạm điều hướng | ⬜ | MB-52 (Thành) + BE-84 (gửi push từ Notification) |
 | §6 Analytics: ≥ 7 sự kiện, kế hoạch, user ID, không PII | 🟡 | [analytics-plan.md](analytics-plan.md); 15 sự kiện có service, 12 đã gắn vào ViewModel (#147, #151). **Còn:** DebugView từng sự kiện 👤 |
 | §6 Crashlytics: non-fatal từ luồng lỗi thật, test crash, user ID, custom key | 🟡 | `CrashReporter`, key `role`, `course` (#147, sửa vòng phụ thuộc ở #150). **Còn:** nút thử crash (MB-54), bật Crashlytics trên Console, ảnh dashboard 👤 |

@@ -174,11 +174,22 @@ public sealed class CollabApiFactory : WebApplicationFactory<Program>
             : Token(person.Name, [person.JwtRole]);
 
     /// <summary>JWT nhiều vai trò, ví dụ giảng viên kiêm mentor: roles [Lecturer, Mentor] kèm lecturer_id và mentor_id (BE-64).</summary>
-    public static string Token(string name, string[] roles, params (string Claim, Guid Id)[] ids)
+    public static string Token(string name, string[] roles, params (string Claim, Guid Id)[] ids) =>
+        TokenFor(Guid.NewGuid(), name, roles, ids);
+
+    /// <summary>Client với `sub` cố định, cho API kiểm tra chủ tài nguyên theo id tài khoản.</summary>
+    public HttpClient ClientForAccount(Guid accountId)
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TokenFor(accountId, "Sinh viên", [Roles.Student]));
+        return client;
+    }
+
+    private static string TokenFor(Guid accountId, string name, string[] roles, params (string Claim, Guid Id)[] ids)
     {
         var claims = new Dictionary<string, object>
         {
-            [ClaimNames.Subject] = Guid.NewGuid().ToString(),
+            [ClaimNames.Subject] = accountId.ToString(),
             [ClaimNames.Name] = name,
             [ClaimNames.Roles] = roles,
         };
@@ -297,6 +308,12 @@ public sealed class InMemoryObjectStorage : IObjectStorage
         Objects.Remove(key);
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<StoredObject>> ListAsync(string prefix, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<StoredObject>>(Objects
+            .Where(o => o.Key.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(o => new StoredObject(o.Key, o.Value.Length, DateTimeOffset.UtcNow))
+            .ToList());
 
     public Task EnsureBucketAsync(CancellationToken ct) => Task.CompletedTask;
 }
