@@ -27,6 +27,8 @@ async function safe(what: string, call: (analytics: Analytics, sdk: typeof impor
  * không gọi SDK. Không đưa email / tên vào tham số. Chưa cấu hình Firebase thì không làm gì.
  */
 export const analytics = {
+  /** Gọi một lần khi web mở: GA4 tự ghi `page_view` (kể cả khi đổi route) từ lúc này. */
+  init: () => safe('init', () => {}),
   setUserId: (id: string | null) => safe('setUserId', (a, sdk) => sdk.setUserId(a, id)),
   logLogin: (method = 'google') => safe('login', (a, sdk) => sdk.logEvent(a, 'login', { method, client: 'web' })),
   logLogout: () => safe('logout', (a, sdk) => sdk.logEvent(a, 'logout', { client: 'web' })),
