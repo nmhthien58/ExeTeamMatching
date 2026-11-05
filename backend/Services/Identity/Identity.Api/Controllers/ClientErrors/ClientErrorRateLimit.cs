@@ -16,6 +16,12 @@ public sealed class ClientErrorRateLimitOptions
     public int PermitLimit { get; set; } = 30;
 
     public int WindowSeconds { get; set; } = 60;
+
+    /// <summary>
+    /// Số proxy tin cậy nối địa chỉ vào cuối <c>X-Forwarded-For</c> (CR-05). Gateway luôn nối 1; sau Caddy hoặc
+    /// Railway thì 2. Phần đầu header do client tự gửi nên không dùng làm khóa.
+    /// </summary>
+    public int TrustedProxyHops { get; set; } = 1;
 }
 
 /// <summary>Giới hạn <c>POST /api/client-errors</c> theo IP vì endpoint không cần đăng nhập.</summary>
@@ -34,7 +40,7 @@ public static class ClientErrorRateLimit
         return services.AddRateLimiter(limiter =>
         {
             limiter.AddPolicy(PolicyName, context => RateLimitPartition.GetFixedWindowLimiter(
-                ClientKey(context),
+                ClientKey(context, options.TrustedProxyHops),
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = options.PermitLimit,
@@ -54,13 +60,16 @@ public static class ClientErrorRateLimit
     }
 
     /// <summary>
-    /// Identity chỉ nhận request từ Gateway nên địa chỉ kết nối luôn là Gateway. IP thật là phần tử đầu của
-    /// X-Forwarded-For: Caddy ghi đè header client gửi, Gateway nối thêm (route <c>identity-client-errors</c>).
+    /// Identity chỉ nhận request từ Gateway nên địa chỉ kết nối luôn là Gateway. Mỗi proxy tin cậy nối địa chỉ nó thấy
+    /// vào cuối X-Forwarded-For, nên IP thật là phần tử thứ <paramref name="trustedHops"/> tính từ cuối. Lấy phần tử đầu
+    /// thì client tự đặt header là đổi được khóa và vượt giới hạn (CR-05, MB-59).
     /// </summary>
-    public static string ClientKey(HttpContext context)
+    public static string ClientKey(HttpContext context, int trustedHops = 1)
     {
-        var forwarded = context.Request.Headers[ForwardedForHeader].ToString().Split(',', 2)[0].Trim();
-        return IPAddress.TryParse(forwarded, out var address)
+        var parts = context.Request.Headers[ForwardedForHeader].ToString()
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var candidate = parts.Length == 0 ? null : parts[Math.Max(0, parts.Length - Math.Max(1, trustedHops))];
+        return IPAddress.TryParse(candidate, out var address)
             ? address.ToString()
             : context.Connection.RemoteIpAddress?.ToString() ?? UnknownClient;
     }

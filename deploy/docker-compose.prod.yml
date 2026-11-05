@@ -20,6 +20,9 @@ services:
       - ./seaweedfs/s3.prod.json:/etc/seaweedfs/s3.json:ro
   identity-api:
     ports: !reset []
+    environment:
+      # Caddy nối IP client, Gateway nối IP của Caddy: IP thật đứng thứ 2 từ cuối X-Forwarded-For (CR-05).
+      ClientErrors__RateLimit__TrustedProxyHops: "2"
   academic-api:
     ports: !reset []
   team-api:
