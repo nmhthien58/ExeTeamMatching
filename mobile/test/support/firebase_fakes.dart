@@ -123,7 +123,7 @@ class FakeCrashReporter implements CrashReporter {
   }
 
   @override
-  void testCrash() => testCrashes++;
+  Future<void> testCrash() async => testCrashes++;
 }
 
 /// Remote Config giả: đổi giá trị bằng [push] để thử màn hình phản ứng khi Console publish.

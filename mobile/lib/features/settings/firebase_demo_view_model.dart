@@ -37,7 +37,7 @@ class FirebaseDemoViewModel extends Notifier<FirebaseDemoState> {
   Future<void> crash() async {
     final crash = ref.read(crashReporterProvider);
     await crash.setKey('demo_action', 'test_crash');
-    crash.testCrash();
+    await crash.testCrash();
   }
 }
 
