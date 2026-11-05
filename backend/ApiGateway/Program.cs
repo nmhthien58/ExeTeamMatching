@@ -35,6 +35,15 @@ var app = builder.Build();
 app.UseCors();
 app.UseServiceDefaults();
 
+// BE-85: khi Gateway mở ra Internet mà không có Caddy phía trước (Railway), chặn /api/dev/* (cấp JWT không cần Google).
+// Bật bằng Gateway__BlockDevEndpoints=true; local và mạng nội bộ vẫn dùng được endpoint dev.
+if (app.Configuration.GetValue<bool>("Gateway:BlockDevEndpoints"))
+{
+    app.Use((context, next) => context.Request.Path.StartsWithSegments("/api/dev")
+        ? Results.NotFound().ExecuteAsync(context)
+        : next(context));
+}
+
 // Swagger gộp: mỗi service tự phát swagger.json (Development), Gateway proxy qua /swagger-proxy/{service}/.
 if (app.Environment.IsDevelopment())
 {
