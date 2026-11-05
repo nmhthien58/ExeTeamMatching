@@ -49,6 +49,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `max-below-current` | Số nhóm tối đa của mentor nhỏ hơn số nhóm đang mentor trong học kỳ hiện hành |
 | `team-unavailable` | 503: Team Service không trả lời nên chưa kiểm tra được số nhóm đang mentor |
 | `lecturer-locked` | Gắn mentor với giảng viên đang khóa; mở khóa giảng viên rồi mới gắn được (rule 20) |
+| `not-report-owner` | Đọc, ghi báo cáo PDF của người khác (MB-53) |
 | `lecturer-has-mentor` | Giảng viên đã gắn với một hồ sơ mentor khác (rule 20) |
 | `preferred-above-max` (400) | Số nhóm mong muốn của mentor vượt số nhóm tối đa do Bộ môn đặt (rule 20) |
 | `round-overlap`, `round-already-open`, `round-open-locked` | Đợt bị chồng thời gian / đợt đã mở / sửa thời gian bắt đầu của đợt đang mở (rule 6) |

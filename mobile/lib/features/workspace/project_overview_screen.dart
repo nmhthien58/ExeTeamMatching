@@ -6,6 +6,8 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'format.dart';
 import 'project_overview_view_model.dart';
+import 'report_export_card.dart';
+import 'report_view_model.dart';
 import 'workspace_api.dart';
 import 'workspace_models.dart';
 import 'workspace_widgets.dart';
@@ -88,6 +90,11 @@ class _Overview extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.s3),
           _Shortcuts(basePath: basePath),
+          const SizedBox(height: AppSpacing.s3),
+          ReportExportCard(
+            workspaceId: workspace.id,
+            data: () => reportDataFrom(workspace, stats: stats, now: DateTime.now()),
+          ),
           const SizedBox(height: AppSpacing.s3),
           Card.outlined(
             child: Padding(

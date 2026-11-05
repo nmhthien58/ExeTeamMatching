@@ -50,3 +50,24 @@ W23 là form nên không có trạng thái trống.
 | 2 | W23 | Gửi "Tất cả mọi người" trả 500 khi có giảng viên kiêm mentor: 2 contact cùng email vi phạm `uq_email_logs_event_to` | Đã sửa, có test |
 | 3 | W23 | "Sinh viên chưa có nhóm" và "Nhóm chưa có mentor" luôn trả 0 người nhận, vì chưa có API nội bộ từ Team Service | Chưa sửa, cần Thành xem |
 | 4 | W23 | Chọn "Khóa học / môn" không có tác dụng: `SendAnnouncementAsync` không lọc theo `courseCode` | Chưa sửa, cần Thành xem |
+
+## Xuất báo cáo PDF (MB-53)
+
+Thử ngày 05/11/2026 trên Docker Compose local, SeaweedFS thật, gọi thẳng Collaboration Service (cổng 5007) bằng JWT dev. Quy tắc phân quyền: [file-storage.md](file-storage.md).
+
+| Trường hợp | Kết quả mong đợi | Thực tế |
+|---|---|---|
+| Chủ báo cáo tải lên PDF | 201, có link ký sẵn | Đạt |
+| Mở link ký sẵn | 200, đúng nội dung, tên file tải về | Đạt |
+| Chủ báo cáo xem danh sách, xin link mới | 200 | Đạt |
+| Người khác xem danh sách, xin link, ghi vào `reports/{uid}/` | 403 `not-report-owner` | Đạt |
+| Không có JWT | 401 | Đạt |
+| Gọi qua Gateway: chủ báo cáo, người khác | 200, 403 | Đạt |
+| File không phải PDF | 415 | Đạt |
+| Báo cáo không tồn tại | 404 | Đạt |
+| Mở URL S3 không có chữ ký | 403 | Đạt |
+| Sửa chữ ký trên link | 403 | Đạt |
+| Đổi đường dẫn sang người khác, giữ chữ ký | 403 | Đạt |
+| Mất mạng khi tải lên | App báo "Mất kết nối…", có nút Thử lại | Đạt ở test ViewModel và widget, **chưa thử trên máy thật** |
+
+**Chưa kiểm tra:** chưa bấm nút trên điện thoại thật, chưa mở PDF đã tạo bằng trình đọc PDF trên máy.

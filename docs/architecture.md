@@ -53,6 +53,7 @@ Chia theo **feature** thay cho chia theo lớp (`models/`, `services/`, `viewmod
 | `lib/app/` | `MaterialApp.router`, go_router (`router.dart`), khung theo vai trò (`role_shell.dart`), danh sách tab (`navigation.dart`), route của từng feature (`feature_routes.dart`) |
 | `lib/core/auth/` | Phiên đăng nhập (secure storage), service Firebase Auth |
 | `lib/core/config/` | Biến `--dart-define` (`Env`) |
+| `lib/features/workspace/report_*.dart` | Xuất báo cáo PDF ở C01 (MB-53): `ReportPdfBuilder`, `ReportApi`, `ReportExportViewModel`, `ReportExportCard` |
 | `lib/core/firebase/` | Khởi tạo Firebase, App Check (sau này: Analytics, Crashlytics, Remote Config) |
 | `lib/core/network/` | Dio dùng chung, `ApiException` từ ProblemDetails |
 | `lib/core/theme/` | Token Lab 2 → `ThemeData`, `AppSpacing`, `AppRadius`, `AppColors` |
