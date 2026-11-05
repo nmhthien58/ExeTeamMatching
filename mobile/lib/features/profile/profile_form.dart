@@ -56,6 +56,19 @@ class _SkillSliderState extends State<SkillSlider> {
             widget.onChanged(v.round());
           },
         ),
+        // Nhãn hai đầu thang theo Figma `Skill/Slider`; TalkBack đọc được để biết 1 và 5 nghĩa là gì.
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Chữ phóng to thì mỗi nhãn tự xuống dòng trong nửa của mình, không tràn.
+              Expanded(child: Text('Mới bắt đầu', style: theme.textTheme.bodySmall)),
+              const SizedBox(width: AppSpacing.s2),
+              Expanded(child: Text('Thành thạo', textAlign: TextAlign.end, style: theme.textTheme.bodySmall)),
+            ],
+          ),
+        ),
       ],
     );
   }

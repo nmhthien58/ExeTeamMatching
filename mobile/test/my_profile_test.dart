@@ -54,7 +54,8 @@ class _FakeProfileApi extends ProfileApi {
 }
 
 Future<void> _pump(WidgetTester tester, _FakeProfileApi api, {required String location, TeamDetail? myTeam, bool isTeamFormation = true}) async {
-  tester.view.physicalSize = const Size(1080, 2400);
+  // Cao 1100 dp để cả form A05 / S03 (5 thanh kỹ năng có nhãn hai đầu) dựng hết, test không phải cuộn.
+  tester.view.physicalSize = const Size(1080, 3300);
   addTearDown(tester.view.resetPhysicalSize);
   final router = GoRouter(initialLocation: location, routes: [
     GoRoute(path: '/sv', builder: (_, _) => const ProfileGate(child: Scaffold(body: Text('S01 Trang chủ')))),
