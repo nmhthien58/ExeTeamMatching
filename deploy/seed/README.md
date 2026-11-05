@@ -32,6 +32,7 @@ Không có Docker cho riêng bước seed thì chạy bằng Node 22: `node depl
 - Script **đổi học kỳ hiện hành** sang `SP90`. Ngày học kỳ tính theo lúc chạy: đang ở tuần 2, hạn chọn slot hết tuần 3, tuần bắt đầu mentor là tuần 8. Để lâu sau khi seed thì các mốc này sẽ qua.
 - Email là `@example.com` nên không đăng nhập Google được; lấy token bằng `POST /api/dev/token` với `role`, `email` và id tương ứng (`studentId`, `lecturerId`, `mentorId`). Cuối lượt chạy script in sẵn id các tài khoản chính.
 - Toàn bộ dữ liệu ẩn danh: tên ghép ngẫu nhiên, không có SĐT.
+- Muốn đăng nhập Google bằng tài khoản của mình với role Sinh viên: đặt `SEED_STUDENT_EMAIL` trong `deploy/.env` (không commit) trước khi seed. Script tạo thêm sinh viên EXE101 `DS189999` với email đó: chưa có nhóm, đủ hồ sơ, đang tìm nhóm, có 1 lời mời từ nhóm Khởi Hành. Để trống thì bỏ qua.
 
 ## Dữ liệu tạo ra
 

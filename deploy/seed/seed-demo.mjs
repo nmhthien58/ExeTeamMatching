@@ -5,9 +5,11 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { crc32 } from 'node:zlib'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const GATEWAY = process.env.SEED_GATEWAY_URL ?? 'http://localhost:8080'
+const OWN_STUDENT_EMAIL = process.env.SEED_STUDENT_EMAIL?.trim()
 const HEALTH_URLS = (process.env.SEED_HEALTH_URLS ?? `${GATEWAY}/health`).split(',')
 const SEMESTER_CODE = 'SP90'
 const DAY = 86_400_000
@@ -76,8 +78,7 @@ async function waitForServices() {
   }
 }
 
-async function importStudents(admin, semesterId, courseCode, file) {
-  const buffer = await readFile(join(here, file))
+async function importBuffer(admin, semesterId, courseCode, file, buffer) {
   const form = new FormData()
   form.set('file', new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), file)
   form.set('semesterId', semesterId)
@@ -85,6 +86,76 @@ async function importStudents(admin, semesterId, courseCode, file) {
   const preview = await call('POST', '/api/imports/students/preview', { token: admin, form })
   if (preview.errorRows.length > 0) throw new Error(`File ${file} có dòng lỗi: ${JSON.stringify(preview.errorRows[0])}`)
   await call('POST', `/api/imports/students/${preview.previewId}/confirm`, { token: admin })
+}
+
+async function importStudents(admin, semesterId, courseCode, file) {
+  await importBuffer(admin, semesterId, courseCode, file, await readFile(join(here, file)))
+}
+
+/** File zip không nén, đủ cho một file xlsx vài dòng; tránh thêm thư viện vào script chạy bằng node trần. */
+function zipStored(entries) {
+  const locals = []
+  const centrals = []
+  let offset = 0
+  for (const [name, text] of Object.entries(entries)) {
+    const path = Buffer.from(name)
+    const data = Buffer.from(text)
+    const fields = Buffer.alloc(16)
+    fields.writeUInt32LE(crc32(data), 0)
+    fields.writeUInt32LE(data.length, 4)
+    fields.writeUInt32LE(data.length, 8)
+    fields.writeUInt16LE(path.length, 12)
+    // Bản 2.0, cờ UTF-8, không nén, thời gian 01/01/1980.
+    const common = Buffer.from([20, 0, 0, 8, 0, 0, 0, 0, 0x21, 0])
+    const local = Buffer.concat([Buffer.from([0x50, 0x4b, 3, 4]), common, fields, path, data])
+    const tail = Buffer.alloc(14)
+    tail.writeUInt32LE(offset, 10)
+    centrals.push(Buffer.concat([Buffer.from([0x50, 0x4b, 1, 2, 20, 0]), common, fields, tail, path]))
+    locals.push(local)
+    offset += local.length
+  }
+  const central = Buffer.concat(centrals)
+  const end = Buffer.alloc(22)
+  end.writeUInt32LE(0x06054b50, 0)
+  end.writeUInt16LE(centrals.length, 8)
+  end.writeUInt16LE(centrals.length, 10)
+  end.writeUInt32LE(central.length, 12)
+  end.writeUInt32LE(offset, 16)
+  return Buffer.concat([...locals, central, end])
+}
+
+const escapeXml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** File xlsx một sheet theo mẫu import W07. */
+function studentSheet(rows) {
+  const main = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+  const rels = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+  const pkg = 'http://schemas.openxmlformats.org/package/2006/relationships'
+  const xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  const cell = (value, column, row) => `<c r="${String.fromCharCode(65 + column)}${row}" t="inlineStr"><is><t>${escapeXml(value)}</t></is></c>`
+  const data = rows.map((values, i) => `<row r="${i + 1}">${values.map((value, column) => cell(value, column, i + 1)).join('')}</row>`).join('')
+  return zipStored({
+    '[Content_Types].xml': `${xml}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`,
+    '_rels/.rels': `${xml}<Relationships xmlns="${pkg}"><Relationship Id="rId1" Type="${rels}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    'xl/workbook.xml': `${xml}<workbook xmlns="${main}" xmlns:r="${rels}"><sheets><sheet name="SinhVien" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    'xl/_rels/workbook.xml.rels': `${xml}<Relationships xmlns="${pkg}"><Relationship Id="rId1" Type="${rels}/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`,
+    'xl/worksheets/sheet1.xml': `${xml}<worksheet xmlns="${main}"><sheetData>${data}</sheetData></worksheet>`,
+  })
+}
+
+/**
+ * Sinh viên EXE101 chưa có nhóm cho email Google thật ở SEED_STUDENT_EMAIL, để đăng nhập thử.
+ * Import riêng sau 30 sinh viên seed nên không làm lệch chỉ số nhóm bên dưới. Email chỉ nằm trong deploy/.env.
+ */
+async function importOwnStudent(admin, semesterId) {
+  if (!OWN_STUDENT_EMAIL) return null
+  const file = studentSheet([
+    ['MSSV', 'Họ tên', 'Email', 'Chuyên ngành', 'Mã lớp'],
+    ['DS189999', 'Sinh viên Demo', OWN_STUDENT_EMAIL, 'SE', 'EXE101SE01'],
+  ])
+  await importBuffer(admin, semesterId, 'EXE101', 'sinh-vien-rieng.xlsx', file)
+  const students = await loadStudents(admin, semesterId, 'EXE101')
+  return students.find((s) => s.studentCode === 'DS189999')
 }
 
 async function loadStudents(admin, semesterId, courseCode) {
@@ -296,9 +367,11 @@ async function main() {
   const exe101 = await loadStudents(admin, semester.id, 'EXE101')
   const exe201 = await loadStudents(admin, semester.id, 'EXE201')
   log(`Đã import ${exe101.length} sinh viên EXE101, ${exe201.length} sinh viên EXE201`)
+  const ownStudent = await importOwnStudent(admin, semester.id)
 
   for (const [index, student] of exe101.entries()) await fillProfile(student, index, index >= 17)
   for (const [index, student] of exe201.entries()) await fillProfile(student, index, false)
+  if (ownStudent) await fillProfile(ownStudent, 0, true)
   log('Đã hoàn thiện hồ sơ 5 kỹ năng')
   // Matching dựng read model từ StudentProfileUpdated; chờ một nhịp trước khi tính gợi ý.
   await sleep(3000)
@@ -326,6 +399,7 @@ async function main() {
     body: { title: 'Cần 2 bạn thiết kế và marketing', description: 'Nhóm đang làm bản mẫu, cần thêm người.', specializationIds: [exe101[1].specialization.id] },
   })
   await invite(departure, departure.leader, exe101[17], 'Nhóm cần bạn làm thiết kế')
+  if (ownStudent) await invite(departure, departure.leader, ownStudent, 'Nhóm cần thêm bạn làm kỹ thuật')
   await call('POST', `/api/teams/${star.id}/join-requests`, {
     token: exe101[18].token,
     body: { message: 'Mình muốn vào nhóm', ideas: [{ title: 'Điểm thưởng đổi đồ', description: 'Tặng điểm khi đổi đồ thành công' }], hasNoIdea: false },
@@ -433,6 +507,7 @@ async function main() {
   log(`  Trưởng nhóm EXE201: ${exe201[0].email}, mã ${exe201[0].id}`)
   log(`  Giảng viên: ${lecturers[0].email}, mã ${lecturers[0].id}`)
   log(`  Mentor: ${mentors[0].email}, mã ${mentors[0].id}`)
+  if (ownStudent) log(`  Sinh viên chưa có nhóm (đăng nhập Google): ${ownStudent.email}, mã ${ownStudent.id}`)
 }
 
 main().catch((error) => {

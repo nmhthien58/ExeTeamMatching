@@ -338,6 +338,7 @@ services:
     command: ["node", "seed-demo.mjs"]
     environment:
       SEED_GATEWAY_URL: http://gateway:8080
+      SEED_STUDENT_EMAIL: ${SEED_STUDENT_EMAIL:-}
       SEED_HEALTH_URLS: http://gateway:8080/health,http://identity-api:8080/health,http://academic-api:8080/health,http://team-api:8080/health,http://notification:8080/health,http://jobs:8080/health,http://collab-api:8080/health
     depends_on:
       gateway:
