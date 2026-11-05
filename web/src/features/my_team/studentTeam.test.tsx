@@ -139,6 +139,25 @@ describe('student team screens (FE-37)', () => {
     expect(post).toHaveBeenCalledWith('/api/teams/t1/join-requests', { message: undefined, ideas: [], hasNoIdea: true })
   })
 
+  it('S20 shows the applicant skills (SkillBars) and self-description; "Chưa đánh giá" when empty', async () => {
+    const request = (id: string, extra = {}) => ({
+      id, student: { id: `s-${id}`, studentCode: `SE18000${id}`, fullName: `Người xin ${id}` }, ideas: [], hasNoIdea: true, status: 'PENDING',
+      createdAt: '2026-11-01T00:00:00Z', expiresAt: '2026-11-04T00:00:00Z', ...extra,
+    })
+    routes = {
+      '/api/teams/me': team('LEADER'),
+      '/api/teams/t1/join-requests': [
+        request('7', { studentSkills: [{ skill: 'TECHNOLOGY', level: 4 }, { skill: 'MARKETING', level: 2 }], studentDescription: 'Thích làm frontend' }),
+        request('8'),
+      ],
+      '/api/teams/t1/invitations': [],
+    }
+    renderAt('/sv/nhom/yeu-cau')
+    expect(await screen.findByText('Thích làm frontend')).toBeInTheDocument()
+    expect(screen.getByLabelText('Công nghệ, 4 trên 5')).toBeInTheDocument()
+    expect(screen.getByText('Chưa đánh giá kỹ năng.')).toBeInTheDocument()
+  })
+
   it('S08 explains why someone with a team cannot ask to join', async () => {
     routes = { '/api/teams/t1': team('NONE'), '/api/teams/me': team('LEADER') }
     renderAt('/sv/kham-pha/nhom/t1')

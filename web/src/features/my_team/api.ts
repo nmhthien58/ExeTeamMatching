@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/apiClient'
 import type { CatalogRef, StudentRef, TeamCard, TeamDetail } from '@/features/suggestions/api'
+import type { SkillRating } from '@/features/profile/api'
 
 // Kiểu theo docs/contracts/openapi/team.yaml (tag Teams, Members, Invitations, JoinRequests). TeamCard / TeamDetail dùng chung với suggestions.
 
@@ -36,6 +37,9 @@ export interface JoinRequest {
   id: string
   team?: TeamCard | null
   student: StudentRef
+  /** S20: kỹ năng và giới thiệu lấy từ hồ sơ của người xin (Academic). */
+  studentSkills?: SkillRating[]
+  studentDescription?: string | null
   message?: string | null
   ideas: Idea[]
   hasNoIdea: boolean

@@ -6,6 +6,7 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { Card } from '@/features/workspace/components'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { useMyTeam } from '@/features/suggestions/api'
+import { SkillBars } from '@/features/profile/components'
 import { requestStatusLabel, useRequestDecision, useSentInvitations, useTeamJoinRequests, type FullTeam } from './api'
 import { ListSkeleton } from './components'
 
@@ -70,6 +71,11 @@ function JoinRequests({ team }: { team: FullTeam }) {
         <Card key={r.id}>
           <p className="font-semibold">{r.student.fullName}</p>
           <p className="text-text-secondary">{[r.student.studentCode, r.student.specialization?.name].filter(Boolean).join(' · ')}</p>
+          {r.studentDescription && <p className="mt-2 text-text-secondary">{r.studentDescription}</p>}
+          {/* shortcut: chưa đánh dấu kỹ năng nhóm đang thiếu – API thành viên nhóm chưa trả kỹ năng; thêm highlight khi contract có. */}
+          <div className="mt-3">
+            <SkillBars ratings={r.studentSkills ?? []} />
+          </div>
           {r.message && <p className="mt-2">“{r.message}”</p>}
           <div className="mt-2">
             {r.hasNoIdea ? (
