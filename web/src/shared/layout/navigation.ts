@@ -12,25 +12,27 @@ export interface NavItem {
   owner: string
   /** Khớp chính xác đường dẫn (mục trang chủ). */
   end?: boolean
+  /** Nhóm trong sidebar Bộ môn (FE-49). */
+  group?: string
 }
 
 export const adminNav: NavItem[] = [
   { to: '/admin', label: 'Tổng quan', icon: 'dashboard', screen: 'W02', owner: 'Nguyên', end: true },
-  { to: '/admin/hoc-ky', label: 'Học kỳ và đợt', icon: 'calendar_month', screen: 'W03–W04', owner: 'Nam' },
-  { to: '/admin/import', label: 'Import sinh viên', icon: 'upload_file', screen: 'W06–W08', owner: 'Nam' },
-  { to: '/admin/sinh-vien', label: 'Sinh viên', icon: 'school', screen: 'W09–W10', owner: 'Nam' },
-  { to: '/admin/giang-vien', label: 'Giảng viên', icon: 'co_present', screen: 'W11', owner: 'Nam' },
-  { to: '/admin/mentor', label: 'Mentor', icon: 'support_agent', screen: 'W27', owner: 'Nam' },
-  { to: '/admin/nhom', label: 'Nhóm', icon: 'groups', screen: 'W15–W16', owner: 'Cường' },
-  { to: '/admin/doi-nhom', label: 'Yêu cầu đổi nhóm', icon: 'swap_horiz', screen: 'W17–W18', owner: 'Thành' },
-  { to: '/admin/ghep-giang-vien', label: 'Ghép giảng viên', icon: 'how_to_reg', screen: 'W19', owner: 'Thiên' },
-  { to: '/admin/ghep-mentor', label: 'Ghép mentor', icon: 'handshake', screen: 'W28', owner: 'Thiên' },
-  { to: '/admin/chua-co-nhom', label: 'Chưa có nhóm', icon: 'person_search', screen: 'W20–W22', owner: 'Nguyên' },
-  { to: '/admin/de-tai', label: 'Đề tài qua các kỳ', icon: 'history_edu', screen: 'W29', owner: 'Thành' },
-  { to: '/admin/thong-bao', label: 'Thông báo chung', icon: 'campaign', screen: 'W23', owner: 'Thành' },
-  { to: '/admin/nhat-ky', label: 'Nhật ký', icon: 'receipt_long', screen: 'W24', owner: 'Cường' },
-  { to: '/admin/danh-muc', label: 'Danh mục', icon: 'category', screen: 'W12–W14', owner: 'Nam' },
-  { to: '/admin/cau-hinh', label: 'Cấu hình', icon: 'settings', screen: 'W05', owner: 'Nam' },
+  { to: '/admin/hoc-ky', label: 'Học kỳ và đợt', icon: 'calendar_month', screen: 'W03–W04', owner: 'Nam', group: 'Học vụ' },
+  { to: '/admin/import', label: 'Import sinh viên', icon: 'upload_file', screen: 'W06–W08', owner: 'Nam', group: 'Học vụ' },
+  { to: '/admin/sinh-vien', label: 'Sinh viên', icon: 'school', screen: 'W09–W10', owner: 'Nam', group: 'Học vụ' },
+  { to: '/admin/giang-vien', label: 'Giảng viên', icon: 'co_present', screen: 'W11', owner: 'Nam', group: 'Học vụ' },
+  { to: '/admin/mentor', label: 'Mentor', icon: 'support_agent', screen: 'W27', owner: 'Nam', group: 'Học vụ' },
+  { to: '/admin/nhom', label: 'Nhóm', icon: 'groups', screen: 'W15–W16', owner: 'Cường', group: 'Nhóm và ghép' },
+  { to: '/admin/doi-nhom', label: 'Yêu cầu đổi nhóm', icon: 'swap_horiz', screen: 'W17–W18', owner: 'Thành', group: 'Nhóm và ghép' },
+  { to: '/admin/ghep-giang-vien', label: 'Ghép giảng viên', icon: 'how_to_reg', screen: 'W19', owner: 'Thiên', group: 'Nhóm và ghép' },
+  { to: '/admin/ghep-mentor', label: 'Ghép mentor', icon: 'handshake', screen: 'W28', owner: 'Thiên', group: 'Nhóm và ghép' },
+  { to: '/admin/chua-co-nhom', label: 'Chưa có nhóm', icon: 'person_search', screen: 'W20–W22', owner: 'Nguyên', group: 'Nhóm và ghép' },
+  { to: '/admin/de-tai', label: 'Đề tài qua các kỳ', icon: 'history_edu', screen: 'W29', owner: 'Thành', group: 'Nhóm và ghép' },
+  { to: '/admin/thong-bao', label: 'Thông báo chung', icon: 'campaign', screen: 'W23', owner: 'Thành', group: 'Vận hành' },
+  { to: '/admin/nhat-ky', label: 'Nhật ký', icon: 'receipt_long', screen: 'W24', owner: 'Cường', group: 'Vận hành' },
+  { to: '/admin/danh-muc', label: 'Danh mục', icon: 'category', screen: 'W12–W14', owner: 'Nam', group: 'Vận hành' },
+  { to: '/admin/cau-hinh', label: 'Cấu hình', icon: 'settings', screen: 'W05', owner: 'Nam', group: 'Vận hành' },
 ]
 
 export interface ShellContext {
