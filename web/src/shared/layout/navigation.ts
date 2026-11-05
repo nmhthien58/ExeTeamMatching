@@ -31,6 +31,7 @@ export const adminNav: NavItem[] = [
   { to: '/admin/de-tai', label: 'Đề tài qua các kỳ', icon: 'history_edu', screen: 'W29', owner: 'Thành', group: 'Nhóm và ghép' },
   { to: '/admin/thong-bao', label: 'Thông báo chung', icon: 'campaign', screen: 'W23', owner: 'Thành', group: 'Vận hành' },
   { to: '/admin/nhat-ky', label: 'Nhật ký', icon: 'receipt_long', screen: 'W24', owner: 'Cường', group: 'Vận hành' },
+  { to: '/admin/loi-ung-dung', label: 'Theo dõi lỗi ứng dụng', icon: 'bug_report', screen: 'W30', owner: 'Nguyên', group: 'Vận hành' },
   { to: '/admin/danh-muc', label: 'Danh mục', icon: 'category', screen: 'W12–W14', owner: 'Nam', group: 'Vận hành' },
   { to: '/admin/cau-hinh', label: 'Cấu hình', icon: 'settings', screen: 'W05', owner: 'Nam', group: 'Vận hành' },
 ]

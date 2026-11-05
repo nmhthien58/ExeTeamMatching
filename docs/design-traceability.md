@@ -81,6 +81,14 @@ Nguồn dữ liệu: mọi API đi qua API Gateway (`/api/...`, JWT của Identi
 | – | Lịch (tab giảng viên EXE201) | `/gv/lich` (tab) | `ScreenPlaceholder` | – | – | ⏳ chưa có màn riêng; lịch họp xem ở C09 `/gv/lich-hop` |
 | M01 | Trang chủ mentor | `/mentor` (tab) | `MentorHomeScreen` | `MentorHomeViewModel` | `LecturerHomeApi` | ⚠️ D3 |
 
+### Web Bộ môn (W)
+
+Cột Widget là component React; nguồn dữ liệu qua `web/src/shared/api`. Màn này thêm sau Lab 2 nên chưa có frame Figma.
+
+| Mã | Màn | Route | Component | Hook dữ liệu | Nguồn dữ liệu | TT |
+|---|---|---|---|---|---|---|
+| W30 | Theo dõi lỗi ứng dụng (FE-50) | `/admin/loi-ung-dung` | `ClientErrorsPage`, `DailyErrorChart`, `ClientErrorDrawer` | `useClientErrorSummary`, `useClientErrors` | `GET /api/admin/client-errors`, `/summary` (BE-87); app gửi qua `POST /api/client-errors` (MB-61); link sang Crashlytics console | ⚠️ D11 |
+
 ## 2. Luồng Lab 2
 
 | Luồng | Các bước (màn) | Lỗi / nhánh phụ | Đi được trong app | Test |
@@ -119,3 +127,4 @@ Nguồn dữ liệu: mọi API đi qua API Gateway (`/api/...`, JWT của Identi
 | D8 | Thẻ "Nhóm phù hợp với bạn" (S01) | Thẻ rộng hết hàng | (sửa lỗi) thẻ co theo nội dung → đã kéo rộng hết hàng | Lỗi code, không phải đổi thiết kế; ghi để truy vết | 05/11, #150 |
 | D9 | L02, L03 | Có màn chấp nhận / từ chối yêu cầu hướng dẫn | Bỏ | Đổi nghiệp vụ 20/10 sang ghép giảng viên tự động (design-decisions Phần E) | 20/10 |
 | D10 | Web Bộ môn (W01, W02, W25 và bảng dữ liệu) | Khung web như mobile: sidebar trắng một danh sách, header trơn, thẻ phẳng | Sidebar nền mực chia nhóm (Học vụ · Nhóm và ghép · Vận hành), header kính mờ có ngày; W02 có thẻ hero (đếm ngược hạn đợt, vòng tiến độ) và thẻ số liệu đếm lên; W01 hai cột (panel giới thiệu + thẻ đăng nhập); bóng nhiều lớp, skeleton shimmer, trang mờ dần khi đổi route, tắt khi giảm chuyển động | Góp ý trưởng nhóm 05/11: web nhìn như bản mobile phóng to; web chỉ phục vụ Bộ môn (góp ý giảng viên) nên thiết kế lại cho màn hình rộng. Không ảnh hưởng app mobile | 05/11, FE-49 |
+| D11 | Web Bộ môn (W30) | Không có màn này trong thiết kế Lab 2 | Thêm W30 theo giao diện FE-49, lấy số liệu từ báo cáo app gửi về backend | Giảng viên muốn Bộ môn xem kết quả Crashlytics trên web; Firebase không có API đọc Crashlytics miễn phí (BigQuery export cần gói Blaze) | – |

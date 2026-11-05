@@ -195,7 +195,7 @@ function Statistics({ stats, course }: { stats: StatisticsOverview; course: stri
   )
 }
 
-function SectionTitle({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
+export function SectionTitle({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
   return (
     <div className="mb-5 flex items-center gap-3">
       <span className="grid size-9 place-items-center rounded-md bg-primary-container text-primary">
@@ -217,7 +217,7 @@ const statTones = {
 } as const
 
 /** Thẻ số liệu: icon trong ô màu theo ý nghĩa, số đếm chạy, xuất hiện so le; bấm được thì có mũi tên. */
-function StatCard({
+export function StatCard({
   index,
   icon,
   tone,
