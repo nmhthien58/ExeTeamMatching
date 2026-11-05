@@ -10,10 +10,18 @@ import { crc32 } from 'node:zlib'
 const here = dirname(fileURLToPath(import.meta.url))
 const GATEWAY = process.env.SEED_GATEWAY_URL ?? 'http://localhost:8080'
 const OWN_STUDENT_EMAIL = process.env.SEED_STUDENT_EMAIL?.trim()
+const SEED_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin.demo@example.com'
 const HEALTH_URLS = (process.env.SEED_HEALTH_URLS ?? `${GATEWAY}/health`).split(',')
 const SEMESTER_CODE = 'SP90'
 const DAY = 86_400_000
 const MEET_LINK = 'https://meet.example.com/exe-demo'
+
+// Một email một vai trò: gắn thêm Sinh viên vào tài khoản Bộ môn thì người dùng không biết mình đang ở khung nào.
+const adminEmails = [process.env.ADMIN_EMAIL, SEED_ADMIN_EMAIL].map((email) => email?.trim().toLowerCase())
+if (OWN_STUDENT_EMAIL && adminEmails.includes(OWN_STUDENT_EMAIL.toLowerCase())) {
+  console.error('SEED_STUDENT_EMAIL trùng email Bộ môn (ADMIN_EMAIL hoặc SEED_ADMIN_EMAIL). Dùng email khác cho sinh viên.')
+  process.exit(1)
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const log = (message) => console.log(`[seed] ${message}`)
@@ -296,7 +304,7 @@ async function seedTeamWorkspace(team, members, instructor, now) {
 
 async function main() {
   await waitForServices()
-  const admin = await devToken({ role: 'Admin', email: process.env.SEED_ADMIN_EMAIL ?? 'admin.demo@example.com' })
+  const admin = await devToken({ role: 'Admin', email: SEED_ADMIN_EMAIL })
   const semesters = await call('GET', '/api/semesters', { token: admin })
   const seeded = semesters.find((s) => s.code === SEMESTER_CODE)
   if (seeded) {
