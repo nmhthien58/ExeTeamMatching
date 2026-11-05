@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'client_error_api.dart';
@@ -18,27 +17,22 @@ class ClientDeviceInfo {
   final String? osVersion;
 }
 
+const _deviceChannel = MethodChannel('exe_team_matching/device_info');
+
+/// Đọc qua kênh trong `MainActivity.kt`. iOS chưa có kênh này nên chỉ có tên nền tảng và phiên bản hệ điều hành.
 Future<ClientDeviceInfo> _readDeviceInfo() async {
-  final platform = Platform.operatingSystem;
-  var appVersion = 'unknown';
-  String? model;
-  String? os;
+  var info = const <String, String>{};
   try {
-    final package = await PackageInfo.fromPlatform();
-    appVersion = '${package.version}+${package.buildNumber}';
-    if (Platform.isAndroid) {
-      final android = await DeviceInfoPlugin().androidInfo;
-      model = '${android.manufacturer} ${android.model}';
-      os = 'Android ${android.version.release}';
-    } else if (Platform.isIOS) {
-      final ios = await DeviceInfoPlugin().iosInfo;
-      model = ios.utsname.machine;
-      os = 'iOS ${ios.systemVersion}';
-    }
+    info = await _deviceChannel.invokeMapMethod<String, String>('read') ?? info;
   } catch (e) {
     debugPrint('Read device info failed: $e');
   }
-  return ClientDeviceInfo(platform: platform, appVersion: appVersion, deviceModel: model, osVersion: os);
+  return ClientDeviceInfo(
+    platform: Platform.operatingSystem,
+    appVersion: info['appVersion'] ?? 'unknown',
+    deviceModel: info['deviceModel'],
+    osVersion: info['osVersion'] ?? Platform.operatingSystemVersion,
+  );
 }
 
 /// Gửi bản báo cáo lỗi về backend song song với Crashlytics, để Bộ môn xem ở W30 (MB-61, BE-87).
