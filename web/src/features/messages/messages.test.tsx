@@ -6,9 +6,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const get = vi.fn()
 const post = vi.fn()
+const patch = vi.fn()
+const del = vi.fn()
 vi.mock('@/shared/api/apiClient', async (original) => ({
   ...(await original<typeof import('@/shared/api/apiClient')>()),
-  api: { get: (...args: unknown[]) => get(...args), post: (...args: unknown[]) => post(...args) },
+  api: {
+    get: (...args: unknown[]) => get(...args),
+    post: (...args: unknown[]) => post(...args),
+    patch: (...args: unknown[]) => patch(...args),
+    delete: (...args: unknown[]) => del(...args),
+  },
 }))
 
 const { ApiError } = await import('@/shared/api/apiClient')
@@ -58,6 +65,8 @@ describe('Tin nhắn C02, C03 (FE-38)', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
+    patch.mockReset()
+    del.mockReset()
     globalThis.crypto.randomUUID ??= () => '00000000-0000-4000-8000-000000000000'
     tokenStore.save({
       accessToken: 'a', accessTokenExpiresAt: '', refreshToken: 'r', refreshTokenExpiresAt: '',
@@ -132,6 +141,39 @@ describe('Tin nhắn C02, C03 (FE-38)', () => {
     expect(sent).toMatchObject({ body: 'Cô @Cô Hạnh xem giúp em', attachmentFileIds: ['f1'], mentionPersonIds: ['l1'] })
     expect(screen.queryByRole('list', { name: 'File đính kèm' })).not.toBeInTheDocument()
     open.mockRestore()
+  })
+
+  it('C03: sửa tin của mình trong 15 phút; xóa có Hoàn tác 5 giây rồi mới gọi API; tin người khác không có nút', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const now = new Date().toISOString()
+    get.mockResolvedValue({ data: { items: [msg('m2', 'Tin của cô', lecturer, { createdAt: now }), msg('m1', 'Họp lúc 9h', leader, { createdAt: now })], nextCursor: null } })
+    post.mockResolvedValue({ data: {} })
+    patch.mockResolvedValue({ data: msg('m1', 'Họp lúc 10h', leader, { createdAt: now, editedAt: now }) })
+    del.mockResolvedValue({ data: undefined })
+    renderWith(<ChannelView channel={channel} title="Cố vấn" readOnly={false} isStudent />)
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+
+    expect(await screen.findByText('Họp lúc 9h')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Sửa' })).toHaveLength(1) // chỉ tin của mình
+    await user.click(screen.getByRole('button', { name: 'Sửa' }))
+    await user.clear(screen.getByRole('textbox', { name: 'Sửa tin nhắn' }))
+    await user.type(screen.getByRole('textbox', { name: 'Sửa tin nhắn' }), 'Họp lúc 10h')
+    await user.click(screen.getByRole('button', { name: 'Lưu' }))
+    expect(patch).toHaveBeenCalledWith('/api/messages/m1', { body: 'Họp lúc 10h' })
+    expect(await screen.findByText('Họp lúc 10h')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Xóa' }))
+    expect(screen.queryByText('Họp lúc 10h')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Hoàn tác' }))
+    expect(screen.getByText('Họp lúc 10h')).toBeInTheDocument()
+    act(() => void vi.advanceTimersByTime(6000))
+    expect(del).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Xóa' }))
+    act(() => void vi.advanceTimersByTime(5000))
+    await vi.waitFor(() => expect(del).toHaveBeenCalledWith('/api/messages/m1'))
+    expect(await screen.findByText('Tin nhắn đã bị xóa')).toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('C03: Bộ môn chỉ xem, không có khung soạn tin', async () => {
