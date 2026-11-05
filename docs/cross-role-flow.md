@@ -78,7 +78,7 @@
   - `changeRequestDetailProvider` (chi tiết yêu cầu S29)
   - `pendingChangesProvider` (thay đổi chờ gửi S27/S28)
   - `myTeamDetailProvider` & `myTeamProvider` (thông tin đội S13–S15).
-- Nhờ vậy, ngay khi push thông báo đến, nếu người dùng đang mở màn hình S26 hoặc S29, UI sẽ tự động làm mới trạng thái mà không cần thao tác kéo tải lại!
+- Theo thiết kế, khi push đến ở foreground, S26 hoặc S29 đang mở sẽ được yêu cầu tải lại. Test fake đã xác nhận provider danh sách S26 được nạp lại; vẫn cần kiểm thử UI và API thật để xác nhận cả S26/S29 trên môi trường demo.
 
 ### 4.3 Tóm tắt cơ chế đồng bộ
 
@@ -163,12 +163,12 @@ Chuẩn bị **ba yêu cầu độc lập và hợp lệ** (không dùng lại y
    - **T_a06**: thời điểm thông báo hiển thị ở A06 (sau invalidate).
    - **T_s26**: thời điểm S26 tự cập nhật trạng thái (sau invalidate).
 6. Đo độ trễ bằng cùng đồng hồ hoặc video có thể đối chiếu.
-7. Chạm thông báo push: kiểm tra mở đúng màn A06 (linkUrl `app://change-requests`).
+7. Chạm thông báo push: kiểm tra liên kết `app://change-requests` mở danh sách yêu cầu S26, sau đó chọn đúng yêu cầu để xem S29. Kiểm tra A06 riêng.
 8. Lưu ảnh hoặc video **không lộ token, email thật, service account, dữ liệu cá nhân**.
 
 ### Bảng kết quả
 
-| Lần | Môi trường / phiên bản | T0 duyệt thành công | T_push | T_a06 | S26/S29 tự cập nhật | Độ trễ (T_push − T0) | Bằng chứng |
+| Lần | Môi trường / phiên bản | T0 duyệt thành công | T_push | T_a06 | S26/S29 tự cập nhật | Độ trễ cập nhật (T_s26 − T0) | Bằng chứng |
 |-----|------------------------|---------------------|--------|-------|--------------------|-----------------------|------------|
 | 1 | Chưa thực hiện (chờ BE-85) | — | — | — | Dự kiến Có (sau MB-52) | Chưa đo | — |
 | 2 | Chưa thực hiện (chờ BE-85) | — | — | — | Dự kiến Có (sau MB-52) | Chưa đo | — |
