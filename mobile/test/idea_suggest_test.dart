@@ -1,6 +1,6 @@
 import 'package:exe_team_matching/core/firebase/analytics_service.dart';
 import 'package:exe_team_matching/core/firebase/remote_config_service.dart';
-import 'package:exe_team_matching/features/discover/idea_ai_contract.dart';
+import 'package:exe_team_matching/core/ai/ai_service.dart';
 import 'package:exe_team_matching/features/discover/idea_suggest_sheet.dart';
 import 'package:exe_team_matching/features/discover/idea_suggest_view_model.dart';
 import 'package:exe_team_matching/features/my_team/my_team_api.dart' show domainsProvider;
