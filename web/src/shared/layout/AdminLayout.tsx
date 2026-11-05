@@ -1,9 +1,9 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import clsx from 'clsx'
-import { Icon } from '@/shared/components/ui'
+import { Outlet, useLocation } from 'react-router-dom'
 import { AccountMenu } from './AccountMenu'
 import { adminNav, type NavItem } from './navigation'
 import { PageHeaderProvider, usePageHeaderState } from './PageHeader'
+import { BrandBlock, GlassHeader, SideLink } from './ShellParts'
+import { todayLabel } from '@/shared/lib/today'
 import { RemoteNotice } from '@/shared/firebase/RemoteNotice'
 
 /**
@@ -20,7 +20,7 @@ export function AdminLayout() {
           Bỏ qua điều hướng
         </a>
         <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-ink text-ink-text">
-          <BrandBlock />
+          <BrandBlock subtitle="Bộ môn EXE" />
           <nav aria-label="Điều hướng chính" className="ink-scroll flex-1 overflow-y-auto px-3 pb-4">
             {groupNav(adminNav).map(({ group, items }) => (
               <div key={group ?? 'main'} className="mt-4 first:mt-1">
@@ -64,78 +64,7 @@ function groupNav(items: NavItem[]) {
   return groups
 }
 
-function SideLink({ item }: { item: NavItem }) {
-  return (
-    <NavLink
-      to={item.to}
-      end={item.end}
-      className={({ isActive }) =>
-        clsx(
-          'group relative flex min-h-10 items-center gap-3 rounded-md px-3 text-body font-medium transition-colors duration-200',
-          isActive ? 'bg-primary/15 text-white' : 'text-ink-text hover:bg-white/5 hover:text-white',
-        )
-      }
-    >
-      {({ isActive }) => (
-        <>
-          {/* vạch cam bên trái mục đang chọn */}
-          <span
-            aria-hidden
-            className={clsx(
-              'absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-brand-orange transition-all duration-300',
-              isActive ? 'opacity-100' : 'scale-y-0 opacity-0',
-            )}
-          />
-          <Icon
-            name={item.icon}
-            size={20}
-            filled={isActive}
-            className={clsx('transition-colors', isActive ? 'text-brand-orange' : 'text-ink-muted group-hover:text-ink-text')}
-          />
-          <span className="truncate">{item.label}</span>
-        </>
-      )}
-    </NavLink>
-  )
-}
-
-function BrandBlock() {
-  return (
-    <div className="flex h-[72px] items-center gap-3 px-5">
-      <span aria-hidden className="grid size-10 place-items-center rounded-[12px] bg-gradient-to-br from-brand-orange to-primary shadow-glow">
-        <Icon name="groups" filled className="text-white" />
-      </span>
-      <span className="flex flex-col leading-tight">
-        <span className="text-subtitle font-semibold text-white">EXE Team Matching</span>
-        <span className="text-caption text-ink-muted">Bộ môn EXE</span>
-      </span>
-    </div>
-  )
-}
-
 function Header() {
   const { title, action } = usePageHeaderState()
-  const today = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
-  return (
-    <header className="sticky top-0 z-20 flex h-[72px] items-center gap-4 border-b border-border/60 bg-background/70 px-8 backdrop-blur-xl backdrop-saturate-150">
-      <div className="min-w-0 flex-1">
-        <h1 className="truncate text-[22px] font-semibold leading-7 tracking-[-0.01em]">{title}</h1>
-        <p className="text-caption capitalize text-text-secondary">{today}</p>
-      </div>
-      {action}
-      <AccountMenu />
-    </header>
-  )
-}
-
-/** Logo nhỏ cho khung sinh viên / giảng viên / mentor (RoleShell). */
-export function Logo({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className={clsx('flex h-16 items-center gap-2', compact ? 'justify-center' : 'px-5')}>
-      <span aria-hidden className="grid size-8 place-items-center rounded-md bg-gradient-to-br from-brand-orange to-primary">
-        <Icon name="groups" size={20} filled className="text-white" />
-      </span>
-      {!compact && <span className="text-subtitle font-semibold">Team Matching</span>}
-    </div>
-  )
+  return <GlassHeader title={title} subtitle={todayLabel()} action={action} account={<AccountMenu />} />
 }
