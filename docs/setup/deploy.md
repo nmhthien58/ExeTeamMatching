@@ -2,6 +2,28 @@
 
 ## Cách dùng khi demo (đã chọn 05/11/2026)
 
+### Firebase Cloud Messaging (BE-84)
+
+Thiên gửi riêng Firebase service account; không đưa file này vào Git. Tạo thư mục và đặt file đúng tên:
+
+```text
+deploy/secrets/firebase-service-account.json
+```
+
+Compose mount thư mục đó read-only và đặt `FIREBASE_SERVICE_ACCOUNT_PATH=/run/secrets/firebase-service-account.json`
+cho Notification Service. Nếu chưa có file, service vẫn khởi động, ghi cảnh báo và chỉ lưu thông báo trong A06 mà
+không gửi push. Sau khi thêm hoặc đổi file, chạy lại container:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d --build notification
+```
+
+Với database đã có volume, chạy migration một lần trước khi đăng ký token:
+
+```bash
+docker exec -i exe-postgres psql -U postgres -d notification_db < deploy/db/migrations/20261105_be84_device_tokens.sql
+```
+
 Nhóm demo trực tiếp trên laptop, giảng viên không tự mở web, nên **web nằm trên Firebase Hosting, backend chạy Docker trên chính laptop demo**:
 
 | Phần | Ở đâu | Địa chỉ |

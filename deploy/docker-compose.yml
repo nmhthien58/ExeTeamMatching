@@ -231,6 +231,9 @@ services:
       Kafka__BootstrapServers: kafka:29092
       Smtp__Host: mailpit
       Smtp__Port: 1025
+      FIREBASE_SERVICE_ACCOUNT_PATH: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets:/run/secrets:ro
     ports:
       - "5005:8080"
     healthcheck: *dotnet-healthcheck

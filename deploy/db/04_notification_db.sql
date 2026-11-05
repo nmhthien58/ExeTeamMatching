@@ -19,6 +19,20 @@ CREATE TABLE notification.contacts (
 );
 CREATE INDEX idx_contacts_email ON notification.contacts (email);
 
+-- Device token FCM của người dùng mobile. Một token chỉ thuộc tài khoản đang dùng gần nhất.
+CREATE TABLE notification.device_tokens (
+    id           uuid          NOT NULL DEFAULT gen_random_uuid(),
+    user_id      uuid          NOT NULL,
+    token        varchar(4096) NOT NULL,
+    platform     varchar(10)   NOT NULL,
+    created_at   timestamptz   NOT NULL DEFAULT now(),
+    last_seen_at timestamptz   NOT NULL DEFAULT now(),
+    CONSTRAINT pk_device_tokens PRIMARY KEY (id),
+    CONSTRAINT uq_device_tokens_token UNIQUE (token),
+    CONSTRAINT ck_device_tokens_platform CHECK (platform IN ('android', 'ios'))
+);
+CREATE INDEX idx_device_tokens_user ON notification.device_tokens (user_id);
+
 -- Thông báo trong ứng dụng. ADMIN -> recipient_id NULL (thông báo chung). UNIQUE (sự kiện, người nhận) để idempotent.
 CREATE TABLE notification.notifications (
     id              uuid          NOT NULL DEFAULT gen_random_uuid(),
