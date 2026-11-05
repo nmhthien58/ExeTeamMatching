@@ -35,3 +35,8 @@ mobile/ios/Runner/GoogleService-Info.plist
 deploy/.env.prod
 deploy/seaweedfs/s3.prod.json
 web/.firebase/
+
+# E2E (Python)
+e2e_test/.venv/
+__pycache__/
+.pytest_cache/

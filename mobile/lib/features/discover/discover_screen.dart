@@ -175,7 +175,13 @@ class TeamListCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(team.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Semantics(
+                header: true,
+                label: 'Nhóm ${team.name}, ${team.memberCount} trên ${team.maxSize} thành viên',
+                child: ExcludeSemantics(
+                  child: Text(team.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ),
+              ),
               if (team.projectName != null) Text(team.projectName!, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: AppSpacing.s2),
               DomainChips(domains: team.domains),

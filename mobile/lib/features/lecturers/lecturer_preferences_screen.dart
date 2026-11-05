@@ -275,6 +275,7 @@ class _LecturerPreferencesScreenState extends ConsumerState<LecturerPreferencesS
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: searchQuery.isNotEmpty
                             ? IconButton(
+                                tooltip: 'Xóa ô tìm kiếm',
                                 icon: const Icon(Icons.clear),
                                 onPressed: () {
                                   _searchController.clear();
