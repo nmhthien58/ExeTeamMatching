@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/auth/session.dart';
+import '../core/firebase/crash_reporter.dart';
 import '../core/providers.dart';
 import '../features/auth/login_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
@@ -20,7 +23,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authControllerProvider, (_, next) => auth.value = next);
   ref.onDispose(auth.dispose);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     refreshListenable: auth,
     redirect: (context, state) {
@@ -57,6 +60,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       for (final shell in Shell.values) _shellRoute(shell),
     ],
   );
+
+  // MB-61: báo cáo lỗi ghi màn đang mở. Dùng mẫu route nên không lộ id nhóm, id người dùng.
+  void trackScreen() {
+    final path = router.routerDelegate.currentConfiguration.fullPath;
+    if (path.isNotEmpty) unawaited(ref.read(crashReporterProvider).setKey('screen', path));
+  }
+
+  router.routerDelegate.addListener(trackScreen);
+  ref.onDispose(() => router.routerDelegate.removeListener(trackScreen));
+  return router;
 });
 
 ShellRoute _shellRoute(Shell shell) {

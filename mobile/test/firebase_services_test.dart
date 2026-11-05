@@ -183,9 +183,9 @@ void main() {
       verify(() => sdk.setCustomKey('course', '')).called(1);
     });
 
-    test('testCrash gọi crash của SDK', () {
+    test('testCrash gọi crash của SDK', () async {
       when(() => sdk.crash()).thenReturn(null);
-      crash.testCrash();
+      await crash.testCrash();
       verify(() => sdk.crash()).called(1);
     });
 
