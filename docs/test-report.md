@@ -2,15 +2,16 @@
 
 ## Checklist web admin cho Final (FE-48)
 
-Đối chiếu 5 màn đề yêu cầu với màn đã có trên web. Kiểm tra ngày 04/11/2026 trên Docker Compose local (`http://localhost:3000`), commit gốc `5a9df9d` cộng 2 sửa lỗi ở mục "Lỗi tìm thấy". Ảnh chụp ở [`evidence/web/`](../evidence/web/), khung nhìn 1440×900.
+Đối chiếu 5 màn đề yêu cầu với màn đã có trên web. Lần đầu kiểm tra ngày 04/11/2026 trên Docker Compose local. Sau FE-49 (giao diện mới), **chạy lại ngày 05/11/2026 trên bản Hosting** `https://exe-team-matching.web.app`, backend Docker trên máy, theo `docs/setup/deploy.md`; mọi ảnh dưới đây là ảnh của lần chạy lại.
 
-**Chưa xong:** chưa kiểm tra lại trên URL công khai, vì BE-85 chưa triển khai. Sau BE-85 cần chạy lại bảng này trên URL đó.
+**Chưa xong:** khi BE-85 lên Railway phải chạy lại bảng này trên bản đó.
 
 ### Cách kiểm tra
 
 - Dữ liệu: seed BE-57 (học kỳ `SP90`) trên DB local đã có dữ liệu cũ của collection demo.
 - Đăng nhập: lấy phiên bằng `POST /api/dev/token`, vì email seed không đăng nhập Google được.
-- Thao tác chính gọi API thật. Riêng trạng thái **trống** và **lỗi tải** là giả lập: trình duyệt headless chặn request của màn đó và trả danh sách rỗng hoặc HTTP 500.
+- Thao tác chính gọi API thật, trừ W17 và W18 ở dưới. Riêng trạng thái **trống** và **lỗi tải** là giả lập: trình duyệt headless chặn request của màn đó và trả dữ liệu rỗng hoặc lỗi 500.
+- **W17, W18 lần chạy lại là giả lập:** seed hiện không còn yêu cầu `PENDING`, nên lấy một yêu cầu thật, đổi trạng thái thành chờ duyệt ở tầng trình duyệt, và giả phản hồi của `approve`, `reject`. Lần này chỉ xác nhận giao diện mới; duyệt, từ chối qua API thật đã kiểm tra ngày 04/11 và FE-49 không đổi logic.
 
 ### Kết quả
 
@@ -28,9 +29,9 @@
 | | | Trống | Đạt | [w17-trong](../evidence/web/w17-trong.png) |
 | | | Lỗi tải | Đạt | [w17-loi](../evidence/web/w17-loi.png) |
 | | W18 | Chi tiết: so sánh mốc và thành viên sau thay đổi | Đạt | [w18-chi-tiet](../evidence/web/w18-chi-tiet.png) |
-| | | Duyệt, yêu cầu chuyển sang tab Đã duyệt | Đạt | [w18-duyet-dialog](../evidence/web/w18-duyet-dialog.png), [w18-da-duyet](../evidence/web/w18-da-duyet.png) |
+| | | Duyệt, yêu cầu chuyển sang tab Đã duyệt (giả lập, xem trên) | Đạt | [w18-duyet-dialog](../evidence/web/w18-duyet-dialog.png), [w18-da-duyet](../evidence/web/w18-da-duyet.png) |
 | | | Từ chối bỏ trống ghi chú bị chặn | Đạt | [w18-tu-choi-dialog](../evidence/web/w18-tu-choi-dialog.png), [w18-tu-choi-thieu-ghi-chu](../evidence/web/w18-tu-choi-thieu-ghi-chu.png) |
-| | | Từ chối có ghi chú, API trả `REJECTED` | Đạt | [w18-da-tu-choi](../evidence/web/w18-da-tu-choi.png) |
+| | | Từ chối có ghi chú, chuyển sang tab Đã từ chối (giả lập, xem trên) | Đạt | [w18-da-tu-choi](../evidence/web/w18-da-tu-choi.png) |
 | | | Lỗi tải | Đạt | [w18-loi](../evidence/web/w18-loi.png) |
 | Dashboard ≥ 3 số liệu, 1 biểu đồ | W02 | 4 số liệu, 3 biểu đồ thanh | Đạt | [w02-dashboard](../evidence/web/w02-dashboard.png) |
 | | | Trống | Đạt | [w02-trong](../evidence/web/w02-trong.png) |
