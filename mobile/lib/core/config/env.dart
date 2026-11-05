@@ -23,6 +23,11 @@ class Env {
   /// chỉ nhận app cài từ Google Play.
   static const appCheckDebug = bool.fromEnvironment('APP_CHECK_DEBUG', defaultValue: kDebugMode);
 
+  /// Debug token App Check dùng chung cho mọi máy cài APK demo (đăng ký một lần trên Firebase Console → App Check →
+  /// Manage debug tokens). Truyền lúc build `--dart-define=APP_CHECK_DEBUG_TOKEN=...`, không ghi vào code. Để trống thì
+  /// mỗi máy tự sinh token riêng và in ra logcat như cũ.
+  static const appCheckDebugToken = String.fromEnvironment('APP_CHECK_DEBUG_TOKEN');
+
   /// Bản debug mặc định không gửi báo cáo Crashlytics; truyền `--dart-define=CRASHLYTICS_DEBUG=true`
   /// để thử Crashlytics khi chạy debug (MB-50). Bản release / profile luôn gửi.
   static const crashlyticsDebug = bool.fromEnvironment('CRASHLYTICS_DEBUG');
