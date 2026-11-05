@@ -81,6 +81,22 @@ public sealed class AuditLogService(IAuditLogRepository logs, ITeamRepository te
             "LECTURER_ASSIGNED" => LecturerAssigned(Old("lecturerName"), New("lecturerName"), New("source")),
             "TOPIC_INTEREST_OPENED" => New("advisorName") is { } advisor ? $"{advisor} quan tâm đề tài của nhóm" : "Cố vấn quan tâm đề tài của nhóm",
             "TOPIC_INTEREST_WITHDRAWN" => "Rút quan tâm đề tài",
+            "MEMBER_ADDED" => $"Bộ môn thêm {New("studentCode")} vào nhóm",
+            "TEAM_FINALIZED" => "Chốt nhóm",
+            "TEAM_NEEDS_REVIEW" => "Nhóm cần Bộ môn xem lại",
+            "TEAM_REOPENED" => "Mở lại nhóm",
+            "TEAM_DISBANDED" => "Giải tán nhóm",
+            "TEAM_LINKED_TO_PROJECT" => "Gắn nhóm với đề tài của kỳ trước",
+            "CHANGE_REQUEST_SUBMITTED" => $"Gửi yêu cầu đổi nhóm ({New("changedMemberCount")} thay đổi)",
+            "CHANGE_REQUEST_APPROVED" => "Bộ môn duyệt yêu cầu đổi nhóm",
+            "CHANGE_REQUEST_REJECTED" => "Bộ môn từ chối yêu cầu đổi nhóm",
+            "PROJECT_CHANGE_PENDING" => $"Đề xuất đổi đề tài thành {New("newProjectName")} – chờ Bộ môn duyệt",
+            "PROJECT_CHANGE_CANCELLED" => "Hủy đề xuất đổi đề tài",
+            "PROJECT_PIVOT_APPROVED" => $"Đổi đề tài thành {New("name")}",
+            "LECTURER_PREFERENCES_UPDATED" => "Sửa nguyện vọng giảng viên",
+            "MENTOR_ASSIGNED" => MentorAssigned(Old("mentorName"), New("mentorName"), New("source")),
+            "MENTOR_UNASSIGNED" => $"Gỡ mentor {Old("mentorName")}",
+            "UNMATCHED_REMINDED" => $"Nhắc {New("studentCount")} sinh viên chưa có nhóm",
             _ => e.Action,
         };
     }
@@ -94,6 +110,17 @@ public sealed class AuditLogService(IAuditLogRepository logs, ITeamRepository te
             return $"Đổi giảng viên hướng dẫn từ {oldName} sang {name}";
         }
         return source == "AUTO" ? $"Hệ thống ghép giảng viên hướng dẫn {name}" : $"Gán giảng viên hướng dẫn {name}";
+    }
+
+    /// <summary><c>MENTOR_ASSIGNED</c> do <c>MentorAssignmentWriter</c> ghi: <c>mentorName</c>, <c>source</c> AUTO / MANUAL; old_values có khi đổi mentor.</summary>
+    private static string MentorAssigned(string? oldName, string? newName, string? source)
+    {
+        var name = string.IsNullOrWhiteSpace(newName) ? "mentor" : newName;
+        if (!string.IsNullOrWhiteSpace(oldName))
+        {
+            return $"Đổi mentor từ {oldName} sang {name}";
+        }
+        return source == "AUTO" ? $"Hệ thống ghép mentor {name}" : $"Gán mentor {name}";
     }
 
     private static string? Read(string? json, string property)
