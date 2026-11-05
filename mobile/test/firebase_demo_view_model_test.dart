@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:exe_team_matching/core/auth/session.dart';
 import 'package:exe_team_matching/core/firebase/crash_reporter.dart';
 import 'package:exe_team_matching/core/firebase/remote_config_service.dart';
 import 'package:exe_team_matching/core/network/api_exception.dart';
@@ -40,6 +41,24 @@ void main() {
     await c.read(firebaseDemoViewModelProvider.notifier).crash();
     expect(crash.testCrashes, 1);
     expect(crash.keys['demo_action'], 'test_crash');
+  });
+
+  group('Lối vào file và thông báo', () {
+    UserInfo user(Set<Role> roles) => UserInfo(id: 'u', email: 'a@example.com', fullName: 'A', roles: roles);
+
+    test('sinh viên vào Dự án', () {
+      expect(firebaseDemoLinksFor(user({Role.student})), (files: '/sv/du-an', notifications: '/sv/thong-bao'));
+    });
+
+    test('giảng viên, mentor chọn nhóm trước', () {
+      expect(firebaseDemoLinksFor(user({Role.lecturer})), (files: '/gv/nhom', notifications: '/gv/thong-bao'));
+      expect(firebaseDemoLinksFor(user({Role.mentor})), (files: '/mentor/nhom', notifications: '/mentor/thong-bao'));
+    });
+
+    test('chưa đăng nhập hoặc chỉ là Admin thì không có lối vào', () {
+      expect(firebaseDemoLinksFor(null), isNull);
+      expect(firebaseDemoLinksFor(user({Role.admin})), isNull);
+    });
   });
 
   Future<FakeCrashReporter> loadWith(Object error) async {
