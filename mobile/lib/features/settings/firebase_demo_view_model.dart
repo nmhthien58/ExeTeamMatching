@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ai/ai_service.dart';
 import '../../core/config/env.dart';
 import '../../core/firebase/crash_reporter.dart';
 import '../../core/firebase/remote_config_service.dart';
+import '../../core/view_state.dart';
 
 /// Lỗi thử gửi lên Crashlytics từ mục Demo Firebase (Lab 3 §6: một lỗi non-fatal và một crash thử).
 class DemoNonFatalError implements Exception {
@@ -43,3 +45,34 @@ class FirebaseDemoViewModel extends Notifier<FirebaseDemoState> {
 
 final firebaseDemoViewModelProvider =
     NotifierProvider.autoDispose<FirebaseDemoViewModel, FirebaseDemoState>(FirebaseDemoViewModel.new);
+
+/// Tag mẫu cho nút "Thử AI" (S09 thật dùng danh mục lĩnh vực từ API – MB-56).
+const demoAiTags = ['EdTech', 'FinTech', 'HealthTech', 'AgriTech', 'E-commerce', 'Du lịch', 'Môi trường'];
+
+/// ViewModel của nút "Thử AI" trong mục Demo Firebase (MB-55). `null` = chưa thử;
+/// `ViewError(AiException)` mang mã lỗi để chụp bằng chứng.
+class AiDemoViewModel extends Notifier<ViewState<IdeaDraft>?> {
+  int _generation = 0;
+
+  @override
+  ViewState<IdeaDraft>? build() => null;
+
+  Future<void> suggest(String description) async {
+    if (description.trim().isEmpty) return;
+    final generation = ++_generation;
+    state = const ViewLoading();
+    ViewState<IdeaDraft> result;
+    try {
+      final draft = await ref
+          .read(aiServiceProvider)
+          .suggestIdea(description: description, allowedTags: demoAiTags);
+      result = ViewData(draft);
+    } on AiException catch (e) {
+      result = ViewError(e);
+    }
+    if (ref.mounted && generation == _generation) state = result;
+  }
+}
+
+final aiDemoViewModelProvider =
+    NotifierProvider.autoDispose<AiDemoViewModel, ViewState<IdeaDraft>?>(AiDemoViewModel.new);

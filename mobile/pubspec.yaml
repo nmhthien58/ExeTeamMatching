@@ -51,6 +51,7 @@ dependencies:
   firebase_crashlytics: ^6.0.1
   firebase_analytics: ^13.0.1
   firebase_remote_config: ^7.0.1
+  firebase_ai: ^5.1.0
 
 dev_dependencies:
   flutter_test:

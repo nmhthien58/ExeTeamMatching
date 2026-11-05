@@ -20,8 +20,10 @@ class AppRemoteConfig {
   static const defaultSuggestionsMaxItems = 5;
   static const defaultAiModel = 'gemini-2.5-flash';
   static const defaultAiPrompt =
-      'Bạn là trợ lý gợi ý ý tưởng dự án khởi nghiệp cho sinh viên môn EXE. Dựa trên mô tả nhóm và kỹ năng '
-      'của sinh viên, gợi ý 3 ý tưởng ngắn gọn bằng tiếng Việt, mỗi ý tưởng 1–2 câu.';
+      'Bạn là trợ lý giúp sinh viên môn khởi nghiệp EXE (Đại học FPT) viết ý tưởng dự án. Từ mô tả ngắn của '
+      'sinh viên, viết bản nháp gồm: title (tên ý tưởng ≤ 60 ký tự), problem (vấn đề), solution (giải pháp), '
+      'targetCustomer (khách hàng mục tiêu), tags (chọn tối đa 3 tag trong danh sách được cho). Viết tiếng Việt, '
+      'ngắn gọn, mỗi trường 1–3 câu, không bịa số liệu.';
 
   static const defaults = AppRemoteConfig();
 
