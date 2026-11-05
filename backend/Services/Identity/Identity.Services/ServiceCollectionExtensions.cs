@@ -1,9 +1,11 @@
 using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Identity.Repositories.Accounts;
+using Identity.Repositories.ClientErrors;
 using Identity.Repositories.Context;
 using Identity.Repositories.Tokens;
 using Identity.Services.Auth;
+using Identity.Services.ClientErrors;
 using Identity.Services.Google;
 using Identity.Services.Provisioning;
 using Identity.Services.Tokens;
@@ -32,6 +34,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AccessTokenFactory>();
         services.AddScoped<TokenIssuer>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IClientErrorReportRepository, ClientErrorReportRepository>();
+        services.AddScoped<IClientErrorService, ClientErrorService>();
 
         services.AddKafka(configuration, "identity");
         services.AddProcessedEventStore<IdentityDbContext>();

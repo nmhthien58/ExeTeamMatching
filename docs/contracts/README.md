@@ -38,6 +38,7 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `slot-taken`, `booking-closed`, `slot-booked` | Slot vừa có nhóm khác đặt / quá hạn chọn slot / sửa khung bỏ slot đã có nhóm (rule 25) |
 | `checkpoint-locked` | Bỏ đánh dấu checkpoint sau ngày đã đánh dấu (rule 27) |
 | `not-in-list` | Email không có trong danh sách học kỳ (rule 5) |
+| `rate-limited` | 429: một IP gửi quá nhiều `POST /api/client-errors` (BE-87) |
 | `ideas-required` | Yêu cầu tham gia thiếu ý tưởng và không tích "Chưa có ý tưởng" (rule 17) |
 | `interest-limit` | Giảng viên đã đạt giới hạn quan tâm đề tài (rule 19) |
 | `team-has-mentor`, `mentor-full` | Nhóm đã có mentor / mentor đã đủ số nhóm tối đa (rule 20) |

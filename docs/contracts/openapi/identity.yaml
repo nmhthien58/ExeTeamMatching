@@ -11,6 +11,8 @@ servers:
     description: API Gateway
 tags:
   - name: Auth
+  - name: ClientErrors
+    description: BE-87 – app gửi báo cáo lỗi, Bộ môn xem ở W30 (bản chính ở Firebase Crashlytics)
 paths:
   /api/auth/google:
     post:
@@ -63,6 +65,58 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/UserInfo' } } } }
         '401': { $ref: '#/components/responses/Problem' }
+  /api/client-errors:
+    post:
+      tags: [ClientErrors]
+      summary: App gửi một báo cáo lỗi
+      description: |
+        Không cần đăng nhập (crash có thể xảy ra trước đó). Có JWT hợp lệ thì `sub` được ưu tiên hơn `userId` trong body.
+        Giới hạn theo IP, mặc định 30 báo cáo / phút (`ClientErrors:RateLimit`). Body tối đa 64 KB.
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ClientErrorReportRequest' } } }
+      responses:
+        '202': { description: Đã nhận }
+        '400': { $ref: '#/components/responses/Problem' }
+        '429':
+          description: `type` = `.../errors/rate-limited`. Header `Retry-After` là số giây phải đợi.
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+  /api/admin/client-errors:
+    get:
+      tags: [ClientErrors]
+      summary: Danh sách báo cáo lỗi, mới nhất trước (W30, chỉ Admin)
+      parameters:
+        - { name: kind, in: query, schema: { type: string, enum: [fatal, non_fatal] } }
+        - { name: from, in: query, description: Từ thời điểm này, schema: { type: string, format: date-time } }
+        - { name: to, in: query, description: Trước thời điểm này (không tính mốc), schema: { type: string, format: date-time } }
+        - { name: appVersion, in: query, description: Khớp đúng phiên bản, schema: { type: string, maxLength: 30 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/ClientErrorReport' } }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  totalCount: { type: integer }
+                  totalPages: { type: integer }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/admin/client-errors/summary:
+    get:
+      tags: [ClientErrors]
+      summary: Số liệu 7 ngày gần nhất tính cả hôm nay, theo giờ Việt Nam (W30, chỉ Admin)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ClientErrorSummary' } } } }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
 security:
   - bearer: []
 components:
@@ -82,6 +136,66 @@ components:
         detail: { type: string }
         traceId: { type: string }
         errors: { type: object, additionalProperties: { type: array, items: { type: string } }, description: Lỗi validate theo field }
+    ClientErrorReportRequest:
+      type: object
+      description: Không gửi email hay tên người dùng, chỉ `userId`.
+      required: [kind, message, platform, appVersion, occurredAt]
+      properties:
+        kind: { type: string, enum: [fatal, non_fatal] }
+        message: { type: string, maxLength: 2000 }
+        exceptionType: { type: string, maxLength: 200, description: Trống thì lưu `Unknown` }
+        stackTrace: { type: string, description: Server cắt còn 8192 ký tự }
+        platform: { type: string, maxLength: 20, example: android }
+        appVersion: { type: string, maxLength: 30, example: 1.0.0+1 }
+        deviceModel: { type: string, maxLength: 100 }
+        osVersion: { type: string, maxLength: 100 }
+        userId: { type: string, format: uuid, nullable: true }
+        role: { type: string, maxLength: 20 }
+        screen: { type: string, maxLength: 200, description: Route lúc xảy ra lỗi }
+        occurredAt: { type: string, format: date-time, description: Thời điểm ở tương lai được đổi thành lúc server nhận }
+    ClientErrorReport:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [fatal, non_fatal] }
+        message: { type: string }
+        exceptionType: { type: string }
+        stackTrace: { type: string, nullable: true }
+        platform: { type: string }
+        appVersion: { type: string }
+        deviceModel: { type: string, nullable: true }
+        osVersion: { type: string, nullable: true }
+        userId: { type: string, format: uuid, nullable: true }
+        role: { type: string, nullable: true }
+        screen: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+        receivedAt: { type: string, format: date-time }
+    ClientErrorSummary:
+      type: object
+      properties:
+        fatalCount: { type: integer }
+        nonFatalCount: { type: integer }
+        affectedUsers: { type: integer, description: Số userId khác nhau; báo cáo không có userId không tính }
+        daily:
+          type: array
+          description: Đủ 7 ngày, ngày không có lỗi có số 0
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              fatalCount: { type: integer }
+              nonFatalCount: { type: integer }
+        topErrors:
+          type: array
+          description: Tối đa 5 nhóm, gom theo exceptionType và dòng đầu của stack
+          items:
+            type: object
+            properties:
+              exceptionType: { type: string }
+              firstStackLine: { type: string }
+              count: { type: integer }
+              fatalCount: { type: integer }
+              lastOccurredAt: { type: string, format: date-time }
     RefreshRequest:
       type: object
       required: [refreshToken]
