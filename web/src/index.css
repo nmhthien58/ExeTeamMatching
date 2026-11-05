@@ -64,8 +64,34 @@
   --radius-lg: 20px;
   --radius-xl: 28px;
 
-  --shadow-elevation-1: 0 2px 8px rgb(26 31 54 / 6%);
-  --shadow-elevation-2: 0 8px 24px rgb(26 31 54 / 10%);
+  /* FE-49: thẻ nổi nhiều lớp (viền mảnh + bóng mềm) thay bóng đơn – mọi thẻ dùng shadow-elevation-1 đổi theo. */
+  --shadow-elevation-1: 0 0 0 1px rgb(26 31 54 / 5%), 0 1px 2px rgb(26 31 54 / 4%), 0 6px 20px -6px rgb(26 31 54 / 8%);
+  --shadow-elevation-2: 0 0 0 1px rgb(26 31 54 / 6%), 0 12px 32px -8px rgb(26 31 54 / 18%);
+  --shadow-glow: 0 8px 24px -8px rgb(198 81 11 / 45%);
+
+  /* FE-49: sidebar Bộ môn nền mực (ink) – chữ trắng / xám nhạt, mục đang chọn cam */
+  --color-ink: #141a33;
+  --color-ink-2: #1d2442;
+  --color-ink-border: rgb(255 255 255 / 8%);
+  --color-ink-text: #c9cede;
+  --color-ink-muted: #8a90a8;
+
+  --animate-page-in: page-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-up: fade-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes page-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes shimmer {
+    from { background-position: -200% 0; }
+    to { background-position: 200% 0; }
+  }
 }
 
 html,
@@ -76,6 +102,11 @@ body,
 
 body {
   margin: 0;
+  /* FE-49: nền có hai quầng sáng rất nhạt (cam, xanh FPT) để trang bớt phẳng; nội dung vẫn trên thẻ trắng */
+  background-image:
+    radial-gradient(1200px 600px at 100% -10%, rgb(243 112 33 / 6%), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(0 102 179 / 5%), transparent 60%);
+  background-attachment: fixed;
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 20px;
@@ -122,4 +153,44 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* FE-49: xuất hiện so le cho các thẻ trong lưới (đặt --i trên phần tử: style={{ '--i': index }}) */
+.stagger-in {
+  animation: var(--animate-fade-up);
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* FE-49: thẻ bấm được nổi lên nhẹ khi rê chuột */
+.card-hover {
+  transition: transform var(--motion-base) ease, box-shadow var(--motion-base) ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevation-2);
+}
+
+/* FE-49: skeleton ánh sáng chạy thay nhấp nháy */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--color-neutral-container) 0%, #f7f8fa 50%, var(--color-neutral-container) 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* FE-49: thanh cuộn mảnh trong sidebar tối */
+.ink-scroll::-webkit-scrollbar { width: 6px; }
+.ink-scroll::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 12%); border-radius: 999px; }
+
+/* FE-49: ô nhập liệu – viền đổi màu và quầng cam nhạt khi focus (bàn phím vẫn có vòng :focus-visible) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  transition: border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(198 81 11 / 14%);
+  outline: none;
 }

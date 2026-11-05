@@ -31,7 +31,7 @@ export function Icon({
 type ButtonVariant = 'primary' | 'outline' | 'text' | 'danger'
 
 const buttonStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-primary text-white hover:bg-primary-dark',
+  primary: 'bg-primary text-white shadow-sm hover:bg-primary-dark hover:shadow-glow',
   outline: 'border border-primary bg-surface text-primary-dark hover:bg-primary-container',
   text: 'text-primary-dark hover:bg-primary-container',
   danger: 'bg-error text-white hover:brightness-90',
@@ -53,7 +53,7 @@ export const Button = forwardRef<
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={clsx(
-        'relative inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 text-body font-medium transition-colors',
+        'relative inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-body font-medium transition-all duration-200 active:scale-[0.98]',
         'disabled:cursor-not-allowed disabled:bg-border disabled:text-text-disabled disabled:border-transparent',
         buttonStyles[variant],
         className,
@@ -134,7 +134,7 @@ export function Banner({
 
 /** Skeleton đúng hình nội dung; không nhấp nháy khi người dùng bật giảm chuyển động. */
 export function Skeleton({ className }: { className?: string }) {
-  return <span aria-hidden className={clsx('block animate-pulse rounded-sm bg-neutral-container', className)} />
+  return <span aria-hidden className={clsx('skeleton-shimmer block rounded-sm', className)} />
 }
 
 /**
