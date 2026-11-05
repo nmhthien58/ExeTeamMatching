@@ -25,6 +25,7 @@ docker compose -f deploy/docker-compose.yml up -d --build
 | Địa chỉ | Nội dung |
 |---|---|
 | http://localhost:3000 | Web (React) |
+| https://exe-team-matching.web.app | Web (React) trên Firebase Hosting, gọi backend Docker ở `localhost:8080` của máy đang mở – dùng khi demo ([deploy.md](docs/setup/deploy.md)) |
 | http://localhost:8080 | API Gateway – client chỉ gọi địa chỉ này; Swagger gộp ở `/swagger` |
 | http://localhost:5001 … 5007 | Từng service (Identity, Academic, Team, Matching gRPC, Notification, Jobs, Collab), mỗi service có `/health` |
 | http://localhost:8085 · 8025 · 9001 | Kafka UI · Mailpit (email dev) · giao diện file S3 |
