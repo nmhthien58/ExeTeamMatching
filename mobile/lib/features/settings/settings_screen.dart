@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/config/env.dart';
+import 'firebase_demo_section.dart';
 import 'settings_view_model.dart';
 
 /// Phiên bản hiển thị ở A07; giữ khớp `version` trong pubspec.yaml.
@@ -113,6 +115,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: Text('Đăng xuất', style: TextStyle(color: theme.colorScheme.error)),
             onTap: _signOut,
           ),
+          // Lab 3 §3: khu demo Firebase ở cuối để không đẩy các mục thường dùng xuống.
+          if (Env.firebaseDemo) ...[const Divider(), const FirebaseDemoSection()],
         ],
       ),
     );

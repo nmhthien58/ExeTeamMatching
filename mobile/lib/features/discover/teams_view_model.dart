@@ -5,6 +5,8 @@ import '../suggestions/suggestions_api.dart' show TeamCard;
 import 'discover_api.dart';
 import '../../core/firebase/analytics_service.dart';
 import 'dart:async';
+import '../../core/network/api_exception.dart';
+import '../../core/firebase/crash_reporter.dart';
 
 /// Kết quả đã tải của S05: các trang đã ghép lại và trạng thái tải trang kế.
 class TeamResults {
@@ -107,7 +109,12 @@ class TeamsViewModel extends Notifier<TeamsState> {
             ? const ViewEmpty()
             : ViewData(TeamResults(items: page.items, page: page.page, hasMore: page.hasMore)),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      // Lỗi ngoài dự kiến (không phải ProblemDetails của API, ví dụ dữ liệu sai dạng): ghi non-fatal lên
+      // Crashlytics (Lab 3 §6 – "non-fatal from a real error path"); người dùng vẫn thấy ErrorState + Thử lại.
+      if (e is! ApiException) {
+        unawaited(ref.read(crashReporterProvider).recordNonFatal(e, stack, reason: 'S05 tải danh sách nhóm'));
+      }
       if (!ref.mounted || generation != _generation) return;
       state = state.copyWith(results: ViewError(e));
     }
