@@ -1,8 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 13+: FirebaseMessaging.requestPermission() xin quyền này sau khi đăng nhập (MB-52). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="exe_team_matching"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Firebase Messaging 17: direct-send target dùng Firebase Installation ID (FID). -->
+        <meta-data
+            android:name="firebase_messaging_installation_id_enabled"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

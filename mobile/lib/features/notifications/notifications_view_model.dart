@@ -6,7 +6,12 @@ import 'notifications_api.dart';
 
 /// Danh sách A06 đã tải: các trang đã ghép và trạng thái tải trang kế.
 class NotificationList {
-  const NotificationList({required this.items, required this.page, required this.totalPages, this.loadingMore = false});
+  const NotificationList({
+    required this.items,
+    required this.page,
+    required this.totalPages,
+    this.loadingMore = false,
+  });
 
   final List<AppNotification> items;
   final int page;
@@ -15,22 +20,35 @@ class NotificationList {
 
   bool get hasUnread => items.any((x) => !x.isRead);
 
-  NotificationList copyWith({List<AppNotification>? items, int? page, int? totalPages, bool? loadingMore}) => NotificationList(
-        items: items ?? this.items,
-        page: page ?? this.page,
-        totalPages: totalPages ?? this.totalPages,
-        loadingMore: loadingMore ?? this.loadingMore,
-      );
+  NotificationList copyWith({
+    List<AppNotification>? items,
+    int? page,
+    int? totalPages,
+    bool? loadingMore,
+  }) => NotificationList(
+    items: items ?? this.items,
+    page: page ?? this.page,
+    totalPages: totalPages ?? this.totalPages,
+    loadingMore: loadingMore ?? this.loadingMore,
+  );
 }
 
 class NotificationsState {
-  const NotificationsState({this.list = const ViewLoading(), this.markingAll = false});
+  const NotificationsState({
+    this.list = const ViewLoading(),
+    this.markingAll = false,
+  });
 
   final ViewState<NotificationList> list;
   final bool markingAll;
 
-  NotificationsState copyWith({ViewState<NotificationList>? list, bool? markingAll}) =>
-      NotificationsState(list: list ?? this.list, markingAll: markingAll ?? this.markingAll);
+  NotificationsState copyWith({
+    ViewState<NotificationList>? list,
+    bool? markingAll,
+  }) => NotificationsState(
+    list: list ?? this.list,
+    markingAll: markingAll ?? this.markingAll,
+  );
 }
 
 /// Kết quả một lần của lệnh A06: lỗi hiện SnackBar; mở thông báo trả route cần đi tới.
@@ -75,7 +93,10 @@ class NotificationsViewModel extends Notifier<NotificationsState> {
     final current = state.list;
     if (silent) {
       final loaded = current.valueOrNull;
-      if (current is ViewLoading || (loaded != null && (loaded.page > 1 || loaded.loadingMore))) return;
+      if (current is ViewLoading ||
+          (loaded != null && (loaded.page > 1 || loaded.loadingMore))) {
+        return;
+      }
     } else {
       state = state.copyWith(list: const ViewLoading());
     }
@@ -85,27 +106,41 @@ class NotificationsViewModel extends Notifier<NotificationsState> {
       state = state.copyWith(
         list: result.items.isEmpty
             ? const ViewEmpty()
-            : ViewData(NotificationList(items: result.items, page: 1, totalPages: result.totalPages)),
+            : ViewData(
+                NotificationList(
+                  items: result.items,
+                  page: 1,
+                  totalPages: result.totalPages,
+                ),
+              ),
       );
     } catch (error) {
-      if (ref.mounted && !silent) state = state.copyWith(list: ViewError(error.apiError));
+      if (ref.mounted && !silent) {
+        state = state.copyWith(list: ViewError(error.apiError));
+      }
     }
   }
 
   /// Tải trang kế khi cuộn gần cuối; lỗi trả câu cho SnackBar.
   Future<NotificationOutcome> loadMore() async {
     final current = state.list.valueOrNull;
-    if (current == null || current.loadingMore || current.page >= current.totalPages) return const NotificationDone();
+    if (current == null ||
+        current.loadingMore ||
+        current.page >= current.totalPages) {
+      return const NotificationDone();
+    }
     state = state.copyWith(list: ViewData(current.copyWith(loadingMore: true)));
     try {
       final result = await _api.list(page: current.page + 1);
       if (!ref.mounted) return const NotificationDone();
-      _update((list) => list.copyWith(
-            items: [...list.items, ...result.items],
-            page: list.page + 1,
-            totalPages: result.totalPages,
-            loadingMore: false,
-          ));
+      _update(
+        (list) => list.copyWith(
+          items: [...list.items, ...result.items],
+          page: list.page + 1,
+          totalPages: result.totalPages,
+          loadingMore: false,
+        ),
+      );
       return const NotificationDone();
     } catch (error) {
       if (ref.mounted) _update((list) => list.copyWith(loadingMore: false));
@@ -118,7 +153,16 @@ class NotificationsViewModel extends Notifier<NotificationsState> {
     try {
       if (!item.isRead) {
         await _api.read(item.id);
-        if (ref.mounted) _update((list) => list.copyWith(items: [for (final row in list.items) row.id == item.id ? row.read() : row]));
+        if (ref.mounted) {
+          _update(
+            (list) => list.copyWith(
+              items: [
+                for (final row in list.items)
+                  row.id == item.id ? row.read() : row,
+              ],
+            ),
+          );
+        }
       }
       final route = routeFor(item.linkUrl);
       return route == null ? const NotificationDone() : NotificationOpen(route);
@@ -132,7 +176,13 @@ class NotificationsViewModel extends Notifier<NotificationsState> {
     state = state.copyWith(markingAll: true);
     try {
       await _api.readAll();
-      if (ref.mounted) _update((list) => list.copyWith(items: [for (final item in list.items) item.read()]));
+      if (ref.mounted) {
+        _update(
+          (list) => list.copyWith(
+            items: [for (final item in list.items) item.read()],
+          ),
+        );
+      }
       return const NotificationDone();
     } catch (error) {
       return NotificationFailed(error.apiError.title);
@@ -143,35 +193,78 @@ class NotificationsViewModel extends Notifier<NotificationsState> {
 
   /// Link `app://<host>/<id>` → route của vai trò; null khi không có link hoặc không phải `app://`.
   String? routeFor(String? link) {
-    if (link == null) return null;
-    final uri = Uri.tryParse(link);
-    if (uri == null || uri.scheme != 'app') return null;
-    return switch (uri.host) {
-      'teams' => '$roleRoot/nhom',
-      'invitations' when roleRoot == '/sv' => '/sv/loi-moi',
-      'invitations' => roleRoot,
-      'change-requests' when roleRoot == '/sv' => '/sv/yeu-cau-doi-nhom',
-      'change-requests' => '$roleRoot/nhom',
-      'workspaces' when roleRoot == '/sv' => '/sv/du-an',
-      'workspaces' when uri.pathSegments.isNotEmpty => '$roleRoot/du-an/${uri.pathSegments.first}',
-      'meeting-schedule' => roleRoot == '/sv'
-          ? '/sv/du-an/lich-hop'
-          : roleRoot == '/gv'
-              ? '/gv/lich'
-              : roleRoot,
-      'lecturer' => '$roleRoot/de-tai',
-      _ => roleRoot,
-    };
+    return notificationRouteFor(roleRoot: roleRoot, link: link);
   }
 
   void _update(NotificationList Function(NotificationList) change) {
     final current = state.list.valueOrNull;
-    if (current != null) state = state.copyWith(list: ViewData(change(current)));
+    if (current != null) {
+      state = state.copyWith(list: ViewData(change(current)));
+    }
   }
 }
 
-final notificationsViewModelProvider =
-    NotifierProvider.autoDispose.family<NotificationsViewModel, NotificationsState, String>(NotificationsViewModel.new);
+/// Dùng chung cho A06 và FCM: ưu tiên deep link từ backend, sau đó mới suy ra từ type/id
+/// cho tin thử gửi trực tiếp từ Firebase Console.
+String? notificationRouteFor({
+  required String roleRoot,
+  String? link,
+  String type = '',
+  String? id,
+}) {
+  if (link != null) {
+    final uri = Uri.tryParse(link);
+    if (uri?.scheme == 'app') {
+      return switch (uri!.host) {
+        'teams' => '$roleRoot/nhom',
+        'invitations' when roleRoot == '/sv' => '/sv/loi-moi',
+        'invitations' => roleRoot,
+        'change-requests' when roleRoot == '/sv' => '/sv/yeu-cau-doi-nhom',
+        'change-requests' => '$roleRoot/nhom',
+        'workspaces' when roleRoot == '/sv' => '/sv/du-an',
+        'workspaces' when uri.pathSegments.isNotEmpty =>
+          '$roleRoot/du-an/${uri.pathSegments.first}',
+        'meeting-schedule' =>
+          roleRoot == '/sv'
+              ? '/sv/du-an/lich-hop'
+              : roleRoot == '/gv'
+              ? '/gv/lich'
+              : roleRoot,
+        'lecturer' => '$roleRoot/de-tai',
+        _ => roleRoot,
+      };
+    }
+  }
+
+  // A06 không có deep link thì chỉ đánh dấu đã đọc, không tự điều hướng.
+  // FCM gửi từ Console luôn có `type`, nên vẫn dùng được nhánh fallback bên dưới.
+  if (type.isEmpty) return null;
+
+  final normalized = type.toLowerCase();
+  if (normalized.contains('changerequest')) {
+    return roleRoot == '/sv' ? '/sv/yeu-cau-doi-nhom' : '$roleRoot/nhom';
+  }
+  if (normalized.contains('invitation')) {
+    return roleRoot == '/sv' ? '/sv/loi-moi' : roleRoot;
+  }
+  if (normalized.contains('workspace')) {
+    return roleRoot == '/sv' || id == null
+        ? '$roleRoot/du-an'
+        : '$roleRoot/du-an/$id';
+  }
+  if (normalized.contains('lecturer') || normalized.contains('topicinterest')) {
+    return '$roleRoot/de-tai';
+  }
+  if (normalized.contains('team') || normalized.contains('mentor')) {
+    return '$roleRoot/nhom';
+  }
+  return '$roleRoot/thong-bao';
+}
+
+final notificationsViewModelProvider = NotifierProvider.autoDispose
+    .family<NotificationsViewModel, NotificationsState, String>(
+      NotificationsViewModel.new,
+    );
 
 /// ViewModel của badge A06 trên thanh điều hướng: số thông báo chưa đọc (View gọi [load] mỗi 30 giây).
 class UnreadCountViewModel extends Notifier<int> {
@@ -188,4 +281,7 @@ class UnreadCountViewModel extends Notifier<int> {
   }
 }
 
-final unreadCountViewModelProvider = NotifierProvider.autoDispose<UnreadCountViewModel, int>(UnreadCountViewModel.new);
+final unreadCountViewModelProvider =
+    NotifierProvider.autoDispose<UnreadCountViewModel, int>(
+      UnreadCountViewModel.new,
+    );
