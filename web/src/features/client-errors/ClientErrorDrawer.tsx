@@ -37,7 +37,13 @@ export function ClientErrorDrawer({ error, onClose }: { error: ClientError; onCl
         <section>
           <h3 className="mb-2 text-subtitle font-semibold">Stack trace</h3>
           {error.stackTrace ? (
-            <pre tabIndex={0} className="max-h-96 overflow-auto rounded-sm bg-ink p-4 font-mono text-caption text-white">
+            <pre
+              /* Vùng cuộn phải nhận Tab để người dùng bàn phím đọc hết stack trace (WCAG 2.1.1); có tên vùng và viền focus (CR-03, MB-59). */
+              tabIndex={0}
+              role="region"
+              aria-label="Stack trace"
+              className="max-h-96 overflow-auto rounded-sm bg-ink p-4 font-mono text-caption text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
               {error.stackTrace}
             </pre>
           ) : (
