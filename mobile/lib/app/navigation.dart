@@ -15,6 +15,9 @@ Shell? shellOf(UserInfo user) {
 
 const shellHome = {Shell.student: '/sv', Shell.lecturer: '/gv', Shell.mentor: '/mentor'};
 
+/// Màn mở khi bấm avatar ở góc phải BrandAppBar (MB-62): S02, L06; mentor chưa có màn hồ sơ nên mở Cài đặt.
+const shellProfile = {Shell.student: '/sv/ho-so', Shell.lecturer: '/gv/ho-so', Shell.mentor: '/mentor/cai-dat'};
+
 /// Một tab của tab bar. `screen` là mã màn hình, `owner` là người làm (AGENTS.md mục 2).
 class NavItem {
   const NavItem(this.path, this.label, this.icon, this.selectedIcon, this.screen, this.owner);
@@ -35,8 +38,9 @@ List<NavItem> roleNav(Shell shell, {required bool isTeamFormation, required bool
               ? const NavItem('/sv/kham-pha', 'Khám phá', Icons.travel_explore_outlined, Icons.travel_explore, 'S05', 'Cường')
               : const NavItem('/sv/du-an', 'Dự án', Icons.rocket_launch_outlined, Icons.rocket_launch, 'C01', 'Nguyên'),
           const NavItem('/sv/nhom', 'Nhóm', Icons.groups_outlined, Icons.groups, 'S15', 'Cường'),
+          // Từ 06/11/2026 (MB-62): Tin nhắn thành tab, Hồ sơ (S02) chuyển lên avatar ở BrandAppBar – design-traceability.md D12.
+          const NavItem('/sv/tin-nhan', 'Tin nhắn', Icons.forum_outlined, Icons.forum, 'C02', 'Cường'),
           const NavItem('/sv/thong-bao', 'Thông báo', Icons.notifications_outlined, Icons.notifications, 'A06', 'Thành'),
-          const NavItem('/sv/ho-so', 'Hồ sơ', Icons.person_outline, Icons.person, 'S02', 'Nam'),
         ],
       Shell.lecturer => isTeamFormation
           ? const [

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../core/phase.dart';
 import '../core/theme/app_tokens.dart';
 import '../shared/widgets/states.dart';
+import '../features/messages/messages_tab_icon.dart';
 import '../features/notifications/notification_tab_icon.dart';
 import 'navigation.dart';
 import '../shared/widgets/brand_app_bar.dart';
@@ -34,8 +35,8 @@ class RoleShell extends ConsumerWidget {
         destinations: [
           for (final item in items)
             NavigationDestination(
-              icon: item.screen == 'A06' ? NotificationTabIcon(icon: item.icon) : Icon(item.icon),
-              selectedIcon: item.screen == 'A06' ? NotificationTabIcon(icon: item.selectedIcon) : Icon(item.selectedIcon),
+              icon: _tabIcon(item, item.icon),
+              selectedIcon: _tabIcon(item, item.selectedIcon),
               label: item.label,
             ),
         ],
@@ -43,6 +44,13 @@ class RoleShell extends ConsumerWidget {
     );
   }
 }
+
+/// Tab có badge: Thông báo (A06) của mọi vai trò, Tin nhắn của sinh viên (MB-62).
+Widget _tabIcon(NavItem item, IconData icon) => switch (item.path) {
+      _ when item.screen == 'A06' => NotificationTabIcon(icon: icon),
+      '/sv/tin-nhan' => MessagesTabIcon(icon: icon),
+      _ => Icon(icon),
+    };
 
 /// Chỗ giữ cho màn hình chưa làm: hiện mã màn hình và người phụ trách. Người làm thay bằng màn hình thật
 /// trong `lib/features/<feature>/` rồi gắn vào `lib/app/router.dart`.

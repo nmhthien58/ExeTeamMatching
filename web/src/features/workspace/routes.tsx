@@ -20,6 +20,13 @@ const workspaceChildren: RouteObject[] = [
  * Route dự án (C01, C04–C06 – FE-39, FE-40). Sinh viên: `/sv/du-an` (workspace của mình).
  * Giảng viên / mentor: `/gv/du-an/{workspaceId}`, `/mentor/du-an/{workspaceId}` – mở từ L04, L05, M01.
  */
+/** Mục Tin nhắn của sinh viên (FE-53): C02 + C03 của nhóm mình ở `/sv/tin-nhan`, cùng khung dự án để có ngữ cảnh workspace. */
+export const studentMessagesRoute: RouteObject = {
+  path: 'tin-nhan',
+  element: <WorkspaceLayout basePath="/sv/du-an" />,
+  children: [{ index: true, element: <WorkspaceMessagesPage /> }],
+}
+
 export function workspaceRoutes(shellBase: '/sv' | '/gv' | '/mentor'): RouteObject {
   return shellBase === '/sv'
     ? { path: 'du-an', element: <WorkspaceLayout basePath="/sv/du-an" />, children: workspaceChildren }

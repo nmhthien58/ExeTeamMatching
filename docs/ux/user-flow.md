@@ -16,11 +16,11 @@
 
 **Web và mobile dùng chung mã màn hình.** Sinh viên, Giảng viên và Mentor có cả Web App và Mobile App với cùng tính năng và cùng mã màn hình; web dùng sidebar thay cho tab bar và bố cục nhiều cột (`DESIGN.md` §8.2). Bộ môn chỉ dùng web (W01–W28).
 
-**Tab bar đổi theo giai đoạn của môn** (`PROJECT_CONTEXT.md` §1.1, quy tắc 18):
+**Tab bar đổi theo giai đoạn của môn** (`PROJECT_CONTEXT.md` §1.1, quy tắc 18). Từ 06/11/2026 Tin nhắn là tab riêng của sinh viên; Hồ sơ (S02) mở từ avatar ở góc phải app bar (web: menu tài khoản) – `design-traceability.md` D12.
 
 | Vai trò | Giai đoạn lập nhóm | Giai đoạn học kỳ (sau khi đợt lập nhóm đóng) |
 |---|---|---|
-| Sinh viên | Trang chủ (S01) · **Khám phá (S05)** · Nhóm (S15) · Thông báo (A06) · Hồ sơ (S02) | Trang chủ (S01) · **Dự án (C01)** · Nhóm (S15) · Thông báo (A06) · Hồ sơ (S02) |
+| Sinh viên | Trang chủ (S01) · **Khám phá (S05)** · Nhóm (S15) · Tin nhắn (C02) · Thông báo (A06) | Trang chủ (S01) · **Dự án (C01)** · Nhóm (S15) · Tin nhắn (C02) · Thông báo (A06) |
 | Giảng viên | Trang chủ (L01) · **Đề tài (L07)** · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) | Trang chủ (L01) · Nhóm (L04) · Lịch (C07) · Tin nhắn (C02) · Thông báo (A06); trang chủ ưu tiên "Cần trả lời", "Trễ hạn nộp", "Họp hôm nay" (EXE201) hoặc "Chưa trình bày CP" (EXE101) |
 | Mentor | – (chưa có nhóm) | Trước tuần 6: Trang chủ (M01) · **Đề tài (L07)** · Thông báo (A06). Từ tuần 6: Trang chủ (M01) · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) |
 

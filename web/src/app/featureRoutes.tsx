@@ -23,7 +23,7 @@ import { lecturerCalendarRoutes } from '@/features/meetings/routes'
 import { lecturerRoutes, mentorRoutes } from '@/features/advisor/routes'
 import { studentTeamRoutes } from '@/features/my_team/routes'
 import { suggestionRoutes } from '@/features/suggestions/routes'
-import { workspaceRoutes } from '@/features/workspace/routes'
+import { studentMessagesRoute, workspaceRoutes } from '@/features/workspace/routes'
 import { studentAdvisorRoutes } from '@/features/advisor-preferences/routes'
 import { studentNotificationRoutes, lecturerNotificationRoutes, mentorNotificationRoutes } from '@/features/notifications/routes'
 
@@ -33,7 +33,7 @@ import { studentNotificationRoutes, lecturerNotificationRoutes, mentorNotificati
  */
 export const featureRoutes: Record<Shell, RouteObject[]> = {
   admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminStudentRoutes, ...adminLecturerRoutes, ...adminMentorRoutes, ...adminCatalogRoutes, ...adminRuleSettingsRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminClientErrorRoutes, ...adminLecturerMatchingRoutes, ...adminMentorMatchingRoutes, ...changeRequestRoutes, ...projectRoutes, ...adminAnnouncementRoutes],
-  student: [completeProfileRoute, ...requireCompletedProfile([workspaceRoutes('/sv'), ...suggestionRoutes, ...studentTeamRoutes, ...studentScheduleRoutes, ...studentProfileRoutes, ...studentAdvisorRoutes, ...studentChangeRequestRoutes, ...studentNotificationRoutes])],
+  student: [completeProfileRoute, ...requireCompletedProfile([workspaceRoutes('/sv'), studentMessagesRoute, ...suggestionRoutes, ...studentTeamRoutes, ...studentScheduleRoutes, ...studentProfileRoutes, ...studentAdvisorRoutes, ...studentChangeRequestRoutes, ...studentNotificationRoutes])],
   lecturer: [workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerScheduleRoutes, ...lecturerCalendarRoutes, ...lecturerProfileRoutes, ...lecturerRoutes, ...lecturerNotificationRoutes],
   mentor: [workspaceRoutes('/mentor'), ...advisorMessageRoutes, ...mentorProfileRoutes, ...mentorRoutes, ...mentorNotificationRoutes],
 }
