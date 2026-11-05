@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/ai/ai_service.dart';
 import '../../core/theme/app_tokens.dart';
@@ -7,7 +8,7 @@ import '../../core/view_state.dart';
 import 'firebase_demo_view_model.dart';
 
 /// Mục "Demo Firebase" ở A07 (Lab 3 §3): giá trị Remote Config đang dùng, gửi lỗi thử và crash thử
-/// (đều hỏi xác nhận). Chỉ hiện khi `Env.firebaseDemo`.
+/// (đều hỏi xác nhận), lối vào xuất / tải file và thông báo. Chỉ hiện khi `Env.firebaseDemo`.
 class FirebaseDemoSection extends ConsumerWidget {
   const FirebaseDemoSection({super.key});
 
@@ -66,6 +67,21 @@ class FirebaseDemoSection extends ConsumerWidget {
             title: const Text('Crashlytics đang tắt ở bản debug'),
             subtitle: const Text('Build với --dart-define=CRASHLYTICS_DEBUG=true để gửi báo cáo.'),
           ),
+        if (state.links case final links?) ...[
+          ListTile(
+            leading: const Icon(Icons.picture_as_pdf_outlined),
+            title: const Text('Xuất và tải file'),
+            subtitle: const Text('Xuất báo cáo PDF ở Dự án, tải file ở mục File.'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(links.files),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_outlined),
+            title: const Text('Thông báo'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go(links.notifications),
+          ),
+        ],
         ListTile(
           leading: const Icon(Icons.auto_awesome_outlined),
           title: const Text('Thử AI (gợi ý ý tưởng)'),
