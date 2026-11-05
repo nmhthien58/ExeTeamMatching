@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using BuildingBlocks.Web;
+using Identity.Api.Controllers.ClientErrors;
 using Identity.Api.Dev;
 using Identity.Services;
 
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults("identity");
 builder.Services.AddApiControllers(typeof(Program).Assembly, typeof(ServiceCollectionExtensions).Assembly);
 builder.Services.AddIdentityServices(builder.Configuration);
+builder.Services.AddClientErrorRateLimit(builder.Configuration);
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddDevTokenIssuer();
@@ -22,6 +24,7 @@ builder.Services.AddSwaggerWithJwt();
 var app = builder.Build();
 
 app.UseServiceDefaults();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {

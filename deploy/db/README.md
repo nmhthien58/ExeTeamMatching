@@ -5,7 +5,7 @@ Script tạo 6 database (mỗi service 1 database) trên một instance PostgreS
 | File | Nội dung |
 |---|---|
 | `00_init.sh` | Tạo login role `identity_svc`, `academic_svc`, `team_svc`, `notification_svc`, `job_svc`, `collab_svc` và 6 database; mỗi role chỉ CONNECT được database của mình |
-| `01_identity_db.sql` | Schema `identity`: roles (Student, Lecturer, Admin, Mentor), user_accounts, user_account_roles (một tài khoản nhiều vai trò), refresh_tokens, processed_events |
+| `01_identity_db.sql` | Schema `identity`: roles (Student, Lecturer, Admin, Mentor), user_accounts, user_account_roles (một tài khoản nhiều vai trò), refresh_tokens, processed_events, client_error_reports (BE-87) |
 | `02_academic_db.sql` | Schema `academic`: danh mục, học kỳ (tuần bắt đầu mentor, số buổi mentor), đợt đăng ký, sinh viên + 5 kỹ năng, giảng viên + domain chuyên môn, mentor + domain, import, rule_settings, outbox |
 | `03_team_db.sql` | Schema `team`: đề tài + lịch sử đề tài, nhóm, thành viên, mốc EXE101, lời mời, yêu cầu tham gia + ý tưởng, bài đăng, đổi nhóm (cả đổi đề tài), quan tâm đề tài, giảng viên, mentor, audit log, outbox, trigger ép quy tắc |
 | `04_notification_db.sql` | Schema `notification`: contacts, notifications, email_logs, processed_events |
@@ -33,6 +33,12 @@ Script không chạy lại trên volume đã có. Thiếu cột thì API trả 5
 ```bash
 docker exec exe-postgres psql -U postgres -d academic_db -c "SET ROLE academic_svc; ALTER TABLE academic.import_batches ADD COLUMN IF NOT EXISTS imported_by_name varchar(150);"
 docker exec exe-postgres psql -U postgres -d team_db -c "SET ROLE team_svc; ALTER TABLE team.audit_logs ADD COLUMN IF NOT EXISTS actor_name varchar(150);"
+```
+
+Thêm bảng mới trên volume cũ: chạy script trong `migrations/` (thư mục con nên không tự chạy lúc khởi tạo), ví dụ BE-87:
+
+```bash
+docker exec -i exe-postgres psql -U postgres -d identity_db -v ON_ERROR_STOP=1 < deploy/db/migrations/BE-87_client_error_reports.sql
 ```
 
 Sửa script xong muốn chạy lại từ đầu (xóa hết dữ liệu):
