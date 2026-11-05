@@ -1,6 +1,6 @@
 # Thay đổi database 05/11/2026 (BE-87)
 
-> Ghi cho Thiên cập nhật `docs/EXE_Database_Design.pdf` mục 4 (`identity_db`). Định nghĩa bảng ở [`deploy/db/migrations/BE-87_client_error_reports.sql`](../deploy/db/migrations/BE-87_client_error_reports.sql). [`deploy/db/01_identity_db.sql`](../deploy/db/01_identity_db.sql) gọi file này bằng `ir` khi tạo database mới; database đang có dữ liệu chạy trực tiếp file đó, không cần reset.
+> Ghi cho Thiên cập nhật `docs/EXE_Database_Design.pdf` mục 4 (`identity_db`). Định nghĩa bảng ở [`deploy/db/migrations/BE-87_client_error_reports.sql`](../deploy/db/migrations/BE-87_client_error_reports.sql). [`deploy/db/01_identity_db.sql`](../deploy/db/01_identity_db.sql) gọi file này bằng `\ir` khi tạo database mới; database đang có dữ liệu chạy trực tiếp file đó, không cần reset.
 
 ## Bảng mới `identity.client_error_reports`
 
