@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:exe_team_matching/core/firebase/push_notifications.dart';
+import 'package:exe_team_matching/features/change_requests/change_requests_api.dart';
 import 'package:exe_team_matching/features/notifications/device_tokens_api.dart';
 import 'package:exe_team_matching/features/notifications/notifications_api.dart';
 import 'package:exe_team_matching/features/notifications/notifications_view_model.dart';
@@ -80,6 +81,18 @@ class _FakeNotifications extends NotificationsApi {
   }
 }
 
+class _FakeChangeRequests extends ChangeRequestsApi {
+  _FakeChangeRequests() : super(Dio());
+
+  int listCalls = 0;
+
+  @override
+  Future<List<ChangeRequest>> list(String teamId) async {
+    listCalls++;
+    return const [];
+  }
+}
+
 const _message = PushMessage(
   title: 'Đã duyệt',
   body: 'Yêu cầu đổi nhóm đã được duyệt.',
@@ -92,17 +105,20 @@ void main() {
   late _FakeMessaging messaging;
   late _FakeDevices devices;
   late _FakeNotifications notifications;
+  late _FakeChangeRequests changeRequests;
   late ProviderContainer container;
 
   setUp(() {
     messaging = _FakeMessaging();
     devices = _FakeDevices();
     notifications = _FakeNotifications();
+    changeRequests = _FakeChangeRequests();
     container = ProviderContainer(
       overrides: [
         pushMessagingGatewayProvider.overrideWithValue(messaging),
         deviceTokensApiProvider.overrideWithValue(devices),
         notificationsApiProvider.overrideWithValue(notifications),
+        changeRequestsApiProvider.overrideWithValue(changeRequests),
       ],
     );
     container.listen(pushNotificationsProvider, (_, _) {});
@@ -165,6 +181,34 @@ void main() {
     expect(state.event?.kind, PushUiEventKind.permissionDenied);
     expect(messaging.settingsCalls, 1);
     expect(devices.registered, isEmpty);
+  });
+
+  test('resume 2 lần khi đang denied chỉ phát sinh 1 sự kiện permissionDenied (CR-07)', () async {
+    messaging.permission = PushPermission.denied;
+    final controller = container.read(pushNotificationsProvider.notifier);
+
+    await controller.start();
+    final firstState = container.read(pushNotificationsProvider);
+    expect(firstState.event?.kind, PushUiEventKind.permissionDenied);
+    final firstSerial = firstState.event?.serial;
+
+    await controller.refreshPermission();
+    expect(container.read(pushNotificationsProvider).event?.serial, firstSerial);
+
+    await controller.refreshPermission();
+    expect(container.read(pushNotificationsProvider).event?.serial, firstSerial);
+  });
+
+  test('nhận push ChangeRequestApproved làm mới S26 changeRequestsProvider', () async {
+    container.listen(changeRequestsProvider('team-1'), (_, _) {});
+    await settle();
+    expect(changeRequests.listCalls, 1);
+
+    await container.read(pushNotificationsProvider.notifier).start();
+    messaging.foreground.add(_message);
+    await settle();
+
+    expect(changeRequests.listCalls, 2);
   });
 
   test('đăng xuất gỡ FID ở backend rồi unregister Firebase', () async {

@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/change_requests/change_requests_api.dart';
+import '../../features/my_team/my_team_api.dart';
 import '../../features/notifications/device_tokens_api.dart';
 import '../../features/notifications/notifications_view_model.dart';
 
@@ -193,10 +195,14 @@ class PushNotificationsController extends Notifier<PushNotificationsState> {
   /// Kiểm tra lại sau khi người dùng quay về từ Cài đặt hệ thống.
   Future<void> refreshPermission() async {
     try {
+      final previousPermission = state.permission;
       final permission = await _messaging.requestPermission();
       state = state.copyWith(permission: permission);
       if (permission != PushPermission.authorized) {
-        _emit(PushUiEventKind.permissionDenied);
+        if (permission == PushPermission.denied &&
+            previousPermission != PushPermission.denied) {
+          _emit(PushUiEventKind.permissionDenied);
+        }
         return;
       }
       // Subscribe onRegistered trước register để không bỏ lỡ FID được phát đồng bộ.
@@ -248,18 +254,31 @@ class PushNotificationsController extends Notifier<PushNotificationsState> {
   }
 
   void _onForeground(PushMessage message) {
-    _refreshInbox();
+    _refreshInbox(message);
     _emit(PushUiEventKind.foreground, message);
   }
 
   void _onOpened(PushMessage message) {
-    _refreshInbox();
+    _refreshInbox(message);
     _emit(PushUiEventKind.opened, message);
   }
 
-  void _refreshInbox() {
+  void _refreshInbox([PushMessage? message]) {
     ref.invalidate(notificationsViewModelProvider);
     unawaited(ref.read(unreadCountViewModelProvider.notifier).load());
+    if (message != null) {
+      final type = message.type;
+      final link = message.linkUrl ?? '';
+      final isChangeRequest = type == 'ChangeRequestApproved' ||
+          type == 'ChangeRequestRejected' ||
+          link.startsWith('app://change-requests');
+      if (isChangeRequest) {
+        ref.invalidate(changeRequestsProvider);
+        ref.invalidate(changeRequestDetailProvider);
+        ref.invalidate(pendingChangesProvider);
+        refreshMyTeamFrom(ref);
+      }
+    }
   }
 
   void _emit(PushUiEventKind kind, [PushMessage? message]) {
