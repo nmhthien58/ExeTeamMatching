@@ -76,7 +76,7 @@ MeetingSchedule _lecturer(String status) => MeetingSchedule(
       windows: const [ScheduleWindow(dayOfWeek: 2, startTime: '09:00', endTime: '09:30')],
       slots: [_slot('a', '09:00', 'TAKEN', workspaceId: 'w2', teamName: 'Nhóm Bình Minh'), _slot('b', '09:15', 'FREE')],
       teamCount: 3,
-      teamsWithoutSlot: const ['Nhóm Hoàng Hôn'],
+      teamsWithoutSlot: const [UnslottedTeam(workspaceId: 'w3', teamName: 'Nhóm Hoàng Hôn')],
     );
 
 class _FakeConnection implements HubConnectionLike {
@@ -211,6 +211,16 @@ void main() {
     await tester.tap(find.text('Thứ Ba 09:15–'));
     await tester.pumpAndSettle();
     expect(api.calls.last, 'move w2 b');
+
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold).first)).clearSnackBars(); // SnackBar đăng lịch / đổi slot che nút
+    await tester.ensureVisible(find.byTooltip('Xếp slot cho Nhóm Hoàng Hôn'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Xếp slot cho Nhóm Hoàng Hôn'));
+    await tester.pumpAndSettle();
+    expect(find.text('Xếp slot cho Nhóm Hoàng Hôn'), findsOneWidget);
+    await tester.tap(find.text('Thứ Ba 09:15–'));
+    await tester.pumpAndSettle();
+    expect(api.calls.last, 'move w3 b');
     semantics.dispose();
   });
 }

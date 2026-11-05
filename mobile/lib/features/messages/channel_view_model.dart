@@ -33,9 +33,12 @@ class PendingMessage {
 
 /// Trạng thái C03: tin đã tải (cũ → mới), tin đang gửi, con trỏ trang cũ hơn, đang tải, lỗi tải.
 class ChannelState {
-  const ChannelState({this.items = const [], this.pending = const [], this.cursor, this.loading = true, this.error});
+  const ChannelState({this.items = const [], this.pending = const [], this.cursor, this.loading = true, this.error, this.hidden = const {}});
 
   final List<Message> items;
+
+  /// Tin vừa bấm Xóa, đang chờ 5 giây Hoàn tác: ẩn khỏi danh sách.
+  final Set<String> hidden;
   final List<PendingMessage> pending;
   final String? cursor;
   final bool loading;
@@ -52,8 +55,16 @@ class ChannelState {
       ? const ViewEmpty()
       : ViewData(items);
 
-  ChannelState copyWith({List<Message>? items, List<PendingMessage>? pending, String? Function()? cursor, bool? loading, Object? Function()? error}) =>
+  ChannelState copyWith({
+    List<Message>? items,
+    List<PendingMessage>? pending,
+    String? Function()? cursor,
+    bool? loading,
+    Object? Function()? error,
+    Set<String>? hidden,
+  }) =>
       ChannelState(
+        hidden: hidden ?? this.hidden,
         items: items ?? this.items,
         pending: pending ?? this.pending,
         cursor: cursor == null ? this.cursor : cursor(),
@@ -131,6 +142,36 @@ class ChannelViewModel extends Notifier<ChannelState> {
       _apply(m, created: true);
     } catch (_) {
       if (ref.mounted) _replacePending(p.clientId, PendingMessage(clientId: p.clientId, draft: p.draft, failed: true));
+    }
+  }
+
+  /// Sửa tin của mình; trả câu lỗi để View hiện, null khi thành công.
+  Future<String?> edit(Message m, String body) async {
+    try {
+      final updated = await _api.edit(m.id, body);
+      if (ref.mounted) _apply(updated, created: false);
+      return null;
+    } catch (e) {
+      return e.apiError.detail ?? e.apiError.title;
+    }
+  }
+
+  void hide(String messageId) => state = state.copyWith(hidden: {...state.hidden, messageId});
+
+  void unhide(String messageId) => state = state.copyWith(hidden: {...state.hidden}..remove(messageId));
+
+  /// Gọi sau 5 giây Hoàn tác; trả câu lỗi khi xóa không được (tin hiện lại).
+  Future<String?> delete(Message m) async {
+    try {
+      await _api.delete(m.id);
+      if (!ref.mounted) return null;
+      final i = state.items.indexWhere((x) => x.id == m.id);
+      if (i >= 0) state = state.copyWith(items: [...state.items]..[i] = state.items[i].copyWith(isDeleted: true));
+      return null;
+    } catch (e) {
+      return e.apiError.detail ?? e.apiError.title;
+    } finally {
+      if (ref.mounted) unhide(m.id);
     }
   }
 

@@ -17,7 +17,8 @@ import { teamStatusLabel, type FullTeam } from '@/features/my_team/api'
 import { ListSkeleton } from '@/features/my_team/components'
 import { useAdminTeam, useAdminTeamAction, useMoveTargets, useUnmatchedStudents, type AdminTeamAction } from './api'
 
-type Pending = { action: AdminTeamAction; title: string; body: string; confirm: string; done: string }
+/** `askReason`: hộp xác nhận có ô lý do (không bắt buộc), ghi vào nhật ký nhóm. */
+type Pending = { action: AdminTeamAction; title: string; body: string; confirm: string; done: string; askReason?: boolean }
 
 /**
  * W16 – Chi tiết nhóm cho Bộ môn (FE-22): thành viên, ý tưởng, cố vấn, điều kiện, nhật ký thay đổi; Admin chốt / mở lại nhóm
@@ -36,6 +37,7 @@ function Detail({ team }: { team: FullTeam }) {
   const action = useAdminTeamAction(team.id)
   const snackbar = useSnackbar()
   const [pending, setPending] = useState<Pending | null>(null)
+  const [reason, setReason] = useState('')
   const [adding, setAdding] = useState(false)
   const [moving, setMoving] = useState<TeamMember | null>(null)
   const [changingMentor, setChangingMentor] = useState(false)
@@ -48,7 +50,7 @@ function Detail({ team }: { team: FullTeam }) {
 
   const confirm = () =>
     pending &&
-    action.mutate(pending.action, {
+    action.mutate(pending.askReason ? ({ ...pending.action, reason: reason.trim() || undefined } as AdminTeamAction) : pending.action, {
       onSuccess: () => {
         snackbar.show(pending.done)
         setPending(null)
@@ -58,6 +60,7 @@ function Detail({ team }: { team: FullTeam }) {
     })
   const ask = (p: Pending) => {
     action.reset()
+    setReason('')
     setPending(p)
   }
 
@@ -153,6 +156,7 @@ function Detail({ team }: { team: FullTeam }) {
                                 : `${m.studentCode} rời ${team.name} ngay, kể cả nhóm kế thừa EXE101.${m.role === 'LEADER' ? ' Người vào nhóm sớm nhất trở thành trưởng nhóm.' : ''}`,
                             confirm: 'Bớt khỏi nhóm',
                             done: 'Đã bớt thành viên',
+                            askReason: true,
                           })
                         }
                       >
@@ -190,6 +194,7 @@ function Detail({ team }: { team: FullTeam }) {
                       body: 'Mentor không còn vào được dự án của nhóm; lịch sử trao đổi vẫn giữ lại.',
                       confirm: 'Gỡ mentor',
                       done: 'Đã gỡ mentor',
+                      askReason: true,
                     })
                   }
                 >
@@ -258,6 +263,18 @@ function Detail({ team }: { team: FullTeam }) {
           }
         >
           {pending.body}
+          {pending.askReason && (
+            <label className="mt-3 flex flex-col gap-1 text-text-primary">
+              <span className="font-medium">Lý do (không bắt buộc)</span>
+              <textarea
+                value={reason}
+                maxLength={500}
+                rows={2}
+                onChange={(e) => setReason(e.target.value)}
+                className="resize-none rounded-sm border border-border-strong px-3 py-2"
+              />
+            </label>
+          )}
           {error && (
             <p role="alert" className="mt-2 text-error">
               {error.detail ?? error.title}

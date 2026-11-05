@@ -36,6 +36,7 @@ class _FakeApi extends MessagesApi {
   final Set<String> waiting;
   final sent = <String>[];
   final read = <String>[];
+  final changed = <String>[];
   List<String> lastFiles = const [], lastMentions = const [];
   int failNext = 0;
 
@@ -67,6 +68,15 @@ class _FakeApi extends MessagesApi {
     if (failNext-- > 0) throw const ApiException(status: 0, code: 'network', title: 'Mất kết nối');
     return _msg('new', body, minute: 9);
   }
+
+  @override
+  Future<Message> edit(String messageId, String body) async {
+    changed.add('edit $messageId $body');
+    return Message(id: messageId, channelId: 'c1', author: _leader, body: body, createdAt: DateTime.now().toUtc(), editedAt: DateTime.now().toUtc());
+  }
+
+  @override
+  Future<void> delete(String messageId) async => changed.add('delete $messageId');
 }
 
 class _FilesApi extends FakeCollabApi {
@@ -179,6 +189,46 @@ void main() {
     expect(api.lastFiles, ['f1']);
     expect(api.lastMentions, ['l1']);
     expect(find.byType(InputChip), findsNothing);
+  });
+
+  testWidgets('C03: tin của mình sửa được trong 15 phút; Xóa có Hoàn tác 5 giây rồi mới gọi API; tin người khác không có tùy chọn', (tester) async {
+    final now = DateTime.now().toUtc();
+    const lecturer = PersonRef(personType: 'LECTURER', personId: 'l1', displayName: 'Cô Hạnh', role: WorkspaceRole.instructor);
+    final api = _FakeApi(items: [
+      Message(id: 'm2', channelId: 'c1', author: lecturer, body: 'Tin của cô', createdAt: now),
+      Message(id: 'm1', channelId: 'c1', author: _leader, body: 'Họp lúc 9h', createdAt: now),
+    ]);
+    await _pump(tester, const ChannelView(channel: _channel, readOnly: false, isStudent: true), api);
+
+    expect(find.byTooltip('Tùy chọn tin'), findsOneWidget);
+    await tester.tap(find.byTooltip('Tùy chọn tin'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sửa'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)), 'Họp lúc 10h');
+    await tester.tap(find.text('Lưu'));
+    await tester.pumpAndSettle();
+    expect(api.changed, ['edit m1 Họp lúc 10h']);
+    expect(find.text('Họp lúc 10h'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Tùy chọn tin'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Xóa'));
+    await tester.pumpAndSettle();
+    expect(find.text('Họp lúc 10h'), findsNothing);
+    await tester.tap(find.text('Hoàn tác'));
+    await tester.pumpAndSettle();
+    expect(find.text('Họp lúc 10h'), findsOneWidget);
+    expect(api.changed, hasLength(1));
+
+    await tester.tap(find.byTooltip('Tùy chọn tin'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Xóa'));
+    await tester.pumpAndSettle(); // SnackBar hiện xong mới bắt đầu đếm 5 giây
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(api.changed.last, 'delete m1');
+    expect(find.text('Tin nhắn đã bị xóa'), findsOneWidget);
   });
 
   testWidgets('C03: gửi kèm Hỏi cố vấn; gửi lỗi hiện Gửi lại, gửi lại dùng cùng clientMessageId', (tester) async {

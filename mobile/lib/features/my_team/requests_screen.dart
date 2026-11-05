@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
+import '../profile/skill_bars.dart';
 import '../workspace/workspace_widgets.dart';
 import 'my_team_api.dart';
 import 'requests_view_model.dart';
@@ -74,6 +75,10 @@ class _JoinRequests extends ConsumerWidget {
                     children: [
                       Text(r.student.fullName, style: theme.textTheme.titleMedium),
                       Text([r.student.studentCode, if (r.student.specialization?.name.isNotEmpty ?? false) r.student.specialization!.name].join(' · ')),
+                      if (r.description != null) ...[const SizedBox(height: AppSpacing.s2), Text(r.description!)],
+                      // shortcut: chưa đánh dấu kỹ năng nhóm đang thiếu – API thành viên nhóm chưa trả kỹ năng; thêm highlight khi contract có.
+                      const SizedBox(height: AppSpacing.s2),
+                      SkillBars(levels: r.skills),
                       if (r.message != null) ...[const SizedBox(height: AppSpacing.s2), Text('“${r.message}”')],
                       const SizedBox(height: AppSpacing.s2),
                       if (r.hasNoIdea)

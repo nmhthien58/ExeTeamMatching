@@ -179,7 +179,7 @@ function LecturerSchedule({ schedule }: { schedule: MeetingSchedule | null }) {
   const [slotMinutes, setSlotMinutes] = useState(schedule?.slotMinutes ?? 15)
   const [location, setLocation] = useState(schedule?.location ?? '')
   const [submitted, setSubmitted] = useState(false)
-  const [moving, setMoving] = useState<ScheduleSlot | null>(null)
+  const [moving, setMoving] = useState<MoveTarget | null>(null)
 
   const badWindow = windows.findIndex((w) => !w.startTime || !w.endTime || w.startTime >= w.endTime)
   const locationError = submitted && !location.trim() ? 'Nhập link họp.' : undefined
@@ -294,16 +294,25 @@ function LecturerSchedule({ schedule }: { schedule: MeetingSchedule | null }) {
           {schedule.slots.length === 0 ? (
             <p className="text-text-secondary">Chưa có slot. Lưu khung giờ để cắt slot.</p>
           ) : (
-            <WeeklySlotGrid slots={schedule.slots} canPick={(s) => !!s.workspaceId} onPick={setMoving} />
+            <WeeklySlotGrid slots={schedule.slots} canPick={(s) => !!s.workspaceId} onPick={(s) => setMoving({ workspaceId: s.workspaceId!, teamName: s.teamName!, slot: s })} />
           )}
           {schedule.teamsWithoutSlot.length > 0 && (
-            <p className="mt-3 text-text-secondary">Chưa chọn: {schedule.teamsWithoutSlot.map((t) => t.teamName).join(', ')}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-text-secondary">
+              Chưa chọn:
+              {schedule.status === 'DRAFT'
+                ? schedule.teamsWithoutSlot.map((t) => t.teamName).join(', ')
+                : schedule.teamsWithoutSlot.map((t) => (
+                    <Button key={t.workspaceId} variant="outline" icon="event" className="min-h-8 px-3" aria-label={`Xếp slot cho ${t.teamName}`} onClick={() => setMoving(t)}>
+                      {t.teamName}
+                    </Button>
+                  ))}
+            </div>
           )}
         </Card>
       )}
       {moving && schedule && (
         <MoveDialog
-          slot={moving}
+          target={moving}
           freeSlots={schedule.slots.filter((s) => !s.workspaceId)}
           pending={move.isPending}
           error={move.error ? errorText(move.error) : null}
@@ -313,10 +322,10 @@ function LecturerSchedule({ schedule }: { schedule: MeetingSchedule | null }) {
           }}
           onMove={(slotId) =>
             move.mutate(
-              { workspaceId: moving.workspaceId!, slotId },
+              { workspaceId: moving.workspaceId, slotId },
               {
                 onSuccess: () => {
-                  snackbar.show(`Đã đổi slot cho ${moving.teamName}`)
+                  snackbar.show(`Đã ${moving.slot ? 'đổi' : 'xếp'} slot cho ${moving.teamName}`)
                   setMoving(null)
                 },
               },
@@ -329,25 +338,32 @@ function LecturerSchedule({ schedule }: { schedule: MeetingSchedule | null }) {
   )
 }
 
-function MoveDialog({ slot, freeSlots, pending, error, onClose, onMove }: { slot: ScheduleSlot; freeSlots: ScheduleSlot[]; pending: boolean; error: string | null; onClose: () => void; onMove: (slotId: string) => void }) {
+/** Nhóm cần đổi slot (bấm slot đã có nhóm) hoặc xếp slot (nhóm chưa chọn, `slot` trống). */
+type MoveTarget = { workspaceId: string; teamName: string; slot?: ScheduleSlot }
+
+function MoveDialog({ target, freeSlots, pending, error, onClose, onMove }: { target: MoveTarget; freeSlots: ScheduleSlot[]; pending: boolean; error: string | null; onClose: () => void; onMove: (slotId: string) => void }) {
   const [slotId, setSlotId] = useState('')
+  const { slot } = target
+  const verb = slot ? 'Đổi slot' : 'Xếp slot'
   return (
     <Dialog
       open
       onClose={onClose}
-      title={`Đổi slot cho ${slot.teamName}`}
+      title={`${verb} cho ${target.teamName}`}
       actions={
         <>
           <Button variant="text" onClick={onClose}>
             Hủy
           </Button>
           <Button disabled={!slotId} loading={pending} onClick={() => onMove(slotId)}>
-            Đổi slot
+            {verb}
           </Button>
         </>
       }
     >
-      <p className="mb-3 text-text-secondary">Hiện tại: {slotLabel(slot)}. Các buổi họp chưa diễn ra dời theo slot mới.</p>
+      <p className="mb-3 text-text-secondary">
+        {slot ? `Hiện tại: ${slotLabel(slot)}. Các buổi họp chưa diễn ra dời theo slot mới.` : 'Nhóm chưa chọn slot. Nhóm được báo slot bạn xếp.'}
+      </p>
       {error && (
         <p role="alert" className="mb-2 text-error">
           {error}

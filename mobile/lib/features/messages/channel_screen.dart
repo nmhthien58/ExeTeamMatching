@@ -72,6 +72,57 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
 
   ChannelViewModel get _vm => ref.read(channelViewModelProvider(_args).notifier);
 
+  /// Tin của mình: Trả lời / Sửa (trong 15 phút) / Xóa.
+  Future<void> _actions(Message m) async {
+    final canEdit = DateTime.now().difference(m.createdAt) < const Duration(minutes: 15);
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Icons.reply), title: const Text('Trả lời trong luồng'), onTap: () => Navigator.pop(context, 'thread')),
+          if (canEdit) ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Sửa'), onTap: () => Navigator.pop(context, 'edit')),
+          ListTile(leading: const Icon(Icons.delete_outline), title: const Text('Xóa'), onTap: () => Navigator.pop(context, 'delete')),
+        ]),
+      ),
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'thread':
+        await _openThread(m);
+      case 'edit':
+        await _edit(m);
+      case 'delete':
+        _delete(m);
+    }
+  }
+
+  Future<void> _edit(Message m) async {
+    final body = await showDialog<String>(context: context, builder: (_) => _EditMessageDialog(initial: m.body));
+    if (body == null || body.isEmpty || body == m.body || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final error = await _vm.edit(m, body);
+    if (error != null) messenger.showSnackBar(SnackBar(content: Text(error)));
+  }
+
+  void _delete(Message m) {
+    _vm.hide(m.id);
+    final messenger = ScaffoldMessenger.of(context);
+    final vm = _vm;
+    messenger
+        .showSnackBar(SnackBar(
+          content: const Text('Đã xóa tin'),
+          duration: const Duration(seconds: 5),
+          persist: false, // có nút Hoàn tác vẫn phải tự đóng sau 5 giây, rồi mới xóa thật
+          action: SnackBarAction(label: 'Hoàn tác', onPressed: () {})))
+        .closed
+        .then((reason) async {
+      if (reason == SnackBarClosedReason.action) return vm.unhide(m.id);
+      final error = await vm.delete(m);
+      if (error != null) messenger.showSnackBar(SnackBar(content: Text(error)));
+    });
+  }
+
   Future<void> _openThread(Message root) => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -84,7 +135,7 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
   Widget build(BuildContext context) {
     final mine = ref.watch(myPersonIdsProvider);
     final state = ref.watch(channelViewModelProvider(_args));
-    final items = state.items;
+    final items = [for (final m in state.items) if (!state.hidden.contains(m.id)) m];
     return Column(
       children: [
         const RealtimeStatusBanner(),
@@ -99,7 +150,12 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
                 children: [
                   for (final p in state.pending.reversed) _PendingBubble(pending: p, onRetry: () => _vm.retry(p)),
                   for (var i = items.length - 1; i >= 0; i--) ...[
-                    MessageBubble(message: items[i], mine: mine.contains(items[i].author.personId), onThread: () => _openThread(items[i])),
+                    MessageBubble(
+                      message: items[i],
+                      mine: mine.contains(items[i].author.personId),
+                      onThread: () => _openThread(items[i]),
+                      onActions: widget.readOnly || !mine.contains(items[i].author.personId) ? null : () => _actions(items[i]),
+                    ),
                     if (i == 0 || !_sameDay(items[i - 1].createdAt, items[i].createdAt)) _DayDivider(date: items[i].createdAt),
                   ],
                   if (state.hasMore)
@@ -126,6 +182,36 @@ class _ChannelViewState extends ConsumerState<ChannelView> {
   }
 }
 
+/// Hộp sửa tin; controller sống theo hộp thoại để không bị dùng sau khi dispose lúc hộp đang đóng.
+class _EditMessageDialog extends StatefulWidget {
+  const _EditMessageDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_EditMessageDialog> createState() => _EditMessageDialogState();
+}
+
+class _EditMessageDialogState extends State<_EditMessageDialog> {
+  late final _text = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Sửa tin nhắn'),
+        content: TextField(controller: _text, autofocus: true, minLines: 1, maxLines: 5, maxLength: maxMessageLength),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          FilledButton(onPressed: () => Navigator.pop(context, _text.text.trim()), child: const Text('Lưu')),
+        ],
+      );
+}
+
 bool _sameDay(DateTime a, DateTime b) {
   final x = a.toLocal(), y = b.toLocal();
   return x.year == y.year && x.month == y.month && x.day == y.day;
@@ -148,13 +234,16 @@ class _DayDivider extends StatelessWidget {
 }
 
 /// Bong bóng tin (DESIGN.md 6.3): của mình bên phải nền Surface viền Border; người khác bên trái nền Info Container, avatar,
-/// tên và nhãn vai trò. Câu hỏi cho cố vấn có chip Chờ / Đã trả lời. Nhấn giữ → Trả lời trong luồng.
+/// tên và nhãn vai trò. Câu hỏi cho cố vấn có chip Chờ / Đã trả lời. Nhấn giữ → Trả lời trong luồng; tin của mình có
+/// [onActions] (nhấn giữ hoặc nút "Tùy chọn tin") → Trả lời / Sửa / Xóa.
+// shortcut: sửa / xóa chỉ ở tin gốc trong kênh, chưa có cho trả lời trong luồng; thêm vào ThreadSheet khi cần.
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.message, required this.mine, this.onThread});
+  const MessageBubble({super.key, required this.message, required this.mine, this.onThread, this.onActions});
 
   final Message message;
   final bool mine;
   final VoidCallback? onThread;
+  final VoidCallback? onActions;
 
   @override
   Widget build(BuildContext context) {
@@ -195,13 +284,15 @@ class MessageBubble extends StatelessWidget {
                     Text(m.author.displayName, style: theme.textTheme.labelLarge),
                     RoleChip(role: m.author.role),
                   ]),
-                GestureDetector(onLongPress: m.isDeleted ? null : onThread, child: bubble),
+                GestureDetector(onLongPress: m.isDeleted ? null : onActions ?? onThread, child: bubble),
                 Wrap(spacing: AppSpacing.s2, crossAxisAlignment: WrapCrossAlignment.center, children: [
                   if (m.isAdvisorQuestion)
                     Chip(
                       avatar: Icon(m.questionStatus == 'ANSWERED' ? Icons.check_circle_outline : Icons.schedule, size: 18),
                       label: Text(m.questionStatus == 'ANSWERED' ? 'Đã trả lời' : 'Chờ trả lời'),
                     ),
+                  if (onActions != null && !m.isDeleted)
+                    IconButton(tooltip: 'Tùy chọn tin', onPressed: onActions, icon: const Icon(Icons.more_horiz)),
                   if (onThread != null && !m.isDeleted)
                     TextButton.icon(onPressed: onThread, icon: const Icon(Icons.reply, size: 18), label: Text(m.replyCount > 0 ? '${m.replyCount} trả lời' : 'Trả lời')),
                 ]),

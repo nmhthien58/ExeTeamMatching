@@ -117,6 +117,21 @@ export function useSendMessage(channelId: string) {
   })
 }
 
+/** Sửa tin của mình trong 15 phút (collab.yaml); quá hạn server trả 409 `edit-window-closed`. */
+export const EDIT_WINDOW_MS = 15 * 60_000
+export const canEdit = (m: Message, now = Date.now()) => now - new Date(m.createdAt).getTime() < EDIT_WINDOW_MS
+
+export function useEditMessage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: string }) => (await api.patch<Message>(`/api/messages/${id}`, { body })).data,
+    onSuccess: (message) => applyMessage(queryClient, message),
+  })
+}
+
+/** Xóa mềm tin của mình. Màn hình cho Hoàn tác 5 giây trước khi gọi (contract). */
+export const deleteMessage = async (id: string) => void (await api.delete(`/api/messages/${id}`))
+
 export function useMarkRead(channelId: string, workspaceId: string) {
   const queryClient = useQueryClient()
   return useMutation({

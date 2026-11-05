@@ -7,18 +7,22 @@ import { EmptyState, ErrorState } from '@/shared/components/States'
 import { Button, Icon, Skeleton, StatusChip } from '@/shared/components/ui'
 import { Avatar, Drawer, RoleChip } from '@/features/workspace/components'
 import { formatDateTime, formatSize } from '@/features/workspace/format'
+import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { downloadFile, fileIcon, useFolder, type ProjectFile } from '@/features/files/api'
 import { RealtimeStatusBar } from '@/features/realtime/RealtimeStatusBar'
 import { useHubEvent, useHubGroup } from '@/features/realtime/useRealtime'
 import { isStudentRole, useWorkspace, type PersonRef } from '@/features/workspace/api'
 import {
   applyMessage,
+  canEdit,
   channelLabel,
+  deleteMessage,
   updateRoot,
   useHistory,
   useMarkRead,
   useSendMessage,
   useThread,
+  useEditMessage,
   type Channel,
   type Message,
   type QuestionStatus,
@@ -45,6 +49,28 @@ export function ChannelView({ channel, title, readOnly, isStudent }: { channel: 
   const [thread, setThread] = useState<string | null>(null)
   const isMine = useIsMine()
   const listRef = useRef<HTMLOListElement>(null)
+  const edit = useEditMessage()
+  const snackbar = useSnackbar()
+  // Tin đang chờ xóa: ẩn ngay, 5 giây sau mới gọi API (Hoàn tác thì hiện lại).
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const unhide = (id: string) => setHidden((s) => new Set([...s].filter((x) => x !== id)))
+  const remove = (m: Message) => {
+    setHidden((s) => new Set(s).add(m.id))
+    const timer = window.setTimeout(async () => {
+      try {
+        await deleteMessage(m.id)
+        updateRoot(queryClient, channel.id, m.id, (x) => ({ ...x, isDeleted: true, body: '' }))
+      } catch (error) {
+        snackbar.show(toApiError(error).detail ?? 'Không xóa được tin')
+      } finally {
+        unhide(m.id)
+      }
+    }, 5000)
+    snackbar.show('Đã xóa tin', () => {
+      window.clearTimeout(timer)
+      unhide(m.id)
+    })
+  }
 
   useHubGroup('Channel', channel.id)
   useHubEvent<Message>('messageCreated', (m) => m.channelId === channel.id && applyMessage(queryClient, m))
@@ -56,7 +82,7 @@ export function ChannelView({ channel, title, readOnly, isStudent }: { channel: 
     e.channelId === channel.id && updateRoot(queryClient, channel.id, e.messageId, (m) => ({ ...m, questionStatus: e.status })),
   )
 
-  const messages = (history.data?.pages ?? []).flatMap((p) => p.items).reverse()
+  const messages = (history.data?.pages ?? []).flatMap((p) => p.items).filter((m) => !hidden.has(m.id)).reverse()
   const newest = messages.at(-1)
   const lastMarked = useRef<string>()
   useEffect(() => {
@@ -102,7 +128,15 @@ export function ChannelView({ channel, title, readOnly, isStudent }: { channel: 
             </li>
           )}
           {messages.map((m, i) => (
-            <MessageItem key={m.id} message={m} mine={isMine(m.author)} dayChanged={!sameDay(messages[i - 1]?.createdAt, m.createdAt)} onThread={() => setThread(m.id)} />
+            <MessageItem
+              key={m.id}
+              message={m}
+              mine={isMine(m.author)}
+              dayChanged={!sameDay(messages[i - 1]?.createdAt, m.createdAt)}
+              onThread={() => setThread(m.id)}
+              onEdit={readOnly ? undefined : (body) => edit.mutateAsync({ id: m.id, body })}
+              onDelete={readOnly ? undefined : () => remove(m)}
+            />
           ))}
         </ol>
       )}
@@ -112,6 +146,7 @@ export function ChannelView({ channel, title, readOnly, isStudent }: { channel: 
         <Composer channel={channel} allowQuestion={channel.kind === 'ADVISORS' && isStudent} />
       )}
       <ThreadDrawer messageId={thread} channel={channel} readOnly={readOnly} onClose={() => setThread(null)} />
+      {snackbar.element}
     </section>
   )
 }
@@ -124,7 +159,36 @@ function useIsMine() {
 
 const sameDay = (a: string | undefined, b: string) => !!a && new Date(a).toDateString() === new Date(b).toDateString()
 
-function MessageItem({ message: m, mine, dayChanged, onThread }: { message: Message; mine: boolean; dayChanged: boolean; onThread?: () => void }) {
+// shortcut: sửa / xóa chỉ ở tin gốc trong kênh, chưa có cho trả lời trong luồng; thêm vào ThreadDrawer khi cần.
+function MessageItem({
+  message: m,
+  mine,
+  dayChanged,
+  onThread,
+  onEdit,
+  onDelete,
+}: {
+  message: Message
+  mine: boolean
+  dayChanged: boolean
+  onThread?: () => void
+  onEdit?: (body: string) => Promise<unknown>
+  onDelete?: () => void
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
+  const ownActions = mine && !m.isDeleted
+  const save = async () => {
+    const body = draft?.trim()
+    if (!body || !onEdit) return
+    try {
+      await onEdit(body)
+      setDraft(null)
+      setEditError(null)
+    } catch (error) {
+      setEditError(toApiError(error).detail ?? 'Không sửa được tin')
+    }
+  }
   return (
     <>
       {dayChanged && (
@@ -139,7 +203,35 @@ function MessageItem({ message: m, mine, dayChanged, onThread }: { message: Mess
             </span>
           )}
           <div className={clsx('rounded-lg px-3 py-2', mine ? 'rounded-tr-sm border border-border bg-surface' : 'rounded-tl-sm bg-info-container')}>
-            {m.isDeleted ? <em className="text-text-secondary">Tin nhắn đã bị xóa</em> : <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+            {m.isDeleted ? (
+              <em className="text-text-secondary">Tin nhắn đã bị xóa</em>
+            ) : draft !== null ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  aria-label="Sửa tin nhắn"
+                  rows={2}
+                  value={draft}
+                  maxLength={MAX_LENGTH}
+                  onChange={(e) => setDraft(e.target.value)}
+                  className="min-w-64 resize-none rounded-sm border border-border-strong px-3 py-2"
+                />
+                {editError && (
+                  <span role="alert" className="text-caption text-error">
+                    {editError}
+                  </span>
+                )}
+                <span className="flex justify-end gap-2">
+                  <Button variant="text" className="min-h-8 px-2" onClick={() => setDraft(null)}>
+                    Hủy
+                  </Button>
+                  <Button className="min-h-8 px-3" disabled={!draft.trim()} onClick={() => void save()}>
+                    Lưu
+                  </Button>
+                </span>
+              </div>
+            ) : (
+              <p className="whitespace-pre-wrap break-words">{m.body}</p>
+            )}
             {m.attachments?.map((f) => (
               <button
                 key={f.id}
@@ -167,6 +259,16 @@ function MessageItem({ message: m, mine, dayChanged, onThread }: { message: Mess
             {onThread && !m.isDeleted && (
               <Button variant="text" icon="reply" onClick={onThread} className="min-h-8 px-2">
                 {m.replyCount > 0 ? `${m.replyCount} trả lời` : 'Trả lời'}
+              </Button>
+            )}
+            {ownActions && onEdit && draft === null && canEdit(m) && (
+              <Button variant="text" icon="edit" onClick={() => setDraft(m.body)} className="min-h-8 px-2">
+                Sửa
+              </Button>
+            )}
+            {ownActions && onDelete && draft === null && (
+              <Button variant="text" icon="delete" onClick={onDelete} className="min-h-8 px-2">
+                Xóa
               </Button>
             )}
           </span>

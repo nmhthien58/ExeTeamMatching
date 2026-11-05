@@ -82,6 +82,22 @@ void main() {
     expect(fake.handlers['messageCreated'], isEmpty);
   });
 
+  test('mở app vào thẳng màn có hub: làm mới token trước rồi mới kết nối; refresh lỗi thì báo mất kết nối', () async {
+    final fake = _FakeConnection();
+    final hub = CollabHub(() => fake, ensureToken: () async => fake.calls.add('refresh'));
+    hub.acquire();
+    await _flush();
+    expect(fake.calls, ['refresh', 'start']);
+    expect(hub.status.value, HubStatus.connected);
+
+    final failing = _FakeConnection()..failStart = true;
+    final offline = CollabHub(() => failing, ensureToken: () async => throw Exception('mất mạng'));
+    offline.acquire();
+    await _flush();
+    await _flush();
+    expect(offline.status.value, HubStatus.disconnected);
+  });
+
   test('không kết nối được → mất kết nối; Thử lại kết nối lần nữa', () async {
     final fake = _FakeConnection()..failStart = true;
     final hub = CollabHub(() => fake);

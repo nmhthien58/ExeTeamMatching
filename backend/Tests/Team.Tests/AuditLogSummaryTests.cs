@@ -60,6 +60,46 @@ public sealed class AuditLogSummaryTests
     }
 
     [Fact]
+    public void Mentor_assigned_changed_and_removed_name_the_mentor()
+    {
+        var auto = Entry("MENTOR_ASSIGNED", newValues: new { mentorId = Guid.NewGuid(), mentorName = "Chị Lan", reason = "DOMAIN", source = "AUTO" });
+        var changed = Entry("MENTOR_ASSIGNED",
+            oldValues: new { mentorId = Guid.NewGuid(), mentorName = "Chị Lan", reason = "DOMAIN" },
+            newValues: new { mentorId = Guid.NewGuid(), mentorName = "Anh Minh", reason = "MANUAL", source = "MANUAL" });
+        var removed = Entry("MENTOR_UNASSIGNED", oldValues: new { mentorId = Guid.NewGuid(), mentorName = "Anh Minh", reason = "MANUAL" });
+
+        Assert.Equal("Hệ thống ghép mentor Chị Lan", AuditLogService.Summary(auto));
+        Assert.Equal("Đổi mentor từ Chị Lan sang Anh Minh", AuditLogService.Summary(changed));
+        Assert.Equal("Gỡ mentor Anh Minh", AuditLogService.Summary(removed));
+    }
+
+    /// <summary>Mọi mã hành động module khác ghi vào nhật ký nhóm đều thành câu tiếng Việt, không hiện nguyên mã (W16, W24, S22).</summary>
+    [Theory]
+    [InlineData("MEMBER_ADDED", "Bộ môn thêm SE180009 vào nhóm")]
+    [InlineData("TEAM_FINALIZED", "Chốt nhóm")]
+    [InlineData("TEAM_NEEDS_REVIEW", "Nhóm cần Bộ môn xem lại")]
+    [InlineData("TEAM_REOPENED", "Mở lại nhóm")]
+    [InlineData("TEAM_DISBANDED", "Giải tán nhóm")]
+    [InlineData("TEAM_LINKED_TO_PROJECT", "Gắn nhóm với đề tài của kỳ trước")]
+    [InlineData("CHANGE_REQUEST_SUBMITTED", "Gửi yêu cầu đổi nhóm (2 thay đổi)")]
+    [InlineData("CHANGE_REQUEST_APPROVED", "Bộ môn duyệt yêu cầu đổi nhóm")]
+    [InlineData("CHANGE_REQUEST_REJECTED", "Bộ môn từ chối yêu cầu đổi nhóm")]
+    [InlineData("PROJECT_CHANGE_PENDING", "Đề xuất đổi đề tài thành EduSpark Pro – chờ Bộ môn duyệt")]
+    [InlineData("PROJECT_CHANGE_CANCELLED", "Hủy đề xuất đổi đề tài")]
+    [InlineData("PROJECT_PIVOT_APPROVED", "Đổi đề tài thành EduSpark Pro")]
+    [InlineData("LECTURER_PREFERENCES_UPDATED", "Sửa nguyện vọng giảng viên")]
+    [InlineData("UNMATCHED_REMINDED", "Nhắc 5 sinh viên chưa có nhóm")]
+    public void Actions_of_other_modules_read_as_vietnamese(string action, string expected)
+    {
+        var e = Entry(action, newValues: new
+        {
+            studentCode = "SE180009", changedMemberCount = 2, changedPercent = 40, newProjectName = "EduSpark Pro", name = "EduSpark Pro", studentCount = 5,
+        });
+
+        Assert.Equal(expected, AuditLogService.Summary(e));
+    }
+
+    [Fact]
     public void Topic_interest_without_values_still_reads_as_vietnamese()
     {
         Assert.Equal("Cố vấn quan tâm đề tài của nhóm", AuditLogService.Summary(Entry("TOPIC_INTEREST_OPENED")));

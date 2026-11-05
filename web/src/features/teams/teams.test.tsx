@@ -146,8 +146,10 @@ describe('W15, W16 – nhóm của Bộ môn (FE-21, FE-22)', () => {
     await user.click(screen.getByRole('button', { name: 'Hủy' }))
 
     await user.click(screen.getByRole('button', { name: 'Bớt Thành Viên khỏi nhóm' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Bớt Thành Viên khỏi nhóm?' })).getByRole('button', { name: 'Bớt khỏi nhóm' }))
-    expect(post).toHaveBeenCalledWith('/api/teams/t1/members/s2/remove', {})
+    const removeDialog = screen.getByRole('dialog', { name: 'Bớt Thành Viên khỏi nhóm?' })
+    await user.type(within(removeDialog).getByLabelText('Lý do (không bắt buộc)'), 'Chuyển sang lớp khác')
+    await user.click(within(removeDialog).getByRole('button', { name: 'Bớt khỏi nhóm' }))
+    expect(post).toHaveBeenCalledWith('/api/teams/t1/members/s2/remove', { reason: 'Chuyển sang lớp khác' })
   })
 
   it('W16: mentor kèm lý do ghép; đổi mentor qua dialog W28 (bắt buộc lý do), gỡ mentor cần xác nhận', async () => {
@@ -167,6 +169,6 @@ describe('W15, W16 – nhóm của Bộ môn (FE-21, FE-22)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Gỡ mentor' }))
     await user.click(within(screen.getByRole('dialog', { name: 'Gỡ mentor Chị Lan?' })).getByRole('button', { name: 'Gỡ mentor' }))
-    expect(del).toHaveBeenCalledWith('/api/teams/t1/mentor-assignment')
+    expect(del).toHaveBeenCalledWith('/api/teams/t1/mentor-assignment', { data: { reason: undefined } })
   })
 })

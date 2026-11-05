@@ -207,7 +207,8 @@ class _TeamScheduleState extends ConsumerState<_TeamSchedule> {
 }
 
 /// C09 – Lịch họp hằng tuần của giảng viên (MB-46): khung giờ, độ dài slot, link họp, xem trước số slot; lưu thì cắt slot, "Đăng lịch"
-/// cho các nhóm EXE201 (thiếu slot vẫn đăng, có cảnh báo). Chạm ô có nhóm → bottom sheet đổi slot cho nhóm đó.
+/// cho các nhóm EXE201 (thiếu slot vẫn đăng, có cảnh báo). Chạm ô có nhóm → bottom sheet đổi slot cho nhóm đó; sau khi đăng,
+/// chạm nhóm ở dòng "Chưa chọn" → xếp slot trống cho nhóm.
 class LecturerScheduleScreen extends ConsumerWidget {
   const LecturerScheduleScreen({super.key});
 
@@ -270,7 +271,9 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
     _vm.setWindow(i, start ? window.copyWith(startTime: text) : window.copyWith(endTime: text));
   }
 
-  Future<void> _move(MeetingSchedule schedule, ScheduleSlot slot) async {
+  /// [slot]: đổi slot của nhóm đang có slot; [team]: xếp slot cho nhóm chưa chọn.
+  Future<void> _move(MeetingSchedule schedule, {ScheduleSlot? slot, UnslottedTeam? team}) async {
+    final teamName = slot?.teamName ?? team!.teamName;
     final free = schedule.slots.where((s) => s.workspaceId == null).toList();
     final target = await showModalBottomSheet<ScheduleSlot>(
       context: context,
@@ -283,11 +286,11 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-              child: Text('Đổi slot cho ${slot.teamName}', style: Theme.of(context).textTheme.titleLarge),
+              child: Text('${slot == null ? 'Xếp' : 'Đổi'} slot cho $teamName', style: Theme.of(context).textTheme.titleLarge),
             ),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.s4),
-              child: Text('Hiện tại: ${slot.label}. Các buổi họp chưa diễn ra dời theo slot mới.'),
+              child: Text(slot == null ? 'Nhóm chưa chọn slot. Nhóm được báo slot bạn xếp.' : 'Hiện tại: ${slot.label}. Các buổi họp chưa diễn ra dời theo slot mới.'),
             ),
             if (free.isEmpty)
               const Padding(padding: EdgeInsets.all(AppSpacing.s4), child: Text('Không còn slot trống. Thêm khung giờ trước.'))
@@ -302,7 +305,7 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
         ),
       ),
     );
-    if (target != null) await _run(_vm.move(slot, target));
+    if (target != null) await _run(slot != null ? _vm.move(slot, target) : _vm.assign(team!, target));
   }
 
   @override
@@ -395,11 +398,25 @@ class _LecturerScheduleState extends ConsumerState<_LecturerSchedule> {
           if (schedule.slots.isEmpty)
             const Padding(padding: EdgeInsets.only(top: AppSpacing.s2), child: Text('Chưa có slot. Lưu khung giờ để cắt slot.'))
           else
-            WeeklySlotGrid(slots: schedule.slots, canPick: (s) => s.workspaceId != null, onPick: (s) => _move(schedule, s)),
+            WeeklySlotGrid(slots: schedule.slots, canPick: (s) => s.workspaceId != null, onPick: (s) => _move(schedule, slot: s)),
           if (schedule.teamsWithoutSlot.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s3),
-              child: Text('Chưa chọn: ${schedule.teamsWithoutSlot.join(', ')}', style: theme.textTheme.bodyMedium),
+              child: schedule.status == 'DRAFT'
+                  ? Text('Chưa chọn: ${schedule.teamsWithoutSlot.map((t) => t.teamName).join(', ')}', style: theme.textTheme.bodyMedium)
+                  : Wrap(
+                      spacing: AppSpacing.s2,
+                      runSpacing: AppSpacing.s2,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text('Chưa chọn:', style: theme.textTheme.bodyMedium),
+                        for (final t in schedule.teamsWithoutSlot)
+                          Tooltip(
+                            message: 'Xếp slot cho ${t.teamName}',
+                            child: OutlinedButton.icon(onPressed: () => _move(schedule, team: t), icon: const Icon(Icons.event), label: Text(t.teamName)),
+                          ),
+                      ],
+                    ),
             ),
         ],
       ],
