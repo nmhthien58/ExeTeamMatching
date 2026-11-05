@@ -78,7 +78,7 @@ class MeetingSchedule {
   final List<ScheduleWindow> windows;
   final List<ScheduleSlot> slots;
   final int teamCount;
-  final List<String> teamsWithoutSlot;
+  final List<UnslottedTeam> teamsWithoutSlot;
 
   factory MeetingSchedule.fromJson(Map<String, dynamic> j) => MeetingSchedule(
         id: j['id'] as String,
@@ -89,8 +89,19 @@ class MeetingSchedule {
         windows: [for (final w in j['windows'] as List? ?? const []) ScheduleWindow.fromJson(_map(w))],
         slots: [for (final s in j['slots'] as List? ?? const []) ScheduleSlot.fromJson(_map(s))],
         teamCount: j['teamCount'] as int? ?? 0,
-        teamsWithoutSlot: [for (final t in j['teamsWithoutSlot'] as List? ?? const []) _map(t)['teamName'] as String? ?? ''],
+        teamsWithoutSlot: [
+          for (final t in j['teamsWithoutSlot'] as List? ?? const [])
+            UnslottedTeam(workspaceId: _map(t)['workspaceId'] as String, teamName: _map(t)['teamName'] as String? ?? ''),
+        ],
       );
+}
+
+/// Nhóm chưa chọn slot; giảng viên xếp slot cho nhóm sau khi đăng lịch.
+class UnslottedTeam {
+  const UnslottedTeam({required this.workspaceId, required this.teamName});
+
+  final String workspaceId;
+  final String teamName;
 }
 
 /// Góc nhìn nhóm – không có tên nhóm khác.

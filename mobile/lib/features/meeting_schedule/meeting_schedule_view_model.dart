@@ -163,6 +163,8 @@ class LecturerScheduleViewModel extends Notifier<LecturerScheduleState> {
 
   Future<String?> move(ScheduleSlot slot, ScheduleSlot target) => _run((api) => api.move(slot.workspaceId!, target.id), 'Đã đổi slot cho ${slot.teamName}');
 
+  Future<String?> assign(UnslottedTeam team, ScheduleSlot target) => _run((api) => api.move(team.workspaceId, target.id), 'Đã xếp slot cho ${team.teamName}');
+
   Future<String?> _run(Future<MeetingSchedule> Function(MeetingScheduleApi api) action, String done) async {
     state = state.copyWith(busy: true, error: () => null);
     try {

@@ -74,7 +74,7 @@ void main() {
         slot('b', '09:15', '09:30', 'FREE'),
       ],
       teamCount: 3,
-      teamsWithoutSlot: const ['Nhóm Hoàng Hôn Rực Rỡ', 'Nhóm Sao Mai'],
+      teamsWithoutSlot: const [UnslottedTeam(workspaceId: 'w3', teamName: 'Nhóm Hoàng Hôn Rực Rỡ'), UnslottedTeam(workspaceId: 'w4', teamName: 'Nhóm Sao Mai')],
     ),
   );
   final c09 = <Override>[
