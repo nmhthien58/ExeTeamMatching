@@ -1,6 +1,6 @@
-# Triển khai backend lên Railway (BE-85) – bản khảo sát
+# Triển khai backend lên Railway (BE-85)
 
-> Bước 1 của BE-85, 05/11/2026. Chưa triển khai gì. Project Railway `exe-team-matching` (gói Hobby, hard limit 10 USD) đang trống, đã `railway link` trong repo.
+> 05/11/2026: đã triển khai (mục 7). Mục 1–6 là bản khảo sát trước khi triển khai. Project Railway `exe-team-matching` (gói Hobby, hard limit 10 USD) đang trống, đã `railway link` trong repo.
 > Mục tiêu: điện thoại và web Hosting gọi được backend từ mạng bất kỳ, không phụ thuộc laptop.
 
 ## 1. Các container hiện có và cách đưa lên Railway
@@ -77,3 +77,35 @@ Gói Hobby đã gồm 5 USD usage mỗi tháng, nên chạy quanh buổi demo g�
 5. Seed dữ liệu demo từ laptop: `SEED_GATEWAY_URL=https://<gateway>` (seed cần `/api/dev/token` → chạy seed **trước** khi bật chặn, hoặc tạm cho seed đi qua mạng riêng).
 6. Build lại web (`VITE_API_BASE_URL=https://<gateway>`) và deploy Hosting; build APK release trỏ về gateway.
 7. Chạy checklist kiểm tra trong prompt BE-85, ghi kết quả vào file này.
+
+## 7. Kết quả triển khai (05/11/2026)
+
+| Mục | Giá trị |
+|---|---|
+| Gateway (REST, SignalR, Swagger) | https://gateway-production-6183.up.railway.app |
+| S3 (link tải file ký sẵn) | https://object-storage-production-efe6.up.railway.app |
+| Web | https://exe-team-matching.web.app – build với `VITE_API_BASE_URL` = Gateway trên |
+| Nhánh build | `develop` (Railway tự build lại mỗi khi `develop` có commit mới) |
+| Service | postgres, Redis, kafka, object-storage, mailpit, identity-api, academic-api, matching-grpc, team-api, notification, collab-api, jobs, gateway |
+
+Kiểm tra:
+
+- [x] `GET /health` trả 200; `POST /api/dev/token` trả **404** (`Gateway__BlockDevEndpoints=true`).
+- [x] Preflight CORS từ `https://exe-team-matching.web.app` có `Access-Control-Allow-Origin`.
+- [x] Postgres khởi tạo đủ 6 database; các service .NET kết nối Kafka, Postgres, Redis (log không còn lỗi).
+- [x] Seed dữ liệu demo qua Gateway Railway (chạy trước khi bật chặn `/api/dev/*`).
+- [x] APK release (`--dart-define=API_BASE_URL=<Gateway>`) cài trên điện thoại, không cáp, không `adb reverse`: mở tới màn đăng nhập.
+- [ ] Đăng nhập Google trên web Hosting và trên APK (Thiên thử).
+- [ ] Push FCM: đặt `FIREBASE_SERVICE_ACCOUNT_JSON` cho service `notification` (mục 3).
+- [ ] Tải lên / tải xuống file ở C06 qua tên miền S3.
+- [ ] Tin nhắn realtime qua `wss://<Gateway>/hubs/collab`.
+- [ ] Chi phí thực tế sau 1 ngày (Railway → Usage).
+
+Lưu ý khi chạy lại:
+
+- Seed lại cần `/api/dev/token`: tạm đặt `Gateway__BlockDevEndpoints=false`, chạy
+  `docker compose -f deploy/docker-compose.yml --profile seed run --rm -e SEED_GATEWAY_URL=<Gateway> -e SEED_HEALTH_URLS=<Gateway>/health seed`,
+  rồi đặt lại `true` ngay.
+- Muốn demo bằng Docker trên laptop như cũ: build web với `VITE_API_BASE_URL=http://localhost:8080` rồi deploy lại Hosting.
+- Không demo thì tắt bớt để tiết kiệm: `railway down -s <service>` cho từng service (dữ liệu trong volume vẫn giữ); bật lại bằng `railway redeploy -s <service>` theo thứ tự ở mục 6.
+- Biến bí mật (mật khẩu DB, JWT, khóa S3) chỉ nằm trong Railway Variables, sinh ngẫu nhiên lúc tạo service, không có trong repo.
