@@ -67,11 +67,29 @@ export function useAuth() {
  */
 export type Shell = 'admin' | 'student' | 'lecturer' | 'mentor'
 
+/**
+ * Các khung tài khoản được vào, khung đầu là mặc định. Một tài khoản có thể nhiều vai trò (ví dụ Bộ môn kiêm sinh viên),
+ * riêng giảng viên kiêm mentor chỉ có khung giảng viên (user-flow.md mục 0).
+ */
+export function shellsOf(user: UserInfo): Shell[] {
+  const shells: Shell[] = []
+  if (user.roles.includes('Admin')) shells.push('admin')
+  if (user.roles.includes('Lecturer')) shells.push('lecturer')
+  else if (user.roles.includes('Mentor')) shells.push('mentor')
+  if (user.roles.includes('Student')) shells.push('student')
+  return shells.length > 0 ? shells : ['student']
+}
+
+/** Khung mặc định khi đăng nhập. */
 export function shellOf(user: UserInfo): Shell {
-  if (user.roles.includes('Admin')) return 'admin'
-  if (user.roles.includes('Lecturer')) return 'lecturer'
-  if (user.roles.includes('Mentor')) return 'mentor'
-  return 'student'
+  return shellsOf(user)[0]
+}
+
+export const shellLabel: Record<Shell, string> = {
+  admin: 'Bộ môn',
+  student: 'Sinh viên',
+  lecturer: 'Giảng viên',
+  mentor: 'Mentor',
 }
 
 export const shellHome: Record<Shell, string> = {
