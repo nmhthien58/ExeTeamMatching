@@ -167,5 +167,12 @@ describe('C09 – Lịch họp hằng tuần (FE-45)', () => {
     await user.selectOptions(within(dialog).getByLabelText('Slot mới'), 'b')
     await user.click(within(dialog).getByRole('button', { name: 'Đổi slot' }))
     expect(put).toHaveBeenLastCalledWith('/api/meeting-schedules/me/bookings/w2', { slotId: 'b' })
+
+    put.mockResolvedValueOnce({ data: { ...saved, status: 'PUBLISHED' } })
+    await user.click(await screen.findByRole('button', { name: 'Xếp slot cho Nhóm Hoàng Hôn' }))
+    const assign = screen.getByRole('dialog', { name: 'Xếp slot cho Nhóm Hoàng Hôn' })
+    await user.selectOptions(within(assign).getByLabelText('Slot mới'), 'b')
+    await user.click(within(assign).getByRole('button', { name: 'Xếp slot' }))
+    expect(put).toHaveBeenLastCalledWith('/api/meeting-schedules/me/bookings/w3', { slotId: 'b' })
   })
 })
