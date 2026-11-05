@@ -25,8 +25,7 @@ abstract class HubConnectionLike {
 }
 
 /// `/hubs/collab` qua Gateway; JWT qua query `access_token`; tự kết nối lại.
-// shortcut: token lấy lúc (re)kết nối, không tự refresh – kết nối lại sau khi access token hết hạn sẽ báo mất kết nối cho tới khi
-// một lời gọi REST refresh token; Thử lại là đủ. Thêm refresh vào accessTokenFactory nếu hay gặp.
+// Token lấy lúc (re)kết nối; chưa có token (vừa mở app) thì CollabHub gọi ensureToken trước để REST refresh.
 class SignalRConnection implements HubConnectionLike {
   SignalRConnection(SessionStore session)
       : _connection = HubConnectionBuilder()
@@ -64,9 +63,12 @@ class SignalRConnection implements HubConnectionLike {
 /// Một kết nối hub dùng chung cho mọi màn workspace (MB-38). Kết nối khi màn đầu tiên dùng, ngắt khi màn cuối rời;
 /// vào lại các kênh / workspace đang nghe sau khi kết nối lại.
 class CollabHub {
-  CollabHub(this._factory);
+  CollabHub(this._factory, {this._ensureToken});
 
   final HubConnectionLike Function() _factory;
+
+  /// Mở app vào thẳng màn có hub: access token chỉ có sau lời gọi REST đầu tiên, negotiate không token bị 401.
+  final Future<void> Function()? _ensureToken;
   HubConnectionLike? _connection;
   int _users = 0;
   final _groups = <(HubGroup, String), int>{};
@@ -118,6 +120,9 @@ class CollabHub {
   Future<void> _start() async {
     status.value = HubStatus.connecting;
     try {
+      await _ensureToken?.call();
+    } catch (_) {} // refresh lỗi thì start tự báo mất kết nối, người dùng bấm Thử lại
+    try {
       await _ensure().start();
       status.value = HubStatus.connected;
       _rejoin();
@@ -153,7 +158,13 @@ class CollabHub {
 
 final collabHubProvider = Provider<CollabHub>((ref) {
   final session = ref.watch(sessionStoreProvider);
-  final hub = CollabHub(() => SignalRConnection(session));
+  final hub = CollabHub(
+    () => SignalRConnection(session),
+    // Lời gọi có xác thực bất kỳ: interceptor của Dio tự refresh khi 401.
+    ensureToken: () async {
+      if (session.accessToken == null) await ref.read(dioProvider).get<Object>('/api/auth/me');
+    },
+  );
   ref.onDispose(hub.dispose);
   return hub;
 });
