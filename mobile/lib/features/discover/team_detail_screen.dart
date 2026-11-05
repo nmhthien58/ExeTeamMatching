@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/firebase/remote_config_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
@@ -10,6 +11,7 @@ import '../my_team/my_team_screen.dart' show teamStatusChip;
 import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../workspace/workspace_widgets.dart';
 import 'discover_api.dart';
+import 'idea_suggest_sheet.dart';
 import 'join_request_view_model.dart';
 
 /// S08 – Chi tiết nhóm xem từ bên ngoài (MB-16): tên + trạng thái, domain, ý tưởng, thanh điều kiện đầy đủ, thành viên + chuyên ngành,
@@ -152,6 +154,9 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
   final _message = TextEditingController();
   final List<(TextEditingController, TextEditingController)> _ideas = [];
 
+  /// Ô tiêu đề của các ý tưởng do AI điền, để hiện nhãn "Gợi ý của AI".
+  final Set<TextEditingController> _aiIdeas = {};
+
   @override
   void dispose() {
     _message.dispose();
@@ -163,6 +168,22 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
   }
 
   JoinRequestViewModel get _vm => ref.read(joinRequestViewModelProvider(widget.teamId).notifier);
+
+  /// MB-56: mở "Gợi ý bằng AI"; dùng gợi ý thì thêm một ý tưởng sửa được.
+  Future<void> _suggestWithAi() async {
+    final fields = await showModalBottomSheet<(String, String)>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const IdeaSuggestSheet(),
+    );
+    if (fields == null || !mounted) return;
+    final title = TextEditingController(text: fields.$1);
+    setState(() {
+      _ideas.add((title, TextEditingController(text: fields.$2)));
+      _aiIdeas.add(title);
+    });
+  }
 
   Future<void> _send() async {
     final outcome = await _vm.send(message: _message.text, ideas: [for (final (t, d) in _ideas) (t.text, d.text)]);
@@ -207,6 +228,8 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                             padding: const EdgeInsets.all(AppSpacing.s3),
                             child: Column(
                               children: [
+                                if (_aiIdeas.contains(title))
+                                  const Align(alignment: Alignment.centerLeft, child: AiSuggestionLabel()),
                                 Row(
                                   children: [
                                     Expanded(
@@ -225,13 +248,21 @@ class _JoinRequestSheetState extends ConsumerState<JoinRequestSheet> {
                           ),
                         ),
                     if (!noIdea && _ideas.length < 3)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          onPressed: () => setState(() => _ideas.add((TextEditingController(), TextEditingController()))),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Thêm ý tưởng'),
-                        ),
+                      Wrap(
+                        spacing: AppSpacing.s2,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => setState(() => _ideas.add((TextEditingController(), TextEditingController()))),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Thêm ý tưởng'),
+                          ),
+                          if (ref.watch(remoteConfigProvider).aiIdeaEnabled)
+                            TextButton.icon(
+                              onPressed: _suggestWithAi,
+                              icon: const Icon(Icons.auto_awesome),
+                              label: const Text('Gợi ý bằng AI'),
+                            ),
+                        ],
                       ),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
