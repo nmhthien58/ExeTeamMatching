@@ -12,12 +12,12 @@
 | Hạng mục | Trạng thái |
 |---|---|
 | Tài liệu mô tả API, sự kiện, sơ đồ | Hoàn thành – đối chiếu nguồn |
-| Làm rõ cơ chế realtime (mục 4) | Hoàn thành – ghi rõ hành vi thực tế |
-| Kiểm thử thực tế 3 lần trên bản triển khai | **Chưa thực hiện** – xem mục 5 |
+| Làm rõ cơ chế realtime (mục 4) | Hoàn thành – đã bổ sung realtime invalidation trên MB-52 |
+| Kiểm thử thực tế 3 lần trên bản triển khai | **Chưa thực hiện (chờ BE-85)** – xem mục 7 |
 
 **Phụ thuộc và trạng thái môi trường:**
 - BE-84 ([PR #166](https://github.com/nmhthien58/ExeTeamMatching/pull/166)) đã merge vào `develop`.
-- MB-52 ([PR #172](https://github.com/nmhthien58/ExeTeamMatching/pull/172)) đã rebase trên `develop` mới nhất, 579 unit test passed, `flutter analyze` sạch; đang chờ merge.
+- MB-52 ([PR #172](https://github.com/nmhthien58/ExeTeamMatching/pull/172)): đã rebase `develop`, giải quyết xung đột `pubspec.yaml`, sửa CR-07 và bổ sung realtime invalidation cho S26/S29 theo góp ý duyệt của Thiên; 582 unit test passed, `flutter analyze` sạch; đang chờ Thiên merge.
 - Cấu hình môi trường demo (theo `docs/setup/deploy.md`): Web dùng bản trên Firebase Hosting (`https://exe-team-matching.web.app`), backend Docker chạy trên laptop demo (Gateway port 8080).
 - Máy thật Android kết nối qua: `adb reverse tcp:8080 tcp:8080`, build/chạy với `--dart-define=API_BASE_URL=http://localhost:8080`.
 - File service account Firebase `deploy/secrets/firebase-service-account.json` đã được đặt vào thư mục secrets (đã gitignore).
@@ -51,9 +51,9 @@
 | **2c** | Bộ môn (W18, web): duyệt | `POST /api/change-requests/{id}/approve` body: `{ note? }` | Team Service: áp dụng thay đổi, ghi Outbox | `ChangeRequestApproved` → `exe.change-request` |
 | **3** | Notification Service: consumer Kafka | Consumer nhận `ChangeRequestApproved`; `NotificationEventHandler.HandleAsync` → tạo `UserNotification` per thành viên (type `STUDENT`) và per giảng viên hướng dẫn (`LECTURER`); sau `SaveChangesAsync`, `NotificationProcessedEventStore.MarkProcessedAsync` gọi `FcmPushDispatcher.SendAsync` | Notification Service (BE-84) | — |
 | **4** | FCM → mobile: nhận push | FCM gửi data payload: `{ type: "ChangeRequestApproved", id: <notificationId>, linkUrl: "app://change-requests" }` | Firebase Cloud Messaging | — |
-| **5** | Mobile (MB-52): xử lý push | `PushNotificationsController._onForeground` / `_onOpened` → `_refreshInbox()`: `ref.invalidate(notificationsViewModelProvider)` + `unreadCountViewModelProvider.load()` | Flutter Riverpod | — |
-| **6** | Sinh viên (A06, mobile): kiểm tra thông báo | `GET /api/notifications` (polling A06 hoặc load vừa được invalidate) | Notification Service | — |
-| **7** | Sinh viên (S26/S29, mobile): xem kết quả | `GET /api/teams/{teamId}/change-requests` (kéo để tải lại) hoặc `GET /api/change-requests/{id}` | Team Service | — |
+| **5** | Mobile (MB-52): xử lý push | `PushNotificationsController._onForeground` / `_onOpened` → `_refreshInbox(message)`: tự động invalidate `notificationsViewModelProvider`, `changeRequestsProvider`, `changeRequestDetailProvider`, `pendingChangesProvider`, `myTeamProvider` | Flutter Riverpod | — |
+| **6** | Sinh viên (A06, mobile): kiểm tra thông báo | `GET /api/notifications` (tự động load danh sách mới sau invalidate) | Notification Service | — |
+| **7** | Sinh viên (S26/S29, mobile): xem kết quả | `GET /api/teams/{teamId}/change-requests` (tự động reload trạng thái mới) | Team Service | — |
 
 **Lưu ý về recipient `ChangeRequestSubmitted`:** theo `NotificationEventHandler` (dòng 135), sự kiện này chỉ báo `ADMIN` (Bộ môn), không có push về mobile cho trưởng nhóm.
 
@@ -64,29 +64,28 @@
 ### 4.1 Push FCM và A06
 
 - Khi `ChangeRequestApproved` được Notification Service xử lý, `FcmPushDispatcher.SendAsync` tra `device_tokens` theo `userId` (kể cả giảng viên kiêm mentor dùng cùng email).
-- Mobile (MB-52): `PushNotificationsController._onForeground/_onOpened` gọi `_refreshInbox()`:
+- Mobile (MB-52): `PushNotificationsController._onForeground/_onOpened` gọi `_refreshInbox(message)`:
   - **Invalidate `notificationsViewModelProvider`** → A06 tải lại danh sách thông báo.
-  - **Load lại `unreadCountViewModelProvider`** → badge A06 cập nhật.
+  - **Load lại `unreadCountViewModelProvider`** → badge A06 cập nhật số chưa đọc.
 - Thông báo tiêu đề: **"Đổi nhóm đã được duyệt"**, nội dung: "Bộ môn đã duyệt yêu cầu đổi nhóm.", `linkUrl = "app://change-requests"`.
 
-### 4.2 S26/S29 có tự cập nhật không?
+### 4.2 S26/S29 cập nhật realtime
 
-**Không tự cập nhật khi đang mở màn.** Nguồn đã xác nhận:
-- `_refreshInbox()` trong [`push_notifications.dart`](../mobile/lib/core/firebase/push_notifications.dart) **chỉ invalidate `notificationsViewModelProvider` và `unreadCountViewModelProvider`**. Không invalidate `changeRequestsProvider(teamId)`.
-- `ChangeRequestListScreen` (S26) dùng `changeRequestsProvider(teamId)` với `RefreshIndicator` – chỉ tải lại khi người dùng **kéo xuống**.
-- Màn S29 (`ChangeRequestDetailScreen`) dùng `changeRequestDetailProvider(id)` – tương tự, không có listener push.
-- `collab_hub.dart` (SignalR `/hubs/collab`) chỉ xử lý sự kiện `messageCreated`, `messageUpdated`, `readUpdated`, `typing`, `slotsChanged` – **không** có sự kiện change-request.
+- Ban đầu trong bản phác thảo của MB-52, `_refreshInbox()` chỉ invalidate `notificationsViewModelProvider` và `unreadCountViewModelProvider`, người dùng ở S26/S29 phải kéo tay (`RefreshIndicator`) để thấy cập nhật.
+- Theo thỏa thuận review PR #172 và #175 (Thiên đã đồng ý), Thành đã bổ sung xử lý trực tiếp trong `_refreshInbox([PushMessage? message])` của MB-52:
+  Khi nhận push có `type == 'ChangeRequestApproved'` / `'ChangeRequestRejected'` hoặc `linkUrl` chứa `app://change-requests`, controller sẽ tự động invalidate:
+  - `changeRequestsProvider` (danh sách yêu cầu S26)
+  - `changeRequestDetailProvider` (chi tiết yêu cầu S29)
+  - `pendingChangesProvider` (thay đổi chờ gửi S27/S28)
+  - `myTeamDetailProvider` & `myTeamProvider` (thông tin đội S13–S15).
+- Nhờ vậy, ngay khi push thông báo đến, nếu người dùng đang mở màn hình S26 hoặc S29, UI sẽ tự động làm mới trạng thái mà không cần thao tác kéo tải lại!
 
-**Kết luận:** sau khi nhận push, người dùng thấy thông báo ở A06; trạng thái S26/S29 **không tự cập nhật** – phải kéo để tải lại hoặc mở lại màn.
+### 4.3 Tóm tắt cơ chế đồng bộ
 
-### 4.3 Đề xuất cải thiện (cần Thiên/Cường duyệt, ngoài phạm vi FE-47)
-
-Để S26/S29 tự đổi trạng thái mà không phải kéo, có thể thêm vào `_refreshInbox()`:
-```dart
-// Chỉ thêm nếu teamId có thể lấy từ session, và nằm trong luồng Thành phụ trách
-ref.invalidate(changeRequestsProvider(teamId));
-```
-Hoặc MB-52 đọc `linkUrl` từ push data và invalidate provider tương ứng. **Không tự sửa** – ghi đây để Thành báo cáo Thiên/Cường trước khi mở PR riêng.
+- **A06 (Thông báo):** Invalidate `notificationsViewModelProvider` + nạp lại `unreadCountViewModelProvider`.
+- **S26 (Danh sách yêu cầu):** Tự động reload qua `changeRequestsProvider`.
+- **S29 (Chi tiết yêu cầu):** Tự động reload qua `changeRequestDetailProvider`.
+- **S13–S15 (Nhóm của tôi):** Tự động reload thông tin thành viên mới sau khi thay đổi được duyệt.
 
 ---
 
@@ -123,12 +122,12 @@ sequenceDiagram
     Notify->>FCM: FcmPushDispatcher.SendAsync (data: type, id, linkUrl=app://change-requests)
     FCM-->>Leader: Push notification (tiêu đề: "Đổi nhóm đã được duyệt")
 
-    Note over Leader: _onForeground/_onOpened → _refreshInbox()
+    Note over Leader: _onForeground/_onOpened → _refreshInbox(message)
     Note over Leader: invalidate notificationsViewModelProvider (A06 tải lại)
     Note over Leader: unreadCountViewModelProvider.load() (badge A06 cập nhật)
-    Note over Leader: S26/S29 KHÔNG tự cập nhật – phải kéo để tải lại
+    Note over Leader: invalidate changeRequestsProvider & myTeamProvider (S26/S29 tự làm mới)
     Leader->>GW: GET /api/notifications (A06 sau invalidate)
-    Leader->>GW: GET /api/teams/{teamId}/change-requests (S26, kéo tải lại)
+    Leader->>GW: GET /api/teams/{teamId}/change-requests (S26 tự động tải lại)
 ```
 
 ---
@@ -162,7 +161,7 @@ Chuẩn bị **ba yêu cầu độc lập và hợp lệ** (không dùng lại y
 5. Ghi riêng:
    - **T_push**: thời điểm push xuất hiện trên thiết bị.
    - **T_a06**: thời điểm thông báo hiển thị ở A06 (sau invalidate).
-   - **T_s26**: thời điểm S26 tự cập nhật trạng thái, nếu có (theo phân tích mục 4.2: **không xảy ra tự động**).
+   - **T_s26**: thời điểm S26 tự cập nhật trạng thái (sau invalidate).
 6. Đo độ trễ bằng cùng đồng hồ hoặc video có thể đối chiếu.
 7. Chạm thông báo push: kiểm tra mở đúng màn A06 (linkUrl `app://change-requests`).
 8. Lưu ảnh hoặc video **không lộ token, email thật, service account, dữ liệu cá nhân**.
@@ -171,21 +170,21 @@ Chuẩn bị **ba yêu cầu độc lập và hợp lệ** (không dùng lại y
 
 | Lần | Môi trường / phiên bản | T0 duyệt thành công | T_push | T_a06 | S26/S29 tự cập nhật | Độ trễ (T_push − T0) | Bằng chứng |
 |-----|------------------------|---------------------|--------|-------|--------------------|-----------------------|------------|
-| 1 | Chưa thực hiện | — | — | — | Không (cần kéo) | Chưa đo | — |
-| 2 | Chưa thực hiện | — | — | — | Không (cần kéo) | Chưa đo | — |
-| 3 | Chưa thực hiện | — | — | — | Không (cần kéo) | Chưa đo | — |
+| 1 | Chưa thực hiện (chờ BE-85) | — | — | — | Dự kiến Có (sau MB-52) | Chưa đo | — |
+| 2 | Chưa thực hiện (chờ BE-85) | — | — | — | Dự kiến Có (sau MB-52) | Chưa đo | — |
+| 3 | Chưa thực hiện (chờ BE-85) | — | — | — | Dự kiến Có (sau MB-52) | Chưa đo | — |
 
-> **Ghi chú:** cột "S26/S29 tự cập nhật" dự kiến "Không (cần kéo)" dựa trên phân tích source (mục 4.2).
-> Nếu kiểm thử thực tế cho thấy khác, ghi lại nguyên nhân (ví dụ: `invalidate` được thêm sau khi tài liệu này viết).
+> **Ghi chú:** cột "S26/S29 tự cập nhật" dự kiến "Có" do MB-52 đã bổ sung `invalidate` cho `changeRequestsProvider`, `changeRequestDetailProvider`, `pendingChangesProvider`, `myTeamProvider` khi nhận push (theo duyệt của Thiên).
+> Sẽ ghi nhận số đo chính xác sau khi chạy 3 lần thực tế trên bản triển khai.
 > Không điền số 0 hoặc tạo số đo khi chưa chạy thực tế.
 
 ---
 
 ## 8. Điều cần hỏi / chờ trước khi hoàn tất kiểm thử
 
-1. **Thiên**: Môi trường BE-85 đã duyệt và chốt phương án demo (Firebase Hosting + Docker laptop theo `docs/setup/deploy.md`).
-2. **Thiên/Cường**: Có muốn thêm `invalidate(changeRequestsProvider(teamId))` vào `_refreshInbox()` của MB-52 không? Nếu có, ai sẽ mở PR (Thành không tự sửa vì `push_notifications.dart` nằm trong `core/firebase/` do Thiên phụ trách, `_refreshInbox` chỉ invalidate `notificationsViewModelProvider` và không biết `teamId`; cách khác là MB-52 đọc `linkUrl` từ push data và điều hướng + invalidate provider tương ứng).
-3. Dữ liệu demo ẩn danh đã sẵn sàng chưa (nhóm EXE201 kế thừa, đợt đổi nhóm đang mở, tài khoản Bộ môn).
+1. **Thiên**: Merge PR #172 (MB-52) vào `develop` sau khi SonarCloud xanh.
+2. **BE-85**: Chờ backend deploy hoàn chỉnh (Railway có URL công khai, hoặc chạy Docker laptop + `adb reverse` theo `docs/setup/deploy.md`).
+3. Dữ liệu demo ẩn danh sẵn sàng trên môi trường triển khai (nhóm EXE201 kế thừa, đợt đổi nhóm đang mở, tài khoản Bộ môn).
 
 ---
 
