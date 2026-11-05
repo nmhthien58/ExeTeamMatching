@@ -143,6 +143,13 @@ class MessagesApi {
           }))
               .data)));
 
+  /// Sửa tin của mình trong 15 phút; quá hạn server trả 409 `edit-window-closed`.
+  Future<Message> edit(String messageId, String body) =>
+      _call(() async => Message.fromJson(_map((await _dio.patch<Map<String, dynamic>>('/api/messages/$messageId', data: {'body': body})).data)));
+
+  /// Xóa mềm tin của mình. Màn hình cho Hoàn tác 5 giây trước khi gọi (contract).
+  Future<void> delete(String messageId) => _call(() => _dio.delete<Object>('/api/messages/$messageId'));
+
   Future<void> markRead(String channelId, String lastReadMessageId) =>
       _call(() => _dio.post<Object>('/api/channels/$channelId/read', data: {'lastReadMessageId': lastReadMessageId}));
 
