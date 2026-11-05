@@ -29,4 +29,8 @@ class Env {
 
   /// Có thu thập Crashlytics không.
   static const crashlyticsEnabled = !kDebugMode || crashlyticsDebug;
+
+  /// Hiện mục "Demo Firebase" trong Cài đặt (A07, Lab 3 §3): bản debug, hoặc APK demo build với
+  /// `--dart-define=FIREBASE_DEMO=true`. Bản phát hành thường không có nút crash thử.
+  static const firebaseDemo = bool.fromEnvironment('FIREBASE_DEMO', defaultValue: kDebugMode);
 }

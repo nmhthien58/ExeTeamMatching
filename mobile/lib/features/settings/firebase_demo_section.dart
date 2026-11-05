@@ -1,0 +1,80 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/theme/app_tokens.dart';
+import 'firebase_demo_view_model.dart';
+
+/// Mục "Demo Firebase" ở A07 (Lab 3 §3): giá trị Remote Config đang dùng, gửi lỗi thử và crash thử
+/// (đều hỏi xác nhận). Chỉ hiện khi `Env.firebaseDemo`.
+class FirebaseDemoSection extends ConsumerWidget {
+  const FirebaseDemoSection({super.key});
+
+  Future<bool> _confirm(BuildContext context, String title, String content) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hủy')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Tiếp tục')),
+          ],
+        ),
+      ) ??
+      false;
+
+  Future<void> _nonFatal(BuildContext context, WidgetRef ref) async {
+    if (!await _confirm(context, 'Gửi lỗi thử?', 'Ghi một lỗi non-fatal lên Crashlytics. Ứng dụng vẫn chạy bình thường.')) return;
+    await ref.read(firebaseDemoViewModelProvider.notifier).sendNonFatal();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã gửi lỗi thử. Vài phút sau sẽ thấy trong Firebase Console → Crashlytics.')),
+    );
+  }
+
+  Future<void> _crash(BuildContext context, WidgetRef ref) async {
+    if (!await _confirm(context, 'Crash thử?', 'Ứng dụng sẽ đóng ngay. Mở lại ứng dụng để báo cáo được gửi lên Crashlytics.')) return;
+    await ref.read(firebaseDemoViewModelProvider.notifier).crash();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final state = ref.watch(firebaseDemoViewModelProvider);
+    final config = state.config;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s4, AppSpacing.s4, AppSpacing.s2),
+          child: Text('Demo Firebase', style: theme.textTheme.titleSmall),
+        ),
+        ListTile(
+          leading: const Icon(Icons.tune),
+          title: const Text('Remote Config đang dùng'),
+          subtitle: Text(
+            'Số nhóm gợi ý tối đa: ${config.suggestionsMaxItems}\n'
+            'Gợi ý ý tưởng bằng AI: ${config.aiIdeaEnabled ? 'bật' : 'tắt'} · ${config.aiModel}',
+          ),
+          isThreeLine: true,
+        ),
+        if (!state.crashlyticsEnabled)
+          ListTile(
+            leading: Icon(Icons.info_outline, color: theme.colorScheme.onSurfaceVariant),
+            title: const Text('Crashlytics đang tắt ở bản debug'),
+            subtitle: const Text('Build với --dart-define=CRASHLYTICS_DEBUG=true để gửi báo cáo.'),
+          ),
+        ListTile(
+          leading: const Icon(Icons.bug_report_outlined),
+          title: const Text('Gửi lỗi thử (non-fatal)'),
+          onTap: () => _nonFatal(context, ref),
+        ),
+        ListTile(
+          leading: Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+          title: Text('Crash thử', style: TextStyle(color: theme.colorScheme.error)),
+          onTap: () => _crash(context, ref),
+        ),
+      ],
+    );
+  }
+}
