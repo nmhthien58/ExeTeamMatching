@@ -3,6 +3,7 @@ using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
 using Microsoft.EntityFrameworkCore;
 using Notification.Worker.Data;
+using Notification.Worker.Push;
 
 namespace Notification.Worker.Notifications;
 
@@ -13,7 +14,7 @@ public sealed record NotificationPage(int Page, int PageSize, int TotalCount, in
 public sealed record UnreadCount(int Count);
 public sealed record EmailPreferences(bool EmailEnabled);
 
-public sealed class NotificationService(NotificationDbContext db)
+public sealed class NotificationService(NotificationDbContext db, FcmPushDispatcher? push = null)
 {
     public async Task<NotificationPage> ListAsync(ClaimsPrincipal user, int page, int pageSize,
         bool unreadOnly, CancellationToken ct)
@@ -110,6 +111,7 @@ public sealed class NotificationService(NotificationDbContext db)
         // Giảng viên kiêm mentor có 2 contact cùng email: mỗi vai trò có thông báo trong app, nhưng chỉ gửi một email
         // (uq_email_logs_event_to chặn trùng source_event_id + to_email, không lọc thì cả lượt gửi lỗi 500).
         var emailed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var createdNotifications = new List<UserNotification>(contacts.Count);
 
         foreach (var contact in contacts)
         {
@@ -127,6 +129,7 @@ public sealed class NotificationService(NotificationDbContext db)
                 CreatedAt = now
             };
             db.Notifications.Add(notification);
+            createdNotifications.Add(notification);
 
             if (request.SendEmail && contact.EmailEnabled && !string.IsNullOrWhiteSpace(contact.Email)
                 && emailed.Add(contact.Email))
@@ -147,6 +150,7 @@ public sealed class NotificationService(NotificationDbContext db)
         }
 
         await db.SaveChangesAsync(ct);
+        if (push is not null) await push.SendAsync(createdNotifications, ct);
         return new AnnouncementResponse(contacts.Count);
     }
 

@@ -51,12 +51,23 @@ public sealed class EmailLog
     public DateTimeOffset? SentAt { get; set; }
 }
 
+public sealed class DeviceToken
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Token { get; set; } = "";
+    public string Platform { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset LastSeenAt { get; set; }
+}
+
 public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext> options) : DbContext(options)
 {
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<UserNotification> Notifications => Set<UserNotification>();
     public DbSet<ProcessedNotificationEvent> ProcessedEvents => Set<ProcessedNotificationEvent>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
+    public DbSet<DeviceToken> DeviceTokens => Set<DeviceToken>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -88,6 +99,13 @@ public sealed class NotificationDbContext(DbContextOptions<NotificationDbContext
                 .HasDatabaseName("uq_email_logs_event_to");
             e.HasOne<UserNotification>().WithMany().HasForeignKey(x => x.NotificationId)
                 .HasConstraintName("fk_email_logs_notification").OnDelete(DeleteBehavior.SetNull);
+        });
+        model.Entity<DeviceToken>(e =>
+        {
+            e.ToTable("device_tokens");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Token).IsUnique().HasDatabaseName("uq_device_tokens_token");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_device_tokens_user");
         });
     }
 }

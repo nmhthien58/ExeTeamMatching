@@ -67,8 +67,11 @@ public sealed class NotificationsApiTests
         var studentId = Guid.NewGuid();
         await factory.SeedAsync(db => db.Contacts.Add(new Contact
         {
-            Id = studentId, PersonType = "STUDENT", Email = "student@example.test",
-            FullName = "Sinh viên", EmailEnabled = true,
+            Id = studentId,
+            PersonType = "STUDENT",
+            Email = "student@example.test",
+            FullName = "Sinh viên",
+            EmailEnabled = true,
         }));
         var client = factory.ClientFor(studentId);
 
@@ -90,10 +93,58 @@ public sealed class NotificationsApiTests
             "/api/notifications/preferences"))!.EmailEnabled);
     }
 
+    [Fact]
+    public async Task Device_api_registers_refreshes_and_removes_current_users_token()
+    {
+        using var factory = new NotificationApiFactory();
+        var studentId = Guid.NewGuid();
+        var client = factory.ClientFor(studentId);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().PostAsJsonAsync(
+            "/api/notifications/devices", new DeviceRegistration("device-token", "android"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(
+            "/api/notifications/devices", new DeviceRegistration("device-token", "android"))).StatusCode);
+
+        var first = await factory.QueryAsync(async db => await db.DeviceTokens.SingleAsync());
+        Assert.Equal(studentId, first.UserId);
+        Assert.Equal("android", first.Platform);
+        var seen = first.LastSeenAt;
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(
+            "/api/notifications/devices", new DeviceRegistration("device-token", "ios"))).StatusCode);
+        var refreshed = await factory.QueryAsync(async db => await db.DeviceTokens.SingleAsync());
+        Assert.Equal("ios", refreshed.Platform);
+        Assert.True(refreshed.LastSeenAt >= seen);
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await client.DeleteAsync("/api/notifications/devices/device-token")).StatusCode);
+        Assert.Equal(0, await factory.QueryAsync(db => db.DeviceTokens.CountAsync()));
+    }
+
+    [Fact]
+    public async Task Device_api_validates_token_and_platform()
+    {
+        using var factory = new NotificationApiFactory();
+        var client = factory.ClientFor(Guid.NewGuid());
+
+        var response = await client.PostAsJsonAsync("/api/notifications/devices",
+            new DeviceRegistration("", "windows"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var errors = body.RootElement.GetProperty("errors");
+        Assert.True(errors.TryGetProperty("token", out _));
+        Assert.True(errors.TryGetProperty("platform", out _));
+    }
+
     private static UserNotification Item(Guid id, Guid recipientId) => new()
     {
-        Id = id, RecipientType = "STUDENT", RecipientId = recipientId,
-        Type = "InvitationSent", Title = "Lời mời", Content = "Nội dung",
+        Id = id,
+        RecipientType = "STUDENT",
+        RecipientId = recipientId,
+        Type = "InvitationSent",
+        Title = "Lời mời",
+        Content = "Nội dung",
         CreatedAt = DateTimeOffset.UtcNow,
     };
 }
@@ -146,7 +197,8 @@ internal sealed class NotificationApiFactory : WebApplicationFactory<Notificatio
     private static string Token(Guid studentId) => new JsonWebTokenHandler().CreateToken(
         new SecurityTokenDescriptor
         {
-            Issuer = "exe-identity", Audience = "exe-team-matching",
+            Issuer = "exe-identity",
+            Audience = "exe-team-matching",
             Claims = new Dictionary<string, object>
             {
                 [ClaimNames.Subject] = Guid.NewGuid().ToString(),
