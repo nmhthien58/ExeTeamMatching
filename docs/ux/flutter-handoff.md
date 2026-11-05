@@ -184,7 +184,7 @@
 | States | Có dữ liệu · trống · đang tải · lỗi tải · đã đọc tất cả |
 | Interactions | Chạm thông báo → đánh dấu đã đọc, mở màn liên quan; kéo để làm mới (gọi `GET /api/notifications`) |
 | Navigation | Tab cấp 1 (cả sinh viên và giảng viên). → S15, S29, L03…; Back về A06 |
-| UI constraints | Không có push realtime; dữ liệu cập nhật khi mở tab hoặc kéo để làm mới. Trong prototype, chạm thông báo mô phỏng phản hồi của bên thứ hai |
+| UI constraints | MB-52: FCM làm mới A06/badge; khi app đang mở hiện banner trong app, khi ở nền/đã đóng dùng notification hệ thống. Chạm thông báo mở đúng màn theo deep link; vẫn hỗ trợ kéo để làm mới. |
 
 #### S15 · Nhóm của tôi – Tổng quan
 

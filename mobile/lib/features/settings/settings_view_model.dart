@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/firebase/push_notifications.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import 'settings_screen.dart' show emailEnabledProvider, settingsApiProvider;
@@ -29,7 +30,13 @@ class SettingsViewModel extends Notifier<bool?> {
   }
 
   /// Đăng xuất (thu hồi refresh token); `main.dart` dựng lại ProviderScope.
-  Future<void> signOut() => ref.read(authControllerProvider.notifier).signOut();
+  Future<void> signOut() async {
+    await ref.read(pushNotificationsProvider.notifier).unregister();
+    await ref.read(authControllerProvider.notifier).signOut();
+  }
 }
 
-final settingsViewModelProvider = NotifierProvider.autoDispose<SettingsViewModel, bool?>(SettingsViewModel.new);
+final settingsViewModelProvider =
+    NotifierProvider.autoDispose<SettingsViewModel, bool?>(
+      SettingsViewModel.new,
+    );
