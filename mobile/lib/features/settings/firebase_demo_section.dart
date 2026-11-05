@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ai/ai_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/view_state.dart';
 import 'firebase_demo_view_model.dart';
 
 /// Mục "Demo Firebase" ở A07 (Lab 3 §3): giá trị Remote Config đang dùng, gửi lỗi thử và crash thử
@@ -65,6 +67,12 @@ class FirebaseDemoSection extends ConsumerWidget {
             subtitle: const Text('Build với --dart-define=CRASHLYTICS_DEBUG=true để gửi báo cáo.'),
           ),
         ListTile(
+          leading: const Icon(Icons.auto_awesome_outlined),
+          title: const Text('Thử AI (gợi ý ý tưởng)'),
+          subtitle: const Text('Gemini qua Firebase AI Logic, có App Check'),
+          onTap: () => showDialog<void>(context: context, builder: (_) => const _AiDemoDialog()),
+        ),
+        ListTile(
           leading: const Icon(Icons.bug_report_outlined),
           title: const Text('Gửi lỗi thử (non-fatal)'),
           onTap: () => _nonFatal(context, ref),
@@ -74,6 +82,72 @@ class FirebaseDemoSection extends ConsumerWidget {
           title: Text('Crash thử', style: TextStyle(color: theme.colorScheme.error)),
           onTap: () => _crash(context, ref),
         ),
+      ],
+    );
+  }
+}
+
+/// Hộp thử AI (MB-55): nhập mô tả → hiện bản nháp hoặc mã lỗi. Mọi lời gọi đi qua [AiDemoViewModel].
+class _AiDemoDialog extends ConsumerStatefulWidget {
+  const _AiDemoDialog();
+
+  @override
+  ConsumerState<_AiDemoDialog> createState() => _AiDemoDialogState();
+}
+
+class _AiDemoDialogState extends ConsumerState<_AiDemoDialog> {
+  final _description = TextEditingController();
+
+  @override
+  void dispose() {
+    _description.dispose();
+    super.dispose();
+  }
+
+  void _send() => ref.read(aiDemoViewModelProvider.notifier).suggest(_description.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final state = ref.watch(aiDemoViewModelProvider);
+    final loading = state is ViewLoading;
+    return AlertDialog(
+      title: const Text('Thử AI'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _description,
+              minLines: 2,
+              maxLines: 5,
+              enabled: !loading,
+              decoration: const InputDecoration(
+                labelText: 'Mô tả ý tưởng',
+                hintText: 'Ví dụ: app giúp sinh viên tìm phòng trọ gần trường, có đánh giá của người thuê cũ',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s3),
+            switch (state) {
+              null || ViewEmpty() => const SizedBox.shrink(),
+              ViewLoading() => const LinearProgressIndicator(),
+              ViewError(:final error) => Text(
+                'Lỗi: ${error is AiException ? error.code : error}',
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
+              ),
+              ViewData(value: final d) => SelectableText(
+                'Tên: ${d.title}\n\nVấn đề: ${d.problem}\n\nGiải pháp: ${d.solution}\n\n'
+                'Khách hàng: ${d.targetCustomer}\n\nTag: ${d.tags.isEmpty ? '(không có)' : d.tags.join(', ')}',
+                style: theme.textTheme.bodyMedium,
+              ),
+            },
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Đóng')),
+        FilledButton(onPressed: loading ? null : _send, child: const Text('Gửi')),
       ],
     );
   }
