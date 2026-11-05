@@ -1,4 +1,5 @@
 import 'package:exe_team_matching/core/network/api_exception.dart';
+import 'package:exe_team_matching/features/files/file_services.dart';
 import 'package:exe_team_matching/features/tasks/task_board_view_model.dart';
 import 'package:exe_team_matching/features/tasks/task_detail_view_model.dart';
 import 'package:exe_team_matching/features/tasks/task_form_view_model.dart';
@@ -54,6 +55,12 @@ class _Api extends FakeCollabApi {
     calls.add('comment $taskId $body');
     _maybeThrow();
   }
+
+  @override
+  Future<String> downloadUrl(String fileId, {int? version}) async {
+    _maybeThrow();
+    return 'https://files/$fileId?v=$version';
+  }
 }
 
 const _conflict = ApiException(status: 409, code: 'conflict', title: 'Xung đột', detail: 'Việc đã bị xóa');
@@ -63,9 +70,18 @@ void main() {
   late _Api api;
   late ProviderContainer container;
 
+  late List<String> opened;
+
   setUp(() {
     api = _Api(board: [task('a'), task('b', status: TaskStatus.doing)]);
-    container = ProviderContainer(overrides: [collabApiOverride(api)]);
+    opened = [];
+    container = ProviderContainer(overrides: [
+      collabApiOverride(api),
+      openUrlProvider.overrideWithValue((url) async {
+        opened.add(url);
+        return true;
+      }),
+    ]);
     addTearDown(container.dispose);
   });
 
@@ -130,6 +146,18 @@ void main() {
     test('bình luận lỗi ném lại cho ô soạn', () async {
       api.error = _conflict;
       expect(() => vm().comment('Chào'), throwsA(isA<ApiException>()));
+    });
+
+    // CR-06 (MB-59): mở bản đã nộp đi qua ViewModel thay vì widget gọi API.
+    test('mở bản đã nộp: lấy link đúng phiên bản, lỗi trả câu cho SnackBar', () async {
+      final s = Submission(id: 'sb1', fileId: 'f1', fileName: 'a.pdf', version: 2,
+          submittedBy: const PersonRef(personType: 'STUDENT', personId: 'p1', displayName: 'An'),
+          submittedAt: DateTime.utc(2026, 11, 1), isLate: false, reviewStatus: SubmissionStatus.values.first);
+      expect(await vm().openSubmission(s), isNull);
+      expect(opened, ['https://files/f1?v=2']);
+      api.error = _conflict;
+      expect(await vm().openSubmission(s), 'Xung đột');
+      expect(opened, hasLength(1));
     });
 
     test('quyền sửa: bài nộp chỉ giảng viên hướng dẫn', () {

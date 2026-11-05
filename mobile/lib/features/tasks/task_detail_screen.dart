@@ -34,6 +34,11 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
 
   void _refresh() => _vm.refresh();
 
+  Future<void> _openSubmission(Submission s) async {
+    final error = await _vm.openSubmission(s);
+    if (error != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+  }
+
   void _snack(String message) => ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
@@ -193,7 +198,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     leading: Icon(fileIcon(s.fileName)),
                     title: Text('${s.fileName} · v${s.version}', maxLines: 2, overflow: TextOverflow.ellipsis),
                     subtitle: Text('${s.submittedBy.displayName} · ${formatRelative(s.submittedAt)}'),
-                    onTap: () async => ref.read(openUrlProvider)(await ref.read(collabApiProvider).downloadUrl(s.fileId, version: s.version)),
+                    onTap: () => _openSubmission(s),
                   ),
                   Wrap(spacing: AppSpacing.s2, runSpacing: AppSpacing.s2, children: [
                     SubmissionChip(status: s.reviewStatus),
