@@ -120,7 +120,7 @@ Thay vì đăng ký token riêng cho từng máy, APK demo được build kèm m
 2. Đăng ký một lần: Firebase Console → App Check → Apps → app Android → ⋮ → Manage debug tokens → Add debug token → tên `APK demo dùng chung` → dán nội dung file → Save.
 3. Build (PowerShell, trong thư mục `mobile`):
    ```powershell
-   $t = Get-Content -Raw ..\deploy\secretspp-check-debug-token.txt
+   $t = Get-Content -Raw ..\deploy\secrets\app-check-debug-token.txt
    flutter build apk --release --dart-define=API_BASE_URL=https://gateway-production-6183.up.railway.app --dart-define=APP_CHECK_DEBUG=true --dart-define=APP_CHECK_DEBUG_TOKEN=$t --dart-define=FIREBASE_DEMO=true
    ```
 4. Sau buổi demo: xóa token này trên Console. APK cũ sẽ không gọi được AI nữa.
