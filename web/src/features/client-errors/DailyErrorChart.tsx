@@ -22,7 +22,10 @@ function LegendItem({ className, label }: { className: string; label: string }) 
   )
 }
 
-/** Cột chồng fatal và non-fatal theo ngày; rê chuột hoặc Tab vào cột để xem số. Có bảng ẩn cho trình đọc màn hình. */
+/**
+ * Cột chồng fatal và non-fatal theo ngày; rê chuột vào cột để xem số. Có bảng ẩn cho trình đọc màn hình.
+ * Cột không nhận Tab: chúng nằm trong vùng aria-hidden, focus vào đó là focus vào chỗ không có tên (CR-04, MB-59).
+ */
 export function DailyErrorChart({ days }: { days: DailyErrorCount[] }) {
   const mounted = useMounted()
   const peak = Math.max(1, ...days.map((d) => d.fatalCount + d.nonFatalCount))
@@ -41,10 +44,10 @@ export function DailyErrorChart({ days }: { days: DailyErrorCount[] }) {
         </div>
         <div className="flex items-end gap-2 border-b border-t border-border" style={{ height: CHART_HEIGHT }} aria-hidden>
           {days.map((day) => (
-            <div key={day.date} tabIndex={0} className="group relative flex h-full flex-1 flex-col justify-end gap-0.5 outline-none">
+            <div key={day.date} className="group relative flex h-full flex-1 flex-col justify-end gap-0.5">
               <span
                 role="tooltip"
-                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-sm bg-ink px-2 py-1 text-caption text-white shadow-elevation-2 group-hover:block group-focus:block"
+                className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-sm bg-ink px-2 py-1 text-caption text-white shadow-elevation-2 group-hover:block"
               >
                 {describe(day)}
               </span>

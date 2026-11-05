@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_client.dart';
+import '../files/file_services.dart';
 import '../workspace/workspace_api.dart';
 import '../workspace/workspace_models.dart';
 
@@ -44,6 +45,16 @@ class TaskDetailViewModel extends Notifier<TaskActionState> {
       _run(() => _api.review(submission.id, accepted: accepted, comment: comment));
 
   Future<bool> delete() => _run(() => _api.deleteTask(taskId));
+
+  /// Mở link tải bản đã nộp; trả câu lỗi (SnackBar) hoặc null. Widget không gọi API trực tiếp (Lab 3 §5, CR-06).
+  Future<String?> openSubmission(Submission submission) async {
+    try {
+      await ref.read(openUrlProvider)(await _api.downloadUrl(submission.fileId, version: submission.version));
+      return null;
+    } catch (e) {
+      return e.apiError.title;
+    }
+  }
 
   /// Bình luận: lỗi ném lại để ô soạn giữ nội dung và báo lỗi.
   Future<void> comment(String body) async {

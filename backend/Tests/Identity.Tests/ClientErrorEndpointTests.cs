@@ -113,17 +113,35 @@ public sealed class ClientErrorEndpointTests : IDisposable
         Assert.Equal(HttpStatusCode.Accepted, (await PostAsync("203.0.113.2")).StatusCode);
     }
 
+    // CR-05 (MB-59): phần đầu header do client tự gửi; khóa là địa chỉ do proxy tin cậy nối vào cuối.
     [Theory]
-    [InlineData("203.0.113.9, 172.18.0.5", "203.0.113.9")]
-    [InlineData("not-an-ip", "10.0.0.1")]
-    [InlineData("", "10.0.0.1")]
-    public void Client_key_uses_first_forwarded_address(string header, string expected)
+    [InlineData("203.0.113.9", 1, "203.0.113.9")]
+    [InlineData("1.2.3.4, 203.0.113.9", 1, "203.0.113.9")]
+    [InlineData("1.2.3.4, 203.0.113.9, 172.18.0.5", 2, "203.0.113.9")]
+    [InlineData("203.0.113.9, 172.18.0.5", 2, "203.0.113.9")]
+    [InlineData("172.18.0.5", 2, "172.18.0.5")]
+    [InlineData("not-an-ip", 1, "10.0.0.1")]
+    [InlineData("", 1, "10.0.0.1")]
+    public void Client_key_uses_address_appended_by_trusted_proxy(string header, int hops, string expected)
     {
         var context = new DefaultHttpContext();
         context.Connection.RemoteIpAddress = IPAddress.Parse("10.0.0.1");
         context.Request.Headers["X-Forwarded-For"] = header;
 
-        Assert.Equal(expected, ClientErrorRateLimit.ClientKey(context));
+        Assert.Equal(expected, ClientErrorRateLimit.ClientKey(context, hops));
+    }
+
+    [Fact]
+    public void Spoofed_forwarded_prefix_does_not_change_client_key()
+    {
+        string Key(string spoofed)
+        {
+            var context = new DefaultHttpContext();
+            context.Request.Headers["X-Forwarded-For"] = $"{spoofed}, 203.0.113.9";
+            return ClientErrorRateLimit.ClientKey(context);
+        }
+
+        Assert.Equal(Key("1.1.1.1"), Key("8.8.8.8"));
     }
 
     [Fact]
