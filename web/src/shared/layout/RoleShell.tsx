@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { Icon } from '@/shared/components/ui'
 import type { Shell } from '@/shared/auth/AuthProvider'
 import { usePhases, useIsTeamFormation, useMyCourse } from '@/shared/phase/usePhase'
 import { AccountMenu } from './AccountMenu'
-import { Logo } from './AdminLayout'
 import { roleNav, type NavItem } from './navigation'
 import { PageHeaderProvider, usePageHeaderState } from './PageHeader'
+import { BrandBlock, GlassHeader, SideLink } from './ShellParts'
+import { todayLabel } from '@/shared/lib/today'
 import { NotificationNavIcon } from '@/features/notifications/NotificationNavIcon'
 import { RemoteNotice } from '@/shared/firebase/RemoteNotice'
 
@@ -38,30 +39,40 @@ function useShellContext(shell: Exclude<Shell, 'admin'>) {
   }
 }
 
+const shellName: Record<Exclude<Shell, 'admin'>, string> = { student: 'Sinh viên', lecturer: 'Giảng viên', mentor: 'Mentor' }
+
 /**
- * FE-32 – khung web cho Sinh viên, Giảng viên, Mentor: cùng mã màn hình với mobile, chỉ đổi bố cục theo bề rộng.
+ * FE-32 – khung web cho Sinh viên, Giảng viên, Mentor: cùng mã màn hình với mobile, đổi bố cục theo bề rộng.
+ * FE-51 (05/11/2026): cùng ngôn ngữ với khung Bộ môn (FE-49) – sidebar / rail nền mực, header kính mờ có ngày,
+ * thẻ giai đoạn cuối sidebar, nội dung mờ dần khi đổi trang (tắt khi giảm chuyển động).
  */
 export function RoleShell({ shell }: { shell: Exclude<Shell, 'admin'> }) {
   const items = roleNav(shell, useShellContext(shell))
   const mode = useLayoutMode()
+  const { pathname } = useLocation()
 
   return (
     <PageHeaderProvider>
-      <div className={clsx('flex min-h-screen bg-background', mode === 'tabbar' && 'flex-col')}>
-        {mode !== 'tabbar' && <SideNav items={items} compact={mode === 'rail'} />}
+      <div className={clsx('flex min-h-screen', mode === 'tabbar' && 'flex-col')}>
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-sm focus:bg-surface focus:p-2">
+          Bỏ qua điều hướng
+        </a>
+        {mode !== 'tabbar' && <SideNav shell={shell} items={items} compact={mode === 'rail'} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar compact={mode === 'tabbar'} />
           <main
             id="main"
             className={clsx(
-              'mx-auto w-full flex-1 px-4 pb-8',
-              mode === 'rail' && 'max-w-[720px]',
-              mode === 'sidebar' && 'max-w-[1200px] px-6',
-              mode === 'tabbar' && 'pb-24',
+              'mx-auto w-full flex-1',
+              mode === 'tabbar' && 'px-4 pb-24 pt-4',
+              mode === 'rail' && 'max-w-[720px] px-6 pb-10 pt-6',
+              mode === 'sidebar' && 'max-w-[1200px] px-8 pb-10 pt-6',
             )}
           >
             <RemoteNotice />
-            <Outlet />
+            <div key={pathname} className="animate-page-in">
+              <Outlet />
+            </div>
           </main>
         </div>
         {mode === 'tabbar' && <TabBar items={items} />}
@@ -72,55 +83,58 @@ export function RoleShell({ shell }: { shell: Exclude<Shell, 'admin'> }) {
 
 function TopBar({ compact }: { compact: boolean }) {
   const { title, action } = usePageHeaderState()
-  return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 bg-background/95 px-4 backdrop-blur">
-      <h1 className={clsx('min-w-0 flex-1 truncate font-semibold', compact ? 'text-title' : 'text-display')}>{title}</h1>
-      {action}
-      <AccountMenu compact={compact} />
-    </header>
-  )
+  return <GlassHeader compact={compact} title={title} subtitle={todayLabel()} action={action} account={<AccountMenu compact={compact} />} />
 }
 
-function SideNav({ items, compact }: { items: NavItem[]; compact: boolean }) {
+function SideNav({ shell, items, compact }: { shell: Exclude<Shell, 'admin'>; items: NavItem[]; compact: boolean }) {
   return (
-    <aside className={clsx('sticky top-0 flex h-screen shrink-0 flex-col border-r border-border bg-surface', compact ? 'w-20' : 'w-60')}>
-      <Logo compact={compact} />
-      <nav aria-label="Điều hướng chính" className={clsx('flex-1', compact ? 'px-2' : 'px-3')}>
-        <ul className="flex flex-col gap-1">
+    <aside className={clsx('sticky top-0 flex h-screen shrink-0 flex-col bg-ink text-ink-text', compact ? 'w-20' : 'w-60')}>
+      <BrandBlock subtitle={shellName[shell]} compact={compact} />
+      <nav aria-label="Điều hướng chính" className={clsx('ink-scroll mt-2 flex-1 overflow-y-auto', compact ? 'px-2' : 'px-3')}>
+        <ul className="flex flex-col gap-0.5">
           {items.map((item) => (
             <li key={item.to}>
-              <NavLink
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  clsx(
-                    'font-medium',
-                    compact
-                      ? 'flex min-h-14 flex-col items-center justify-center gap-1 rounded-md text-caption'
-                      : 'flex min-h-10 items-center gap-3 rounded-md px-3',
-                    isActive ? 'bg-primary-container text-primary-dark' : 'text-text-secondary hover:bg-background hover:text-text-primary',
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {item.screen === 'A06' ? <NotificationNavIcon filled={isActive} /> : <Icon name={item.icon} filled={isActive} className={isActive ? 'text-primary' : undefined} />}
-                    <span className="truncate">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
+              <SideLink
+                item={item}
+                compact={compact}
+                icon={item.screen === 'A06' ? (active) => <NotificationNavIcon filled={active} /> : undefined}
+              />
             </li>
           ))}
         </ul>
       </nav>
+      {!compact && <PhaseCard shell={shell} />}
     </aside>
+  )
+}
+
+/** Thẻ cuối sidebar: môn và giai đoạn hiện tại, hạn lập nhóm còn bao lâu (sinh viên); giảng viên / mentor xem giai đoạn chung. */
+function PhaseCard({ shell }: { shell: Exclude<Shell, 'admin'> }) {
+  const myCourse = useMyCourse()
+  const phases = usePhases()
+  const phase = shell === 'student' ? phases.data?.find((p) => p.courseCode === myCourse.data) ?? phases.data?.[0] : phases.data?.[0]
+  if (!phase) return <div className="border-t border-ink-border px-5 py-4 text-caption text-ink-muted">Đại học FPT</div>
+  const forming = phase.phase === 'TEAM_FORMATION'
+  const days = phase.teamFormationDeadlineAt ? Math.ceil((new Date(phase.teamFormationDeadlineAt).getTime() - Date.now()) / 86_400_000) : undefined
+  return (
+    <div className="m-3 rounded-md border border-ink-border bg-white/5 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted">
+        {shell === 'student' ? phase.courseCode : 'Học kỳ hiện tại'}
+      </p>
+      <p className="mt-1 font-semibold text-white">{forming ? 'Đang lập nhóm' : 'Đang học kỳ'}</p>
+      {forming && days !== undefined && days >= 0 && (
+        <p className="mt-0.5 text-caption text-ink-text">
+          Còn <span className="font-semibold text-brand-orange">{days} ngày</span> tới hạn lập nhóm
+        </p>
+      )}
+    </div>
   )
 }
 
 /** Tab bar dưới như mobile: viên thuốc Primary Container cho mục đang chọn, nhãn Caption Bold, vùng chạm 48. */
 function TabBar({ items }: { items: NavItem[] }) {
   return (
-    <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
+    <nav aria-label="Điều hướng chính" className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-surface/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150">
       <ul className="flex">
         {items.map((item) => (
           <li key={item.to} className="flex-1">

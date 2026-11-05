@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { SectionTitle, StatCard } from '@/features/dashboard/DashboardPage'
+import { SectionTitle, StatCard } from '@/shared/components/StatCard'
 import { formatDateTime } from '@/features/workspace/format'
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from '@/shared/components/States'
 import { Button, Icon, Skeleton } from '@/shared/components/ui'
