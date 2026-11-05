@@ -35,18 +35,24 @@ public sealed class FirebaseFcmSender : IFcmSender
     {
         _http = http;
         _logger = logger;
+        // Local / VPS: file mount (FIREBASE_SERVICE_ACCOUNT_PATH). Railway không mount được file nên nhận cả nội dung JSON
+        // qua biến FIREBASE_SERVICE_ACCOUNT_JSON (BE-85). Cả hai đều không commit.
+        var inlineJson = configuration["FIREBASE_SERVICE_ACCOUNT_JSON"];
         var path = configuration["FIREBASE_SERVICE_ACCOUNT_PATH"];
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        string? content = null;
+        if (!string.IsNullOrWhiteSpace(inlineJson)) content = inlineJson;
+        else if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)) content = File.ReadAllText(path);
+        if (content is null)
         {
-            logger.LogWarning("Không có Firebase service account tại FIREBASE_SERVICE_ACCOUNT_PATH; bỏ qua push FCM.");
+            logger.LogWarning("Không có Firebase service account (FIREBASE_SERVICE_ACCOUNT_JSON / FIREBASE_SERVICE_ACCOUNT_PATH); bỏ qua push FCM.");
             return;
         }
 
         try
         {
-            using var json = JsonDocument.Parse(File.ReadAllText(path));
+            using var json = JsonDocument.Parse(content);
             _projectId = json.RootElement.GetProperty("project_id").GetString();
-            _credential = CredentialFactory.FromFile<ServiceAccountCredential>(path)
+            _credential = CredentialFactory.FromJson<ServiceAccountCredential>(content)
                 .ToGoogleCredential().CreateScoped(MessagingScope);
         }
         catch (Exception ex)

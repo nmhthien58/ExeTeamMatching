@@ -1,21 +1,25 @@
 # Dockerfile dùng chung cho mọi service .NET (BE-08). Build context = backend/.
 #   PROJECT  đường dẫn csproj tính từ backend/, ví dụ Services/Identity/Identity.Api/Identity.Api.csproj
 #   APP_DLL  tên file dll khởi động, ví dụ Identity.Api.dll
+#   SRC      thư mục backend tính từ build context: mặc định "." (Compose, context = backend/);
+#            Railway build từ gốc repo nên đặt SRC=backend (BE-85).
 # Ví dụ: docker build -f deploy/docker/dotnet.Dockerfile --build-arg PROJECT=... --build-arg APP_DLL=... backend
 
 # 1. Chỉ giữ csproj + Directory.Build.props để lớp restore được cache khi chỉ sửa code.
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS projects
+ARG SRC=.
 WORKDIR /src
-COPY . .
+COPY ${SRC} .
 RUN find . -type f ! -name '*.csproj' ! -name 'Directory.Build.props' -delete
 
 # 2. Restore rồi publish đúng project được chọn.
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG PROJECT
 WORKDIR /src
+ARG SRC=.
 COPY --from=projects /src .
 RUN dotnet restore "$PROJECT"
-COPY . .
+COPY ${SRC} .
 RUN dotnet publish "$PROJECT" -c Release -o /app --no-restore /p:UseAppHost=false
 
 # 3. Runtime: chỉ aspnet + curl cho healthcheck.
