@@ -18,7 +18,7 @@ const _draft = IdeaDraft(
   problem: 'Sinh viên khó tìm phòng',
   solution: 'Lịch dùng chung',
   targetCustomer: 'Sinh viên đại học',
-  tags: ['D01', 'NGOAI'],
+  tags: ['Giáo dục', 'NGOAI'],
 );
 const _domains = [CatalogRef(id: 1, code: 'D01', name: 'Giáo dục'), CatalogRef(id: 2, code: 'D02', name: 'Y tế')];
 
@@ -28,7 +28,7 @@ class _FakeAi implements AiService {
   List<String>? tags;
 
   @override
-  Future<IdeaDraft> suggestIdea(String description, {required List<String> allowedTags}) async {
+  Future<IdeaDraft> suggestIdea({required String description, required List<String> allowedTags}) async {
     input = description;
     tags = allowedTags;
     if (error case final e?) throw e;
@@ -69,7 +69,7 @@ void main() {
       await vm(c).suggest(_description);
 
       expect(c.read(ideaSuggestViewModelProvider), isA<IdeaSuggestReady>());
-      expect(ai.tags, ['D01', 'D02']);
+      expect(ai.tags, ['Giáo dục', 'Y tế']);
     });
 
     test('không gửi email và MSSV lên AI', () async {

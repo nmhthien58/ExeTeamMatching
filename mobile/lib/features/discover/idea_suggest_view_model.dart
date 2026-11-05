@@ -62,8 +62,8 @@ String stripPersonalData(String text) => text
 
 /// Ghép bản nháp AI thành (tiêu đề, mô tả) của ý tưởng ở S09. Chỉ giữ tag có trong danh mục lĩnh vực; cắt theo quy tắc 17.
 (String, String) ideaFieldsFrom(IdeaDraft draft, List<CatalogRef> domains) {
-  final names = {for (final d in domains) d.code: d.name};
-  final tags = [for (final tag in draft.tags) ?names[tag]];
+  final names = {for (final d in domains) d.name};
+  final tags = draft.tags.where(names.contains).toList();
   final description = [
     'Vấn đề: ${draft.problem}',
     'Giải pháp: ${draft.solution}',
@@ -96,7 +96,7 @@ class IdeaSuggestViewModel extends Notifier<IdeaSuggestState> {
     state = const IdeaSuggestLoading();
     try {
       final domains = await ref.read(domainsProvider.future);
-      final draft = await ref.read(aiServiceProvider).suggestIdea(input, allowedTags: [for (final d in domains) d.code]);
+      final draft = await ref.read(aiServiceProvider).suggestIdea(description: input, allowedTags: [for (final d in domains) d.name]);
       if (ref.mounted) state = IdeaSuggestReady(draft);
     } on AiException catch (e) {
       if (ref.mounted) state = IdeaSuggestFailed(aiErrorMessage(e.code));
