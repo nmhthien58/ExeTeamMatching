@@ -178,7 +178,7 @@ describe('student team screens (FE-37)', () => {
     expect(await screen.findByText('Nguyễn An')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Sinh viên tìm nhóm' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('SE180007 · Marketing')).toBeInTheDocument()
-    expect(await screen.findByText('D05')).toBeInTheDocument()
+    expect(await screen.findByText('Giáo dục')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mời vào nhóm' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Xem hồ sơ Nguyễn An/ })).toHaveAttribute('href', '/sv/sinh-vien/s7')
   })
@@ -192,7 +192,7 @@ describe('student team screens (FE-37)', () => {
     await user.click(await screen.findByRole('button', { name: 'Đăng bài' }))
     expect(screen.getByText('Nhập vai trò mong muốn.')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Vai trò mong muốn'), 'Backend')
-    await user.click(await screen.findByRole('button', { name: 'D05' }))
+    await user.click(await screen.findByRole('button', { name: 'Giáo dục' }))
     await user.click(screen.getByRole('button', { name: 'Đăng bài' }))
 
     expect(post).toHaveBeenCalledWith('/api/seeking-posts/me', { title: 'Backend', description: undefined, domainIds: [5] })

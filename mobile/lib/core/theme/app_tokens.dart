@@ -59,6 +59,13 @@ abstract final class AppGradients {
     colors: [Palette.brandOrange, Palette.primary, Color(0xFF8F3A08)],
     stops: [0, .62, 1],
   );
+
+  /// Ô chữ tắt của nhóm: ba màu thương hiệu FPT (cam, xanh dương, xanh lá), chọn theo id nhóm.
+  static const monograms = [
+    [Palette.brandOrange, Palette.primary],
+    [Color(0xFF2E8BD6), Palette.info],
+    [Color(0xFF2BC46A), Palette.success],
+  ];
 }
 
 /// Khoảng cách (DESIGN.md 4.1), lưới 4 px.

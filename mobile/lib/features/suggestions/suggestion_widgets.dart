@@ -3,22 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
-import '../../shared/widgets/team_requirement_bar.dart';
+import '../../shared/widgets/team_card_view.dart';
 import '../workspace/workspace_widgets.dart';
 import 'suggestions_api.dart';
 import 'suggestions_view_model.dart';
 
+/// Mức phù hợp (bản 6, MB-64): "Rất phù hợp" nền cam chữ trắng, "Phù hợp" nền cam nhạt chữ cam đậm, "Có thể phù hợp"
+/// nền xám nhạt chữ phụ – cùng một màu nhấn thay cho ba màu xanh lá / xanh dương / xám của bản 5.
 class FitChip extends StatelessWidget {
   const FitChip({super.key, required this.score});
 
   final double score;
 
   @override
-  Widget build(BuildContext context) => StatusChip(
-        label: fitLabel(score),
-        tone: score >= 0.6 ? StatusTone.success : score >= 0.3 ? StatusTone.info : StatusTone.neutral,
-        icon: Icons.auto_awesome,
-      );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (bg, fg) = score >= 0.6
+        ? (scheme.primary, scheme.onPrimary)
+        : score >= 0.3
+            ? (scheme.primaryContainer, scheme.onPrimaryContainer)
+            : (context.appColors.neutralContainer, scheme.onSurfaceVariant);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3, vertical: AppSpacing.s1 + 2),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.full)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, size: 16, color: fg),
+          const SizedBox(width: AppSpacing.s1),
+          Text(fitLabel(score), style: theme.textTheme.labelLarge?.copyWith(color: fg, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
 }
 
 /// Lý do gợi ý do Matching trả về – mỗi dòng một ý.
@@ -61,7 +79,7 @@ class DomainChips extends StatelessWidget {
         spacing: AppSpacing.s2,
         runSpacing: AppSpacing.s2,
         children: [
-          for (final d in domains.take(2)) Chip(label: Text('${d.code} ${d.name}')),
+          for (final d in domains.take(2)) Chip(label: Text(d.name)), // chỉ tên, không mã D01… (06/11/2026)
           if (domains.length > 2) Chip(label: Text('+${domains.length - 2}')),
         ],
       );
@@ -78,40 +96,23 @@ class TeamSuggestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final team = suggestion.team;
-    return Card.outlined(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpacing.s2,
-                runSpacing: AppSpacing.s2,
-                children: [
-                  Text(team.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  FitChip(score: suggestion.score),
-                ],
-              ),
-              if (team.projectName != null) Text(team.projectName!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(height: AppSpacing.s2),
-              DomainChips(domains: team.domains),
-              const SizedBox(height: AppSpacing.s2),
-              TeamRequirementBar(memberCount: team.memberCount, maxMembers: team.maxSize),
-              if (team.memberCount < team.maxSize)
-                Text('Còn ${team.maxSize - team.memberCount} chỗ', style: theme.textTheme.bodyMedium),
-              if (team.missingSpecializations.isNotEmpty)
-                Text('Đang thiếu: ${team.missingSpecializations.map((s) => s.name).join(', ')}', style: theme.textTheme.bodyMedium),
-              Reasons(reasons: suggestion.reasons),
-            ],
-          ),
-        ),
-      ),
+    return TeamCardView(
+      seed: team.id,
+      name: team.name,
+      projectName: team.projectName,
+      domains: [for (final d in team.domains) d.name],
+      memberCount: team.memberCount,
+      maxSize: team.maxSize,
+      badge: FitChip(score: suggestion.score),
+      highlighted: suggestion.score >= 0.6,
+      onTap: onTap,
+      extra: [
+        if (team.missingSpecializations.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.s2),
+          Text('Đang thiếu: ${team.missingSpecializations.map((s) => s.name).join(', ')}', style: theme.textTheme.bodyMedium),
+        ],
+        if (suggestion.reasons.isNotEmpty) ...[const SizedBox(height: AppSpacing.s1), Reasons(reasons: suggestion.reasons)],
+      ],
     );
   }
 }

@@ -7,9 +7,8 @@ import '../../core/phase.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/view_state.dart';
 import '../../shared/widgets/states.dart';
-import '../../shared/widgets/team_requirement_bar.dart';
+import '../../shared/widgets/team_card_view.dart';
 import '../my_team/my_team_api.dart' show domainsProvider;
-import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../suggestions/suggestions_api.dart' show TeamCard, specializationsProvider;
 import 'discover_api.dart';
 import 'seeking_posts_screen.dart';
@@ -163,29 +162,14 @@ class TeamListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final open = team.maxSize - team.memberCount;
-    return Card.outlined(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/sv/kham-pha/nhom/${team.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(team.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-              if (team.projectName != null) Text(team.projectName!, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: AppSpacing.s2),
-              DomainChips(domains: team.domains),
-              const SizedBox(height: AppSpacing.s2),
-              TeamRequirementBar(memberCount: team.memberCount, maxMembers: team.maxSize),
-              Text('${team.memberCount}/${team.maxSize} thành viên · còn $open chỗ', style: theme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
+    return TeamCardView(
+      seed: team.id,
+      name: team.name,
+      projectName: team.projectName,
+      domains: [for (final d in team.domains) d.name],
+      memberCount: team.memberCount,
+      maxSize: team.maxSize,
+      onTap: () => context.push('/sv/kham-pha/nhom/${team.id}'),
     );
   }
 }
@@ -237,7 +221,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
                 children: [
                   section('Domain', [
                     for (final d in domains)
-                      FilterChip(label: Text(d.code), tooltip: d.name, selected: _domain == d.code, onSelected: (on) => setState(() => _domain = on ? d.code : null)),
+                      FilterChip(label: Text(d.name), selected: _domain == d.code, onSelected: (on) => setState(() => _domain = on ? d.code : null)),
                   ]),
                   section('Chuyên ngành đang thiếu', [
                     for (final s in specializations)

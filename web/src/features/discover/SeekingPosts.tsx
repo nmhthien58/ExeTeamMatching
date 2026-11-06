@@ -164,7 +164,7 @@ export function SeekingPostCard({ post, domains, action }: { post: SeekingPost; 
         <span className="flex flex-wrap gap-2">
           {domains.map((d) => (
             <span key={d.id} title={d.name} className="inline-flex h-8 items-center rounded-full bg-info-container px-3 text-info-dark">
-              {d.code}
+              {d.name}
             </span>
           ))}
         </span>
@@ -234,7 +234,7 @@ function SeekingPostForm({ post }: { post: SeekingPost | null }) {
                   className={`min-h-10 rounded-full border px-3 ${selected ? 'border-primary bg-primary-container text-primary-dark' : 'border-border-strong'}`}
                 >
                   {selected && '✓ '}
-                  {d.code}
+                  {d.name}
                 </button>
               )
             })}
