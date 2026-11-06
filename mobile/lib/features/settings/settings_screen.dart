@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/auth/session.dart' show Role;
 
 import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
@@ -107,6 +110,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: pending == null ? _toggleEmail : null,
             ),
           ),
+          // Lối vào S12 tab Yêu cầu đã gửi (mảng Cường): xem và hủy yêu cầu xin vào nhóm.
+          if (user != null && user.roles.contains(Role.student)) ...[
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.outgoing_mail),
+              title: const Text('Yêu cầu đã gửi'),
+              subtitle: const Text('Yêu cầu xin vào nhóm và trạng thái'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/sv/loi-moi?tab=yeu-cau'),
+            ),
+          ],
           const Divider(),
           const ListTile(leading: Icon(Icons.info_outline), title: Text('EXE Team Matching'), subtitle: Text('Phiên bản $appVersion')),
           const Divider(),

@@ -81,7 +81,7 @@ class MyTeam {
 
   bool get isFull => memberCount >= maxSize;
 
-  /// Còn sửa / mời được (Nháp, Hoạt động); sau hạn chót thì khóa.
+  /// Còn sửa / mời được (Chưa đủ người, Hoạt động); sau hạn chót thì khóa.
   bool get isOpen => status == 'DRAFT' || status == 'ACTIVE';
 
   /// Trưởng nhóm còn mời thêm được (S10, S18: nút "Mời vào nhóm").

@@ -105,7 +105,7 @@ void main() {
   testWidgets('S15: trưởng nhóm thấy trạng thái, điều kiện và lối tắt của mình', (tester) async {
     await _pump(tester, const Scaffold(body: MyTeamScreen()), _FakeApi(team: _team()));
     expect(find.text('Nhóm Bình Minh'), findsOneWidget);
-    expect(find.text('Nháp'), findsOneWidget);
+    expect(find.text('Chưa đủ người'), findsOneWidget);
     expect(find.text('Yêu cầu và lời mời'), findsOneWidget);
     expect(find.text('Sửa thông tin'), findsOneWidget);
     expect(find.text('Chưa ghép'), findsOneWidget);
