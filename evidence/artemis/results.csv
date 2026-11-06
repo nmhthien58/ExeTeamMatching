@@ -1,0 +1,43 @@
+case,run,passed,seconds,trace_id,detail
+TC-21,1,True,45.1,dd2ef638-06f3-4059-95b3-4ce605238640,
+TC-21,2,True,29.9,866eb9a3-1992-46bf-8f8d-3b142b671183,
+TC-21,3,True,27.7,493903a6-4605-4aab-8e3b-d61af4321622,
+TC-15,1,True,156.8,51726c5c-447c-4b3f-afbb-89aacae31ea0,
+TC-15,2,True,41.1,5366c9d3-5787-45a1-b055-1c68ee6fcf4d,
+TC-15,3,True,28.8,5ead503e-401b-4bb1-96a2-2dc84dd62567,
+TC-19,1,False,600.2,,Task 50fc20a1-f48e-4283-8e92-84ff9deb6c75 did not finish within 600 seconds
+TC-19,2,True,582.6,588512dd-087e-4e07-a530-4a072944589a,
+TC-19,3,False,347.5,900814ea-bc0f-418d-be4c-b38e38f507c2,"TC-19: failed
+assert False
+ +  where False = TaskResult(task_id='900814ea-bc0f-418d-be4c-b38e38f507c2', status='failed', goal=""Bắt đầu: màn chi tiết một nhóm, cờ ai_idea_enabled đang bật. Bấm Xin tham"
+TC-01,1,True,103.0,702d0718-0787-47d9-a375-63caf91a6f80,
+TC-01,2,True,79.8,e161a4e9-bbf7-4e62-8d8f-92204e2921a9,
+TC-01,3,True,81.9,475788c8-1289-42c7-81b8-77c916ae336e,
+TC-03,1,True,75.5,9fe26cc0-8c87-4c1f-b167-2382e02c0bfc,
+TC-03,2,True,64.7,3cefa586-66cf-410c-9d93-43077f043ff8,
+TC-03,3,True,68.4,7b77afe8-1fcc-45b0-9ad7-619b564b922e,
+TC-04,1,True,22.8,78a1a88b-fcff-41c2-be96-705f3871275d,
+TC-04,2,True,54.2,827ec42c-c2c9-4530-b61d-1a1d3250254e,
+TC-04,3,True,28.8,18dff90f-49af-4c89-8b64-238b30dd9d05,
+TC-05,1,False,45.3,b0fb09b7-d4fd-41eb-b35d-8aa86e6cb2c9,Agent không trả JSON: None
+TC-05,2,True,38.1,09f8e61e-c284-48c1-a35e-81590d921a11,
+TC-05,3,True,47.2,445b0102-b865-4950-879f-aa06030c0993,
+TC-10,1,True,62.7,70ae626c-1239-42fc-95f2-d234a8843199,
+TC-10,2,True,70.7,55b66249-30aa-4a2b-9bbb-e502dba1ec7a,
+TC-10,3,True,62.6,10c2ab01-f5f1-4061-8903-caa3219ab0f8,
+TC-14,1,True,33.1,d38d8448-d25e-4792-acc5-10f8352f5005,
+TC-14,2,True,15.6,101ecf62-67ed-40b1-8b88-5e034e30725d,
+TC-14,3,True,16.6,892211c1-94ea-4974-801f-a599d41467c3,
+TC-17,1,True,344.6,06d72a67-46b1-4d72-adfc-a54ad90a5388,
+TC-17,2,False,412.1,6e93c37e-8c06-42e9-b506-b35c5b5394fc,"TC-17: failed
+assert False
+ +  where False = TaskResult(task_id='6e93c37e-8c06-42e9-b506-b35c5b5394fc', status='failed', goal='Bắt đầu: tab Trang chủ. Bấm ảnh đại diện chữ cái ở góc phải trên để mở Hồ"
+TC-17,3,True,286.1,036619ed-e59c-4497-a91a-351b7b26e946,
+TC-05,1,False,255.5,12115d5a-6af3-4898-bfe2-47351794e338,"TC-05: failed assert False + where False = TaskResult(task_id='12115d5a-6af3-4898-bfe2-47351794e338', status='failed', goal='Bắt đầu: màn chi tiết một nhóm ở tab Khám phá. Bấm Xin tham gia. Trong shee"
+TC-05,2,False,192.9,44fc86d3-391d-4939-b840-a351248e0eaa,"TC-05: failed assert False + where False = TaskResult(task_id='44fc86d3-391d-4939-b840-a351248e0eaa', status='failed', goal='Bắt đầu: màn chi tiết một nhóm ở tab Khám phá. Bấm Xin tham gia. Trong shee"
+TC-05,1,True,97.2,b36dbaca-8fd5-40d9-9fd2-a1041ffa4f87,
+TC-05,2,True,65.6,996edf75-95e1-45a2-80ec-54244bc25f55,
+TC-05,3,True,41.3,66a7941e-68d3-446f-a67f-100a593831cc,
+TC-17,1,True,99.2,8f915b68-d5ae-4762-8c37-e57d1a9b22b3,
+TC-17,2,True,126.5,4ba17317-c4a6-4476-8f1c-5da9cf223233,
+TC-17,3,True,176.5,c21c10aa-73a1-4c8c-b950-0aabcbfa6e68,
