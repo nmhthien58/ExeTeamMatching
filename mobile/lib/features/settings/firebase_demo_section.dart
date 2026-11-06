@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/ai/ai_service.dart';
+import '../../core/firebase/push_notifications.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/view_state.dart';
 import 'firebase_demo_view_model.dart';
 
 /// Mục "Demo Firebase" ở A07 (Lab 3 §3): giá trị Remote Config đang dùng, gửi lỗi thử và crash thử
-/// (đều hỏi xác nhận), lối vào xuất / tải file và thông báo. Chỉ hiện khi `Env.firebaseDemo`.
+/// (đều hỏi xác nhận), lối vào xuất / tải file và thông báo, gửi lại device token. Chỉ hiện khi `Env.firebaseDemo`.
 class FirebaseDemoSection extends ConsumerWidget {
   const FirebaseDemoSection({super.key});
 
@@ -38,6 +39,17 @@ class FirebaseDemoSection extends ConsumerWidget {
   Future<void> _crash(BuildContext context, WidgetRef ref) async {
     if (!await _confirm(context, 'Crash thử?', 'Ứng dụng sẽ đóng ngay. Mở lại ứng dụng để báo cáo được gửi lên Crashlytics.')) return;
     await ref.read(firebaseDemoViewModelProvider.notifier).crash();
+  }
+
+  Future<void> _resendToken(BuildContext context, WidgetRef ref) async {
+    final result = await ref.read(firebaseDemoViewModelProvider.notifier).resendDeviceToken();
+    if (!context.mounted) return;
+    final message = switch (result) {
+      DeviceTokenResend.sent => 'Đã gửi lại device token.',
+      DeviceTokenResend.noToken => 'Máy chưa có device token. Hãy cho phép thông báo rồi thử lại.',
+      DeviceTokenResend.failed => 'Không gửi được device token. Kiểm tra kết nối rồi thử lại.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -80,6 +92,12 @@ class FirebaseDemoSection extends ConsumerWidget {
             title: const Text('Thông báo'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.go(links.notifications),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sync_outlined),
+            title: const Text('Gửi lại device token'),
+            subtitle: const Text('Đăng ký lại máy này để nhận thông báo đẩy.'),
+            onTap: () => _resendToken(context, ref),
           ),
         ],
         ListTile(

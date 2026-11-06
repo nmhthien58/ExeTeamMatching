@@ -5,6 +5,7 @@ import '../../core/config/env.dart';
 import '../../app/navigation.dart';
 import '../../core/auth/session.dart';
 import '../../core/firebase/crash_reporter.dart';
+import '../../core/firebase/push_notifications.dart';
 import '../../core/providers.dart';
 import '../../core/firebase/remote_config_service.dart';
 import '../../core/view_state.dart';
@@ -59,6 +60,9 @@ class FirebaseDemoViewModel extends Notifier<FirebaseDemoState> {
     await crash.setKey('demo_action', 'test_crash');
     await crash.testCrash();
   }
+
+  /// Đăng ký lại device token của máy này với backend.
+  Future<DeviceTokenResend> resendDeviceToken() => ref.read(pushNotificationsProvider.notifier).resendToken();
 }
 
 final firebaseDemoViewModelProvider =

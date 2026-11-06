@@ -61,9 +61,13 @@ class _FakeDevices extends DeviceTokensApi {
 
   final registered = <String>[];
   final removed = <String>[];
+  bool failRegister = false;
 
   @override
-  Future<void> register(String token) async => registered.add(token);
+  Future<void> register(String token) async {
+    if (failRegister) throw Exception('mất mạng');
+    registered.add(token);
+  }
 
   @override
   Future<void> remove(String token) async => removed.add(token);
@@ -145,6 +149,22 @@ void main() {
     expect(messaging.registerCalls, 1);
     expect(devices.registered, ['fid-1', 'fid-2']);
     expect(container.read(pushNotificationsProvider).token, 'fid-2');
+  });
+
+  test('A07 gửi lại token hiện tại và báo đúng kết quả (MB-54)', () async {
+    final push = container.read(pushNotificationsProvider.notifier);
+    expect(await push.resendToken(), DeviceTokenResend.noToken);
+    expect(devices.registered, isEmpty);
+
+    messaging.registrationId = 'fid-1';
+    await push.start();
+    await settle();
+
+    expect(await push.resendToken(), DeviceTokenResend.sent);
+    expect(devices.registered, ['fid-1', 'fid-1']);
+
+    devices.failRegister = true;
+    expect(await push.resendToken(), DeviceTokenResend.failed);
   });
 
   test('foreground làm mới A06 và phát sự kiện banner', () async {

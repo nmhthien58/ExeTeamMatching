@@ -14,6 +14,8 @@ enum PushPermission { unknown, authorized, denied }
 
 enum PushUiEventKind { foreground, opened, permissionDenied }
 
+enum DeviceTokenResend { sent, noToken, failed }
+
 class PushMessage {
   const PushMessage({
     required this.title,
@@ -217,6 +219,19 @@ class PushNotificationsController extends Notifier<PushNotificationsState> {
       await _messaging.openNotificationSettings();
     } catch (error) {
       debugPrint('Open notification settings failed: $error');
+    }
+  }
+
+  /// Nút "Gửi lại device token" ở A07 (MB-54): đăng ký lại token hiện tại và báo kết quả cho người dùng.
+  Future<DeviceTokenResend> resendToken() async {
+    final token = state.token;
+    if (token == null || token.isEmpty) return DeviceTokenResend.noToken;
+    try {
+      await _devices.register(token);
+      return DeviceTokenResend.sent;
+    } catch (error) {
+      debugPrint('Resend FCM device token failed: $error');
+      return DeviceTokenResend.failed;
     }
   }
 
