@@ -66,7 +66,7 @@ Hiện / ẩn nút theo `ref.watch(remoteConfigProvider).aiIdeaEnabled`. Test gh
 | Khóa | Kiểu | Mặc định (`firebase/remote-config-defaults.json`) | Tác dụng |
 |---|---|---|---|
 | `ai_idea_enabled` | bool | `false` | Tắt → `AiException('disabled')`, không gọi mạng; S09 ẩn nút |
-| `ai_model` | string | `gemini-2.5-flash` | Tên model Gemini; trống → mặc định |
+| `ai_model` | string | `gemini-3.8-flash` | Tên model Gemini; trống → mặc định |
 | `ai_prompt` | string | Prompt hệ thống bên dưới | System instruction; trống → mặc định |
 
 Prompt mặc định:

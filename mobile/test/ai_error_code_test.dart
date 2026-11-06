@@ -15,4 +15,9 @@ void main() {
     expect(aiErrorCode(FirebaseAIException('429 RESOURCE_EXHAUSTED')), AiException.quota);
     expect(aiErrorCode(FirebaseAIException('something else')), AiException.unknown);
   });
+
+  test('model quá tải (503) báo như quota, App Check bị giới hạn lượt thử là denied', () {
+    expect(aiErrorCode(FirebaseAIException('503 UNAVAILABLE: This model is currently experiencing high demand.')), AiException.quota);
+    expect(aiErrorCode(FirebaseAIException('firebase_app_check: Too many attempts.')), AiException.denied);
+  });
 }
