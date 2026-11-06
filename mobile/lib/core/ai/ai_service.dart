@@ -120,7 +120,7 @@ class FirebaseAiService implements AiService {
     } catch (e, s) {
       final code = aiErrorCode(e);
       await _analytics.logAiError(feature: aiFeatureIdeaSuggest, errorCode: code);
-      if (code == AiException.unknown) await _crash.recordNonFatal(e, s, reason: 'ai_$aiFeatureIdeaSuggest');
+      if (code == AiException.unknown || code == AiException.denied) await _crash.recordNonFatal(e, s, reason: 'ai_$aiFeatureIdeaSuggest');
       throw AiException(code);
     }
   }
@@ -148,6 +148,9 @@ String aiErrorCode(Object error) {
     }
     // `response.text` ném "Response was blocked…" / "Candidate was blocked due to safety…".
     if (lower.contains('blocked')) return AiException.blocked;
+    if (lower.contains('app check') || lower.contains('appcheck') || lower.contains('permission_denied') || lower.contains('403')) {
+      return AiException.denied;
+    }
     return AiException.unknown;
   }
   // package:http bọc lỗi socket trong ClientException ("ClientException with SocketException: …").

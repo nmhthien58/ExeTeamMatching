@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/ai/ai_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/view_state.dart';
+import '../discover/idea_suggest_view_model.dart' show aiErrorMessage;
 import 'firebase_demo_view_model.dart';
 
 /// Mục "Demo Firebase" ở A07 (Lab 3 §3): giá trị Remote Config đang dùng, gửi lỗi thử và crash thử
@@ -120,7 +121,17 @@ class _AiDemoDialogState extends ConsumerState<_AiDemoDialog> {
     super.dispose();
   }
 
-  void _send() => ref.read(aiDemoViewModelProvider.notifier).suggest(_description.text);
+  bool _emptyError = false;
+
+  // Ô trống thì báo ngay dưới ô thay vì bấm Gửi mà không có phản hồi (góp ý khi thử máy thật 06/11/2026).
+  void _send() {
+    if (_description.text.trim().isEmpty) {
+      setState(() => _emptyError = true);
+      return;
+    }
+    setState(() => _emptyError = false);
+    ref.read(aiDemoViewModelProvider.notifier).suggest(_description.text);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -139,9 +150,11 @@ class _AiDemoDialogState extends ConsumerState<_AiDemoDialog> {
               minLines: 2,
               maxLines: 5,
               enabled: !loading,
-              decoration: const InputDecoration(
+              onChanged: (_) => _emptyError ? setState(() => _emptyError = false) : null,
+              decoration: InputDecoration(
                 labelText: 'Mô tả ý tưởng',
                 hintText: 'Ví dụ: app giúp sinh viên tìm phòng trọ gần trường, có đánh giá của người thuê cũ',
+                errorText: _emptyError ? 'Nhập vài câu mô tả ý tưởng trước khi gửi.' : null,
               ),
             ),
             const SizedBox(height: AppSpacing.s3),
@@ -149,7 +162,8 @@ class _AiDemoDialogState extends ConsumerState<_AiDemoDialog> {
               null || ViewEmpty() => const SizedBox.shrink(),
               ViewLoading() => const LinearProgressIndicator(),
               ViewError(:final error) => Text(
-                'Lỗi: ${error is AiException ? error.code : error}',
+                // Câu tiếng Việt như S09; mã lỗi để trong ngoặc cho người chụp bằng chứng.
+                error is AiException ? '${aiErrorMessage(error.code)} (mã: ${error.code})' : 'Đã có lỗi xảy ra.',
                 style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
               ),
               ViewData(value: final d) => SelectableText(
