@@ -4,7 +4,9 @@
 
 Đối chiếu 5 màn đề yêu cầu với màn đã có trên web. Lần đầu kiểm tra ngày 04/11/2026 trên Docker Compose local. Sau FE-49 (giao diện mới), **chạy lại ngày 05/11/2026 trên bản Hosting** `https://exe-team-matching.web.app`, backend Docker trên máy, theo `docs/setup/deploy.md`; mọi ảnh dưới đây là ảnh của lần chạy lại.
 
-**Chưa xong:** khi BE-85 lên Railway phải chạy lại bảng này trên bản đó.
+**Chạy lại trên Railway (06/11/2026), phần chưa đăng nhập:** Gateway `GET /health` 200, `POST /api/dev/token` 404, gọi API không có JWT 401; chưa đăng nhập mở `/admin` trên bản Hosting thì về `/dang-nhap`. Đạt.
+
+**Chưa xong:** các dòng còn lại của bảng cần đăng nhập Google bằng tài khoản Bộ môn trên Railway, vì bản này đã chặn `/api/dev/token`. Ảnh trong bảng vẫn là ảnh của lần chạy 05/11.
 
 ### Cách kiểm tra
 
@@ -69,6 +71,18 @@ Thử ngày 05/11/2026 trên Docker Compose local, SeaweedFS thật, gọi thẳ
 | Mở URL S3 không có chữ ký | 403 | Đạt |
 | Sửa chữ ký trên link | 403 | Đạt |
 | Đổi đường dẫn sang người khác, giữ chữ ký | 403 | Đạt |
-| Mất mạng khi tải lên | App báo "Mất kết nối…", có nút Thử lại | Đạt ở test ViewModel và widget, **chưa thử trên máy thật** |
+| Mất mạng khi tải lên | App báo "Mất kết nối…", có nút Thử lại | Đạt ở test ViewModel và widget, và trên máy thật (bảng dưới) |
 
-**Chưa kiểm tra:** chưa bấm nút trên điện thoại thật, chưa mở PDF đã tạo bằng trình đọc PDF trên máy.
+## Thử trên máy thật (MB-53, MB-54, MB-61)
+
+Thử ngày 06/11/2026 trên Samsung SM-S938B, Android 17, APK release trỏ về Gateway Railway, tài khoản sinh viên `SE193559` được Bộ môn thêm tạm vào Nhóm Sao Mai để có workspace. Test tay, chưa qua `adb`.
+
+| Task | Trường hợp | Kết quả | Ảnh |
+|---|---|---|---|
+| MB-54 | A07: bấm "Gửi lại device token" | Đạt, báo "Đã gửi lại device token." | [mb54-1](../evidence/firebase/mb54-1-gui-lai-device-token.png) |
+| MB-61 | Crash thử ở A07, mở lại app, xem W30 | Đạt, W30 hiện `TestCrashError` Fatal lúc 20:13, đúng thiết bị, vai trò, có stack trace, chỉ có mã người dùng | [mb61-1](../evidence/firebase/mb61-1-w30-danh-sach.png), [mb61-2](../evidence/firebase/mb61-2-w30-chi-tiet-crash.png) |
+| MB-53 | C01: xuất PDF, mở bằng trình đọc trên máy | Đạt, nội dung khớp C01, tiếng Việt đúng dấu | [mb53-1](../evidence/firebase/mb53-1-c01-du-an.png), [mb53-2](../evidence/firebase/mb53-2-da-luu-bao-cao.png), [mb53-3](../evidence/firebase/mb53-3-pdf-tren-may.png) |
+| MB-53 | Bật Chế độ máy bay rồi xuất | Đạt, báo "Mất kết nối. Kiểm tra mạng rồi thử lại.", có nút Thử lại | [mb53-4](../evidence/firebase/mb53-4-mat-ket-noi.png) |
+| MB-53 | Có mạng lại, bấm Thử lại | Đạt, hiện "Đã lưu báo cáo" | [mb53-5](../evidence/firebase/mb53-5-thu-lai-thanh-cong.png) |
+
+**Ghi nhận thêm:** W30 có 32 lỗi `firebase_app_check ... Too many attempts` ở `/sv/kham-pha`, do APK này build không kèm debug token App Check nên AI bị chặn (MB-56).
