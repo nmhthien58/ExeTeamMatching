@@ -35,6 +35,9 @@ public interface IMessageRepository
 
     Task<Dictionary<Guid, int>> CountRepliesAsync(IReadOnlyCollection<Guid> rootIds, CancellationToken ct);
 
+    /// <summary>Id file đính kèm của từng tin.</summary>
+    Task<ILookup<Guid, Guid>> ListAttachmentIdsAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken ct);
+
     Task<Dictionary<Guid, AdvisorQuestion>> ListQuestionsAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken ct);
 
     /// <summary>Được theo dõi.</summary>
@@ -90,6 +93,10 @@ public sealed class MessageRepository(CollabDbContext db) : IMessageRepository
             .ToListAsync(ct);
         return counts.ToDictionary(c => c.Key!.Value, c => c.Count);
     }
+
+    public async Task<ILookup<Guid, Guid>> ListAttachmentIdsAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken ct) =>
+        (await db.Set<MessageAttachment>().AsNoTracking().Where(a => messageIds.Contains(a.MessageId)).ToListAsync(ct))
+            .ToLookup(a => a.MessageId, a => a.FileId);
 
     public Task<Dictionary<Guid, AdvisorQuestion>> ListQuestionsAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken ct) =>
         db.Set<AdvisorQuestion>().AsNoTracking().Where(q => messageIds.Contains(q.MessageId)).ToDictionaryAsync(q => q.MessageId, ct);

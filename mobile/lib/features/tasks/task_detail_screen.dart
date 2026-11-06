@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../files/file_services.dart';
@@ -10,6 +9,7 @@ import '../workspace/format.dart';
 import '../workspace/workspace_api.dart';
 import '../workspace/workspace_models.dart';
 import '../workspace/workspace_widgets.dart';
+import 'task_detail_view_model.dart';
 import 'task_form_sheet.dart';
 
 /// C05 – Chi tiết việc / bài nộp (MB-40, quy tắc 23): tiêu đề, trạng thái, người làm, hạn, mô tả, bình luận.
@@ -25,48 +25,42 @@ class TaskDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
-  bool _busy = false;
-  String? _error;
+  TaskDetailViewModel get _vm => ref.read(taskDetailViewModelProvider(widget.taskId).notifier);
 
-  void _refresh() {
-    ref.invalidate(taskDetailProvider(widget.taskId));
-    ref.invalidate(taskBoardProvider);
+  /// `build()` đã watch ViewModel nên các hàm dựng con đọc giá trị mới nhất.
+  TaskActionState get _action => ref.read(taskDetailViewModelProvider(widget.taskId));
+  bool get _busy => _action.busy;
+  String? get _error => _action.error;
+
+  void _refresh() => _vm.refresh();
+
+  Future<void> _openSubmission(Submission s) async {
+    final error = await _vm.openSubmission(s);
+    if (error != null && mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
   }
 
   void _snack(String message) => ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
 
-  /// Chạy một thao tác ghi: khóa bấm lần hai, lỗi hiện ở banner đầu màn (không dùng snackbar cho lỗi).
-  Future<bool> _run(Future<void> Function() action, {String? success}) async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await action();
-      _refresh();
-      if (success != null && mounted) _snack(success);
-      return true;
-    } catch (e) {
-      if (mounted) setState(() => _error = e.apiError.detail ?? e.apiError.title);
-      return false;
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+  /// Chạy một thao tác ghi; lỗi hiện ở banner đầu màn (không dùng snackbar cho lỗi).
+  Future<bool> _run(Future<bool> Function() action, {String? success}) async {
+    final ok = await action();
+    if (ok && success != null && mounted) _snack(success);
+    return ok;
   }
 
   Future<void> _submit(WorkspaceOverview ws) async {
     final versionId = await pickProjectFileVersion(context, ws.id);
     if (versionId == null) return;
-    await _run(() => ref.read(collabApiProvider).submit(widget.taskId, versionId), success: 'Đã nộp bài');
+    await _run(() => _vm.submit(versionId), success: 'Đã nộp bài');
   }
 
   Future<void> _review(Submission submission, {required bool accepted}) async {
     final comment = await showDialog<String>(context: context, builder: (_) => _ReviewDialog(accepted: accepted));
     if (comment == null) return;
     await _run(
-      () => ref.read(collabApiProvider).review(submission.id, accepted: accepted, comment: comment),
+      () => _vm.review(submission, accepted: accepted, comment: comment),
       success: accepted ? 'Đã đánh dấu đạt' : 'Đã yêu cầu sửa',
     );
   }
@@ -88,17 +82,17 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
       ),
     );
     if (ok != true) return;
-    if (await _run(() => ref.read(collabApiProvider).deleteTask(task.card.id)) && mounted) Navigator.pop(context);
+    if (await _run(_vm.delete) && mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(taskDetailViewModelProvider(widget.taskId));
     final workspace = ref.watch(currentWorkspaceProvider(widget.workspaceId));
     final task = ref.watch(taskDetailProvider(widget.taskId));
     final ws = workspace.value;
     final detail = task.value;
-    final canManage = ws != null && detail != null && !detail.card.isArchive &&
-        (detail.card.isDeliverable ? ws.myRole == WorkspaceRole.instructor : ws.canEdit);
+    final canManage = TaskDetailViewModel.canManage(ws, detail);
 
     return Scaffold(
       appBar: AppBar(
@@ -109,9 +103,9 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
               tooltip: 'Tùy chọn',
               onSelected: (v) async {
                 if (v == 'edit') {
-                  if (await showTaskFormSheet(context, workspace: ws, task: detail)) _refresh();
+                  if (await showTaskFormSheet(context, workspace: ws!, task: detail)) _refresh();
                 } else {
-                  await _delete(detail);
+                  await _delete(detail!);
                 }
               },
               itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('Sửa')), PopupMenuItem(value: 'delete', child: Text('Xóa'))],
@@ -152,7 +146,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
           SegmentedButton<TaskStatus>(
             segments: [for (final s in TaskStatus.values) ButtonSegment(value: s, label: Text(s.label))],
             selected: {card.status},
-            onSelectionChanged: _busy ? null : (s) => _run(() => ref.read(collabApiProvider).moveTask(card.id, s.single)),
+            onSelectionChanged: _busy ? null : (s) => _vm.move(s.single),
           ),
         ],
         const SizedBox(height: AppSpacing.s4),
@@ -176,10 +170,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
         const SizedBox(height: AppSpacing.s2),
         CommentList(comments: task.comments),
         if (ws.myRole != WorkspaceRole.admin && !card.isArchive)
-          CommentComposer(onSend: (body) async {
-            await ref.read(collabApiProvider).commentTask(card.id, body);
-            _refresh();
-          }),
+          CommentComposer(onSend: _vm.comment),
       ],
     );
   }
@@ -207,7 +198,7 @@ class _TaskDetailScreenState extends ConsumerState<TaskDetailScreen> {
                     leading: Icon(fileIcon(s.fileName)),
                     title: Text('${s.fileName} · v${s.version}', maxLines: 2, overflow: TextOverflow.ellipsis),
                     subtitle: Text('${s.submittedBy.displayName} · ${formatRelative(s.submittedAt)}'),
-                    onTap: () async => ref.read(openUrlProvider)(await ref.read(collabApiProvider).downloadUrl(s.fileId, version: s.version)),
+                    onTap: () => _openSubmission(s),
                   ),
                   Wrap(spacing: AppSpacing.s2, runSpacing: AppSpacing.s2, children: [
                     SubmissionChip(status: s.reviewStatus),

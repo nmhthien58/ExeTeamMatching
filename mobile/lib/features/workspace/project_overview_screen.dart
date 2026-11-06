@@ -2,25 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import 'format.dart';
+import 'project_overview_view_model.dart';
+import 'report_export_card.dart';
+import 'report_view_model.dart';
 import 'workspace_api.dart';
 import 'workspace_models.dart';
 import 'workspace_widgets.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 
-/// Số liệu 4 thẻ của C01 tính từ bảng việc.
-({int mine, int dueSoon, int pendingReview}) taskStats(List<TaskCard> tasks, String? myStudentId, {DateTime? now}) {
-  final n = now ?? DateTime.now();
-  final open = tasks.where((t) => t.status != TaskStatus.done && !t.isArchive);
-  final soon = n.add(const Duration(days: 3));
-  return (
-    mine: myStudentId == null ? 0 : open.where((t) => t.assignees.any((a) => a.personId == myStudentId)).length,
-    dueSoon: open.where((t) => t.dueAt != null && !t.dueAt!.isBefore(n) && !t.dueAt!.isAfter(soon)).length,
-    pendingReview: tasks.where((t) => t.isDeliverable && t.submissionStatus == SubmissionStatus.pending).length,
-  );
-}
+export 'project_overview_view_model.dart' show taskStats;
 
 /// C01 – Dự án (MB-40, flutter-handoff 4a): đầu trang nhóm và cố vấn, 4 thẻ số liệu bấm được, lối tắt, "Mới cập nhật".
 /// Mentor thấy thêm thẻ tóm tắt với "Buổi mentor n/3". Trạng thái: có dữ liệu · nhóm mới · đang tải · lỗi tải.
@@ -37,7 +30,7 @@ class ProjectOverviewScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final workspace = ref.watch(currentWorkspaceProvider(workspaceId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Dự án'), automaticallyImplyLeading: workspaceId != null),
+      appBar: const BrandAppBar(title: 'Dự án'),
       body: workspace.when(
         loading: () => const SkeletonList(count: 3),
         error: (error, _) => ErrorState(error: error, onRetry: () => ref.invalidate(currentWorkspaceProvider(workspaceId))),
@@ -62,17 +55,13 @@ class _Overview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final query = (workspaceId: workspace.id, mine: false, deliverablesOnly: false, overdue: false, includeArchive: false);
-    final tasks = ref.watch(taskBoardProvider(query));
-    final studentId = ref.watch(authControllerProvider).value?.studentId;
-    final stats = taskStats(tasks.value ?? const [], studentId);
-    final isNewTeam = tasks.hasValue && tasks.value!.isEmpty && workspace.recentActivity.isEmpty;
+    final key = (workspaceId: workspace.id, hasRecentActivity: workspace.recentActivity.isNotEmpty);
+    final overview = ref.watch(projectOverviewViewModelProvider(key));
+    final stats = overview.stats;
+    final isNewTeam = overview.isNewTeam;
 
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(workspaceProvider(workspace.id));
-        ref.invalidate(taskBoardProvider(query));
-      },
+      onRefresh: ref.read(projectOverviewViewModelProvider(key).notifier).refresh,
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
@@ -85,22 +74,27 @@ class _Overview extends ConsumerWidget {
                   ? _StatCard(
                       label: 'Việc của tôi',
                       value: stats.mine,
-                      loading: tasks.isLoading,
+                      loading: overview.loading,
                       onTap: () => context.push('$basePath/viec?mine=1'),
                     )
                   : _StatCard(
                       label: 'Bài nộp chờ duyệt',
                       value: stats.pendingReview,
-                      loading: tasks.isLoading,
+                      loading: overview.loading,
                       onTap: () => context.push('$basePath/viec?kind=DELIVERABLE'),
                     ),
-              _StatCard(label: 'Sắp đến hạn', value: stats.dueSoon, loading: tasks.isLoading, onTap: () => context.push('$basePath/viec')),
+              _StatCard(label: 'Sắp đến hạn', value: stats.dueSoon, loading: overview.loading, onTap: () => context.push('$basePath/viec')),
               _StatCard(label: 'Họp sắp tới', value: workspace.upcomingMeetingCount, onTap: () => context.push('$basePath/lich-hop')),
               _StatCard(label: 'Câu hỏi chờ', value: workspace.openQuestionCount, onTap: () => context.push('$basePath/tin-nhan')),
             ],
           ),
           const SizedBox(height: AppSpacing.s3),
           _Shortcuts(basePath: basePath),
+          const SizedBox(height: AppSpacing.s3),
+          ReportExportCard(
+            workspaceId: workspace.id,
+            data: () => reportDataFrom(workspace, stats: stats, now: DateTime.now()),
+          ),
           const SizedBox(height: AppSpacing.s3),
           Card.outlined(
             child: Padding(

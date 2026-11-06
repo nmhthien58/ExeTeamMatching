@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_tokens.dart';
 import 'onboarding_store.dart';
+import 'onboarding_view_model.dart';
 
 /// A02. Ba nội dung giới thiệu; Bỏ qua và Hoàn tất đều ghi nhận đã xem.
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({
     super.key,
     required this.onFinished,
@@ -15,13 +17,12 @@ class OnboardingScreen extends StatefulWidget {
   final OnboardingStore? onboardingStore;
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
   int _index = 0;
-  bool _finishing = false;
 
   static const _slides = [
     (
@@ -42,23 +43,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   Future<void> _finish() async {
-    if (_finishing) return;
-    setState(() => _finishing = true);
-    try {
-      await (widget.onboardingStore ?? OnboardingStore()).markSeen();
-      if (mounted) widget.onFinished();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Không lưu được trạng thái giới thiệu. Vui lòng thử lại.',
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _finishing = false);
+    if (ref.read(onboardingViewModelProvider)) return;
+    final done = await ref
+        .read(onboardingViewModelProvider.notifier)
+        .finish(store: widget.onboardingStore);
+    if (!mounted) return;
+    if (done) {
+      widget.onFinished();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(OnboardingViewModel.saveFailed)),
+      );
     }
   }
 
@@ -71,6 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final finishing = ref.watch(onboardingViewModelProvider);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -80,7 +76,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _finishing ? null : _finish,
+                  onPressed: finishing ? null : _finish,
                   child: const Text('Bỏ qua'),
                 ),
               ),
@@ -136,7 +132,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _finishing
+                  onPressed: finishing
                       ? null
                       : _index == _slides.length - 1
                       ? _finish

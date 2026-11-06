@@ -91,4 +91,5 @@ CREATE TABLE identity.processed_events (
     CONSTRAINT pk_processed_events PRIMARY KEY (event_id)
 );
 
-RESET ROLE;
+-- BE-87 – client_error_reports: một bản định nghĩa duy nhất, volume cũ chạy trực tiếp file này.
+\ir migrations/BE-87_client_error_reports.sql

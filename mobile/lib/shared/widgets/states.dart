@@ -23,8 +23,24 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: AppSpacing.s3),
+            // DESIGN.md 6.1: icon 48 màu Primary trong vòng 96 nền Primary Container; bản 6 thêm bóng nổi và hiện dần.
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.85, end: 1),
+              duration: AppMotion.of(context, const Duration(milliseconds: 420)),
+              curve: Curves.easeOutBack,
+              builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                  boxShadow: AppShadows.raised,
+                ),
+                child: Icon(icon, size: 48, color: theme.colorScheme.primary),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s4),
             Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
             if (description != null) ...[
               const SizedBox(height: AppSpacing.s1),
@@ -173,21 +189,37 @@ class SkeletonList extends StatelessWidget {
 
 /// Nút chính khi đang gửi: vòng xoay 20 px thay chữ, giữ chiều rộng, khóa bấm lần hai (DESIGN.md 6.1).
 class LoadingButton extends StatelessWidget {
-  const LoadingButton({super.key, required this.label, required this.onPressed, this.loading = false, this.expand = true});
+  const LoadingButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+    this.expand = true,
+    this.leading,
+  });
 
   final String label;
   final VoidCallback? onPressed;
   final bool loading;
   final bool expand;
 
+  /// Icon đứng trước nhãn (ví dụ logo Google ở A03); ẩn cùng nhãn khi đang gửi.
+  final Widget? leading;
+
   @override
   Widget build(BuildContext context) {
+    final content = leading == null
+        ? Text(label)
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [leading!, const SizedBox(width: AppSpacing.s3), Flexible(child: Text(label))],
+          );
     final button = FilledButton(
       onPressed: loading ? null : onPressed,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Opacity(opacity: loading ? 0 : 1, child: Text(label)),
+          Opacity(opacity: loading ? 0 : 1, child: content),
           if (loading)
             SizedBox.square(
               dimension: 20,

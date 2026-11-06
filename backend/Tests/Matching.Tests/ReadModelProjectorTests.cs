@@ -27,6 +27,50 @@ public sealed class ReadModelProjectorTests
     }
 
     [Fact]
+    public async Task Student_imported_into_new_semester_starts_without_team()
+    {
+        // Id sinh viên dùng chung giữa các học kỳ: nhóm EXE101 không được làm sinh viên "đã có nhóm" ở EXE201.
+        var s = new Scenario();
+        var student = await s.StudentAsync(Scenario.SE);
+        await s.TeamAsync("Nhóm EXE101", student);
+        var nextSemester = Guid.NewGuid();
+
+        await s.Projector.HandleAsync(new StudentImported(student, "SV 001", Scenario.SE, nextSemester, Courses.Exe201), Ct);
+
+        Assert.Null((await s.Model.GetStudentAsync(student, Ct))!.TeamId);
+        Assert.Contains(student, (await s.Model.GetStudentsAsync(nextSemester, Courses.Exe201, Ct)).Select(x => x.Id));
+    }
+
+    [Fact]
+    public async Task Student_imported_after_creating_team_in_new_semester_keeps_team()
+    {
+        // exe.student và exe.team đọc riêng: TeamCreated của học kỳ mới có thể tới trước StudentImported.
+        var s = new Scenario();
+        var student = await s.StudentAsync(Scenario.SE);
+        await s.TeamAsync("Nhóm EXE101", student);
+        var nextSemester = Guid.NewGuid();
+        var nextTeam = Guid.NewGuid();
+
+        await s.Projector.HandleAsync(new TeamCreated(nextTeam, nextSemester, Courses.Exe101, "Nhóm mới", student, null), Ct);
+        await s.Projector.HandleAsync(new StudentImported(student, "SV 001", Scenario.SE, nextSemester, Courses.Exe101), Ct);
+
+        var view = (await s.Model.GetStudentsAsync(nextSemester, Courses.Exe101, Ct)).Single(x => x.Id == student);
+        Assert.Equal(nextTeam, view.TeamId);
+    }
+
+    [Fact]
+    public async Task Student_imported_again_in_same_semester_keeps_team()
+    {
+        var s = new Scenario();
+        var student = await s.StudentAsync(Scenario.SE);
+        var team = await s.TeamAsync("Nhóm A", student);
+
+        await s.Projector.HandleAsync(new StudentImported(student, "SV 001", Scenario.SE, s.SemesterId, Courses.Exe101), Ct);
+
+        Assert.Equal(team, (await s.Model.GetStudentAsync(student, Ct))!.TeamId);
+    }
+
+    [Fact]
     public async Task Late_member_left_of_old_team_does_not_clear_new_team()
     {
         var s = new Scenario();

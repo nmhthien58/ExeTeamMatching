@@ -11,8 +11,8 @@ export type HubGroup = 'Channel' | 'Workspace'
 /** Phần của HubConnection mà client dùng – test thay bằng bản giả. */
 export type HubConnectionLike = Pick<HubConnection, 'start' | 'stop' | 'on' | 'off' | 'invoke' | 'onreconnecting' | 'onreconnected' | 'onclose'>
 
-// shortcut: token lấy lúc (re)kết nối, không tự refresh – kết nối lại sau khi access token hết hạn (15 phút) sẽ báo mất kết nối
-// cho tới khi một lời gọi REST refresh token; bấm Thử lại là đủ. Thêm refresh vào accessTokenFactory nếu hay gặp.
+// Token lấy lúc (re)kết nối, hub không tự refresh: thiếu token thì mất kết nối, rồi tự kết nối lại khi REST refresh xong
+// (xem `CollabHub` – nghe tokenStore).
 const createConnection = (): HubConnectionLike =>
   new HubConnectionBuilder()
     .withUrl(`${env.apiBaseUrl}/hubs/collab`, { accessTokenFactory: () => tokenStore.getAccessToken() ?? '' })
@@ -31,7 +31,15 @@ export class CollabHub {
   private listeners = new Set<(status: HubStatus) => void>()
   status: HubStatus = 'idle'
 
-  constructor(private readonly factory: () => HubConnectionLike = createConnection) {}
+  constructor(
+    private readonly factory: () => HubConnectionLike = createConnection,
+    private readonly tokens: Pick<typeof tokenStore, 'subscribe' | 'getAccessToken'> = tokenStore,
+  ) {
+    // Tải lại trang: hub có thể kết nối trước khi REST refresh access token (401). Token mới về thì thử lại.
+    tokens.subscribe((user) => {
+      if (user && this.users > 0 && this.status === 'disconnected') void this.start()
+    })
+  }
 
   subscribe(listener: (status: HubStatus) => void) {
     this.listeners.add(listener)
@@ -83,12 +91,15 @@ export class CollabHub {
 
   private async start() {
     this.setStatus('connecting')
+    const hadToken = !!this.tokens.getAccessToken()
     try {
       await this.ensure().start()
       this.setStatus('connected')
       this.rejoin()
     } catch {
       this.setStatus('disconnected')
+      // Token được refresh trong lúc đang kết nối (chưa ở trạng thái mất kết nối nên subscribe bỏ qua) → thử lại ngay.
+      if (!hadToken && this.tokens.getAccessToken() && this.users > 0) void this.start()
     }
   }
 

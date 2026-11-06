@@ -1,5 +1,6 @@
 using BuildingBlocks.Outbox;
 using Identity.Repositories.Accounts;
+using Identity.Repositories.ClientErrors;
 using Identity.Repositories.Tokens;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,7 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
     public DbSet<UserAccountRole> UserAccountRoles => Set<UserAccountRole>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<ClientErrorReport> ClientErrorReports => Set<ClientErrorReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +72,24 @@ public class IdentityDbContext(DbContextOptions<IdentityDbContext> options) : Db
                 .HasConstraintName("fk_refresh_tokens_user_account").OnDelete(DeleteBehavior.Cascade);
             e.HasOne<RefreshToken>().WithMany().HasForeignKey(x => x.ReplacedByTokenId)
                 .HasConstraintName("fk_refresh_tokens_replaced_by").OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ClientErrorReport>(e =>
+        {
+            e.ToTable("client_error_reports");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Kind).HasMaxLength(20);
+            e.Property(x => x.Message).HasMaxLength(2000);
+            e.Property(x => x.ExceptionType).HasMaxLength(200);
+            e.Property(x => x.FirstStackLine).HasMaxLength(300);
+            e.Property(x => x.Platform).HasMaxLength(20);
+            e.Property(x => x.AppVersion).HasMaxLength(30);
+            e.Property(x => x.DeviceModel).HasMaxLength(100);
+            e.Property(x => x.OsVersion).HasMaxLength(100);
+            e.Property(x => x.Role).HasMaxLength(20);
+            e.Property(x => x.Screen).HasMaxLength(200);
+            e.HasIndex(x => x.OccurredAt).HasDatabaseName("idx_client_error_reports_occurred_at");
+            e.HasIndex(x => new { x.Kind, x.OccurredAt }).HasDatabaseName("idx_client_error_reports_kind_occurred_at");
         });
     }
 }

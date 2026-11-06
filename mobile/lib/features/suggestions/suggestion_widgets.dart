@@ -1,24 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
-import '../../shared/widgets/team_requirement_bar.dart';
+import '../../shared/widgets/team_card_view.dart';
 import '../workspace/workspace_widgets.dart';
 import 'suggestions_api.dart';
+import 'suggestions_view_model.dart';
 
+/// Mức phù hợp (bản 6, MB-64): "Rất phù hợp" nền cam chữ trắng, "Phù hợp" nền cam nhạt chữ cam đậm, "Có thể phù hợp"
+/// nền xám nhạt chữ phụ – cùng một màu nhấn thay cho ba màu xanh lá / xanh dương / xám của bản 5.
 class FitChip extends StatelessWidget {
   const FitChip({super.key, required this.score});
 
   final double score;
 
   @override
-  Widget build(BuildContext context) => StatusChip(
-        label: fitLabel(score),
-        tone: score >= 0.6 ? StatusTone.success : score >= 0.3 ? StatusTone.info : StatusTone.neutral,
-        icon: Icons.auto_awesome,
-      );
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final (bg, fg) = score >= 0.6
+        ? (scheme.primary, scheme.onPrimary)
+        : score >= 0.3
+            ? (scheme.primaryContainer, scheme.onPrimaryContainer)
+            : (context.appColors.neutralContainer, scheme.onSurfaceVariant);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3, vertical: AppSpacing.s1 + 2),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.full)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, size: 16, color: fg),
+          const SizedBox(width: AppSpacing.s1),
+          Text(fitLabel(score), style: theme.textTheme.labelLarge?.copyWith(color: fg, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
 }
 
 /// Lý do gợi ý do Matching trả về – mỗi dòng một ý.
@@ -61,7 +79,7 @@ class DomainChips extends StatelessWidget {
         spacing: AppSpacing.s2,
         runSpacing: AppSpacing.s2,
         children: [
-          for (final d in domains.take(2)) Chip(label: Text('${d.code} ${d.name}')),
+          for (final d in domains.take(2)) Chip(label: Text(d.name)), // chỉ tên, không mã D01… (06/11/2026)
           if (domains.length > 2) Chip(label: Text('+${domains.length - 2}')),
         ],
       );
@@ -78,40 +96,23 @@ class TeamSuggestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final team = suggestion.team;
-    return Card.outlined(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: AppSpacing.s2,
-                runSpacing: AppSpacing.s2,
-                children: [
-                  Text(team.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  FitChip(score: suggestion.score),
-                ],
-              ),
-              if (team.projectName != null) Text(team.projectName!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              const SizedBox(height: AppSpacing.s2),
-              DomainChips(domains: team.domains),
-              const SizedBox(height: AppSpacing.s2),
-              TeamRequirementBar(memberCount: team.memberCount, maxMembers: team.maxSize),
-              if (team.memberCount < team.maxSize)
-                Text('Còn ${team.maxSize - team.memberCount} chỗ', style: theme.textTheme.bodyMedium),
-              if (team.missingSpecializations.isNotEmpty)
-                Text('Đang thiếu: ${team.missingSpecializations.map((s) => s.name).join(', ')}', style: theme.textTheme.bodyMedium),
-              Reasons(reasons: suggestion.reasons),
-            ],
-          ),
-        ),
-      ),
+    return TeamCardView(
+      seed: team.id,
+      name: team.name,
+      projectName: team.projectName,
+      domains: [for (final d in team.domains) d.name],
+      memberCount: team.memberCount,
+      maxSize: team.maxSize,
+      badge: FitChip(score: suggestion.score),
+      highlighted: suggestion.score >= 0.6,
+      onTap: onTap,
+      extra: [
+        if (team.missingSpecializations.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.s2),
+          Text('Đang thiếu: ${team.missingSpecializations.map((s) => s.name).join(', ')}', style: theme.textTheme.bodyMedium),
+        ],
+        if (suggestion.reasons.isNotEmpty) ...[const SizedBox(height: AppSpacing.s1), Reasons(reasons: suggestion.reasons)],
+      ],
     );
   }
 }
@@ -170,12 +171,6 @@ class StudentCard extends StatelessWidget {
   }
 }
 
-const _inviteErrors = {
-  'team-full': 'Nhóm đã đủ 6 người.',
-  'already-in-team': 'Sinh viên này vừa vào một nhóm khác.',
-  'pending-exists': 'Bạn đã mời sinh viên này, lời mời còn hiệu lực.',
-  'round-closed': 'Đợt lập nhóm đã đóng, không gửi được lời mời.',
-};
 
 /// Bottom sheet "Gửi lời mời" kèm lời nhắn (S18, S19). Trả `true` khi đã gửi; lỗi nghiệp vụ hiện đúng câu,
 /// lời nhắn đã nhập giữ nguyên.
@@ -202,8 +197,8 @@ class _InviteSheet extends ConsumerStatefulWidget {
 
 class _InviteSheetState extends ConsumerState<_InviteSheet> {
   final _message = TextEditingController();
-  bool _sending = false;
-  String? _error;
+
+  InviteKey get _key => (teamId: widget.teamId, studentId: widget.student.id);
 
   @override
   void dispose() {
@@ -212,24 +207,14 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
   }
 
   Future<void> _send() async {
-    setState(() {
-      _sending = true;
-      _error = null;
-    });
-    try {
-      await ref.read(suggestionsApiProvider).invite(widget.teamId, widget.student.id, message: _message.text.trim());
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      final error = e.apiError;
-      setState(() => _error = _inviteErrors[error.code] ?? error.detail ?? error.title);
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
+    final sent = await ref.read(inviteViewModelProvider(_key).notifier).send(_message.text);
+    if (sent && mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final invite = ref.watch(inviteViewModelProvider(_key));
     return Padding(
       padding: EdgeInsets.fromLTRB(AppSpacing.s6, 0, AppSpacing.s6, AppSpacing.s4 + MediaQuery.viewInsetsOf(context).bottom),
       child: Column(
@@ -240,10 +225,10 @@ class _InviteSheetState extends ConsumerState<_InviteSheet> {
           const SizedBox(height: AppSpacing.s2),
           Text('${widget.student.fullName} có 72 giờ để chấp nhận lời mời.', style: theme.textTheme.bodyMedium),
           const SizedBox(height: AppSpacing.s4),
-          if (_error != null) ...[ErrorBanner(message: _error!), const SizedBox(height: AppSpacing.s3)],
+          if (invite.error != null) ...[ErrorBanner(message: invite.error!), const SizedBox(height: AppSpacing.s3)],
           TextField(controller: _message, minLines: 2, maxLines: 4, maxLength: 500, decoration: const InputDecoration(labelText: 'Lời nhắn (không bắt buộc)')),
           const SizedBox(height: AppSpacing.s3),
-          LoadingButton(label: 'Gửi lời mời', loading: _sending, onPressed: _send),
+          LoadingButton(label: 'Gửi lời mời', loading: invite.sending, onPressed: _send),
         ],
       ),
     );

@@ -73,11 +73,16 @@ abstract final class AppTheme {
       textTheme: text,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       extensions: const [AppColors.light],
+      // Màn cấp 2 (push): kiểu chuyển trang mới của Android (trượt + mờ dần), mượt hơn kiểu zoom mặc định.
+      pageTransitionsTheme: PageTransitionsTheme(builders: {
+        TargetPlatform.android: const FadeForwardsPageTransitionsBuilder(),
+      }),
       appBarTheme: AppBarTheme(
-        backgroundColor: Palette.surface,
+        // Bản 6: app bar cùng nền trang để khối đầu trang và thẻ nổi lên trên một mặt liền.
+        backgroundColor: Palette.background,
         foregroundColor: Palette.textPrimary,
         elevation: 0,
-        scrolledUnderElevation: 1,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: text.titleLarge,
       ),
@@ -96,18 +101,22 @@ abstract final class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(minimumSize: buttonSize, foregroundColor: Palette.primaryDark, textStyle: text.labelLarge),
       ),
+      // Bản 6: thẻ nổi bằng bóng ấm, bỏ viền xám (bản 5: viền 1 px, không bóng).
       cardTheme: CardThemeData(
         color: Palette.surface,
-        elevation: 0,
+        elevation: 1.5,
+        shadowColor: AppShadows.materialShadow.withValues(alpha: .35),
         margin: EdgeInsets.zero,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: const BorderSide(color: Palette.border),
-        ),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
       ),
       chipTheme: ChipThemeData(
-        labelStyle: text.labelLarge,
+        // Material 3 lấy màu chữ chip đang chọn từ labelStyle (không dùng secondaryLabelStyle): chữ đậm trên nền cam chỉ đạt
+        // tương phản 3,5:1, nên đổi sang trắng khi chọn (4,6:1).
+        labelStyle: text.labelLarge?.copyWith(
+          color: WidgetStateColor.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : Palette.textPrimary),
+        ),
         shape: const StadiumBorder(),
         side: const BorderSide(color: Palette.border),
         selectedColor: Palette.primary,
@@ -135,6 +144,9 @@ abstract final class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Palette.surface,
+        elevation: 3,
+        shadowColor: AppShadows.materialShadow.withValues(alpha: .4),
+        indicatorShape: const StadiumBorder(),
         indicatorColor: Palette.primaryContainer,
         surfaceTintColor: Colors.transparent,
         labelTextStyle: WidgetStateProperty.resolveWith(

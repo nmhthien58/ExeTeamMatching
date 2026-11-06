@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { shellHome, shellOf, useAuth, type Shell } from './AuthProvider'
+import { shellHome, shellOf, shellsOf, useAuth, type Shell } from './AuthProvider'
 import { Forbidden } from '@/shared/components/States'
 
 /**
@@ -14,10 +14,9 @@ export function RequireShell({ shell, children }: { shell: Shell; children: Reac
   if (!user) {
     return <Navigate to="/dang-nhap" replace state={{ from: location.pathname + location.search }} />
   }
-  const own = shellOf(user)
   // Giảng viên có vai trò Mentor dùng khung giảng viên; không có khung riêng thứ hai.
-  if (own !== shell) {
-    return <Forbidden homeHref={shellHome[own]} />
+  if (!shellsOf(user).includes(shell)) {
+    return <Forbidden homeHref={shellHome[shellOf(user)]} />
   }
   return <>{children}</>
 }

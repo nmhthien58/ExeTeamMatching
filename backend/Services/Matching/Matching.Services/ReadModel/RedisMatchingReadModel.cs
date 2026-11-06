@@ -155,6 +155,13 @@ public sealed class RedisMatchingReadModel(IConnectionMultiplexer redis, IOption
     public async Task SaveStudentAsync(Guid studentId, Guid semesterId, string courseCode, string? fullName, int specializationId, CancellationToken ct)
     {
         var db = Db;
+        // Id sinh viên dùng chung giữa các học kỳ (EXE101 → EXE201, học lại): vào học kỳ mới thì nhóm của học kỳ cũ không còn tính.
+        // exe.student và exe.team đọc riêng nên TeamCreated có thể tới trước StudentImported: nhóm đã thuộc học kỳ mới thì giữ.
+        if (ParseGuid(await db.HashGetAsync(StudentKey(studentId), F.SemesterId)) is { } previous && previous != semesterId
+            && !await IsTeamInSemesterAsync(studentId, semesterId))
+        {
+            await db.HashDeleteAsync(StudentKey(studentId), F.TeamId);
+        }
         var entries = new List<HashEntry>
         {
             new(F.SemesterId, semesterId.ToString()),
@@ -168,6 +175,10 @@ public sealed class RedisMatchingReadModel(IConnectionMultiplexer redis, IOption
         await db.HashSetAsync(StudentKey(studentId), entries.ToArray());
         await db.SetAddAsync(StudentIndexKey(semesterId, courseCode), studentId.ToString());
     }
+
+    private async Task<bool> IsTeamInSemesterAsync(Guid studentId, Guid semesterId) =>
+        ParseGuid(await Db.HashGetAsync(StudentKey(studentId), F.TeamId)) is { } teamId
+        && ParseGuid(await Db.HashGetAsync(TeamKey(teamId), F.SemesterId)) == semesterId;
 
     public Task SaveStudentProfileAsync(Guid studentId, string? fullName, int specializationId, IReadOnlyDictionary<Skill, int> skills,
         bool isSeekingTeam, CancellationToken ct)

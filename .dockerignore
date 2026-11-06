@@ -1,0 +1,16 @@
+# BE-85: Railway build image từ gốc repo; chỉ gửi phần cần cho backend và deploy.
+.git
+web/
+mobile/
+docs/
+evidence/
+e2e_test/
+firebase/
+**/bin/
+**/obj/
+**/.vs/
+**/TestResults/
+backend/Tests/
+deploy/.env*
+deploy/secrets/
+deploy/seaweedfs/s3.prod.json

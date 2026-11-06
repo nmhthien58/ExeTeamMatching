@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:exe_team_matching/app/app.dart';
+import 'package:exe_team_matching/core/auth/firebase_auth_service.dart';
 import 'package:exe_team_matching/core/phase.dart';
 import 'package:exe_team_matching/core/providers.dart';
 import 'package:exe_team_matching/core/theme/app_theme.dart';
@@ -15,6 +16,22 @@ class _MockGoogle extends Mock implements GoogleSignIn {}
 class _MockAccount extends Mock implements GoogleSignInAccount {}
 
 class _MockAuth extends Mock implements GoogleSignInAuthentication {}
+
+/// Firebase Auth giả: ghi lại lời gọi, có thể cho ném lỗi.
+class _FakeFirebase implements FirebaseAuthGateway {
+  final signedInWith = <String>[];
+  int signOuts = 0;
+  SignInFailure? failure;
+
+  @override
+  Future<void> signInWithGoogle({required String idToken, String? accessToken}) async {
+    if (failure != null) throw failure!;
+    signedInWith.add(idToken);
+  }
+
+  @override
+  Future<void> signOut() async => signOuts++;
+}
 
 /// Dio trả lời cố định cho POST /api/auth/google.
 Dio _dio(void Function(RequestOptions, RequestInterceptorHandler) onRequest) =>
@@ -33,10 +50,14 @@ void _problem(RequestOptions o, RequestInterceptorHandler h, int status, String 
 void main() {
   setUpAll(() => AppTheme.useGoogleFonts = false);
   late _MockGoogle google;
+  late _FakeFirebase firebase;
+  late int resets;
 
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({'exe.onboardingSeen': 'true'});
     google = _MockGoogle();
+    firebase = _FakeFirebase();
+    resets = 0;
     when(() => google.signOut()).thenAnswer((_) async => null);
   });
 
@@ -54,6 +75,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         googleSignInProvider.overrideWithValue(google),
+        firebaseAuthProvider.overrideWithValue(firebase),
+        signedOutProvider.overrideWithValue(() => resets++),
         dioProvider.overrideWithValue(dio),
         phasesProvider.overrideWith((ref) async => const [CoursePhase(courseCode: 'EXE101', isTeamFormation: true)]),
         myCourseProvider.overrideWith((ref) async => 'EXE101'),
@@ -63,7 +86,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('hủy chọn tài khoản: về mặc định, không báo lỗi', (tester) async {
+  testWidgets('hủy chọn tài khoản: về mặc định, SnackBar báo đã hủy, không có banner lỗi', (tester) async {
     when(() => google.signIn()).thenAnswer((_) async => null);
     await pump(tester, _dio((o, h) => fail('Không được gọi Identity khi đã hủy')));
 
@@ -71,18 +94,43 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Đăng nhập với Google'), findsOneWidget);
+    expect(find.textContaining('Bạn đã hủy đăng nhập'), findsOneWidget);
     expect(find.textContaining('Mất kết nối'), findsNothing);
+    expect(firebase.signedInWith, isEmpty);
   });
 
-  testWidgets('Google báo hủy bằng PlatformException: không báo lỗi', (tester) async {
+  testWidgets('Google báo hủy bằng PlatformException: SnackBar báo đã hủy, không có banner lỗi', (tester) async {
     when(() => google.signIn()).thenThrow(PlatformException(code: GoogleSignIn.kSignInCanceledError));
     await pump(tester, _dio((o, h) => fail('Không được gọi Identity')));
 
     await tester.tap(find.text('Đăng nhập với Google'));
     await tester.pumpAndSettle();
 
+    expect(find.textContaining('Bạn đã hủy đăng nhập'), findsOneWidget);
     expect(find.textContaining('Mất kết nối'), findsNothing);
     expect(find.textContaining('Không đăng nhập được'), findsNothing);
+  });
+
+  testWidgets('Firebase báo mất mạng: banner lỗi, không gọi Identity', (tester) async {
+    signsInAs('vy@fpt.edu.vn');
+    firebase.failure = const SignInFailure(isNetwork: true, code: 'network-request-failed');
+    await pump(tester, _dio((o, h) => fail('Không được gọi Identity khi Firebase lỗi')));
+
+    await tester.tap(find.text('Đăng nhập với Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mất kết nối. Kiểm tra mạng rồi thử lại.'), findsOneWidget);
+  });
+
+  testWidgets('Firebase từ chối credential: banner lỗi chung', (tester) async {
+    signsInAs('vy@fpt.edu.vn');
+    firebase.failure = const SignInFailure(isNetwork: false, code: 'invalid-credential');
+    await pump(tester, _dio((o, h) => fail('Không được gọi Identity khi Firebase lỗi')));
+
+    await tester.tap(find.text('Đăng nhập với Google'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Không đăng nhập được với Google. Thử lại sau.'), findsOneWidget);
   });
 
   testWidgets('mất mạng: banner lỗi kèm Thử lại', (tester) async {
@@ -109,7 +157,12 @@ void main() {
     await tester.tap(find.text('Dùng tài khoản khác'));
     await tester.pumpAndSettle();
 
-    verify(() => google.signOut()).called(1);
+    // Identity từ chối → bỏ phiên Firebase và Google ngay (để lần sau hiện hộp chọn tài khoản);
+    // "Dùng tài khoản khác" đăng xuất thêm lần nữa.
+    verify(() => google.signOut()).called(2);
+    expect(firebase.signedInWith, ['id-token']);
+    expect(firebase.signOuts, 2);
+    expect(resets, 1);
     expect(find.text('Đăng nhập với Google'), findsOneWidget);
   });
 
@@ -131,6 +184,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(sent, {'idToken': 'id-token', 'client': 'mobile'});
+    expect(firebase.signedInWith, ['id-token']);
+    expect(firebase.signOuts, 0);
     expect(find.text('Đăng nhập với Google'), findsNothing);
     expect(find.text('Khám phá'), findsOneWidget);
   });

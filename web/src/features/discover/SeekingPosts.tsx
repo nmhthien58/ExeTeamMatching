@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '@/shared/api/apiClient'
@@ -15,9 +16,8 @@ import { postErrors, useMySeekingPost, useSaveMySeeking, useSeekingPosts, type S
 
 /**
  * S10 – tab "Sinh viên tìm nhóm" của Khám phá (FE-37, cùng spec MB-17): bài của mình (→ S11), lọc chuyên ngành, phân trang.
- * Trưởng nhóm còn chỗ có nút "Mời vào nhóm" (design-decisions B2).
+ * Trưởng nhóm còn chỗ có nút "Mời vào nhóm" (design-decisions B2); "Xem hồ sơ" mở S04.
  */
-// shortcut: chạm thẻ chưa mở S04 (hồ sơ sinh viên khác – Nam); nối link khi S04 có trên web.
 export function SeekingPostsPanel() {
   const [specializationId, setSpecializationId] = useState<number>()
   const [page, setPage] = useState(1)
@@ -36,24 +36,28 @@ export function SeekingPostsPanel() {
   return (
     <div className="flex flex-col gap-4">
       {team.data === null && <MyPostCard />}
-      <label className="flex max-w-xs flex-col gap-1">
-        <span className="text-caption text-text-secondary">Chuyên ngành</span>
-        <select
-          value={specializationId ?? ''}
-          onChange={(e) => {
-            setSpecializationId(e.target.value ? Number(e.target.value) : undefined)
-            setPage(1)
-          }}
-          className="h-10 rounded-sm border border-border-strong bg-surface px-3"
-        >
-          <option value="">Tất cả chuyên ngành</option>
-          {specializations.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div role="group" aria-label="Lọc theo chuyên ngành" className="flex flex-wrap gap-2">
+        {[{ id: undefined as number | undefined, name: 'Tất cả chuyên ngành' }, ...specializations].map((sp) => {
+          const selected = specializationId === sp.id
+          return (
+            <button
+              key={sp.id ?? 'all'}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => {
+                setSpecializationId(sp.id)
+                setPage(1)
+              }}
+              className={clsx(
+                'min-h-9 rounded-full border px-3.5 text-caption font-medium transition-colors',
+                selected ? 'border-ink bg-ink text-white' : 'border-border bg-surface text-text-secondary hover:border-primary/60 hover:text-text-primary',
+              )}
+            >
+              {sp.name}
+            </button>
+          )
+        })}
+      </div>
       {posts.error ? (
         <ErrorState error={posts.error} onRetry={() => void posts.refetch()} />
       ) : posts.isLoading ? (
@@ -62,7 +66,7 @@ export function SeekingPostsPanel() {
         <EmptyState icon="person_search" title="Chưa có sinh viên đang tìm nhóm" description="Thử chuyên ngành khác hoặc quay lại sau." />
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {posts.data!.items.map((p) => (
               <SeekingPostCard
                 key={p.id}
@@ -128,16 +132,23 @@ export function SeekingPostsPanel() {
 function MyPostCard() {
   const mine = useMySeekingPost()
   return (
-    <Card className="p-0">
-      <Link to="/sv/kham-pha/tim-nhom" className="flex min-h-12 items-center gap-3 px-4 py-3 hover:bg-background">
-        <Icon name={mine.data ? 'check_circle' : 'campaign'} />
-        <span className="flex-1">
-          <span className="block font-semibold">{mine.data ? 'Bạn đang tìm nhóm' : 'Đăng bài "Tôi đang tìm nhóm"'}</span>
-          <span className="text-text-secondary">{mine.data?.title ?? 'Trưởng nhóm thấy vai trò bạn muốn và có thể mời bạn.'}</span>
-        </span>
-        <span className="font-medium text-info-dark">{mine.data ? 'Sửa' : 'Đăng bài'}</span>
-      </Link>
-    </Card>
+    <Link
+      to="/sv/kham-pha/tim-nhom"
+      className="card-hover group relative flex items-center gap-4 overflow-hidden rounded-lg bg-ink p-5 text-white shadow-elevation-2"
+    >
+      <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-brand-orange/30 blur-3xl" />
+      <span aria-hidden className="relative grid size-12 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-brand-orange to-primary shadow-glow">
+        <Icon name={mine.data ? 'check_circle' : 'campaign'} filled className="text-white" />
+      </span>
+      <span className="relative min-w-0 flex-1">
+        <span className="block text-subtitle font-semibold">{mine.data ? 'Bạn đang tìm nhóm' : 'Đăng bài "Tôi đang tìm nhóm"'}</span>
+        <span className="block truncate text-caption text-ink-text">{mine.data?.title ?? 'Trưởng nhóm thấy vai trò bạn muốn và có thể mời bạn.'}</span>
+      </span>
+      <span className="relative inline-flex min-h-10 items-center gap-1 rounded-md bg-white/10 px-4 font-semibold transition-colors group-hover:bg-white/20">
+        {mine.data ? 'Sửa' : 'Đăng bài'}
+        <Icon name="arrow_forward" size={20} />
+      </span>
+    </Link>
   )
 }
 
@@ -153,11 +164,19 @@ export function SeekingPostCard({ post, domains, action }: { post: SeekingPost; 
         <span className="flex flex-wrap gap-2">
           {domains.map((d) => (
             <span key={d.id} title={d.name} className="inline-flex h-8 items-center rounded-full bg-info-container px-3 text-info-dark">
-              {d.code}
+              {d.name}
             </span>
           ))}
         </span>
       )}
+      <Link
+        to={`/sv/sinh-vien/${post.student.id}`}
+        aria-label={`Xem hồ sơ ${post.student.fullName}`}
+        className="inline-flex min-h-10 items-center gap-1 self-start font-medium text-info-dark"
+      >
+        Xem hồ sơ
+        <Icon name="chevron_right" size={20} />
+      </Link>
     </StudentCard>
   )
 }
@@ -215,7 +234,7 @@ function SeekingPostForm({ post }: { post: SeekingPost | null }) {
                   className={`min-h-10 rounded-full border px-3 ${selected ? 'border-primary bg-primary-container text-primary-dark' : 'border-border-strong'}`}
                 >
                   {selected && '✓ '}
-                  {d.code}
+                  {d.name}
                 </button>
               )
             })}

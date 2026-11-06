@@ -6,7 +6,13 @@ RUN npm ci
 COPY . .
 ARG VITE_API_BASE_URL=http://localhost:8080
 ARG VITE_GOOGLE_CLIENT_ID=
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+# FE-46: Firebase web app (để trống thì Analytics / Remote Config tắt).
+ARG VITE_FIREBASE_API_KEY=
+ARG VITE_FIREBASE_AUTH_DOMAIN=
+ARG VITE_FIREBASE_PROJECT_ID=
+ARG VITE_FIREBASE_APP_ID=
+ARG VITE_FIREBASE_MEASUREMENT_ID=
+# ARG là biến môi trường của các lệnh RUN bên dưới, Vite đọc trực tiếp nên không cần ENV.
 RUN npm run build
 
 FROM nginx:1.27-alpine

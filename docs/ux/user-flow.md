@@ -16,17 +16,18 @@
 
 **Web và mobile dùng chung mã màn hình.** Sinh viên, Giảng viên và Mentor có cả Web App và Mobile App với cùng tính năng và cùng mã màn hình; web dùng sidebar thay cho tab bar và bố cục nhiều cột (`DESIGN.md` §8.2). Bộ môn chỉ dùng web (W01–W28).
 
-**Tab bar đổi theo giai đoạn của môn** (`PROJECT_CONTEXT.md` §1.1, quy tắc 18):
+**Tab bar đổi theo giai đoạn của môn** (`PROJECT_CONTEXT.md` §1.1, quy tắc 18). Từ 06/11/2026 Tin nhắn là tab riêng của sinh viên; Hồ sơ (S02) mở từ avatar ở góc phải app bar (web: menu tài khoản) – `design-traceability.md` D12.
 
 | Vai trò | Giai đoạn lập nhóm | Giai đoạn học kỳ (sau khi đợt lập nhóm đóng) |
 |---|---|---|
-| Sinh viên | Trang chủ (S01) · **Khám phá (S05)** · Nhóm (S15) · Thông báo (A06) · Hồ sơ (S02) | Trang chủ (S01) · **Dự án (C01)** · Nhóm (S15) · Thông báo (A06) · Hồ sơ (S02) |
+| Sinh viên | Trang chủ (S01) · **Khám phá (S05)** · Nhóm (S15) · Tin nhắn (C02) · Thông báo (A06) | Trang chủ (S01) · **Dự án (C01)** · Nhóm (S15) · Tin nhắn (C02) · Thông báo (A06) |
 | Giảng viên | Trang chủ (L01) · **Đề tài (L07)** · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) | Trang chủ (L01) · Nhóm (L04) · Lịch (C07) · Tin nhắn (C02) · Thông báo (A06); trang chủ ưu tiên "Cần trả lời", "Trễ hạn nộp", "Họp hôm nay" (EXE201) hoặc "Chưa trình bày CP" (EXE101) |
 | Mentor | – (chưa có nhóm) | Trước tuần 6: Trang chủ (M01) · **Đề tài (L07)** · Thông báo (A06). Từ tuần 6: Trang chủ (M01) · Nhóm (L04) · Tin nhắn (C02) · Thông báo (A06) |
 
 - **Khám phá biến mất khi đợt lập nhóm đóng** và được thay bằng **Dự án**. Mọi đường dẫn cũ tới S05, S08, S10 (thông báo, link chia sẻ) mở hộp nhắc *"Đợt lập nhóm đã đóng lúc 18:00 · 17/09. Bạn đang ở nhóm GreenBite."* với nút "Mở dự án" hoặc, nếu chưa có nhóm, "Xem thông tin ghép tự động" (S31).
 - Trong đợt đổi nhóm EXE201, trưởng nhóm tìm người thay thế từ *Nhóm* (S18 gợi ý, S19 tìm MSSV), không cần Khám phá.
 - Giảng viên của trường làm mentor cho nhóm khác có một tài khoản hai vai trò; vẫn dùng tab bar giảng viên, nhóm mình mentor hiện trong L04 với nhãn "Mentor" – không phải chuyển vai trò.
+- **Tài khoản nhiều vai trò trên web:** vào khung mặc định theo thứ tự Bộ môn, Giảng viên, Mentor, Sinh viên, rồi chuyển khung ở menu tài khoản. Tài khoản chỉ có một vai trò không thấy mục này và không vào được khung khác (403). Giảng viên kiêm mentor vẫn là một khung.
 - **Mỗi nhóm chỉ có một mentor và một giảng viên hướng dẫn.** Giảng viên lớp trên FAP không hiển thị trong hệ thống.
 - **Không có bước "xin – chấp nhận".** Trong đợt lập nhóm, giảng viên bấm *Quan tâm* ở L07, nhóm xếp *nguyện vọng 1–3* ở S23–S25; hết hạn (hoặc Bộ môn bấm "Ghép sớm" ở W19) hệ thống ghép và báo cho cả hai bên kèm lý do ("Hai bên cùng chọn", "Nguyện vọng 2"…). Mentor bấm *Quan tâm* ở L07 trước tuần 6; sinh viên không chọn mentor (`PROJECT_CONTEXT.md` quy tắc 9, 19, 20).
 - **Nhịp làm việc khác nhau theo môn:** EXE101 – sinh viên trình bày trên lớp, giảng viên đánh dấu **Checkpoint 1–4** ở L05 (quy tắc 27); EXE201 – sinh viên không lên lớp, giảng viên đăng **khung họp 15 phút hằng tuần** ở C09 và mỗi nhóm chọn một slot cố định (quy tắc 25).

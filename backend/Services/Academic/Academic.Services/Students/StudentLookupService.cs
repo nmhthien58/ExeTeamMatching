@@ -8,6 +8,9 @@ public interface IStudentLookupService
     Task<IReadOnlyList<StudentSnapshot>> LookupAsync(StudentLookupRequest request, CancellationToken ct);
 
     Task<IReadOnlyList<StudentSnapshot>> LookupByCodeAsync(StudentByCodeRequest request, CancellationToken ct);
+
+    /// <summary>Toàn bộ sinh viên của học kỳ (Team tính sinh viên chưa có nhóm cho W20, W21).</summary>
+    Task<IReadOnlyList<StudentSnapshot>> ListSemesterAsync(SemesterStudentsQuery query, CancellationToken ct);
 }
 
 /// <summary>
@@ -28,17 +31,23 @@ public sealed class StudentLookupService(IStudentRepository students) : IStudent
         return codes.Count == 0 ? [] : ToSnapshots(await students.LookupByCodeAsync(request.SemesterId, codes, ct));
     }
 
+    public async Task<IReadOnlyList<StudentSnapshot>> ListSemesterAsync(SemesterStudentsQuery query, CancellationToken ct) =>
+        ToSnapshots(await students.ListEnrolledAsync(query.SemesterId!.Value, query.CourseCode, ct));
+
     private static List<StudentSnapshot> ToSnapshots(IEnumerable<StudentSnapshotRow> rows) =>
-        rows.Select(r => new StudentSnapshot(r.Id, r.StudentCode, r.FullName, r.SpecializationId, r.CourseCode, r.CourseCode is not null)).ToList();
+        rows.Select(r => new StudentSnapshot(r.Id, r.StudentCode, r.FullName, r.SpecializationId, r.ClassCode, r.CourseCode, r.CourseCode is not null)).ToList();
 }
 
 public static class StudentsModule
 {
-    /// <summary>Module Students: tra cứu nội bộ (BE-22); danh sách, chi tiết, hồ sơ (BE-18, BE-19) thêm sau.</summary>
+    /// <summary>Module Students: tra cứu nội bộ (BE-22), hồ sơ của tôi (BE-19, BE-67), danh sách, chi tiết (BE-18).</summary>
     public static IServiceCollection AddStudentsModule(this IServiceCollection services)
     {
         services.AddScoped<IStudentRepository, StudentRepository>();
         services.AddScoped<IStudentLookupService, StudentLookupService>();
+        services.AddScoped<IStudentProfileRepository, StudentProfileRepository>();
+        services.AddScoped<IStudentProfileService, StudentProfileService>();
+        services.AddScoped<IStudentDirectoryService, StudentDirectoryService>();
         return services;
     }
 }

@@ -1,3 +1,4 @@
+using System.Net;
 using BuildingBlocks.Messaging;
 using ExeTeamMatching.Protos.Matching.V1;
 using Grpc.Core;
@@ -53,6 +54,11 @@ public sealed class FakeAcademic : IAcademicClient
     public Task<RoundDto?> GetOpenRoundAsync(string courseCode, string roundType, CancellationToken ct) =>
         Task.FromResult(OpenRounds.GetValueOrDefault(courseCode));
 
+    /// <summary>Học kỳ hiện hành; null = Bộ môn chưa đặt.</summary>
+    public SemesterDto? CurrentSemester { get; set; }
+
+    public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => Task.FromResult(CurrentSemester);
+
     public Task<RoundDto> CloseRoundAsync(Guid roundId, CancellationToken ct)
     {
         Closed.Add(roundId);
@@ -82,6 +88,40 @@ public sealed class FakeTeam : ITeamClient
 
     public Task<DeadlineReminderTargets> GetDeadlineReminderTargetsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
         Task.FromResult(Targets);
+
+    public List<(string Kind, Guid SemesterId, string CourseCode)> AdvisorRuns { get; } = [];
+
+    /// <summary>Lỗi ném ra khi gọi ghép cố vấn (giả lập 503 từ Team).</summary>
+    public Exception? AdvisorMatchingError { get; set; }
+
+    /// <summary>Lỗi chỉ của một môn (giả lập Team lỗi khi ghép môn đó).</summary>
+    public string? FailingCourse { get; set; }
+
+    public Task<AdvisorMatchingRunResult> RunAdvisorMatchingAsync(string kind, Guid semesterId, string courseCode, CancellationToken ct)
+    {
+        AdvisorRuns.Add((kind, semesterId, courseCode));
+        if (FailingCourse == courseCode)
+        {
+            return Task.FromException<AdvisorMatchingRunResult>(new HttpRequestException("academic-unavailable", null, HttpStatusCode.ServiceUnavailable));
+        }
+        return AdvisorMatchingError is { } error
+            ? Task.FromException<AdvisorMatchingRunResult>(error)
+            : Task.FromResult(new AdvisorMatchingRunResult(Guid.NewGuid(), kind, courseCode, "SCHEDULED", "APPLIED", 8, 1));
+    }
+}
+
+/// <summary>HTTP giả: ghi lại request, trả response cho trước.</summary>
+public sealed class StubHandler(HttpStatusCode status, string body) : HttpMessageHandler
+{
+    public HttpRequestMessage? Request { get; private set; }
+    public string? RequestBody { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Request = request;
+        RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+        return new HttpResponseMessage(status) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+    }
 }
 
 public sealed class FakeCollab : ICollabClient
@@ -101,6 +141,15 @@ public sealed class FakeCollab : ICollabClient
 
     public Task<IReadOnlyList<DueTaskDto>> GetDueTasksAsync(int withinHours, bool includeOverdue, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<DueTaskDto>>(Due);
+
+    public int CloseSlotBookingCalls { get; private set; }
+    public CloseSlotBookingResult CloseSlotBookingResult { get; set; } = new(0, 0, 0);
+
+    public Task<CloseSlotBookingResult> CloseSlotBookingAsync(CancellationToken ct)
+    {
+        CloseSlotBookingCalls++;
+        return Task.FromResult(CloseSlotBookingResult);
+    }
 }
 
 /// <summary>Matching gRPC giả – trả phương án cho trước.</summary>
@@ -114,4 +163,17 @@ public sealed class FakeMatching(PlanAutoAssignmentResponse plan) : MatchingServ
         return new AsyncUnaryCall<PlanAutoAssignmentResponse>(Task.FromResult(plan), Task.FromResult(new Metadata()),
             () => Status.DefaultSuccess, () => [], () => { });
     }
+}
+
+/// <summary>Hangfire giả cho job định kỳ: giữ id, job và cron đã đăng ký.</summary>
+public sealed class FakeRecurringJobManager : IRecurringJobManager
+{
+    public Dictionary<string, (Job Job, string Cron, RecurringJobOptions Options)> Jobs { get; } = [];
+
+    public void AddOrUpdate(string recurringJobId, Job job, string cronExpression, RecurringJobOptions options) =>
+        Jobs[recurringJobId] = (job, cronExpression, options);
+
+    public void Trigger(string recurringJobId) { }
+
+    public void RemoveIfExists(string recurringJobId) => Jobs.Remove(recurringJobId);
 }

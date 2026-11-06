@@ -6,6 +6,7 @@ import '../../core/auth/session.dart';
 import '../../core/config/env.dart';
 import '../../core/providers.dart';
 import '../../shared/widgets/states.dart';
+import 'realtime_status_view_model.dart';
 
 /// Trạng thái kết nối hiển thị cho người dùng.
 enum HubStatus { idle, connecting, connected, reconnecting, disconnected }
@@ -24,8 +25,7 @@ abstract class HubConnectionLike {
 }
 
 /// `/hubs/collab` qua Gateway; JWT qua query `access_token`; tự kết nối lại.
-// shortcut: token lấy lúc (re)kết nối, không tự refresh – kết nối lại sau khi access token hết hạn sẽ báo mất kết nối cho tới khi
-// một lời gọi REST refresh token; Thử lại là đủ. Thêm refresh vào accessTokenFactory nếu hay gặp.
+// Token lấy lúc (re)kết nối; chưa có token (vừa mở app) thì CollabHub gọi ensureToken trước để REST refresh.
 class SignalRConnection implements HubConnectionLike {
   SignalRConnection(SessionStore session)
       : _connection = HubConnectionBuilder()
@@ -63,9 +63,12 @@ class SignalRConnection implements HubConnectionLike {
 /// Một kết nối hub dùng chung cho mọi màn workspace (MB-38). Kết nối khi màn đầu tiên dùng, ngắt khi màn cuối rời;
 /// vào lại các kênh / workspace đang nghe sau khi kết nối lại.
 class CollabHub {
-  CollabHub(this._factory);
+  CollabHub(this._factory, {this._ensureToken});
 
   final HubConnectionLike Function() _factory;
+
+  /// Mở app vào thẳng màn có hub: access token chỉ có sau lời gọi REST đầu tiên, negotiate không token bị 401.
+  final Future<void> Function()? _ensureToken;
   HubConnectionLike? _connection;
   int _users = 0;
   final _groups = <(HubGroup, String), int>{};
@@ -117,6 +120,9 @@ class CollabHub {
   Future<void> _start() async {
     status.value = HubStatus.connecting;
     try {
+      await _ensureToken?.call();
+    } catch (_) {} // refresh lỗi thì start tự báo mất kết nối, người dùng bấm Thử lại
+    try {
       await _ensure().start();
       status.value = HubStatus.connected;
       _rejoin();
@@ -152,46 +158,29 @@ class CollabHub {
 
 final collabHubProvider = Provider<CollabHub>((ref) {
   final session = ref.watch(sessionStoreProvider);
-  final hub = CollabHub(() => SignalRConnection(session));
+  final hub = CollabHub(
+    () => SignalRConnection(session),
+    // Lời gọi có xác thực bất kỳ: interceptor của Dio tự refresh khi 401.
+    ensureToken: () async {
+      if (session.accessToken == null) await ref.read(dioProvider).get<Object>('/api/auth/me');
+    },
+  );
   ref.onDispose(hub.dispose);
   return hub;
 });
 
 /// Dải trạng thái realtime đặt đầu màn workspace: giữ kết nối khi màn còn mở; "Đang kết nối lại…" khi rớt mạng,
 /// mất hẳn kết nối thì có Thử lại. Kết nối bình thường không hiện gì.
-class RealtimeStatusBanner extends ConsumerStatefulWidget {
+class RealtimeStatusBanner extends ConsumerWidget {
   const RealtimeStatusBanner({super.key});
 
   @override
-  ConsumerState<RealtimeStatusBanner> createState() => _RealtimeStatusBannerState();
-}
-
-class _RealtimeStatusBannerState extends ConsumerState<RealtimeStatusBanner> {
-  late final CollabHub _hub = ref.read(collabHubProvider);
-  late final VoidCallback _release;
-
-  @override
-  void initState() {
-    super.initState();
-    _release = _hub.acquire();
-  }
-
-  @override
-  void dispose() {
-    _release();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => ValueListenableBuilder(
-        valueListenable: _hub.status,
-        builder: (context, status, _) => switch (status) {
-          HubStatus.reconnecting => Semantics(
-              liveRegion: true,
-              child: const ListTile(dense: true, leading: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)), title: Text('Đang kết nối lại…')),
-            ),
-          HubStatus.disconnected => ErrorBanner(message: 'Mất kết nối realtime – tin mới không tự hiện.', onRetry: _hub.retry),
-          _ => const SizedBox.shrink(),
-        },
-      );
+  Widget build(BuildContext context, WidgetRef ref) => switch (ref.watch(realtimeStatusViewModelProvider)) {
+        HubStatus.reconnecting => Semantics(
+            liveRegion: true,
+            child: const ListTile(dense: true, leading: SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2)), title: Text('Đang kết nối lại…')),
+          ),
+        HubStatus.disconnected => ErrorBanner(message: 'Mất kết nối realtime – tin mới không tự hiện.', onRetry: ref.read(realtimeStatusViewModelProvider.notifier).retry),
+        _ => const SizedBox.shrink(),
+      };
 }

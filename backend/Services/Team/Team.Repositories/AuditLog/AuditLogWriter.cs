@@ -6,7 +6,7 @@ using Team.Repositories.Context;
 namespace Team.Repositories.AuditLog;
 
 /// <summary>Người thực hiện thay đổi; <see cref="AccountId"/> null = hệ thống / job.</summary>
-public sealed record AuditActor(Guid? AccountId, string Role)
+public sealed record AuditActor(Guid? AccountId, string Role, string? Name = null)
 {
     public static readonly AuditActor System = new(null, "System");
 }
@@ -27,6 +27,7 @@ public sealed class AuditLogWriter(TeamDbContext db)
             Action = action,
             ActorAccountId = actor.AccountId,
             ActorRole = actor.Role,
+            ActorName = actor.Name,
             OldValues = oldValues is null ? null : JsonSerializer.Serialize(oldValues, EventEnvelope.JsonOptions),
             NewValues = newValues is null ? null : JsonSerializer.Serialize(newValues, EventEnvelope.JsonOptions),
             Reason = reason,

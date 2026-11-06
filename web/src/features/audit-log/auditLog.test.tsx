@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
@@ -41,6 +41,16 @@ describe('W24 – Nhật ký hệ thống', () => {
     await userEvent.selectOptions(screen.getByLabelText('Nhóm'), 't1')
     expect(router.state.location.search).toBe('?teamId=t1')
     expect(get).toHaveBeenLastCalledWith('/api/audit-logs', expect.objectContaining({ params: expect.objectContaining({ teamId: 't1', page: 1 }) }))
+  })
+
+  it('gõ tên người thực hiện thì lọc actorName sau khi dừng gõ, giữ trên URL', async () => {
+    get.mockImplementation(async (url: string) => (url === '/api/teams' ? { data: page([team]) } : { data: page([log]) }))
+    const router = renderPage()
+
+    await userEvent.type(await screen.findByLabelText('Người thực hiện'), 'Lan')
+    await waitFor(() => expect(router.state.location.search).toBe('?actor=Lan'))
+    expect(get).toHaveBeenLastCalledWith('/api/audit-logs', expect.objectContaining({ params: expect.objectContaining({ actorName: 'Lan', page: 1 }) }))
+    expect(get.mock.calls.filter(([url, config]) => url === '/api/audit-logs' && config.params.actorName)).toHaveLength(1)
   })
 
   it('chưa có nhật ký → trạng thái trống; ngày kết thúc trước ngày bắt đầu → báo lỗi', async () => {

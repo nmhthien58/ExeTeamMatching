@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/phase.dart';
-import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../shared/widgets/brand_header.dart';
 import '../../shared/widgets/deadline_banner.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
@@ -42,14 +42,14 @@ class _Home extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final name = ref.watch(authControllerProvider).value?.fullName.split(' ').last ?? '';
     final deadline = ref.watch(shellPhaseProvider).studentPhase?.teamFormationDeadlineAt;
     final team = home.team;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
-        Text(name.isEmpty ? 'Xin chào' : 'Chào $name', style: theme.textTheme.headlineMedium),
-        const SizedBox(height: AppSpacing.s3),
+        // Header thương hiệu: logo, môn / học kỳ, chip giai đoạn, lời chào, tuần học, tiến độ học kỳ.
+        const BrandHeader(),
+        const SizedBox(height: AppSpacing.s4),
         if (home.isTeamFormation && deadline != null) ...[
           DeadlineBanner(deadline: deadline, title: 'Hạn lập nhóm'),
           const SizedBox(height: AppSpacing.s3),
@@ -160,7 +160,8 @@ class _Suggestions extends ConsumerWidget {
     final items = ref.watch(teamsForMeProvider).value ?? const [];
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      // stretch: thẻ gợi ý rộng hết hàng; start làm thẻ co theo nội dung (nhóm tên ngắn bị hẹp hơn).
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: AppSpacing.s4),
         Row(

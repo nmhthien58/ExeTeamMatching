@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/auth/session.dart';
+import '../core/firebase/crash_reporter.dart';
 import '../core/providers.dart';
 import '../features/auth/login_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
@@ -11,6 +14,7 @@ import '../shared/widgets/states.dart';
 import 'feature_routes.dart';
 import 'navigation.dart';
 import 'role_shell.dart';
+import '../core/theme/app_tokens.dart';
 
 /// Router (MB-05): chưa đăng nhập → A03; đăng nhập xong vào đúng khung theo vai trò; mỗi khung có tab bar riêng.
 /// Màn cấp 2 của từng mảng thêm vào `routes` của khung tương ứng.
@@ -19,7 +23,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authControllerProvider, (_, next) => auth.value = next);
   ref.onDispose(auth.dispose);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
     refreshListenable: auth,
     redirect: (context, state) {
@@ -56,6 +60,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       for (final shell in Shell.values) _shellRoute(shell),
     ],
   );
+
+  // MB-61: báo cáo lỗi ghi màn đang mở. Dùng mẫu route nên không lộ id nhóm, id người dùng.
+  void trackScreen() {
+    final path = router.routerDelegate.currentConfiguration.fullPath;
+    if (path.isNotEmpty) unawaited(ref.read(crashReporterProvider).setKey('screen', path));
+  }
+
+  router.routerDelegate.addListener(trackScreen);
+  ref.onDispose(() => router.routerDelegate.removeListener(trackScreen));
+  return router;
 });
 
 ShellRoute _shellRoute(Shell shell) {
@@ -67,10 +81,10 @@ ShellRoute _shellRoute(Shell shell) {
       for (final tab in tabs)
         GoRoute(
           path: tab.path,
-          // Tab là màn cấp 1: không có hiệu ứng trượt, không có Back.
-          pageBuilder: (_, state) => NoTransitionPage(
-            key: state.pageKey,
-            child: tab.path == '/sv/kham-pha'
+          // Tab là màn cấp 1: không trượt, không có Back; đổi tab bằng hiệu ứng "fade through" ngắn.
+          pageBuilder: (_, state) => _tabPage(
+            state,
+            tab.path == '/sv/kham-pha'
                 ? TeamFormationOnly(child: tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab))
                 : tabScreens[tab.path]?.call(state) ?? ScreenPlaceholder(item: tab),
           ),
@@ -81,3 +95,23 @@ ShellRoute _shellRoute(Shell shell) {
     ],
   );
 }
+
+/// Đổi tab: màn mới hiện dần, phóng nhẹ 98% → 100% và nhích lên 12 dp (Material "fade through"), 280 ms (bản 6, MB-64).
+/// Người dùng bật giảm chuyển động thì đổi ngay (AppMotion, DESIGN.md 4.5).
+Page<void> _tabPage(GoRouterState state, Widget child) => CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: AppMotion.tab,
+      reverseTransitionDuration: Duration.zero,
+      transitionsBuilder: (context, animation, _, child) {
+        if (MediaQuery.maybeDisableAnimationsOf(context) == true) return child;
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 0.015), end: Offset.zero).animate(curved),
+            child: ScaleTransition(scale: Tween<double>(begin: 0.98, end: 1).animate(curved), child: child),
+          ),
+        );
+      },
+    );

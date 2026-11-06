@@ -26,6 +26,9 @@ public sealed record DueTaskDto(
     IReadOnlyList<Guid>? MemberStudentIds,
     Guid? LecturerId);
 
+/// <summary>Kết quả <c>POST /internal/meeting-schedules/close-booking</c>.</summary>
+public sealed record CloseSlotBookingResult(int AutoBooked, int TeamsWithoutSlot, int MeetingsCreated);
+
 public interface ICollabClient
 {
     /// <summary>Họp đã chốt bắt đầu trong <paramref name="offsetMinutes"/> phút tới mà chưa gửi mốc nhắc này.</summary>
@@ -35,6 +38,9 @@ public interface ICollabClient
     Task MarkReminderSentAsync(Guid meetingId, int offsetMinutes, CancellationToken ct);
 
     Task<IReadOnlyList<DueTaskDto>> GetDueTasksAsync(int withinHours, bool includeOverdue, CancellationToken ct);
+
+    /// <summary>Đóng các lịch họp hằng tuần đã tới hạn chọn slot (rule 25). Gọi lại không tạo trùng.</summary>
+    Task<CloseSlotBookingResult> CloseSlotBookingAsync(CancellationToken ct);
 }
 
 public sealed class CollabClient(HttpClient http) : ICollabClient
@@ -51,4 +57,11 @@ public sealed class CollabClient(HttpClient http) : ICollabClient
     public async Task<IReadOnlyList<DueTaskDto>> GetDueTasksAsync(int withinHours, bool includeOverdue, CancellationToken ct) =>
         await http.GetFromJsonAsync<List<DueTaskDto>>(
             $"/internal/tasks/due?withinHours={withinHours}&includeOverdue={includeOverdue.ToString().ToLowerInvariant()}", ct) ?? [];
+
+    public async Task<CloseSlotBookingResult> CloseSlotBookingAsync(CancellationToken ct)
+    {
+        using var response = await http.PostAsync("/internal/meeting-schedules/close-booking", null, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<CloseSlotBookingResult>(ct) ?? new CloseSlotBookingResult(0, 0, 0);
+    }
 }

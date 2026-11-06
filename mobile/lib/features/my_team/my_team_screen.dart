@@ -6,9 +6,13 @@ import '../../core/phase.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
-import '../suggestions/suggestion_widgets.dart' show DomainChips;
+import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import '../workspace/workspace_widgets.dart';
+import '../lecturers/paths.dart';
 import 'my_team_api.dart';
+import 'project_card.dart';
+import 'team_advisors.dart';
+import '../meeting_schedule/meeting_schedule_api.dart' show teamScheduleProvider, teamWorkspaceIdProvider;
 
 /// Nhãn và màu chip trạng thái nhóm (quy tắc 15) – luôn có chữ, không chỉ màu.
 (String, StatusTone, IconData) teamStatusChip(String status) => switch (status) {
@@ -28,7 +32,13 @@ class MyTeamScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final team = ref.watch(myTeamDetailProvider);
     return RefreshIndicator(
-      onRefresh: () async => refreshMyTeam(ref),
+      onRefresh: () async {
+        refreshMyTeam(ref);
+        ref.invalidate(teamProjectProvider);
+        ref.invalidate(teamLecturerProvider);
+        ref.invalidate(teamMentorProvider);
+        ref.invalidate(checkpointsDoneProvider);
+      },
       child: team.when(
         loading: () => const SkeletonList(),
         error: (e, _) => ErrorState(error: e, onRetry: () => refreshMyTeam(ref)),
@@ -88,11 +98,8 @@ class _TeamOverview extends StatelessWidget {
             StatusChip(label: label, tone: tone, icon: icon),
           ],
         ),
-        if (team.projectName != null) ...[
-          const SizedBox(height: AppSpacing.s2),
-          Text(team.projectName!, style: theme.textTheme.titleMedium),
-        ],
-        if (team.domains.isNotEmpty) ...[const SizedBox(height: AppSpacing.s2), DomainChips(domains: team.domains)],
+        const SizedBox(height: AppSpacing.s3),
+        ProjectCard(team: team),
         const SizedBox(height: AppSpacing.s4),
         Card.outlined(
           child: Padding(
@@ -115,6 +122,8 @@ class _TeamOverview extends StatelessWidget {
                 leading: const Icon(Icons.school_outlined),
                 title: const Text('Giảng viên'),
                 subtitle: Text(team.lecturerName ?? 'Chưa ghép'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.push(teamLecturerPath),
               ),
               ListTile(
                 leading: const Icon(Icons.support_agent_outlined),
@@ -124,6 +133,8 @@ class _TeamOverview extends StatelessWidget {
             ],
           ),
         ),
+        AdvisorNotes(team: team),
+        CheckpointCard(team: team),
         if (team.hasPendingChanges) ...[
           const SizedBox(height: AppSpacing.s3),
           Card.outlined(
@@ -132,7 +143,7 @@ class _TeamOverview extends StatelessWidget {
               title: const Text('Thay đổi chờ duyệt'),
               subtitle: const Text('Có hiệu lực khi Bộ môn duyệt yêu cầu đổi nhóm.'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.push('/sv/nhom/thanh-vien'),
+              onTap: () => context.push('/sv/yeu-cau-doi-nhom'),
             ),
           ),
         ],
@@ -151,6 +162,14 @@ class _TeamOverview extends StatelessWidget {
                   path: '/sv/nhom/bai-tuyen',
                 ),
               if (canEdit) const _Shortcut(icon: Icons.edit_outlined, label: 'Sửa thông tin', path: '/sv/nhom/sua'),
+              if (team.isInherited && team.isLeader)
+                const _Shortcut(
+                  icon: Icons.published_with_changes_outlined,
+                  label: 'Yêu cầu đổi nhóm',
+                  path: '/sv/yeu-cau-doi-nhom',
+                ),
+              const _OpenProject(),
+              if (team.courseCode == 'EXE201') _WeeklyMeeting(teamId: team.id),
               const _Shortcut(icon: Icons.history, label: 'Lịch sử hoạt động', path: '/sv/nhom/lich-su'),
             ],
           ),
@@ -162,6 +181,37 @@ class _TeamOverview extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// Lối tắt sang tab Dự án (C01); ẩn khi nhóm chưa có dự án.
+class _OpenProject extends ConsumerWidget {
+  const _OpenProject();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(myWorkspacesProvider).value?.isNotEmpty != true) return const SizedBox.shrink();
+    return ListTile(
+      leading: const Icon(Icons.rocket_launch_outlined),
+      title: const Text('Mở dự án'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.go('/sv/du-an'),
+    );
+  }
+}
+
+/// Lối vào C09 của nhóm EXE201: "Thứ Ba 09:15" khi đã chọn slot, chưa chọn thì "Chọn lịch họp"; ẩn khi nhóm chưa có dự án.
+class _WeeklyMeeting extends ConsumerWidget {
+  const _WeeklyMeeting({required this.teamId});
+
+  final String teamId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final workspaceId = ref.watch(teamWorkspaceIdProvider(teamId)).value;
+    if (workspaceId == null) return const SizedBox.shrink();
+    final mySlot = ref.watch(teamScheduleProvider(workspaceId)).value?.mySlot;
+    return _Shortcut(icon: Icons.event_repeat_outlined, label: 'Lịch họp hằng tuần', detail: mySlot?.label ?? 'Chọn lịch họp', path: '/sv/nhom/lich-hop');
   }
 }
 

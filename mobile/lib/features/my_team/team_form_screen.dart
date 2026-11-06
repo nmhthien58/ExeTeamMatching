@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../suggestions/suggestions_api.dart' show CatalogRef;
 import 'my_team_api.dart';
+import 'team_form_view_model.dart';
 
 /// S13 Tạo nhóm (MB-19) và S16 Sửa thông tin nhóm (MB-21): tên nhóm, tên đề tài, mô tả ý tưởng, domain (S14 – bottom sheet chọn nhiều).
 /// [team] null = tạo mới. Lỗi gửi → banner lỗi, giữ nội dung; lỗi theo ô từ ProblemDetails hiện dưới ô đó.
@@ -23,12 +23,10 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
   late final _name = TextEditingController(text: widget.team?.name);
   late final _project = TextEditingController(text: widget.team?.projectName);
   late final _idea = TextEditingController(text: widget.team?.ideaDescription);
-  late List<CatalogRef> _domains = [...?widget.team?.domains];
-  bool _saving = false;
-  bool _submitted = false;
-  ApiException? _error;
 
   bool get _isEdit => widget.team != null;
+
+  TeamFormViewModel get _vm => ref.read(teamFormViewModelProvider(widget.team).notifier);
 
   @override
   void dispose() {
@@ -38,75 +36,43 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
     super.dispose();
   }
 
-  String? get _nameError {
-    if (_error?.fieldErrors['name'] case [final first, ...]) return first;
-    if (!_submitted) return null;
-    return _name.text.trim().length < 2 ? 'Tên nhóm cần ít nhất 2 ký tự.' : null;
-  }
-
-  String? get _domainError {
-    if (_error?.fieldErrors['domainIds'] case [final first, ...]) return first;
-    return _submitted && _domains.isEmpty ? 'Chọn ít nhất một domain.' : null;
-  }
-
-  Future<void> _pickDomains() async {
+  Future<void> _pickDomains(List<CatalogRef> current) async {
     final picked = await showModalBottomSheet<List<CatalogRef>>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _DomainSheet(selected: _domains),
+      builder: (_) => _DomainSheet(selected: current),
     );
-    if (picked != null) setState(() => _domains = picked);
+    if (picked != null) _vm.setDomains(picked);
   }
 
   Future<void> _save() async {
-    setState(() => _submitted = true);
-    if (_nameError != null || _domainError != null) return;
-    setState(() {
-      _saving = true;
-      _error = null;
-    });
-    final input = TeamInput(
-      name: _name.text.trim(),
-      projectName: _project.text.trim(),
-      ideaDescription: _idea.text.trim(),
-      domainIds: [for (final d in _domains) d.id],
-      primaryDomainId: _domains.first.id,
-    );
-    try {
-      final api = ref.read(myTeamApiProvider);
-      _isEdit ? await api.update(widget.team!.id, input) : await api.create(input);
-      if (!mounted) return;
-      refreshMyTeam(ref);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_isEdit ? 'Đã lưu' : 'Đã tạo nhóm')));
-      // Sau khi gửi thành công, Back không quay lại form (flutter-handoff mục 3).
-      _isEdit ? context.pop() : context.go('/sv/nhom');
-    } on ApiException catch (e) {
-      setState(() {
-        _saving = false;
-        _error = e;
-      });
-    }
+    final outcome = await _vm.save(name: _name.text, projectName: _project.text, ideaDescription: _idea.text);
+    if (outcome is! TeamFormSaved || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(outcome.message)));
+    // Sau khi gửi thành công, Back không quay lại form (flutter-handoff mục 3).
+    outcome.created ? context.go('/sv/nhom') : context.pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final generalError = _error != null && _error!.fieldErrors.isEmpty;
+    final state = ref.watch(teamFormViewModelProvider(widget.team));
+    final saving = state.saving;
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Sửa thông tin' : 'Tạo nhóm')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
-          if (generalError) ...[
-            ErrorBanner(message: _error!.detail ?? _error!.title, onRetry: _saving ? null : _save),
+          if (state.generalError case final message?) ...[
+            ErrorBanner(message: message, onRetry: saving ? null : _save),
             const SizedBox(height: AppSpacing.s4),
           ],
           TextField(
             controller: _name,
             maxLength: 100,
-            decoration: InputDecoration(labelText: 'Tên nhóm', errorText: _nameError),
-            onChanged: (_) => setState(() => _error = null),
+            decoration: InputDecoration(labelText: 'Tên nhóm', errorText: state.nameError),
+            onChanged: _vm.nameChanged,
           ),
           const SizedBox(height: AppSpacing.s3),
           TextField(
@@ -116,10 +82,19 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
             decoration: InputDecoration(
               labelText: 'Tên đề tài',
               helperText: widget.team?.isInherited ?? false ? 'Đổi đề tài qua yêu cầu đổi nhóm.' : 'Có thể bổ sung sau.',
-              errorText: _error?.fieldErrors['projectName']?.first,
+              errorText: state.projectNameError,
             ),
           ),
           const SizedBox(height: AppSpacing.s3),
+          if (widget.team?.isInherited ?? false)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => context.push('/sv/yeu-cau-doi-nhom'),
+                icon: const Icon(Icons.published_with_changes_outlined, size: 18),
+                label: const Text('Mở yêu cầu đổi nhóm'),
+              ),
+            ),
           TextField(
             controller: _idea,
             maxLength: 4000,
@@ -134,22 +109,22 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
             spacing: AppSpacing.s2,
             runSpacing: AppSpacing.s2,
             children: [
-              for (final (i, d) in _domains.indexed)
+              for (final (i, d) in state.domains.indexed)
                 InputChip(
                   label: Text(i == 0 ? '${d.code} · ${d.name} (chính)' : '${d.code} · ${d.name}'),
-                  onDeleted: () => setState(() => _domains = [..._domains]..removeAt(i)),
+                  onDeleted: () => _vm.removeDomainAt(i),
                   deleteButtonTooltipMessage: 'Bỏ ${d.code}',
                 ),
-              ActionChip(avatar: const Icon(Icons.add, size: 18), label: const Text('Chọn domain'), onPressed: _pickDomains),
+              ActionChip(avatar: const Icon(Icons.add, size: 18), label: const Text('Chọn domain'), onPressed: () => _pickDomains(state.domains)),
             ],
           ),
-          if (_domainError != null)
+          if (state.domainError case final domainError?)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.s2),
-              child: Text(_domainError!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+              child: Text(domainError, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
             ),
           const SizedBox(height: AppSpacing.s6),
-          LoadingButton(label: _isEdit ? 'Lưu' : 'Tạo nhóm', loading: _saving, onPressed: _saving ? null : _save),
+          LoadingButton(label: _isEdit ? 'Lưu' : 'Tạo nhóm', loading: saving, onPressed: saving ? null : _save),
         ],
       ),
     );

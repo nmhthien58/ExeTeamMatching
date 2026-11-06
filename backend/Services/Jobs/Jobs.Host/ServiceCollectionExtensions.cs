@@ -52,8 +52,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<DeadlineReminderJob>();
         services.AddScoped<RoundAutoCloseJob>();
         services.AddScoped<AutoAssignUnmatchedJob>();
+        services.AddScoped<LecturerMatchingJob>();
+        services.AddScoped<MentorMatchingJob>();
         services.AddScoped<InvitationExpiryJob>();
         services.AddScoped<MeetingReminderJob>();
+        services.AddScoped<SlotBookingCloseJob>();
         services.AddScoped<TaskDueReminderJob>();
 
         services.AddKafka(configuration, "jobs");

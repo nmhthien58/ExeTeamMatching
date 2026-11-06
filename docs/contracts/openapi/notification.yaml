@@ -1,16 +1,38 @@
 openapi: 3.0.3
 info:
   title: EXE Team Matching – Notification Service (read API)
-  version: 0.2.0-draft
+  version: 0.3.0-draft
   description: |
-    BE-02 – bản nháp. Thông báo trong ứng dụng, lọc theo người gọi (JWT). Ứng dụng tải khi mở tab
-    hoặc kéo để làm mới (polling), không có push realtime.
+    BE-02, BE-84 – thông báo trong ứng dụng, lọc theo người gọi (JWT), đăng ký device token và push FCM.
 servers:
   - url: http://localhost:8080
     description: API Gateway
 security:
   - bearer: []
 paths:
+  /api/notifications/devices:
+    post:
+      tags: [Notifications]
+      summary: Đăng ký hoặc cập nhật device token FCM của người đang đăng nhập
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegistration' }
+      responses:
+        '204': { description: Đã đăng ký }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/notifications/devices/{token}:
+    delete:
+      tags: [Notifications]
+      summary: Gỡ device token khi đăng xuất
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string, maxLength: 4096 }
+      responses:
+        '204': { description: Đã gỡ hoặc token không còn tồn tại }
   /api/notifications:
     get:
       tags: [Notifications]
@@ -110,3 +132,9 @@ components:
       type: object
       properties:
         emailEnabled: { type: boolean }
+    DeviceRegistration:
+      type: object
+      required: [token, platform]
+      properties:
+        token: { type: string, minLength: 1, maxLength: 4096 }
+        platform: { type: string, enum: [android, ios] }

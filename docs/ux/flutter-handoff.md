@@ -93,7 +93,7 @@
 |---|---|
 | Layout | Logo và tên ứng dụng ở nửa trên; nút "Đăng nhập với Google" rộng hết chiều ngang ở nửa dưới; ghi chú "Dùng email đã đăng ký với bộ môn" bên dưới nút |
 | Components | `FilledButton` có icon Google, `Text` (bodyMedium, onSurfaceVariant) |
-| States | Mặc định · đang xử lý (nút đang gửi) · lỗi mạng (banner lỗi + Thử lại) · người dùng hủy đăng nhập (về mặc định, không báo lỗi) |
+| States | Mặc định · đang xử lý (nút đang gửi) · lỗi mạng (banner lỗi + Thử lại) · người dùng hủy đăng nhập (về mặc định, không có banner lỗi; SnackBar "Bạn đã hủy đăng nhập…" – đổi 04/11/2026 vì Lab 3 §6 yêu cầu báo khi hủy, MB-47) |
 | Interactions | Bấm nút → Google Sign-In → gửi ID token lên Identity Service → nhận JWT của hệ thống |
 | Navigation | Điểm vào. Email không có trong danh sách → A04. Sinh viên lần đầu → A05. Sinh viên đã có hồ sơ → S01. Giảng viên → L01 |
 | UI constraints | Chỉ email trong danh sách học kỳ được vào (quy tắc 5). Không lưu mật khẩu trong ứng dụng |
@@ -184,7 +184,7 @@
 | States | Có dữ liệu · trống · đang tải · lỗi tải · đã đọc tất cả |
 | Interactions | Chạm thông báo → đánh dấu đã đọc, mở màn liên quan; kéo để làm mới (gọi `GET /api/notifications`) |
 | Navigation | Tab cấp 1 (cả sinh viên và giảng viên). → S15, S29, L03…; Back về A06 |
-| UI constraints | Không có push realtime; dữ liệu cập nhật khi mở tab hoặc kéo để làm mới. Trong prototype, chạm thông báo mô phỏng phản hồi của bên thứ hai |
+| UI constraints | MB-52: FCM làm mới A06/badge; khi app đang mở hiện banner trong app, khi ở nền/đã đóng dùng notification hệ thống. Chạm thông báo mở đúng màn theo deep link; vẫn hỗ trợ kéo để làm mới. |
 
 #### S15 · Nhóm của tôi – Tổng quan
 

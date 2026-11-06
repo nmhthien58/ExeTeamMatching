@@ -25,10 +25,10 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 
 | Topic | Sự kiện | Producer | Consumer |
 |---|---|---|---|
-| `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic (outbox) | Identity (tạo sẵn tài khoản), Notification (contacts), Matching (read model) |
+| `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic (outbox) | Identity (tạo sẵn tài khoản), Notification (contacts), Matching (read model), Team (gỡ mentor khi khóa) |
 | `exe.registration` | RoundOpened, RoundClosed | Academic (outbox) | Notification, Job (lên lịch đóng đợt) |
 | `exe.registration` | DeadlineApproaching | Job (publish trực tiếp) | Notification |
-| `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject | Team (outbox) | Matching, Notification, Collaboration |
+| `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject, UnmatchedStudentsReminded | Team (outbox) | Matching, Notification, Collaboration |
 | `exe.invitation` | InvitationSent, InvitationAccepted, InvitationDeclined, InvitationExpired, JoinRequestSubmitted, JoinRequestAccepted, JoinRequestDeclined | Team (outbox) | Notification |
 | `exe.change-request` | ChangeRequestSubmitted, ChangeRequestApproved, ChangeRequestRejected | Team (outbox) | Notification |
 | `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerPreferencesUpdated, LecturerAssigned, MentorAssigned, MentorUnassigned, AdvisorMatchingCompleted | Team (outbox) | Notification, Matching (số quan tâm, nhóm đã có giảng viên), Collaboration (quyền workspace) |
@@ -36,6 +36,8 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 | `exe.reminder` | MeetingReminder, TaskDueSoon, DeliverableOverdue | Job (publish trực tiếp) | Notification |
 
 Tin nhắn thường **không** có sự kiện Kafka: Collaboration đẩy qua SignalR hub `/hubs/collab` (`messageCreated`, `messageUpdated`, `readUpdated`, `typing`) và không tạo thông báo (PROJECT_CONTEXT §5.7).
+
+Lưới slot C09 cũng đẩy qua hub: sau khi `SaveChangesAsync` thành công của lần đặt, đổi hoặc tự xếp slot, Collaboration gửi `slotsChanged` `{ "scheduleId": "uuid" }` tới workspace của mọi nhóm trong lịch; client tải lại lịch qua REST. Đây là sự kiện hub riêng, bổ sung cho `MeetingSlotBooked` (Kafka, tạo thông báo).
 
 `InvitationExpired` do Team phát: Job gọi endpoint nội bộ `POST /internal/invitations/expire-overdue` của Team (Job không đụng database của Team).
 
@@ -59,15 +61,19 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
   "isSeekingTeam": true, "profileCompleted": true }
 
 // LecturerRegistered – Admin thêm giảng viên, key = lecturerId
-{ "lecturerId": "uuid", "fullName": "Trần Thị B", "email": "b@fe.edu.vn", "domainIds": [4, 7], "maxTeams": 8, "isActive": true }
+{ "lecturerId": "uuid", "fullName": "Trần Thị B", "email": "b@fe.edu.vn", "domainIds": [4, 7], "maxTeamsExe101": 8, "maxTeamsExe201": null, "isActive": true }
 
 // LecturerProfileUpdated – giảng viên / Admin sửa chuyên môn, sức chứa (Matching cập nhật read model), key = lecturerId
-{ "lecturerId": "uuid", "domainIds": [4, 7], "maxTeams": 8, "isAcceptingTeams": true, "isActive": true }
+{ "lecturerId": "uuid", "domainIds": [4, 7], "maxTeamsExe101": 8, "maxTeamsExe201": null, "isActive": true }
 
-// MentorRegistered – Admin tạo hoặc sửa mentor (rule 20), key = mentorId. Identity tạo / khóa tài khoản role Mentor;
-// lecturerId != null → thêm role Mentor vào tài khoản sẵn có của giảng viên đó.
+// MentorRegistered – Admin tạo hoặc sửa mentor, mentor tự sửa hồ sơ, giảng viên gắn với mentor đổi email hoặc bị khóa (rule 20), key = mentorId.
+// Phát lại ở mọi lần sửa: các bên xử lý idempotent theo mentorId. domainIds cho read model của Matching.
+// Khóa giảng viên thì mentor gắn với họ khóa theo (isActive=false); mở khóa giảng viên không tự mở mentor, Bộ môn tự mở.
+// Identity (BE-64): lecturerId == null → tài khoản riêng theo email, isActive=false thì khóa tài khoản;
+// lecturerId != null → thêm role Mentor vào tài khoản sẵn có của giảng viên đó (không đổi email – LecturerRegistered làm),
+// isActive=false thì chỉ bỏ role Mentor. LecturerRegistered isActive=false trên tài khoản còn vai trò khác cũng chỉ bỏ role Lecturer.
 { "mentorId": "uuid", "fullName": "Lê Văn Tuấn", "email": "tuan@startup.vn", "organization": "Startup X",
-  "isInternal": false, "lecturerId": null, "maxTeams": 4, "isActive": true }
+  "isInternal": false, "lecturerId": null, "domainIds": [4, 7], "maxTeams": 4, "isActive": true }
 ```
 
 ### exe.registration
@@ -89,7 +95,8 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 { "teamId": "uuid", "semesterId": "uuid", "courseCode": "EXE101", "name": "Nhóm A", "leaderStudentId": "uuid",
   "leaderName": "Nguyễn Văn A", "projectId": "uuid|null", "isAutoAssigned": false, "isInherited": false,
   "sourceTeamId": "uuid|null" }
-// MemberJoined
+// MemberJoined – joinSource: INVITATION | JOIN_REQUEST | CHANGE_REQUEST | AUTO_ASSIGN | INHERITED | ADMIN (trưởng nhóm vào qua TeamCreated).
+// INHERITED: import mốc EXE101 phát TeamCreated rồi MemberJoined cho từng thành viên còn lại, để Collaboration / Matching có đủ thành viên.
 { "teamId": "uuid", "semesterId": "uuid", "studentId": "uuid", "fullName": "Trần Văn C", "specializationId": 1,
   "joinSource": "INVITATION", "memberCount": 5 }
 // MemberLeft
@@ -108,6 +115,8 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 // TeamLinkedToProject – nhóm EXE201 gắn với đề tài EXE101 (import mốc hoặc Admin gắn tay).
 // Collaboration đặt previous_workspace_id = workspace của previousTeamId.
 { "teamId": "uuid", "projectId": "uuid", "previousTeamId": "uuid", "linkedBy": "IMPORT" }   // IMPORT | ADMIN
+// UnmatchedStudentsReminded – key = semesterId. Admin bấm "Nhắc" ở W20; Notification báo trong app và gửi email
+{ "semesterId": "uuid", "courseCode": "EXE101", "studentIds": ["uuid"], "remindedByAccountId": "uuid" }
 ```
 
 ### exe.invitation
@@ -125,7 +134,7 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 { "joinRequestId": "uuid", "teamId": "uuid", "studentId": "uuid" }
 ```
 
-Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt (rule 7); `MemberJoined` chỉ phát khi yêu cầu đổi nhóm được duyệt.
+Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt (rule 7); sau khi import mốc, `MemberJoined` của nhóm này chỉ phát khi yêu cầu đổi nhóm được duyệt.
 
 ### exe.change-request (key = changeRequestId)
 
@@ -144,7 +153,7 @@ Với nhóm EXE201 kế thừa, "Accepted" chỉ tạo thay đổi chờ duyệt
 // TopicInterestOpened – giảng viên / mentor quan tâm nhóm (rule 19); Matching tăng số quan tâm.
 // Notification chỉ báo nhóm khi advisorKind = LECTURER (sinh viên không chọn mentor).
 { "interestId": "uuid", "teamId": "uuid", "projectId": "uuid", "advisorKind": "LECTURER", "advisorId": "uuid",
-  "advisorName": "...", "wasPreviousInstructor": false }
+  "advisorName": "...", "wasPreviousInstructor": false, "memberStudentIds": ["uuid"] }
 // TopicInterestClosed – reason: WITHDRAWN | THIS_ADVISOR_MATCHED | OTHER_ADVISOR_MATCHED | TEAM_DISBANDED
 { "interestId": "uuid", "teamId": "uuid", "advisorKind": "LECTURER", "advisorId": "uuid", "reason": "OTHER_ADVISOR_MATCHED" }
 // LecturerPreferencesUpdated – trưởng nhóm đổi nguyện vọng 1–3 (rule 9); Matching cập nhật, Notification báo giảng viên mới được chọn
@@ -186,7 +195,7 @@ Người nhận trong `exe.collab` và `exe.reminder` là `{ "personType": "STUD
 { "workspaceId": "uuid", "taskId": "uuid", "title": "Báo cáo tuần 3", "dueAt": "...", "memberStudentIds": ["uuid"] }
 // DeliverableSubmitted
 { "workspaceId": "uuid", "taskId": "uuid", "submissionId": "uuid", "fileVersionId": "uuid", "lecturerId": "uuid" }
-// MeetingSlotsPublished – giảng viên đăng lịch họp hằng tuần EXE201 (rule 25); báo các nhóm của giảng viên
+// MeetingSlotsPublished – giảng viên đăng lịch họp hằng tuần EXE201 (rule 25), key = scheduleId; một sự kiện, recipients là sinh viên mọi nhóm của giảng viên
 { "scheduleId": "uuid", "lecturerId": "uuid", "lecturerName": "...", "bookingDeadline": "...", "slotCount": 32,
   "recipients": [ { "personType": "STUDENT", "personId": "uuid" } ] }
 // MeetingSlotBooked – key = workspaceId. source: LEADER | INSTRUCTOR | AUTO (giảng viên đổi / hệ thống xếp thì báo nhóm)
@@ -200,7 +209,8 @@ Người nhận trong `exe.collab` và `exe.reminder` là `{ "personType": "STUD
   "memberStudentIds": ["uuid"] }
 // FileUploaded – chỉ dùng để báo cố vấn khi có phiên bản mới của file đã ghim / đã nộp (không báo mọi file)
 { "workspaceId": "uuid", "fileId": "uuid", "version": 3, "name": "bao-cao.pdf", "uploadedByStudentId": "uuid" }
-// MeetingProposed / MeetingScheduled / MeetingCancelled (rule 25)
+// MeetingProposed / MeetingScheduled / MeetingCancelled (rule 25). Dời một tuần của họp hằng tuần phát MeetingScheduled,
+// lý do dời nằm trong cancelReason (không có cột riêng); confirmedSlotId là khung giờ mới. Sinh họp hằng tuần không phát sự kiện này.
 { "workspaceId": "uuid", "meetingId": "uuid", "title": "...", "isMentorSession": true,
   "slots": [ { "slotId": "uuid", "startsAt": "...", "durationMinutes": 60 } ],
   "confirmedSlotId": "uuid|null", "cancelReason": "...|null",

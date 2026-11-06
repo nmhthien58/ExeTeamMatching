@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/format.dart';
@@ -9,6 +8,7 @@ import '../workspace/workspace_api.dart';
 import '../workspace/workspace_models.dart';
 import '../workspace/workspace_widgets.dart';
 import 'file_services.dart';
+import 'files_view_model.dart';
 
 /// Chi tiết file trong C06 (bottom sheet): các phiên bản (tải từng bản) và bình luận theo phiên bản.
 Future<void> showFileDetailSheet(BuildContext context, {required WorkspaceOverview workspace, required String fileId}) =>
@@ -27,24 +27,22 @@ class _FileDetail extends ConsumerWidget {
   final String fileId;
 
   Future<void> _download(BuildContext context, WidgetRef ref, int version) async {
-    try {
-      await ref.read(openUrlProvider)(await ref.read(collabApiProvider).downloadUrl(fileId, version: version));
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.apiError.title)));
-      }
+    final error = await ref.read(fileDetailViewModelProvider(fileId).notifier).download(version);
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(fileDetailViewModelProvider(fileId));
     final detail = ref.watch(fileDetailProvider(fileId));
     final theme = Theme.of(context);
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.85,
       child: detail.when(
         loading: () => const SkeletonList(count: 2),
-        error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(fileDetailProvider(fileId))),
+        error: (e, _) => ErrorState(error: e, onRetry: ref.read(fileDetailViewModelProvider(fileId).notifier).refresh),
         data: (d) {
           final canComment = workspace.myRole != WorkspaceRole.admin && !d.file.isArchive;
           return Column(
@@ -100,10 +98,9 @@ class _FileDetail extends ConsumerWidget {
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s2, AppSpacing.s4, AppSpacing.s2 + MediaQuery.viewInsetsOf(context).bottom),
                     child: CommentComposer(
-                      onSend: (body) async {
-                        await ref.read(collabApiProvider).commentFile(fileId, body, version: d.file.currentVersion);
-                        ref.invalidate(fileDetailProvider(fileId));
-                      },
+                      onSend: (body) => ref
+                          .read(fileDetailViewModelProvider(fileId).notifier)
+                          .comment(body, version: d.file.currentVersion),
                     ),
                   ),
                 ),

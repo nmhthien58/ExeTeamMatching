@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/workspace_api.dart';
 import '../workspace/workspace_models.dart';
 import 'task_card_tile.dart';
+import 'task_board_view_model.dart';
 import 'task_form_sheet.dart';
 
 /// C04 – Bảng việc (MB-40, quy tắc 23): tab Cần làm · Đang làm · Xong kèm số, lọc nhanh Của tôi / Bài nộp / Trễ hạn,
@@ -35,15 +35,6 @@ class TaskBoardScreen extends ConsumerStatefulWidget {
 }
 
 class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen> {
-  late bool _mine = widget.mine;
-  late bool _deliverables = widget.deliverablesOnly;
-  bool _overdue = false;
-  bool _archive = false;
-
-  /// Trạng thái đổi lạc quan, chờ API trả lời.
-  final Map<String, TaskStatus> _pending = {};
-  String? _error;
-
   @override
   void initState() {
     super.initState();
@@ -55,37 +46,27 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen> {
     }
   }
 
-  TaskBoardQuery _query(String workspaceId) =>
-      (workspaceId: workspaceId, mine: _mine, deliverablesOnly: _deliverables, overdue: _overdue, includeArchive: _archive);
+  TaskBoardKey _key(String workspaceId) =>
+      (workspaceId: workspaceId, mine: widget.mine, deliverablesOnly: widget.deliverablesOnly);
+
+  TaskBoardViewModel _vm(WorkspaceOverview ws) => ref.read(taskBoardViewModelProvider(_key(ws.id)).notifier);
 
   Future<void> _create(WorkspaceOverview ws) async {
     final created = await showTaskFormSheet(context, workspace: ws);
-    if (created && mounted) ref.invalidate(taskBoardProvider);
+    if (created && mounted) _vm(ws).onCreated();
   }
 
   Future<void> _move(WorkspaceOverview ws, TaskCard task, TaskStatus status, {bool undo = false}) async {
-    final previous = task.status;
-    setState(() {
-      _pending[task.id] = status;
-      _error = null;
-    });
-    try {
-      await ref.read(collabApiProvider).moveTask(task.id, status);
-      if (!mounted) return;
-      ref.invalidate(taskBoardProvider(_query(ws.id)));
-      if (!undo) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text('Đã chuyển sang ${status.label}'),
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(label: 'Hoàn tác', onPressed: () => _move(ws, task.copyWith(status: status), previous, undo: true)),
-          ));
-      }
-    } catch (e) {
-      if (mounted) setState(() => _error = '${e.apiError.title}. Việc đã trở lại cột cũ.');
-    } finally {
-      if (mounted) setState(() => _pending.remove(task.id));
+    final outcome = await _vm(ws).move(task, status);
+    if (!mounted || undo) return;
+    if (outcome case TaskMoved(:final previous)) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('Đã chuyển sang ${status.label}'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(label: 'Hoàn tác', onPressed: () => _move(ws, task.copyWith(status: status), previous, undo: true)),
+        ));
     }
   }
 
@@ -105,10 +86,12 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen> {
   }
 
   Widget _board(WorkspaceOverview ws) {
-    final tasks = ref.watch(taskBoardProvider(_query(ws.id)));
+    final state = ref.watch(taskBoardViewModelProvider(_key(ws.id)));
+    final vm = _vm(ws);
+    final tasks = ref.watch(taskBoardProvider(vm.query));
     final isInstructor = ws.myRole == WorkspaceRole.instructor;
     final canCreate = ws.canEdit || isInstructor;
-    final list = [for (final t in tasks.value ?? const <TaskCard>[]) _pending.containsKey(t.id) ? t.copyWith(status: _pending[t.id]) : t];
+    final list = vm.applyPending(tasks.value ?? const <TaskCard>[]);
 
     return DefaultTabController(
       length: TaskStatus.values.length,
@@ -116,7 +99,7 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen> {
         appBar: AppBar(
           title: const Text('Việc'),
           bottom: TabBar(tabs: [
-            for (final s in TaskStatus.values) Tab(text: '${s.label} (${list.where((t) => t.status == s).length})'),
+            for (final s in TaskStatus.values) Tab(text: '${s.label} (${TaskBoardViewModel.column(list, s).length})'),
           ]),
         ),
         floatingActionButton: canCreate
@@ -133,23 +116,23 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen> {
               padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s3, AppSpacing.s4, 0),
               child: Row(
                 children: [
-                  if (ws.canEdit) _chip('Của tôi', _mine, (v) => setState(() => _mine = v)),
-                  _chip('Bài nộp', _deliverables, (v) => setState(() => _deliverables = v)),
-                  _chip('Trễ hạn', _overdue, (v) => setState(() => _overdue = v)),
-                  if (ws.previousWorkspaceId != null) _chip('Việc EXE101', _archive, (v) => setState(() => _archive = v)),
+                  if (ws.canEdit) _chip('Của tôi', state.mine, vm.setMine),
+                  _chip('Bài nộp', state.deliverablesOnly, vm.setDeliverablesOnly),
+                  _chip('Trễ hạn', state.overdue, vm.setOverdue),
+                  if (ws.previousWorkspaceId != null) _chip('Việc EXE101', state.includeArchive, vm.setIncludeArchive),
                 ],
               ),
             ),
-            if (_error != null)
-              Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s3, AppSpacing.s4, 0), child: ErrorBanner(message: _error!)),
+            if (state.error != null)
+              Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s3, AppSpacing.s4, 0), child: ErrorBanner(message: state.error!)),
             Expanded(
               child: tasks.when(
                 skipLoadingOnReload: true,
                 loading: () => const SkeletonList(),
-                error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(taskBoardProvider(_query(ws.id)))),
+                error: (e, _) => ErrorState(error: e, onRetry: vm.refresh),
                 data: (_) => TabBarView(children: [
                   for (final s in TaskStatus.values)
-                    _column(ws, s, list.where((t) => t.status == s).toList()..sort((a, b) => a.position.compareTo(b.position))),
+                    _column(ws, s, TaskBoardViewModel.column(list, s)),
                 ]),
               ),
             ),
@@ -165,7 +148,7 @@ class _TaskBoardScreenState extends ConsumerState<TaskBoardScreen> {
       );
 
   Widget _column(WorkspaceOverview ws, TaskStatus status, List<TaskCard> tasks) => RefreshIndicator(
-        onRefresh: () async => ref.invalidate(taskBoardProvider(_query(ws.id))),
+        onRefresh: () async => _vm(ws).refresh(),
         child: tasks.isEmpty
             ? ListView(children: const [EmptyState(icon: Icons.inbox_outlined, title: 'Chưa có việc.')])
             : ListView.separated(

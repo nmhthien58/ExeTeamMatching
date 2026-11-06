@@ -1,0 +1,676 @@
+--------- beginning of main
+11-06 18:52:38.022 25286 25740 V FA      : Connecting to remote service
+11-06 18:52:38.049 25286 25740 D FA      : Connected to remote service
+11-06 18:52:38.050 25286 25740 V FA      : Processing queued up service tasks: 1
+11-06 18:52:38.056 25286 25740 V FA      : Logging telemetry for logEvent from database
+11-06 18:52:38.057 22343 25742 V FA-SVC  : Populate EES config from database on cache miss. appId: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.058 22343 25742 V FA-SVC  : Parsed config. version, gmp_app_id: 1793877234677211, 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.058 22343 25742 V FA-SVC  : EES not loaded for: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.062 22343 25742 V FA-SVC  : Logging event: origin=app,name=view_team,params=Bundle[{team_id=c225b2b3-d34b-4574-ab6e-863164660d82, source=discover, ga_event_origin(_o)=app, ga_screen_class(_sc)=MainActivity, ga_screen_id(_si)=2285133718602670565}]
+11-06 18:52:38.087 22343 25742 V FA-SVC  : dsid successfully retrieved, isEmpty: vn.edu.fpt.exe.exe_team_matching, false
+11-06 18:52:38.093 22343 25742 V FA-SVC  : Upload scheduled in approximately ms: 500
+11-06 18:52:38.093 22343 25742 V FA-SVC  : Scheduling upload, millis: 500
+11-06 18:52:38.093 22343 25742 V FA-SVC  : Background event processing time, ms: 34
+11-06 18:52:38.598 22343 25742 V FA-SVC  : Unscheduling upload
+11-06 18:52:38.603 22343 25742 V FA-SVC  : Starting upload from DelayedRunnable
+11-06 18:52:38.616 22343 25742 V FA-SVC  : Setting user property: non_personalized_ads(_npa), 0
+11-06 18:52:38.624 22343 25742 V FA-SVC  : Bundling raw events. appId, hasRealtimeData, totalEvents: vn.edu.fpt.exe.exe_team_matching, false, 1
+11-06 18:52:38.626 22343 25742 V FA-SVC  : Saving bundle, size: 869
+11-06 18:52:38.638 22343 25742 V FA-SVC  : Setting user property: non_personalized_ads(_npa), 0
+11-06 18:52:38.642 22343 25742 V FA-SVC  : Bundling raw events. appId, hasRealtimeData, totalEvents: vn.edu.fpt.exe.exe_team_matching, false, 1
+11-06 18:52:38.643 22343 25742 V FA-SVC  : Saving bundle, size: 942
+11-06 18:52:38.650 22343 25742 D FA-SVC  : Uploading events. Elapsed time since last upload attempt (ms): 512
+11-06 18:52:38.654 22343 25742 V FA-SVC  : dsid is cleared due to data control: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.654 22343 25742 V FA-SVC  : dsid is cleared due to data control: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.655 22343 25742 V FA-SVC  : dsid is cleared due to data control: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.655 22343 25742 V FA-SVC  : dsid is cleared due to data control: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.655 22343 25742 V FA-SVC  : dsid is cleared due to data control: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.655 22343 25742 V FA-SVC  : dsid is cleared due to data control: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  : Uploading data. app, uncompressed size, data: vn.edu.fpt.exe.exe_team_matching, 4091, 
+11-06 18:52:38.662 22343 25742 V FA-SVC  : batch {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   bundle {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     protocol_version: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     platform: android
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_version: 195006
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     uploading_gmp_version: 264431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dynamite_version: 219
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     config_version: 1793877234677211
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_app_id: 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_id: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version: 1.0.0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version_major: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     firebase_instance_id: dOSeXtDtQOmrYIRWDaygkc
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dev_cert_hash: -6566620512711143190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_store: manual_install
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     upload_timestamp_millis: 1793965958604
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     start_timestamp_millis: 1793965508361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     end_timestamp_millis: 1793965508361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_start_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_end_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_instance_id: e0bac08519511461eb75d5c67f41a3b1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     resettable_device_id: 0ff190b2-9cc4-4b13-8dbd-4ed909fd57ef
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     ds_id: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     limited_ad_tracking: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     os_version: 13
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     device_model: SM-A715F
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_default_language: vi-vn
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     time_zone_offset_minutes: 420
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     bundle_sequential_index: 77
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     delivery_index: 62
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     service_upload: true
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     health_monitor: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_signals: G1--
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     is_dma_region: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_diagnostics: 19911
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     target_os_version: 36
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_time(_fot)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793883600000
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_after_install(_fi)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793943917805
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_id(_id)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: e739365b-ffe1-4b94-ad5b-4b03cd7cd320
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965510429
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: lifetime_user_engagement(_lte)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 29984034
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_number(_sno)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 10
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_id(_sid)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793965492
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965510431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: session_user_engagement(_se)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 15674
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965510433
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: non_personalized_ads(_npa)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     event {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_engagement(_e)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       timestamp_millis: 1793965508361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       corrected_timestamp_millis: 1793965507793
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       previous_timestamp_millis: 1793948069893
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_event_origin(_o)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: auto
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: engagement_time_msec(_et)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 15674
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_class(_sc)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: MainActivity
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_id(_si)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 4801924130113014297
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   bundle {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     protocol_version: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     platform: android
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_version: 195006
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     uploading_gmp_version: 264431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dynamite_version: 219
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     config_version: 1793877234677211
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_app_id: 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_id: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version: 1.0.0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version_major: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     firebase_instance_id: dOSeXtDtQOmrYIRWDaygkc
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dev_cert_hash: -6566620512711143190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_store: manual_install
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     upload_timestamp_millis: 1793965958604
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     start_timestamp_millis: 1793965555205
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     end_timestamp_millis: 1793965555205
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_start_timestamp_millis: 1793965508361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_end_timestamp_millis: 1793965508361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_instance_id: e0bac08519511461eb75d5c67f41a3b1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     resettable_device_id: 0ff190b2-9cc4-4b13-8dbd-4ed909fd57ef
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     ds_id: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     limited_ad_tracking: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     os_version: 13
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     device_model: SM-A715F
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_default_language: vi-vn
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     time_zone_offset_minutes: 420
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     bundle_sequential_index: 78
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     delivery_index: 63
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     service_upload: true
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     health_monitor: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_signals: G1--
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     is_dma_region: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_diagnostics: 19911
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     target_os_version: 36
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_time(_fot)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793883600000
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_after_install(_fi)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793943917805
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_id(_id)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: e739365b-ffe1-4b94-ad5b-4b03cd7cd320
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_number(_sno)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 10
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_id(_sid)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793965492
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965807423
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: lifetime_user_engagement(_lte)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 29984034
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965807424
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: session_user_engagement(_se)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 15674
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965807426
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: non_personalized_ads(_npa)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     event {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: screen_view(_vs)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       timestamp_millis: 1793965555205
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       corrected_timestamp_millis: 1793965554637
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       previous_timestamp_millis: 1793943916740
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_event_origin(_o)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: auto
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_class(_sc)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: MainActivity
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_id(_si)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 2276805287554765832
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   bundle {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     protocol_version: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     platform: android
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_version: 195006
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     uploading_gmp_version: 264431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dynamite_version: 219
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     config_version: 1793877234677211
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_app_id: 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_id: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version: 1.0.0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version_major: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     firebase_instance_id: dOSeXtDtQOmrYIRWDaygkc
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dev_cert_hash: -6566620512711143190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_store: manual_install
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     upload_timestamp_millis: 1793965958604
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     start_timestamp_millis: 1793965805361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     end_timestamp_millis: 1793965805361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_start_timestamp_millis: 1793965555205
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_end_timestamp_millis: 1793965555205
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_instance_id: e0bac08519511461eb75d5c67f41a3b1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     resettable_device_id: 0ff190b2-9cc4-4b13-8dbd-4ed909fd57ef
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     ds_id: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     limited_ad_tracking: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     os_version: 13
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     device_model: SM-A715F
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_default_language: vi-vn
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     time_zone_offset_minutes: 420
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     bundle_sequential_index: 79
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     delivery_index: 64
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     service_upload: true
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     health_monitor: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_signals: G1--
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     is_dma_region: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_diagnostics: 19911
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     target_os_version: 36
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_time(_fot)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793883600000
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_after_install(_fi)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_number(_sno)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 10
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_id(_sid)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793965492
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965807450
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: lifetime_user_engagement(_lte)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 30234224
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965807450
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: session_user_engagement(_se)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 265864
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965556297
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_id(_id)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: e739365b-ffe1-4b94-ad5b-4b03cd7cd320
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965807452
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: non_personalized_ads(_npa)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     event {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_engagement(_e)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       timestamp_millis: 1793965805361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       corrected_timestamp_millis: 1793965804794
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       previous_timestamp_millis: 1793965508361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_event_origin(_o)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: auto
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: engagement_time_msec(_et)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 250190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_class(_sc)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: MainActivity
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_id(_si)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 2276805287554765832
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   bundle {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     protocol_version: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     platform: android
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_version: 195006
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     uploading_gmp_version: 264431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dynamite_version: 219
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     config_version: 1793877234677211
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_app_id: 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_id: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version: 1.0.0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version_major: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     firebase_instance_id: dOSeXtDtQOmrYIRWDaygkc
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dev_cert_hash: -6566620512711143190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_store: manual_install
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     upload_timestamp_millis: 1793965958604
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     start_timestamp_millis: 1793965828899
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     end_timestamp_millis: 1793965828899
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_start_timestamp_millis: 1793965805361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_end_timestamp_millis: 1793965805361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_instance_id: e0bac08519511461eb75d5c67f41a3b1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     resettable_device_id: 0ff190b2-9cc4-4b13-8dbd-4ed909fd57ef
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     ds_id: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     limited_ad_tracking: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     os_version: 13
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     device_model: SM-A715F
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_default_language: vi-vn
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     time_zone_offset_minutes: 420
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     bundle_sequential_index: 80
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     delivery_index: 65
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     service_upload: true
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     health_monitor: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_signals: G1--
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     is_dma_region: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_diagnostics: 19911
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     target_os_version: 36
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_time(_fot)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793883600000
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_after_install(_fi)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_number(_sno)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 10
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_id(_sid)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793965492
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965556297
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_id(_id)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: e739365b-ffe1-4b94-ad5b-4b03cd7cd320
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965830969
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: lifetime_user_engagement(_lte)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 30246656
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965830971
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: session_user_engagement(_se)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 278296
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965830974
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: non_personalized_ads(_npa)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     event {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_engagement(_e)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       timestamp_millis: 1793965828899
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       corrected_timestamp_millis: 1793965828331
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       previous_timestamp_millis: 1793965805361
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_event_origin(_o)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: auto
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: engagement_time_msec(_et)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 12432
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_class(_sc)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: MainActivity
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_id(_si)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 2276805287554765832
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   bundle {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     protocol_version: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     platform: android
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_version: 195006
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     uploading_gmp_version: 264431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dynamite_version: 219
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     config_version: 1793877234677211
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_app_id: 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_id: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version: 1.0.0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version_major: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     firebase_instance_id: dOSeXtDtQOmrYIRWDaygkc
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dev_cert_hash: -6566620512711143190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_store: manual_install
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     upload_timestamp_millis: 1793965958604
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     start_timestamp_millis: 1793965872447
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     end_timestamp_millis: 1793965872447
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_start_timestamp_millis: 1793965828899
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_end_timestamp_millis: 1793965828899
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_instance_id: e0bac08519511461eb75d5c67f41a3b1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     resettable_device_id: 0ff190b2-9cc4-4b13-8dbd-4ed909fd57ef
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     ds_id: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     limited_ad_tracking: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     os_version: 13
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     device_model: SM-A715F
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_default_language: vi-vn
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     time_zone_offset_minutes: 420
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     bundle_sequential_index: 81
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     delivery_index: 66
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     service_upload: true
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     health_monitor: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_signals: G1--
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     is_dma_region: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_diagnostics: 19911
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     target_os_version: 36
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_time(_fot)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793883600000
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_after_install(_fi)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_number(_sno)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 10
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_id(_sid)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793965492
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965556297
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_id(_id)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: e739365b-ffe1-4b94-ad5b-4b03cd7cd320
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965958612
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: lifetime_user_engagement(_lte)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 30246656
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965958613
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: session_user_engagement(_se)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 278296
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965958615
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: non_personalized_ads(_npa)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     event {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: screen_view(_vs)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       timestamp_millis: 1793965872447
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       corrected_timestamp_millis: 1793965871880
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       previous_timestamp_millis: 1793965555205
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_event_origin(_o)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: auto
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_class(_sc)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: MainActivity
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_id(_si)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 2285133718602670565
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   bundle {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     protocol_version: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     platform: android
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_version: 195006
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     uploading_gmp_version: 264431
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dynamite_version: 219
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     config_version: 1793877234677211
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     gmp_app_id: 1:221888974127:android:46dffe346bb217ef3165da
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_id: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version: 1.0.0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_version_major: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     firebase_instance_id: dOSeXtDtQOmrYIRWDaygkc
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     dev_cert_hash: -6566620512711143190
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_store: manual_install
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     upload_timestamp_millis: 1793965958604
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     start_timestamp_millis: 1793965957992
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     end_timestamp_millis: 1793965957992
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_start_timestamp_millis: 1793965872447
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     previous_bundle_end_timestamp_millis: 1793965872447
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     app_instance_id: e0bac08519511461eb75d5c67f41a3b1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     resettable_device_id: 0ff190b2-9cc4-4b13-8dbd-4ed909fd57ef
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     ds_id: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     limited_ad_tracking: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     os_version: 13
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     device_model: SM-A715F
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_default_language: vi-vn
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     time_zone_offset_minutes: 420
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     bundle_sequential_index: 82
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     delivery_index: 67
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     service_upload: true
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     health_monitor: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_signals: G1--
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     is_dma_region: false
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     consent_diagnostics: 19911
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     target_os_version: 36
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_time(_fot)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793883600000
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793880809315
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: first_open_after_install(_fi)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_number(_sno)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 10
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965492689
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: ga_session_id(_sid)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 1793965492
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965958636
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: lifetime_user_engagement(_lte)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 30246656
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965958636
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: session_user_engagement(_se)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 278296
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965872730
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: user_id(_id)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: e739365b-ffe1-4b94-ad5b-4b03cd7cd320
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     user_property {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       set_timestamp_millis: 1793965958638
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: non_personalized_ads(_npa)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       string_value: 
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       int_value: 0
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     event {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       name: view_team
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       timestamp_millis: 1793965957992
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       corrected_timestamp_millis: 1793965957424
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       previous_timestamp_millis: 1793944093593
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: team_id
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: c225b2b3-d34b-4574-ab6e-863164660d82
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: source
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: discover
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_event_origin(_o)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: app
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: _r
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_class(_sc)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         string_value: MainActivity
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: ga_screen_id(_si)
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 2285133718602670565
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       param {
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         name: _dbg
+11-06 18:52:38.662 22343 25742 V FA-SVC  :         int_value: 1
+11-06 18:52:38.662 22343 25742 V FA-SVC  :       }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :     }
+11-06 18:52:38.662 22343 25742 V FA-SVC  :   }
+11-06 18:52:38.662 22343 25742 V FA-SVC  : } // End-of-batch
+11-06 18:52:38.662 22343 25742 V FA-SVC  : Uploading bundle with GmsCore network library. app: vn.edu.fpt.exe.exe_team_matching
+11-06 18:52:38.666 22343 25742 V FA-SVC  : Not stopping services. fetch, network, upload: false, true, false
+11-06 18:52:38.846 22343 25751 V FA-SVC  : Gms url request successful. app: vn.edu.fpt.exe.exe_team_matching, GOOGLE_ANALYTICS
+11-06 18:52:38.849 22343 25742 V FA-SVC  : Network upload successful with code, uploadAttempted: 204, true
+11-06 18:52:38.859 22343 25742 V FA-SVC  : Upload scheduled in approximately ms: 3599991
+11-06 18:52:38.859 22343 25742 V FA-SVC  : Scheduling upload, millis: 3599991
+11-06 18:52:38.861 22343 25742 V FA-SVC  : Successful upload. Got network response. code, size: 204, 0
+11-06 18:52:38.877 22343 25742 V FA-SVC  : Nothing to upload or uploading impossible
+11-06 18:52:38.878 22343 25742 V FA-SVC  : Unscheduling upload
+11-06 18:52:38.880 22343 25742 V FA-SVC  : Stopping uploading service(s)
+11-06 18:52:43.058 25286 25740 V FA      : Inactivity, disconnecting from the service

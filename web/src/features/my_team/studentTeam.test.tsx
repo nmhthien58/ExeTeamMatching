@@ -139,6 +139,25 @@ describe('student team screens (FE-37)', () => {
     expect(post).toHaveBeenCalledWith('/api/teams/t1/join-requests', { message: undefined, ideas: [], hasNoIdea: true })
   })
 
+  it('S20 shows the applicant skills (SkillBars) and self-description; "Chưa đánh giá" when empty', async () => {
+    const request = (id: string, extra = {}) => ({
+      id, student: { id: `s-${id}`, studentCode: `SE18000${id}`, fullName: `Người xin ${id}` }, ideas: [], hasNoIdea: true, status: 'PENDING',
+      createdAt: '2026-11-01T00:00:00Z', expiresAt: '2026-11-04T00:00:00Z', ...extra,
+    })
+    routes = {
+      '/api/teams/me': team('LEADER'),
+      '/api/teams/t1/join-requests': [
+        request('7', { studentSkills: [{ skill: 'TECHNOLOGY', level: 4 }, { skill: 'MARKETING', level: 2 }], studentDescription: 'Thích làm frontend' }),
+        request('8'),
+      ],
+      '/api/teams/t1/invitations': [],
+    }
+    renderAt('/sv/nhom/yeu-cau')
+    expect(await screen.findByText('Thích làm frontend')).toBeInTheDocument()
+    expect(screen.getByLabelText('Công nghệ, 4 trên 5')).toBeInTheDocument()
+    expect(screen.getByText('Chưa đánh giá kỹ năng.')).toBeInTheDocument()
+  })
+
   it('S08 explains why someone with a team cannot ask to join', async () => {
     routes = { '/api/teams/t1': team('NONE'), '/api/teams/me': team('LEADER') }
     renderAt('/sv/kham-pha/nhom/t1')
@@ -159,8 +178,9 @@ describe('student team screens (FE-37)', () => {
     expect(await screen.findByText('Nguyễn An')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Sinh viên tìm nhóm' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('SE180007 · Marketing')).toBeInTheDocument()
-    expect(await screen.findByText('D05')).toBeInTheDocument()
+    expect(await screen.findByText('Giáo dục')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mời vào nhóm' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Xem hồ sơ Nguyễn An/ })).toHaveAttribute('href', '/sv/sinh-vien/s7')
   })
 
   it('S11 needs a role before posting, then saves domains and returns to Discover', async () => {
@@ -172,7 +192,7 @@ describe('student team screens (FE-37)', () => {
     await user.click(await screen.findByRole('button', { name: 'Đăng bài' }))
     expect(screen.getByText('Nhập vai trò mong muốn.')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Vai trò mong muốn'), 'Backend')
-    await user.click(await screen.findByRole('button', { name: 'D05' }))
+    await user.click(await screen.findByRole('button', { name: 'Giáo dục' }))
     await user.click(screen.getByRole('button', { name: 'Đăng bài' }))
 
     expect(post).toHaveBeenCalledWith('/api/seeking-posts/me', { title: 'Backend', description: undefined, domainIds: [5] })
@@ -205,6 +225,44 @@ describe('student team screens (FE-37)', () => {
     renderAt('/sv/nhom/lich-su')
     expect(await screen.findByText('SE180002 vào nhóm')).toBeInTheDocument()
     expect(screen.getByText(/^Sinh viên · /)).toBeInTheDocument()
+  })
+
+  it('S15 shows advisors with match reason, Checkpoint n/4 and a shortcut to the project', async () => {
+    routes = {
+      '/api/teams/me': team('MEMBER'),
+      '/api/teams/t1/lecturer': { lecturerName: 'Cô Hạnh', reason: 'PREFERENCE', preferenceRank: 1 },
+      '/api/teams/t1/mentor': '',
+      '/api/workspaces/me': [{ id: 'w-old', teamId: 'other', teamName: 'Nhóm cũ', courseCode: 'EXE101', myRole: 'MEMBER' }, { id: 'w1', teamId: card.id, teamName: 'Nhóm Bình Minh', courseCode: 'EXE101', myRole: 'MEMBER' }],
+      '/api/workspaces/w1/checkpoints': { workspaceId: 'w1', doneCount: 2, items: [] },
+    }
+    renderAt('/sv/nhom')
+
+    expect(await screen.findByText('Giảng viên: Cô Hạnh')).toBeInTheDocument()
+    expect(screen.getByText('Nguyện vọng 1')).toBeInTheDocument()
+    expect(screen.getByText('Mentor: Ghép từ tuần 6')).toBeInTheDocument()
+    expect(await screen.findByText('Checkpoint 2/4')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /Mở dự án/ })).toHaveAttribute('href', '/sv/du-an')
+  })
+
+  it('S15 shows the inherited project card and its timeline, newest first', async () => {
+    routes = {
+      '/api/teams/me': { ...team('MEMBER'), courseCode: 'EXE201', projectName: 'EduSpark AI' },
+      '/api/teams/t1/project': {
+        id: 'p1', name: 'EduSpark AI', originCourseCode: 'EXE101', originSemesterCode: 'SP26',
+        versions: [
+          { version: 2, name: 'EduSpark AI', changeType: 'PIVOT', reason: 'Thị trường nhỏ', semesterCode: 'SU26', courseCode: 'EXE201', createdAt: '2026-06-10T03:00:00Z' },
+          { version: 1, name: 'EduSpark', changeType: 'CREATED', semesterCode: 'SP26', courseCode: 'EXE101', createdAt: '2026-01-10T03:00:00Z' },
+        ],
+      },
+    }
+    renderAt('/sv/nhom')
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('Tiếp tục từ EXE101 · SP26')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lịch sử' }))
+    const items = within(screen.getByRole('list', { name: 'Dòng thời gian đề tài' })).getAllByRole('listitem')
+    expect(items[0]).toHaveTextContent('Đổi đề tài: EduSpark → EduSpark AI · Thị trường nhỏ')
+    expect(items[1]).toHaveTextContent('Tạo đề tài: EduSpark')
   })
 
   it('S12 accepts an invitation after confirming and opens the team', async () => {

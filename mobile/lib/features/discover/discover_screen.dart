@@ -5,13 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/phase.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/view_state.dart';
 import '../../shared/widgets/states.dart';
-import '../../shared/widgets/team_requirement_bar.dart';
+import '../../shared/widgets/team_card_view.dart';
 import '../my_team/my_team_api.dart' show domainsProvider;
-import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../suggestions/suggestions_api.dart' show TeamCard, specializationsProvider;
 import 'discover_api.dart';
 import 'seeking_posts_screen.dart';
+import 'teams_view_model.dart';
 
 /// Khám phá: tab "Nhóm đang tuyển" (S05) và "Sinh viên tìm nhóm" (S10 – MB-17).
 class DiscoverScreen extends StatelessWidget {
@@ -31,6 +32,7 @@ class DiscoverScreen extends StatelessWidget {
 
 /// S05 – nhóm đang tuyển (MB-14): tìm kiếm, bộ lọc S06, lối vào "Gợi ý cho bạn" (S07), danh sách thẻ nhóm phân trang.
 /// Thẻ người ngoài xem không có chip trạng thái; nhóm đủ 6 không xuất hiện (API lọc).
+/// View của [TeamsViewModel] (MVVM, MB-48): chỉ giữ ô tìm kiếm, mọi trạng thái tải nằm trong ViewModel.
 class TeamsTab extends ConsumerStatefulWidget {
   const TeamsTab({super.key});
 
@@ -40,18 +42,6 @@ class TeamsTab extends ConsumerStatefulWidget {
 
 class _TeamsTabState extends ConsumerState<TeamsTab> {
   final _searchController = TextEditingController();
-  TeamFilter _filter = const TeamFilter();
-  final List<TeamCard> _items = [];
-  int _page = 0;
-  bool _hasMore = true;
-  bool _loading = false;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load(reset: true);
-  }
 
   @override
   void dispose() {
@@ -59,51 +49,34 @@ class _TeamsTabState extends ConsumerState<TeamsTab> {
     super.dispose();
   }
 
-  Future<void> _load({bool reset = false}) async {
-    if (_loading) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final next = reset ? 1 : _page + 1;
-      final page = await ref.read(discoverApiProvider).search(_searchController.text.trim(), _filter, next);
-      if (!mounted) return;
-      setState(() {
-        if (reset) _items.clear();
-        _items.addAll(page.items);
-        _page = page.page;
-        _hasMore = page.hasMore;
-      });
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _error = e);
-      if (e.code == 'round-closed') {
-        final openProject = await showPhaseClosedDialog(context, closedAt: ref.read(shellPhaseProvider).studentPhase?.teamFormationDeadlineAt);
-        if (mounted) context.go(openProject ? '/sv/du-an' : '/sv');
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
+  TeamsViewModel get _vm => ref.read(teamsViewModelProvider.notifier);
 
-  Future<void> _openFilter() async {
+  Future<void> _openFilter(TeamFilter current) async {
     final picked = await showModalBottomSheet<TeamFilter>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => FilterSheet(initial: _filter),
+      builder: (_) => FilterSheet(initial: current),
     );
-    if (picked == null) return;
-    setState(() => _filter = picked);
-    await _load(reset: true);
+    if (picked != null) await _vm.applyFilter(picked);
+  }
+
+  /// Ngoài đợt lập nhóm, API trả 409 `round-closed`: hiện dialog rồi về Dự án / Trang chủ.
+  Future<void> _onRoundClosed() async {
+    final openProject = await showPhaseClosedDialog(context, closedAt: ref.read(shellPhaseProvider).studentPhase?.teamFormationDeadlineAt);
+    if (mounted) context.go(openProject ? '/sv/du-an' : '/sv');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    ref.listen(teamsViewModelProvider.select((s) => s.results), (_, next) {
+      if (next case ViewError(error: ApiException(code: 'round-closed'))) _onRoundClosed();
+    });
+    final state = ref.watch(teamsViewModelProvider);
+    final filter = state.filter;
     return RefreshIndicator(
-      onRefresh: () => _load(reset: true),
+      onRefresh: _vm.refresh,
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
@@ -114,27 +87,24 @@ class _TeamsTabState extends ConsumerState<TeamsTab> {
                   controller: _searchController,
                   textInputAction: TextInputAction.search,
                   decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Tên nhóm hoặc đề tài'),
-                  onSubmitted: (_) => _load(reset: true),
+                  onSubmitted: _vm.search,
                 ),
               ),
               const SizedBox(width: AppSpacing.s2),
               IconButton.outlined(
                 tooltip: 'Bộ lọc',
-                onPressed: _openFilter,
-                icon: Badge.count(count: _filter.count, isLabelVisible: _filter.count > 0, child: const Icon(Icons.tune)),
+                onPressed: () => _openFilter(filter),
+                icon: Badge.count(count: filter.count, isLabelVisible: filter.count > 0, child: const Icon(Icons.tune)),
               ),
             ],
           ),
-          if (_filter.count > 0)
+          if (filter.count > 0)
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () {
-                  setState(() => _filter = const TeamFilter());
-                  _load(reset: true);
-                },
+                onPressed: _vm.clearFilters,
                 icon: const Icon(Icons.close, size: 18),
-                label: Text('Xóa ${_filter.count} bộ lọc'),
+                label: Text('Xóa ${filter.count} bộ lọc'),
               ),
             ),
           const SizedBox(height: AppSpacing.s2),
@@ -148,37 +118,36 @@ class _TeamsTabState extends ConsumerState<TeamsTab> {
             ),
           ),
           const SizedBox(height: AppSpacing.s3),
-          if (_error != null && _items.isEmpty)
-            ErrorState(error: _error!, onRetry: () => _load(reset: true))
-          else if (_loading && _items.isEmpty)
-            const SkeletonList(count: 3)
-          else if (_items.isEmpty)
-            EmptyState(
-              icon: Icons.search_off,
-              title: 'Không tìm thấy nhóm',
-              description: 'Thử từ khóa khác hoặc bỏ bớt bộ lọc.',
-              action: _filter.count > 0 || _searchController.text.isNotEmpty
-                  ? OutlinedButton(
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _filter = const TeamFilter());
-                        _load(reset: true);
-                      },
-                      child: const Text('Xóa bộ lọc'),
-                    )
-                  : null,
-            )
-          else ...[
-            for (final team in _items)
-              Padding(padding: const EdgeInsets.only(bottom: AppSpacing.s3), child: TeamListCard(team: team)),
-            if (_hasMore)
-              _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : OutlinedButton(onPressed: _load, child: const Text('Xem thêm')),
-            if (_error != null) ErrorBanner(message: 'Không tải được trang tiếp theo.', onRetry: _load),
-          ],
-          if (!_hasMore && _items.isNotEmpty)
-            Center(child: Text('Đã hết danh sách', style: theme.textTheme.bodyMedium)),
+          ...switch (state.results) {
+            ViewLoading() => [const SkeletonList(count: 3)],
+            ViewError(:final error) => [ErrorState(error: error, onRetry: _vm.refresh)],
+            ViewEmpty() => [
+                EmptyState(
+                  icon: Icons.search_off,
+                  title: 'Không tìm thấy nhóm',
+                  description: 'Thử từ khóa khác hoặc bỏ bớt bộ lọc.',
+                  action: state.canClear
+                      ? OutlinedButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            _vm.clearFilters(includeQuery: true);
+                          },
+                          child: const Text('Xóa bộ lọc'),
+                        )
+                      : null,
+                ),
+              ],
+            ViewData(value: final results) => [
+                for (final team in results.items)
+                  Padding(padding: const EdgeInsets.only(bottom: AppSpacing.s3), child: TeamListCard(team: team)),
+                if (results.hasMore)
+                  results.loadingMore
+                      ? const Center(child: CircularProgressIndicator())
+                      : OutlinedButton(onPressed: _vm.loadMore, child: const Text('Xem thêm')),
+                if (results.loadMoreError != null) ErrorBanner(message: 'Không tải được trang tiếp theo.', onRetry: _vm.loadMore),
+                if (!results.hasMore) Center(child: Text('Đã hết danh sách', style: theme.textTheme.bodyMedium)),
+              ],
+          },
         ],
       ),
     );
@@ -193,29 +162,14 @@ class TeamListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final open = team.maxSize - team.memberCount;
-    return Card.outlined(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/sv/kham-pha/nhom/${team.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.s4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(team.name, style: theme.textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-              if (team.projectName != null) Text(team.projectName!, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: AppSpacing.s2),
-              DomainChips(domains: team.domains),
-              const SizedBox(height: AppSpacing.s2),
-              TeamRequirementBar(memberCount: team.memberCount, maxMembers: team.maxSize),
-              Text('${team.memberCount}/${team.maxSize} thành viên · còn $open chỗ', style: theme.textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ),
+    return TeamCardView(
+      seed: team.id,
+      name: team.name,
+      projectName: team.projectName,
+      domains: [for (final d in team.domains) d.name],
+      memberCount: team.memberCount,
+      maxSize: team.maxSize,
+      onTap: () => context.push('/sv/kham-pha/nhom/${team.id}'),
     );
   }
 }
@@ -267,7 +221,7 @@ class _FilterSheetState extends ConsumerState<FilterSheet> {
                 children: [
                   section('Domain', [
                     for (final d in domains)
-                      FilterChip(label: Text(d.code), tooltip: d.name, selected: _domain == d.code, onSelected: (on) => setState(() => _domain = on ? d.code : null)),
+                      FilterChip(label: Text(d.name), selected: _domain == d.code, onSelected: (on) => setState(() => _domain = on ? d.code : null)),
                   ]),
                   section('Chuyên ngành đang thiếu', [
                     for (final s in specializations)

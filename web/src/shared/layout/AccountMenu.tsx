@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/shared/auth/AuthProvider'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { shellHome, shellLabel, shellsOf, useAuth, type Shell } from '@/shared/auth/AuthProvider'
 import { Icon } from '@/shared/components/ui'
 
-/** Menu tài khoản: tên, email, Đăng xuất. Esc đóng và trả focus về nút. */
+/** Hồ sơ của khung đang xem (FE-53): S02 của sinh viên không còn là mục điều hướng; mentor chưa có trang hồ sơ. */
+const profilePath: Partial<Record<Shell, string>> = { student: '/sv/ho-so', lecturer: '/gv/ho-so' }
+
+/** Menu tài khoản: tên, email, Hồ sơ của tôi, chuyển khung (tài khoản nhiều vai trò), Đăng xuất. Esc đóng và trả focus về nút. */
 export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -31,6 +35,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   }, [open])
 
   if (!user) return null
+  const shells = shellsOf(user)
+  const current = shells.find((s) => pathname === shellHome[s] || pathname.startsWith(`${shellHome[s]}/`))
   const initials = user.fullName
     .split(' ')
     .filter(Boolean)
@@ -59,7 +65,40 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
           <div className="border-b border-border px-3 pb-2">
             <p className="truncate font-semibold">{user.fullName}</p>
             <p className="truncate text-text-secondary">{user.email}</p>
+            {shells.length > 1 && current && <p className="mt-1 text-caption text-text-secondary">Đang xem: {shellLabel[current]}</p>}
           </div>
+          {current && profilePath[current] && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false)
+                navigate(profilePath[current]!)
+              }}
+              className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-left hover:bg-background"
+            >
+              <Icon name="person" size={20} />
+              Hồ sơ của tôi
+            </button>
+          )}
+          {shells.length > 1 &&
+            shells
+              .filter((s) => s !== current)
+              .map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false)
+                    navigate(shellHome[s])
+                  }}
+                  className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-sm px-3 text-left hover:bg-background"
+                >
+                  <Icon name="swap_horiz" size={20} />
+                  Chuyển sang {shellLabel[s]}
+                </button>
+              ))}
           <button
             type="button"
             role="menuitem"

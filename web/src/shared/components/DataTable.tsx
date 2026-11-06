@@ -158,7 +158,7 @@ export function DataTable<T>({
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             placeholder={`${searchPlaceholder} (/)`}
-            className="h-10 w-full rounded-sm border border-border-strong bg-surface pl-10 pr-3 text-body placeholder:text-text-secondary"
+            className="h-10 w-full rounded-md border border-border bg-surface pl-10 pr-3 text-body shadow-sm placeholder:text-text-secondary"
           />
         </label>
         {filters.map((f) => (
@@ -167,7 +167,7 @@ export function DataTable<T>({
             <select
               value={query.filters[f.key] ?? ''}
               onChange={(e) => update({ [f.key]: e.target.value || undefined })}
-              className="h-10 rounded-sm border border-border-strong bg-surface px-3 text-body"
+              className="h-10 rounded-md border border-border bg-surface px-3 text-body shadow-sm"
             >
               <option value="">{f.label}: Tất cả</option>
               {f.options.map((o) => (
@@ -208,7 +208,7 @@ export function DataTable<T>({
           hasFilters ? <NoResults onClear={clearFilters} /> : empty
         ) : (
           <table className="w-full border-collapse text-body" aria-busy={result.isFetching || undefined}>
-            <thead className="sticky top-0 z-10 bg-background">
+            <thead className="sticky top-0 z-10 bg-surface">
               {table.getHeaderGroups().map((hg) => (
                 <tr key={hg.id}>
                   {hg.headers.map((h) => {
@@ -221,7 +221,7 @@ export function DataTable<T>({
                         scope="col"
                         aria-sort={sortKey ? (dir ?? 'none') : undefined}
                         style={{ minWidth: meta?.minWidth }}
-                        className={clsx('h-11 px-4 text-caption font-semibold text-text-secondary', meta?.align === 'right' ? 'text-right' : 'text-left')}
+                        className={clsx('h-11 border-b border-border px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-text-secondary', meta?.align === 'right' ? 'text-right' : 'text-left')}
                       >
                         {sortKey ? (
                           <button type="button" onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-text-primary">
@@ -242,7 +242,7 @@ export function DataTable<T>({
                 <tr
                   key={row.id}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
-                  className={clsx('h-[52px] border-b border-border last:border-b-0', onRowClick && 'cursor-pointer hover:bg-background')}
+                  className={clsx('h-[52px] border-b border-border/70 transition-colors duration-150 last:border-b-0 hover:bg-primary-container/30', onRowClick && 'cursor-pointer')}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td

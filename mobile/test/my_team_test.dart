@@ -134,13 +134,19 @@ void main() {
 
   testWidgets('S20: yêu cầu hiện ý tưởng hoặc "Chưa có ý tưởng", trưởng nhóm nhận', (tester) async {
     final api = _FakeApi(team: _team(), requests: [
-      JoinRequestItem(id: 'r1', student: _member('7'), ideas: const [Idea('Học nhóm AI', 'Gợi ý bạn học')], hasNoIdea: false, status: 'PENDING'),
+      JoinRequestItem(
+        id: 'r1', student: _member('7'), ideas: const [Idea('Học nhóm AI', 'Gợi ý bạn học')], hasNoIdea: false, status: 'PENDING',
+        skills: const {'TECHNOLOGY': 4, 'MARKETING': 2}, description: 'Thích làm frontend',
+      ),
       JoinRequestItem(id: 'r2', student: _member('8'), ideas: const [], hasNoIdea: true, status: 'PENDING'),
     ]);
     await _pump(tester, const RequestsScreen(), api);
 
     expect(find.text('Học nhóm AI'), findsOneWidget);
     expect(find.text('Chưa có ý tưởng'), findsOneWidget);
+    expect(find.text('Thích làm frontend'), findsOneWidget);
+    expect(find.bySemanticsLabel('Công nghệ, 4 trên 5'), findsOneWidget);
+    expect(find.text('Chưa đánh giá kỹ năng.'), findsOneWidget); // r2 chưa có kỹ năng
     await tester.tap(find.text('Nhận').first);
     await tester.pumpAndSettle();
     expect(api.calls, ['accept r1']);

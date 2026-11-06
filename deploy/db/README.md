@@ -5,14 +5,16 @@ Script tạo 6 database (mỗi service 1 database) trên một instance PostgreS
 | File | Nội dung |
 |---|---|
 | `00_init.sh` | Tạo login role `identity_svc`, `academic_svc`, `team_svc`, `notification_svc`, `job_svc`, `collab_svc` và 6 database; mỗi role chỉ CONNECT được database của mình |
-| `01_identity_db.sql` | Schema `identity`: roles (Student, Lecturer, Admin, Mentor), user_accounts, user_account_roles (một tài khoản nhiều vai trò), refresh_tokens, processed_events |
+| `01_identity_db.sql` | Schema `identity`: roles (Student, Lecturer, Admin, Mentor), user_accounts, user_account_roles (một tài khoản nhiều vai trò), refresh_tokens, processed_events, client_error_reports (BE-87) |
 | `02_academic_db.sql` | Schema `academic`: danh mục, học kỳ (tuần bắt đầu mentor, số buổi mentor), đợt đăng ký, sinh viên + 5 kỹ năng, giảng viên + domain chuyên môn, mentor + domain, import, rule_settings, outbox |
 | `03_team_db.sql` | Schema `team`: đề tài + lịch sử đề tài, nhóm, thành viên, mốc EXE101, lời mời, yêu cầu tham gia + ý tưởng, bài đăng, đổi nhóm (cả đổi đề tài), quan tâm đề tài, giảng viên, mentor, audit log, outbox, trigger ép quy tắc |
-| `04_notification_db.sql` | Schema `notification`: contacts, notifications, email_logs, processed_events |
+| `04_notification_db.sql` | Schema `notification`: contacts, device_tokens, notifications, email_logs, processed_events |
 | `05_job_db.sql` | Schema `hangfire` (bảng do Hangfire tự tạo) |
 | `06_collab_db.sql` | Schema `collab`: workspace + thành viên (read model), kênh, tin nhắn, câu hỏi cho cố vấn, thư mục, file + phiên bản, việc + bài nộp, họp + khung giờ + biên bản, outbox |
 | `90_seed_catalogs.sql` | 4 role, 16 chuyên ngành (tạm), domain D01–D18, mã lớp mẫu, học kỳ FA26, rule_settings |
 | `99_seed_admin.sh` | Tài khoản Admin đầu tiên từ biến `ADMIN_EMAIL` (dòng user_accounts + user_account_roles) |
+
+Dữ liệu demo không nằm ở đây: seed qua API, xem [`deploy/seed`](../seed/README.md) (BE-57).
 
 ## Chạy
 
@@ -22,6 +24,22 @@ Postgres trong `deploy/docker-compose.yml` mount thư mục này vào `/docker-e
 cd deploy
 cp .env.example .env        # sửa ADMIN_EMAIL thành email Google của Admin
 docker compose up -d postgres
+```
+
+### Volume cũ cần thêm cột
+
+Script không chạy lại trên volume đã có. Thiếu cột thì API trả 500 (lỗi `42703`). Giữ dữ liệu thì chạy:
+
+```bash
+docker exec exe-postgres psql -U postgres -d academic_db -c "SET ROLE academic_svc; ALTER TABLE academic.import_batches ADD COLUMN IF NOT EXISTS imported_by_name varchar(150);"
+docker exec exe-postgres psql -U postgres -d team_db -c "SET ROLE team_svc; ALTER TABLE team.audit_logs ADD COLUMN IF NOT EXISTS actor_name varchar(150);"
+docker exec -i exe-postgres psql -U postgres -d notification_db < deploy/db/migrations/20261105_be84_device_tokens.sql
+```
+
+Thêm bảng mới trên volume cũ: chạy script trong `migrations/`. Thư mục con không tự chạy lúc khởi tạo; volume mới có bảng vì `01_identity_db.sql` gọi script đó bằng `\ir`. Ví dụ BE-87:
+
+```bash
+docker exec -i exe-postgres psql -U postgres -d identity_db -v ON_ERROR_STOP=1 < deploy/db/migrations/BE-87_client_error_reports.sql
 ```
 
 Sửa script xong muốn chạy lại từ đầu (xóa hết dữ liệu):

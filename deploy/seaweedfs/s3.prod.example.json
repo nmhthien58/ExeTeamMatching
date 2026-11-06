@@ -1,0 +1,11 @@
+{
+  "identities": [
+    {
+      "name": "collab",
+      "credentials": [
+        { "accessKey": "", "secretKey": "" }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

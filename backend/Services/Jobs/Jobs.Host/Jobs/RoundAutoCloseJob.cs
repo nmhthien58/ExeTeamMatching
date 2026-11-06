@@ -6,7 +6,8 @@ namespace Jobs.Host.Jobs;
 /// <summary>
 /// RoundAutoCloseJob (BE-53, rule 6, 13): delayed job lên lịch đúng hạn chót khi nhận <c>RoundOpened</c>.
 /// Mỗi bước là một job riêng để Hangfire thử lại từng bước: khóa đợt (Academic phát RoundClosed) → chốt nhóm
-/// (Team finalize-round) → ghép sinh viên còn lại (<see cref="AutoAssignUnmatchedJob"/>). Đợt đổi nhóm chỉ khóa.
+/// (Team finalize-round) → ghép sinh viên còn lại (<see cref="AutoAssignUnmatchedJob"/>) → ghép giảng viên hướng dẫn
+/// (<see cref="LecturerMatchingJob"/>, continuation chỉ chạy khi ghép sinh viên thành công – rule 9). Đợt đổi nhóm chỉ khóa.
 /// </summary>
 public sealed class RoundAutoCloseJob(
     IAcademicClient academic,
@@ -29,6 +30,7 @@ public sealed class RoundAutoCloseJob(
         var result = await team.FinalizeRoundAsync(roundId, semesterId, courseCode, ct);
         logger.LogInformation("Chốt đợt {RoundId}: {Finalized} nhóm đã chốt, {NeedsReview} nhóm cần xem lại",
             roundId, result.FinalizedCount, result.NeedsReviewCount);
-        jobs.Enqueue<AutoAssignUnmatchedJob>(j => j.RunAsync(semesterId, courseCode, CancellationToken.None));
+        var autoAssignId = jobs.Enqueue<AutoAssignUnmatchedJob>(j => j.RunAsync(semesterId, courseCode, CancellationToken.None));
+        jobs.ContinueJobWith<LecturerMatchingJob>(autoAssignId, j => j.RunAsync(semesterId, courseCode, CancellationToken.None));
     }
 }

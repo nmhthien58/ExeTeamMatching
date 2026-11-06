@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/apiClient'
 import type { Paged } from '@/shared/components/DataTable'
+import type { ProjectFile } from '@/features/files/api'
 import type { PersonRef } from '@/features/workspace/api'
 
 // Kiểu theo docs/contracts/openapi/collab.yaml (tag Messages) – C02, C03, quy tắc 22.
@@ -18,6 +19,7 @@ export interface Message {
   isAdvisorQuestion: boolean
   questionStatus?: QuestionStatus | null
   replyCount: number
+  attachments?: ProjectFile[]
   createdAt: string
   editedAt?: string | null
 }
@@ -103,6 +105,8 @@ export interface SendInput {
   body: string
   parentMessageId?: string
   isAdvisorQuestion?: boolean
+  attachmentFileIds?: string[]
+  mentionPersonIds?: string[]
 }
 
 export function useSendMessage(channelId: string) {
@@ -112,6 +116,21 @@ export function useSendMessage(channelId: string) {
     onSuccess: (message) => applyMessage(queryClient, message),
   })
 }
+
+/** Sửa tin của mình trong 15 phút (collab.yaml); quá hạn server trả 409 `edit-window-closed`. */
+export const EDIT_WINDOW_MS = 15 * 60_000
+export const canEdit = (m: Message, now = Date.now()) => now - new Date(m.createdAt).getTime() < EDIT_WINDOW_MS
+
+export function useEditMessage() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: string }) => (await api.patch<Message>(`/api/messages/${id}`, { body })).data,
+    onSuccess: (message) => applyMessage(queryClient, message),
+  })
+}
+
+/** Xóa mềm tin của mình. Màn hình cho Hoàn tác 5 giây trước khi gọi (contract). */
+export const deleteMessage = async (id: string) => void (await api.delete(`/api/messages/${id}`))
 
 export function useMarkRead(channelId: string, workspaceId: string) {
   const queryClient = useQueryClient()

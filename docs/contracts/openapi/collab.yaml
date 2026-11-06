@@ -14,10 +14,15 @@ info:
     **Realtime (SignalR):** hub `/hubs/collab` qua Gateway (WebSocket, dự phòng long polling); JWT qua query `access_token`.
     Client gọi `JoinChannel(channelId)` / `LeaveChannel(channelId)`; server đẩy `messageCreated`, `messageUpdated`, `messageDeleted`,
     `readUpdated`, `questionStatusChanged`, `typing`. Gửi tin luôn qua REST (`POST /api/channels/{id}/messages`), hub chỉ đẩy.
+    Lịch họp hằng tuần (C09): client gọi `JoinWorkspace(workspaceId)` (giảng viên vào mọi workspace của lịch); sau mỗi lần đặt, đổi hoặc
+    tự xếp slot, server đẩy `slotsChanged` `{ scheduleId }` tới workspace của mọi nhóm trong lịch. Payload không có tên nhóm, slot;
+    client nhận xong tải lại lịch qua REST (`GET /api/workspaces/{id}/meeting-schedule`, `GET /api/meeting-schedules/me`).
 
     **Lỗi riêng:** `not-workspace-member` (403), `workspace-read-only` (403 – Admin ghi), `not-workspace-advisor` (403 – không phải
     cố vấn của nhóm), `archive-read-only` (409 – thư mục EXE101 kỳ trước), `instructor-only` (403 – bài nộp,
-    duyệt bài), `not-organizer` (403), `meeting-not-open` (409), `file-too-large` (413), `file-type-not-allowed` (415).
+    duyệt bài), `not-organizer` (403), `meeting-not-open` (409), `meeting-not-confirmed` (409), `meeting-slot-limit` (409),
+    `meeting-not-weekly` (409), `no-exe201-team` (409), `schedule-has-no-slot` (409), `semester-unavailable` (503 – Job thử lại),
+    `file-too-large` (413), `file-type-not-allowed` (415).
 servers:
   - url: http://localhost:8080
     description: API Gateway
@@ -28,9 +33,55 @@ tags:
   - { name: Messages, description: "Cường – C02, C03 (rule 22)" }
   - { name: Tasks, description: "Nguyên – C04, C05 (rule 23)" }
   - { name: Files, description: "Nguyên – C06 (rule 24)" }
+  - { name: Reports, description: "Nguyên – báo cáo PDF từ C01 (MB-53), chỉ chủ báo cáo đọc, ghi được" }
   - { name: Meetings, description: "Nam – C07, C08 (rule 25)" }
   - { name: Internal, description: "Job Service gọi, có service token, không qua Gateway" }
 paths:
+  # ---------------- Reports ----------------
+  /api/reports/{ownerId}:
+    parameters:
+      - { name: ownerId, in: path, required: true, description: Id tài khoản, phải trùng claim sub, schema: { type: string, format: uuid } }
+    get:
+      tags: [Reports]
+      summary: Báo cáo của tôi, mới nhất trước
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Report' } } } } }
+        '403': { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [Reports]
+      summary: Tải lên PDF, lưu ở reports/{ownerId}/
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [file], properties: { file: { type: string, format: binary } } }
+      responses:
+        '201':
+          description: Đã lưu, kèm link ký sẵn
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Report' }
+                  - { type: object, properties: { url: { type: string }, expiresAt: { type: string, format: date-time } } }
+        '403': { description: `type` = `.../errors/not-report-owner`, content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } } }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+  /api/reports/{ownerId}/{fileName}/download-url:
+    get:
+      tags: [Reports]
+      summary: Link ký sẵn mới cho một báo cáo
+      parameters:
+        - { name: ownerId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: fileName, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { url: { type: string }, expiresAt: { type: string, format: date-time } } }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
   # ---------------- Workspaces ----------------
   /api/workspaces/me:
     get:
@@ -310,7 +361,7 @@ paths:
       summary: Giảng viên dời một tuần của họp hằng tuần sang giờ khác kèm lý do (nhóm được báo)
       parameters: [ { $ref: '#/components/parameters/MeetingId' } ]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [startsAt, reason], properties: { startsAt: { type: string, format: date-time }, reason: { type: string, maxLength: 500 } } } } } }
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingDetail' } } } }, '403': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
 
   # ---------------- Lịch họp hằng tuần EXE201 (rule 25; C09) ----------------
   /api/meeting-schedules/me:
@@ -326,8 +377,8 @@ paths:
   /api/meeting-schedules/me/publish:
     post:
       tags: [MeetingSchedules]
-      summary: Đăng lịch cho các nhóm (MeetingSlotsPublished). Ít slot hơn số nhóm vẫn đăng được, response có warning
-      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } } }
+      summary: Đăng lịch cho các nhóm (MeetingSlotsPublished). Ít slot hơn số nhóm vẫn đăng được, response có warning. Đăng lại không báo lần nữa. 409 schedule-has-no-slot khi chưa có slot
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MeetingSchedule' } } } }, '404': { $ref: '#/components/responses/Problem' }, '409': { $ref: '#/components/responses/Problem' } }
   /api/workspaces/{workspaceId}/meeting-schedule:
     get:
       tags: [MeetingSchedules]
@@ -392,7 +443,7 @@ paths:
   /internal/meeting-schedules/close-booking:
     post:
       tags: [Internal]
-      summary: SlotBookingCloseJob – tới hạn chọn slot, xếp nhóm chưa đặt vào slot trống và sinh họp hằng tuần. Gọi lại không tạo trùng
+      summary: SlotBookingCloseJob chạy định kỳ – đóng các lịch đã tới hạn chọn slot, xếp nhóm chưa đặt vào slot trống và sinh họp hằng tuần. Gọi lại không tạo trùng; 503 semester-unavailable thì Job thử lại
       responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { autoBooked: { type: integer }, teamsWithoutSlot: { type: integer }, meetingsCreated: { type: integer } } } } } } }
   /internal/tasks/due:
     get:
@@ -419,6 +470,12 @@ components:
       description: Lỗi theo RFC 7807
       content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
   schemas:
+    Report:
+      type: object
+      properties:
+        fileName: { type: string, description: "Do server đặt, dạng 20261105-093000-ab12cd34.pdf" }
+        sizeBytes: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
     Problem:
       type: object
       properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string }, traceId: { type: string }, errors: { type: object, additionalProperties: { type: array, items: { type: string } } } }

@@ -28,6 +28,28 @@ final phasesProvider = FutureProvider<List<CoursePhase>>((ref) async {
   return [for (final p in response.data!) CoursePhase.fromJson(Map<String, dynamic>.from(p as Map))];
 });
 
+/// Học kỳ hiện hành (`GET /api/semesters/current`): mã, ngày bắt đầu, ngày kết thúc – cho header trang chủ.
+class CurrentSemester {
+  const CurrentSemester({required this.code, required this.startDate, required this.endDate});
+
+  final String code;
+  final DateTime startDate;
+  final DateTime endDate;
+
+  factory CurrentSemester.fromJson(Map<String, dynamic> json) => CurrentSemester(
+        code: json['code'] as String,
+        startDate: DateTime.parse(json['startDate'] as String),
+        endDate: DateTime.parse(json['endDate'] as String),
+      );
+}
+
+final currentSemesterProvider = FutureProvider<CurrentSemester?>((ref) async {
+  final user = ref.watch(authControllerProvider).value;
+  if (user == null) return null;
+  final response = await ref.watch(dioProvider).get<Map<String, dynamic>>('/api/semesters/current');
+  return response.data == null ? null : CurrentSemester.fromJson(response.data!);
+});
+
 /// Môn của sinh viên đang đăng nhập (từ hồ sơ).
 final myCourseProvider = FutureProvider<String?>((ref) async {
   final user = ref.watch(authControllerProvider).value;

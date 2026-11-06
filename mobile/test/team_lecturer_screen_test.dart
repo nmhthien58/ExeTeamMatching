@@ -1,0 +1,274 @@
+import 'package:dio/dio.dart';
+import 'package:exe_team_matching/core/theme/app_theme.dart';
+import 'package:exe_team_matching/app/feature_routes.dart';
+import 'package:exe_team_matching/app/navigation.dart';
+import 'package:exe_team_matching/features/lecturers/lecturers_api.dart';
+import 'package:exe_team_matching/features/lecturers/lecturers_models.dart';
+import 'package:exe_team_matching/features/lecturers/team_lecturer_screen.dart';
+import 'package:exe_team_matching/features/my_team/my_team_api.dart'
+    show MyTeam, myTeamDetailProvider;
+import 'package:exe_team_matching/features/my_team/my_team_screen.dart';
+import 'package:exe_team_matching/features/my_team/project_card.dart'
+    show teamProjectProvider;
+import 'package:exe_team_matching/features/suggestions/suggestions_api.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+
+class _MockLecturersApi extends LecturersApi {
+  _MockLecturersApi() : super(Dio());
+  List<String>? updatedPreferences;
+
+  @override
+  Future<LecturerPreferenceListResponse> updatePreferences(
+    String teamId,
+    List<String> lecturerIds,
+  ) async {
+    updatedPreferences = lecturerIds;
+    return LecturerPreferenceListResponse(
+      locked: false,
+      preferences: [
+        for (var i = 0; i < lecturerIds.length; i++)
+          LecturerPreferenceItem(
+            lecturerId: lecturerIds[i],
+            fullName: 'Giảng viên ${lecturerIds[i]}',
+            rank: i + 1,
+          ),
+      ],
+    );
+  }
+}
+
+void main() {
+  setUpAll(() => AppTheme.useGoogleFonts = false);
+  const team = TeamDetail(
+    card: TeamCard(id: 'team-1', name: 'Nhóm A', status: 'ACTIVE', memberCount: 4),
+    members: [],
+    isLeader: true,
+  );
+
+  Widget app(
+    TeamLecturerData data, {
+    TeamDetail? selectedTeam = team,
+    LecturersApi? lecturersApi,
+  }) => ProviderScope(
+        overrides: [
+          myTeamProvider.overrideWith((ref) async => selectedTeam),
+          teamLecturerDetailsProvider('team-1').overrideWith((ref) async => data),
+          if (lecturersApi != null)
+            lecturersApiProvider.overrideWithValue(lecturersApi),
+        ],
+        child: MaterialApp(theme: AppTheme.light(), home: const TeamLecturerScreen()),
+      );
+
+  testWidgets('trước ghép: hiện nguyện vọng và giảng viên quan tâm', (tester) async {
+    await tester.pumpWidget(app(const TeamLecturerData(preferences: {
+      'locked': false,
+      'preferences': [
+        {'fullName': 'Giảng viên A', 'rank': 1, 'isInterested': true},
+      ],
+    })));
+    await tester.pumpAndSettle();
+    expect(find.text('Chưa ghép giảng viên'), findsOneWidget);
+    expect(find.text('Giảng viên A'), findsOneWidget);
+    expect(find.text('Quan tâm nhóm bạn'), findsOneWidget);
+    expect(find.text('Chỉnh sửa nguyện vọng'), findsOneWidget);
+  });
+
+  testWidgets('nút chỉnh sửa mở S23 khi route MB-27 đã được đăng ký', (tester) async {
+    final router = GoRouter(initialLocation: teamLecturerPath, routes: [
+      GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
+      GoRoute(path: '/sv/nhom/giang-vien', builder: (_, _) => const Scaffold(body: Text('S23'))),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        myTeamProvider.overrideWith((ref) async => team),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async =>
+            const TeamLecturerData(preferences: {'locked': false, 'preferences': []})),
+      ],
+      child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chỉnh sửa nguyện vọng'));
+    await tester.pumpAndSettle();
+    expect(find.text('S23'), findsOneWidget);
+  });
+
+  testWidgets('S25 tải lại nguyện vọng sau khi trở về từ S23', (tester) async {
+    var changed = false;
+    final router = GoRouter(initialLocation: teamLecturerPath, routes: [
+      GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
+      GoRoute(path: '/sv/nhom/giang-vien', builder: (context, _) => Scaffold(
+        body: TextButton(onPressed: () { changed = true; context.pop(); }, child: const Text('Lưu thử')),
+      )),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        myTeamProvider.overrideWith((ref) async => team),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async => TeamLecturerData(preferences: {
+          'locked': false,
+          'preferences': changed ? [{'fullName': 'Giảng viên mới', 'rank': 1}] : [],
+        })),
+      ],
+      child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chỉnh sửa nguyện vọng'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu thử'));
+    await tester.pumpAndSettle();
+    expect(find.text('Giảng viên mới'), findsOneWidget);
+  });
+
+  testWidgets('từ S15 mở S25 qua route ứng dụng', (tester) async {
+    final router = GoRouter(initialLocation: '/sv/nhom', routes: [
+      GoRoute(path: '/sv/nhom', builder: (_, _) => const Scaffold(body: MyTeamScreen())),
+      ...featureRoutes(Shell.student),
+    ]);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        myTeamDetailProvider.overrideWith((ref) async => const MyTeam(
+              id: 'team-1', name: 'Nhóm A', status: 'ACTIVE', courseCode: 'EXE101',
+              members: [], domains: [], isLeader: true, memberCount: 4, specializationCount: 2,
+            )),
+        teamProjectProvider('team-1').overrideWith((ref) async => null),
+        myTeamProvider.overrideWith((ref) async => team),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async =>
+            const TeamLecturerData(preferences: {'locked': false, 'preferences': []})),
+      ],
+      child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Giảng viên'));
+    await tester.pumpAndSettle();
+    expect(find.text('Giảng viên của nhóm'), findsOneWidget);
+    expect(find.text('Chưa ghép giảng viên'), findsOneWidget);
+  });
+
+  testWidgets('sau ghép: hiện lý do, không cho sửa nguyện vọng', (tester) async {
+    await tester.pumpWidget(app(const TeamLecturerData(assignment: {
+      'lecturerName': 'Giảng viên B', 'reason': 'PREFERENCE', 'preferenceRank': 2,
+    })));
+    await tester.pumpAndSettle();
+    expect(find.text('Giảng viên B'), findsOneWidget);
+    expect(find.text('Nguyện vọng 2'), findsOneWidget);
+    expect(find.text('Chỉnh sửa nguyện vọng'), findsNothing);
+  });
+
+  testWidgets('đã khóa: không hiển thị nút chỉnh sửa', (tester) async {
+    await tester.pumpWidget(app(const TeamLecturerData(preferences: {'locked': true, 'preferences': []})));
+    await tester.pumpAndSettle();
+    expect(find.text('Đợt chọn nguyện vọng đã đóng.'), findsOneWidget);
+    expect(find.text('Chỉnh sửa nguyện vọng'), findsNothing);
+  });
+
+  testWidgets('thành viên không phải trưởng nhóm không được chỉnh sửa', (tester) async {
+    const memberTeam = TeamDetail(
+      card: TeamCard(id: 'team-1', name: 'Nhóm A', status: 'ACTIVE', memberCount: 4),
+      members: [], isLeader: false,
+    );
+    await tester.pumpWidget(app(
+      const TeamLecturerData(preferences: {'locked': false, 'preferences': []}),
+      selectedTeam: memberTeam,
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Chỉnh sửa nguyện vọng'), findsNothing);
+  });
+
+  testWidgets('hiển thị danh sách giảng viên quan tâm nhóm bạn với nút thêm vào nguyện vọng', (tester) async {
+    final mockApi = _MockLecturersApi();
+    await tester.pumpWidget(app(
+      const TeamLecturerData(preferences: {
+        'locked': false,
+        'preferences': [],
+        'interestedLecturers': [
+          {
+            'id': 'lec-10',
+            'fullName': 'ThS. Nguyễn Văn A',
+            'domains': [{'name': 'Trí tuệ nhân tạo'}],
+          },
+        ],
+      }),
+      lecturersApi: mockApi,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quan tâm nhóm bạn'), findsWidgets);
+    expect(find.text('ThS. Nguyễn Văn A'), findsOneWidget);
+    expect(find.text('Trí tuệ nhân tạo'), findsOneWidget);
+    expect(find.text('Thêm vào nguyện vọng'), findsOneWidget);
+
+    await tester.tap(find.text('Thêm vào nguyện vọng'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(mockApi.updatedPreferences, ['lec-10']);
+    expect(find.text('Hoàn tác'), findsOneWidget);
+  });
+
+  testWidgets('giảng viên quan tâm đã có trong nguyện vọng thì hiển thị đã chọn', (tester) async {
+    await tester.pumpWidget(app(
+      const TeamLecturerData(preferences: {
+        'locked': false,
+        'preferences': [
+          {'id': 'lec-10', 'fullName': 'ThS. Nguyễn Văn A', 'rank': 1},
+        ],
+        'interestedLecturers': [
+          {
+            'id': 'lec-10',
+            'fullName': 'ThS. Nguyễn Văn A',
+            'domains': [{'name': 'Trí tuệ nhân tạo'}],
+          },
+        ],
+      }),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Đã chọn (NV #1)'), findsOneWidget);
+    expect(find.text('Thêm vào nguyện vọng'), findsNothing);
+  });
+
+  testWidgets('thành viên không phải trưởng nhóm không thấy nút thêm vào nguyện vọng ở mục quan tâm', (tester) async {
+    const memberTeam = TeamDetail(
+      card: TeamCard(id: 'team-1', name: 'Nhóm A', status: 'ACTIVE', memberCount: 4),
+      members: [], isLeader: false,
+    );
+    await tester.pumpWidget(app(
+      const TeamLecturerData(preferences: {
+        'locked': false,
+        'preferences': [],
+        'interestedLecturers': [
+          {'id': 'lec-10', 'fullName': 'ThS. Nguyễn Văn A'},
+        ],
+      }),
+      selectedTeam: memberTeam,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ThS. Nguyễn Văn A'), findsOneWidget);
+    expect(find.text('Thêm vào nguyện vọng'), findsNothing);
+  });
+
+  testWidgets('lỗi tải có nút thử lại', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        myTeamProvider.overrideWith((ref) async => team),
+        teamLecturerDetailsProvider('team-1').overrideWith((ref) async => throw Exception('Lỗi tải')),
+      ],
+      child: MaterialApp(theme: AppTheme.light(), home: const TeamLecturerScreen()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Không tải được dữ liệu'), findsOneWidget);
+    expect(find.text('Thử lại'), findsOneWidget);
+  });
+
+  testWidgets('không có nhóm: hiển thị trạng thái trống', (tester) async {
+    await tester.pumpWidget(app(const TeamLecturerData(), selectedTeam: null));
+    await tester.pumpAndSettle();
+    expect(find.text('Bạn chưa có nhóm'), findsOneWidget);
+  });
+}

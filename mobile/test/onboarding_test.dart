@@ -50,11 +50,13 @@ void main() {
     final store = FakeOnboardingStore(failWrite: true);
     var finished = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: OnboardingScreen(
-          onboardingStore: store,
-          onFinished: () => finished++,
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: OnboardingScreen(
+            onboardingStore: store,
+            onFinished: () => finished++,
+          ),
         ),
       ),
     );
@@ -79,11 +81,13 @@ void main() {
     final store = FakeOnboardingStore();
     var finished = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: OnboardingScreen(
-          onboardingStore: store,
-          onFinished: () => finished++,
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: OnboardingScreen(
+            onboardingStore: store,
+            onFinished: () => finished++,
+          ),
         ),
       ),
     );
@@ -98,11 +102,13 @@ void main() {
     final store = FakeOnboardingStore();
     var finished = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: OnboardingScreen(
-          onboardingStore: store,
-          onFinished: () => finished++,
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: OnboardingScreen(
+            onboardingStore: store,
+            onFinished: () => finished++,
+          ),
         ),
       ),
     );

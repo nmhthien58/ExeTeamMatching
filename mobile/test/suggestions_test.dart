@@ -34,7 +34,7 @@ void main() {
     );
     expect(find.text('GreenLoop'), findsOneWidget);
     expect(find.text('Rất phù hợp'), findsOneWidget);
-    expect(find.text('Còn 2 chỗ'), findsOneWidget);
+    expect(find.text('4/6 thành viên · còn 2 chỗ'), findsOneWidget);
     expect(find.text('Nhóm đang cần chuyên ngành của bạn'), findsOneWidget);
   });
 

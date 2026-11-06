@@ -1,4 +1,6 @@
 using Academic.Repositories.Rounds;
+using Academic.Services.Lecturers;
+using Academic.Services.Mentors;
 using Academic.Services.Rounds;
 using Academic.Services.Students;
 using BuildingBlocks.Auth;
@@ -15,7 +17,7 @@ namespace Academic.Api.Controllers.Internal;
 [ApiController]
 [Authorize(Policy = Policies.Internal)]
 [Route("internal")]
-public sealed class InternalController(IRoundService rounds, IStudentLookupService students) : ControllerBase
+public sealed class InternalController(IRoundService rounds, IStudentLookupService students, ILecturerService lecturers, IMentorService mentors) : ControllerBase
 {
     /// <summary>Đợt đang mở cho môn và loại đợt (rule 6); 404 khi không có.</summary>
     [HttpGet("registration-rounds/open")]
@@ -41,6 +43,19 @@ public sealed class InternalController(IRoundService rounds, IStudentLookupServi
     [HttpPost("students/lookup")]
     public Task<IReadOnlyList<StudentSnapshot>> LookupStudents(StudentLookupRequest request, CancellationToken ct) =>
         students.LookupAsync(request, ct);
+
+    /// <summary>Toàn bộ sinh viên của học kỳ, lọc theo môn nếu có; sắp theo MSSV.</summary>
+    [HttpGet("students")]
+    public Task<IReadOnlyList<StudentSnapshot>> SemesterStudents([FromQuery] SemesterStudentsQuery query, CancellationToken ct) =>
+        students.ListSemesterAsync(query, ct);
+
+    /// <summary>Giảng viên kèm trạng thái, số nhóm tối đa (Team kiểm tra khi gửi nguyện vọng / phân công); có cả giảng viên đã khóa.</summary>
+    [HttpGet("lecturers/{id:guid}")]
+    public Task<LecturerResponse> Lecturer(Guid id, CancellationToken ct) => lecturers.GetInternalAsync(id, ct);
+
+    /// <summary>Mentor kèm trạng thái, số nhóm tối đa / mong muốn (Team kiểm tra khi gán mentor – rule 20); có cả mentor đã khóa.</summary>
+    [HttpGet("mentors/{id:guid}")]
+    public Task<MentorResponse> Mentor(Guid id, CancellationToken ct) => mentors.GetInternalAsync(id, ct);
 
     /// <summary>Đổi MSSV sang snapshot (import mốc EXE101).</summary>
     [HttpPost("students/by-code")]

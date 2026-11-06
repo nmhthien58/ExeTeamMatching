@@ -160,9 +160,14 @@ public sealed class CheckpointService(
         return new CheckpointProgress(workspace.Id, workspace.TeamName, byNumber.Count, items);
     }
 
+    // Ngày theo giờ Việt Nam: giảng viên chọn ngày trình bày theo lịch ở lớp; tính theo UTC thì từ 00:00 đến 06:59
+    // ngày hôm nay bị coi là tương lai và "bỏ đánh dấu trong ngày" lệch 7 giờ.
+    private static readonly TimeZoneInfo Vietnam =
+        TimeZoneInfo.TryFindSystemTimeZoneById("Asia/Ho_Chi_Minh", out var zone) ? zone : TimeZoneInfo.Utc;
+
     private DateOnly Today() => LocalDate(clock.GetUtcNow());
     private static DateOnly LocalDate(DateTimeOffset value) =>
-        DateOnly.FromDateTime(value.UtcDateTime);
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(value, Vietnam).DateTime);
 
     private static void RequireCheckpointNo(int checkpointNo)
     {

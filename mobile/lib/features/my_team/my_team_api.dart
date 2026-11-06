@@ -84,6 +84,9 @@ class MyTeam {
   /// Còn sửa / mời được (Nháp, Hoạt động); sau hạn chót thì khóa.
   bool get isOpen => status == 'DRAFT' || status == 'ACTIVE';
 
+  /// Trưởng nhóm còn mời thêm được (S10, S18: nút "Mời vào nhóm").
+  bool get canInvite => isLeader && isOpen && !isFull;
+
   factory MyTeam.fromJson(Map<String, dynamic> j) {
     final r = j['requirement'] == null ? const <String, dynamic>{} : _map(j['requirement']);
     return MyTeam(
@@ -139,7 +142,16 @@ class Idea {
 
 /// Yêu cầu tham gia gửi tới nhóm (S20 tab 1).
 class JoinRequestItem {
-  const JoinRequestItem({required this.id, required this.student, required this.ideas, required this.hasNoIdea, required this.status, this.message});
+  const JoinRequestItem({
+    required this.id,
+    required this.student,
+    required this.ideas,
+    required this.hasNoIdea,
+    required this.status,
+    this.message,
+    this.skills = const {},
+    this.description,
+  });
 
   final String id;
   final Member student;
@@ -148,6 +160,10 @@ class JoinRequestItem {
   final String status;
   final String? message;
 
+  /// S20: kỹ năng 1–5 theo khóa của `skillLabels` và giới thiệu, lấy từ hồ sơ của người xin.
+  final Map<String, int> skills;
+  final String? description;
+
   factory JoinRequestItem.fromJson(Map<String, dynamic> j) => JoinRequestItem(
         id: j['id'] as String,
         student: Member.fromJson({..._map(j['student']), 'role': 'MEMBER'}),
@@ -155,6 +171,8 @@ class JoinRequestItem {
         hasNoIdea: j['hasNoIdea'] as bool? ?? false,
         status: j['status'] as String? ?? 'PENDING',
         message: j['message'] as String?,
+        skills: {for (final s in (j['studentSkills'] as List? ?? const [])) _map(s)['skill'] as String: _map(s)['level'] as int},
+        description: j['studentDescription'] as String?,
       );
 }
 
@@ -259,6 +277,12 @@ final sentInvitationsProvider =
 
 /// Sau khi nhóm thay đổi: tải lại cả bản của S15 và bản gợi ý (S18) của Nguyên.
 void refreshMyTeam(WidgetRef ref) {
+  ref.invalidate(myTeamDetailProvider);
+  ref.invalidate(myTeamProvider);
+}
+
+/// Như [refreshMyTeam], gọi từ ViewModel (MB-49).
+void refreshMyTeamFrom(Ref ref) {
   ref.invalidate(myTeamDetailProvider);
   ref.invalidate(myTeamProvider);
 }

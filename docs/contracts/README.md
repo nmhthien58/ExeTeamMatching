@@ -33,13 +33,31 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `change-request-not-allowed` | Đổi nhóm với nhóm EXE101 hoặc nhóm không kế thừa (rule 7) |
 | `lecturer-full` | Admin đổi tay sang giảng viên đã đủ số nhóm tối đa (rule 9) |
 | `preferences-locked` | Sửa nguyện vọng khi nhóm đã được ghép giảng viên hoặc đợt đã đóng (rule 9) |
+| `run-not-preview` | Áp dụng (`POST /api/advisor-matching/runs/{id}/confirm`) hoặc bỏ (`DELETE /api/advisor-matching/runs/{id}`) lần ghép cố vấn không còn ở trạng thái PREVIEW (rule 9, 20) |
 | `interest-closed`, `team-has-advisor` | Quan tâm ngoài giai đoạn / nhóm đã có cố vấn cùng loại (rule 19) |
 | `slot-taken`, `booking-closed`, `slot-booked` | Slot vừa có nhóm khác đặt / quá hạn chọn slot / sửa khung bỏ slot đã có nhóm (rule 25) |
 | `checkpoint-locked` | Bỏ đánh dấu checkpoint sau ngày đã đánh dấu (rule 27) |
 | `not-in-list` | Email không có trong danh sách học kỳ (rule 5) |
+| `rate-limited` | 429: một IP gửi quá nhiều `POST /api/client-errors` (BE-87) |
 | `ideas-required` | Yêu cầu tham gia thiếu ý tưởng và không tích "Chưa có ý tưởng" (rule 17) |
 | `interest-limit` | Giảng viên đã đạt giới hạn quan tâm đề tài (rule 19) |
 | `team-has-mentor`, `mentor-full` | Nhóm đã có mentor / mentor đã đủ số nhóm tối đa (rule 20) |
+| `mentor-is-instructor` | Đổi mentor tay (`PUT /api/teams/{teamId}/mentor-assignment`) chọn mentor có `lecturerId` trùng giảng viên hướng dẫn đang gán của nhóm – một người không vừa hướng dẫn vừa mentor cùng một nhóm (rule 20) |
+| `instructor-is-mentor` | Đổi giảng viên tay (`PUT /api/teams/{teamId}/instructor`) chọn giảng viên trùng `lecturerId` của mentor đang gán của nhóm (rule 20) |
+| `email-exists` | Email đã thuộc người khác: tạo, sửa mentor trùng mentor, giảng viên, sinh viên; tạo, sửa giảng viên trùng mentor khác (rule 5, 20) |
+| `lecturer-email-taken` | Tạo, sửa giảng viên trùng email giảng viên khác |
+| `max-below-current` | Số nhóm tối đa của mentor nhỏ hơn số nhóm đang mentor trong học kỳ hiện hành |
+| `team-unavailable` | 503: Team Service không trả lời nên chưa kiểm tra được số nhóm đang mentor |
+| `lecturer-locked` | Gắn mentor với giảng viên đang khóa; mở khóa giảng viên rồi mới gắn được (rule 20) |
+| `not-report-owner` | Đọc, ghi báo cáo PDF của người khác (MB-53) |
+| `lecturer-has-mentor` | Giảng viên đã gắn với một hồ sơ mentor khác (rule 20) |
+| `preferred-above-max` (400) | Số nhóm mong muốn của mentor vượt số nhóm tối đa do Bộ môn đặt (rule 20) |
+| `round-overlap`, `round-already-open`, `round-open-locked` | Đợt bị chồng thời gian / đợt đã mở / sửa thời gian bắt đầu của đợt đang mở (rule 6) |
+| `import-conflict` | Xác nhận import khi có thao tác khác vừa ghi sinh viên trùng MSSV hoặc email |
+| `meeting-not-confirmed`, `meeting-slot-limit` | Ghi biên bản khi họp chưa chốt / họp đã đủ 3 khung giờ (rule 25) |
+| `meeting-not-weekly` | Dời một tuần với họp không phải họp hằng tuần (rule 25) |
+| `no-exe201-team`, `schedule-has-no-slot` | Giảng viên chưa hướng dẫn nhóm EXE201 nào / đăng lịch chưa có slot (rule 25) |
+| `semester-unavailable` | 503: chưa đọc được học kỳ từ Academic khi đóng chọn slot; Job thử lại (rule 25) |
 | `project-change-pending` | Nhóm đã có thay đổi đề tài đang chờ (rule 26) |
 | `skills-incomplete` | Hồ sơ chưa đánh giá đủ 5 kỹ năng (rule 16) |
 | `not-workspace-member` (403) | Không thuộc workspace của nhóm (rule 21) |
@@ -48,6 +66,8 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 | `archive-read-only` | Ghi vào thư mục / việc EXE101 kỳ trước (rule 26) |
 | `instructor-only` (403) | Chỉ giảng viên hướng dẫn tạo / duyệt bài nộp (rule 23) |
 | `file-too-large` (413), `file-type-not-allowed` (415) | File quá 25 MB / sai định dạng (rule 24) |
+| `matching-unavailable` (503) | Team gọi Matching (gRPC) lỗi hoặc quá 5 giây: chốt nhóm, ghép tự động, gợi ý |
+| `academic-unavailable` (503) | Team gọi Academic lỗi khi lấy danh sách cố vấn (giảng viên, mentor) để ghép cố vấn tự động |
 
 ## Dùng dữ liệu giả khi API chưa xong
 
