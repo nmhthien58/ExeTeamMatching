@@ -4,6 +4,10 @@ import os
 
 import pytest
 
+# Tài khoản Google sinh viên test (đề: tài khoản test riêng). Máy có nhiều tài khoản: chọn theo email, không chọn "đầu tiên"
+# – ARTEMIS lượt 1 đã chọn nhầm tài khoản Bộ môn và bị chặn đúng quy tắc (wrong-client).
+TEST_ACCOUNT = os.environ.get("TEST_ACCOUNT_EMAIL", "")
+
 
 def test_tc01_session_restored(run_case):
     values = run_case(
@@ -95,11 +99,16 @@ def test_tc14_remote_config_on_screen(run_case):
     assert int(values["suggestions_max_items"]) == int(os.environ.get("EXPECTED_SUGGESTIONS_MAX", "5"))
 
 
+@pytest.mark.skipif(not TEST_ACCOUNT, reason="Chưa đặt TEST_ACCOUNT_EMAIL trong .env")
 def test_tc17_sign_out(run_case):
     values = run_case(
         "TC-17",
-        "Bắt đầu: tab Trang chủ. Bấm ảnh đại diện chữ cái ở góc phải trên để mở Hồ sơ của tôi, bấm nút Cài đặt, bấm Đăng xuất, xác nhận Đăng xuất ở hộp thoại. "
-        "Cuối cùng: báo màn đăng nhập có hiện hay không. Ca này chạy cuối, đăng nhập lại bằng tay sau khi xong.",
-        ["login_screen_shown"],
+        "Bắt đầu: tab Trang chủ. Bấm ảnh đại diện chữ cái ở góc phải trên để mở Hồ sơ của tôi, bấm nút Cài đặt, bấm Đăng xuất, "
+        "xác nhận Đăng xuất ở hộp thoại, rồi ghi nhận màn đăng nhập có hiện hay không. Sau đó bấm nút đăng nhập Google, "
+        f"trong hộp chọn tài khoản Google của Android chọn đúng tài khoản có email {TEST_ACCOUNT} (không chọn tài khoản khác), đợi vào app. "
+        "Cuối cùng: báo màn đăng nhập có hiện sau khi đăng xuất hay không (true/false), và tên chữ in dưới icon của tab đang chọn ở thanh dưới sau khi đăng nhập lại (ví dụ Trang chủ, không dùng số thứ tự).",
+        ["login_screen_shown", "selected_tab_after_sign_in"],
     )
+    # Đăng xuất đưa về A03; đăng nhập lại qua hộp chọn tài khoản của Android (tương tác gốc) trả máy về trạng thái ban đầu.
     assert values["login_screen_shown"] is True
+    assert values["selected_tab_after_sign_in"] == "Trang chủ"

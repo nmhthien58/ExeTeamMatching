@@ -96,4 +96,19 @@ void main() {
     expect((outcome as LoginNotInList).email, 'nham@gmail.com');
     expect(c.read(loginViewModelProvider), isA<LoginIdle>());
   });
+
+  test('Identity chặn tài khoản Bộ môn trên mobile: thông báo có cả lý do (detail)', () async {
+    final c = create((o, h) => h.reject(DioException(
+          requestOptions: o,
+          response: Response(requestOptions: o, statusCode: 403, data: {
+            'type': 'https://exe-team-matching/errors/wrong-client',
+            'title': 'Không dùng được trên ứng dụng này',
+            'detail': 'Tài khoản Bộ môn chỉ đăng nhập trên web.',
+            'status': 403,
+          }),
+        )));
+
+    await c.read(loginViewModelProvider.notifier).signIn();
+    expect((c.read(loginViewModelProvider) as LoginFailed).message, 'Không dùng được trên ứng dụng này. Tài khoản Bộ môn chỉ đăng nhập trên web.');
+  });
 }

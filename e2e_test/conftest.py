@@ -3,6 +3,7 @@
 import asyncio
 import csv
 import json
+import urllib.request
 import os
 import re
 import subprocess
@@ -47,6 +48,21 @@ def parse_output(output):
     return json.loads(match.group(0))
 
 
+def final_report(base_url, session_id):
+    """Phần giải thích của bước report_task_status cuối cùng – dùng khi Outputter không trả output
+    (ARTEMIS 351ca84 qua /api/run không ghi output vào phiên)."""
+    # Bước cuối có thể chưa được lưu ngay khi phiên báo xong: thử lại vài lần.
+    for _ in range(6):
+        with urllib.request.urlopen(f"{base_url.rstrip('/')}/api/sessions/{session_id}/steps", timeout=30) as resp:
+            steps = json.loads(resp.read().decode("utf-8"))
+        for step in reversed(steps if isinstance(steps, list) else steps.get("steps", [])):
+            action = step.get("action_taken") or {}
+            if action.get("action") == "report_task_status":
+                return (action.get("args") or {}).get("explanation")
+        time.sleep(3)
+    return None
+
+
 def record(case_id, run_index, passed, seconds, trace_id, detail):
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     is_new = not RESULTS.exists()
@@ -57,14 +73,29 @@ def record(case_id, run_index, passed, seconds, trace_id, detail):
         writer.writerow([case_id, run_index, passed, f"{seconds:.1f}", trace_id, detail])
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Ghi results.csv theo kết quả cuối của ca (kể cả assert trên giá trị), không theo lúc agent trả JSON."""
+    outcome = yield
+    report = outcome.get_result()
+    info = getattr(item, "_artemis", None)
+    if report.when == "call" and info:
+        detail = "" if report.passed else " ".join(str(call.excinfo.value).split())[:200]
+        record(info["case"], info["run"], report.passed, info["seconds"], info["trace"], detail)
+
+
 @pytest.fixture
-def run_case(run_index):
+def run_case(run_index, request):
     """Trả hàm chạy một ca: gửi câu lệnh, kiểm tra trạng thái, trả dict các trường agent báo về."""
 
     def run(case_id, goal, fields):
         expected = "Chỉ trả một object JSON với đúng các khóa: " + ", ".join(fields)
+        # Câu lệnh tự nói rõ định dạng báo cáo cuối, để kết quả đọc được kể cả khi Outputter không chạy.
+        goal = (goal + " Khi báo trạng thái hoàn thành, phần giải thích chỉ gồm một object JSON (không thêm chữ khác) "
+                "với đúng các khóa: " + ", ".join(fields) + "; giá trị đúng/sai dùng true/false, số dùng số nguyên.")
+        base_url = os.environ.get("ARTEMIS_BASE_URL", "http://127.0.0.1:8000")
         client = ArtemisClient(
-            os.environ.get("ARTEMIS_BASE_URL", "http://127.0.0.1:8000"),
+            base_url,
             token=os.environ.get("ARTEMIS_TOKEN") or None,
             device_serial=os.environ.get("ARTEMIS_DEVICE_SERIAL") or None,
             default_profile=os.environ.get("ARTEMIS_PROFILE", "flash"),
@@ -76,14 +107,14 @@ def run_case(run_index):
                 client.run(goal, expected_output=expected, enable_outputter=True, locked_app_package=APP_PACKAGE, timeout=600)
             )
             assert result.succeeded, f"{case_id}: {result.error or result.status}"
-            values = parse_output(result.output)
+            values = parse_output(result.output if result.output is not None else final_report(base_url, result.trace_id))
             missing = [f for f in fields if f not in values]
             assert not missing, f"{case_id}: thiếu trường {missing}"
-        except Exception as error:
-            trace = result.trace_id if result else ""
-            record(case_id, run_index, False, time.monotonic() - started, trace, str(error)[:200])
-            raise
-        record(case_id, run_index, True, time.monotonic() - started, result.trace_id, "")
+        finally:
+            request.node._artemis = {
+                "case": case_id, "run": run_index, "seconds": time.monotonic() - started,
+                "trace": result.trace_id if result else "",
+            }
         return values
 
     return run

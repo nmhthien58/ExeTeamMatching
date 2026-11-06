@@ -11,6 +11,8 @@ RESULTS = Path(__file__).resolve().parent.parent / "evidence" / "artemis" / "res
 
 
 def main():
+    import sys
+    sys.stdout.reconfigure(encoding="utf-8")
     if not RESULTS.exists():
         print(f"Chưa có {RESULTS}. Chạy pytest trước.")
         return
