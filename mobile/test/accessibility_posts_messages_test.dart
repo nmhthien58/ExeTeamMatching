@@ -49,12 +49,14 @@ void main() {
 
   const leader = PersonRef(personType: 'STUDENT', personId: 's1', displayName: 'Lê Thảo Vy', role: WorkspaceRole.leader);
   const lecturer = PersonRef(personType: 'LECTURER', personId: 'l1', displayName: 'Trần Minh Khoa', role: WorkspaceRole.instructor);
+  // Tính từ lúc chạy test: ngày cố định làm nhãn "n ngày trước" dài dần theo lịch (font test rộng gấp đôi), C02 hỏng từ ngày thứ 10.
+  final sentAt = DateTime.now().toUtc().subtract(const Duration(hours: 3));
   Message msg(String id, String body, PersonRef author, int minute, {bool question = false}) => Message(
         id: id,
         channelId: 'c2',
         author: author,
         body: body,
-        createdAt: DateTime.utc(2026, 10, 27, 3, minute),
+        createdAt: sentAt.add(Duration(minutes: minute)),
         isAdvisorQuestion: question,
         questionStatus: question ? 'OPEN' : null,
       );
