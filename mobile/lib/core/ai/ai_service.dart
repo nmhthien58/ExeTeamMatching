@@ -143,12 +143,14 @@ String aiErrorCode(Object error) {
   final text = error.toString();
   if (error is FirebaseAIException) {
     final lower = text.toLowerCase();
-    if (lower.contains('429') || lower.contains('resource_exhausted') || lower.contains('quota')) {
+    // 503 / "high demand": model đang quá tải phía Google, báo như quota (thử lại sau).
+    if (lower.contains('429') || lower.contains('resource_exhausted') || lower.contains('quota') ||
+        lower.contains('503') || lower.contains('unavailable') || lower.contains('high demand')) {
       return AiException.quota;
     }
     // `response.text` ném "Response was blocked…" / "Candidate was blocked due to safety…".
     if (lower.contains('blocked')) return AiException.blocked;
-    if (lower.contains('app check') || lower.contains('appcheck') || lower.contains('permission_denied') || lower.contains('403')) {
+    if (lower.contains('app check') || lower.contains('appcheck') || lower.contains('app_check') || lower.contains('permission_denied') || lower.contains('403')) {
       return AiException.denied;
     }
     return AiException.unknown;

@@ -60,7 +60,7 @@ Mặc định trong app (`AppRemoteConfig`) trùng [`firebase/remote-config-defa
 |---|---|---|---|---|
 | `suggestions_max_items` | int | `5` | S07 – số nhóm gợi ý tối đa | Ngoài 1–20 thì app kẹp lại (≤ 0 → 5) |
 | `ai_idea_enabled` | bool | `false` | S09 – hiện nút gợi ý AI (MB-55) | Tắt nhanh khi AI lỗi nhiều hoặc hết quota |
-| `ai_model` | string | `gemini-2.5-flash` | MB-55 – model Firebase AI Logic | Trống → mặc định |
+| `ai_model` | string | `gemini-3.8-flash` | MB-55 – model Firebase AI Logic | Trống → mặc định |
 | `ai_prompt` | string | prompt ngắn tiếng Việt | MB-55 – prompt hệ thống | Trống → mặc định |
 
 - Khởi động: `setDefaults` → `fetchAndActivate` với timeout 5 giây. Lỗi / mất mạng / quá giờ: giữ mặc định (hoặc giá trị đã kích hoạt lần trước), ghi non-fatal, app vẫn mở.
