@@ -6,7 +6,7 @@
 
 **Chạy lại trên Railway (06/11/2026), phần chưa đăng nhập:** Gateway `GET /health` 200, `POST /api/dev/token` 404, gọi API không có JWT 401; chưa đăng nhập mở `/admin` trên bản Hosting thì về `/dang-nhap`. Đạt.
 
-**Chưa xong:** các dòng còn lại của bảng cần đăng nhập Google bằng tài khoản Bộ môn trên Railway, vì bản này đã chặn `/api/dev/token`. Ảnh trong bảng vẫn là ảnh của lần chạy 05/11.
+**Chạy lại trên Railway (07/11/2026), đăng nhập Google thật:** bản Hosting deploy lại ngày 07/11 trỏ về Gateway Railway. Các dòng chính đã chụp lại (cột Ảnh, file `*-railway.png`); các dòng Trống / Lỗi tải và thao tác ghi dữ liệu giữ ảnh lần chạy 05/11 (Docker local) để không phải làm trống hay làm hỏng dữ liệu Railway.
 
 ### Cách kiểm tra
 
@@ -19,15 +19,15 @@
 
 | Yêu cầu | Màn | Trường hợp | Kết quả | Ảnh |
 |---|---|---|---|---|
-| Đăng nhập, từ chối sai vai trò | W01 | Mở trang đăng nhập | Đạt | [w01-dang-nhap](../evidence/web/w01-dang-nhap.png) |
+| Đăng nhập, từ chối sai vai trò | W01 | Mở trang đăng nhập | Đạt | [w01-dang-nhap](../evidence/web/w01-dang-nhap.png), Railway: [w01-dang-nhap-railway](../evidence/web/w01-dang-nhap-railway.png) |
 | | | Chưa đăng nhập mở `/admin` thì về `/dang-nhap` | Đạt | [w01-chua-dang-nhap](../evidence/web/w01-chua-dang-nhap.png) |
 | | | Sinh viên mở `/admin` thấy "Bạn không có quyền xem trang này" | Đạt | [w01-sai-vai-tro](../evidence/web/w01-sai-vai-tro.png) |
-| | | Đăng nhập Google thật, email không có trong danh sách | **Chưa kiểm tra** | – |
-| Quản lý một thực thể | W11 | Danh sách giảng viên | Đạt | [w11-danh-sach](../evidence/web/w11-danh-sach.png) |
+| | | Đăng nhập Google thật, email không có trong danh sách | Đạt (Railway), báo "Tài khoản chưa có trong danh sách" | [w01-email-ngoai-danh-sach](../evidence/web/w01-email-ngoai-danh-sach.png) |
+| Quản lý một thực thể | W11 | Danh sách giảng viên | Đạt | [w11-danh-sach](../evidence/web/w11-danh-sach.png), Railway: [w11-danh-sach-railway](../evidence/web/w11-danh-sach-railway.png) |
 | | | Thêm giảng viên, đọc lại qua API thấy bản ghi mới | Đạt | [w11-them-form](../evidence/web/w11-them-form.png), [w11-them](../evidence/web/w11-them.png) |
 | | | Trống | Đạt | [w11-trong](../evidence/web/w11-trong.png) |
 | | | Lỗi tải | Đạt | [w11-loi](../evidence/web/w11-loi.png) |
-| Hàng chờ duyệt | W17 | Danh sách chờ duyệt | Đạt | [w17-cho-duyet](../evidence/web/w17-cho-duyet.png) |
+| Hàng chờ duyệt | W17 | Danh sách chờ duyệt | Đạt | [w17-cho-duyet](../evidence/web/w17-cho-duyet.png); Railway chưa có yêu cầu nên hiện trống: [w17-cho-duyet-railway](../evidence/web/w17-cho-duyet-railway.png) |
 | | | Trống | Đạt | [w17-trong](../evidence/web/w17-trong.png) |
 | | | Lỗi tải | Đạt | [w17-loi](../evidence/web/w17-loi.png) |
 | | W18 | Chi tiết: so sánh mốc và thành viên sau thay đổi | Đạt | [w18-chi-tiet](../evidence/web/w18-chi-tiet.png) |
@@ -35,7 +35,7 @@
 | | | Từ chối bỏ trống ghi chú bị chặn | Đạt | [w18-tu-choi-dialog](../evidence/web/w18-tu-choi-dialog.png), [w18-tu-choi-thieu-ghi-chu](../evidence/web/w18-tu-choi-thieu-ghi-chu.png) |
 | | | Từ chối có ghi chú, chuyển sang tab Đã từ chối (giả lập, xem trên) | Đạt | [w18-da-tu-choi](../evidence/web/w18-da-tu-choi.png) |
 | | | Lỗi tải | Đạt | [w18-loi](../evidence/web/w18-loi.png) |
-| Dashboard ≥ 3 số liệu, 1 biểu đồ | W02 | 4 số liệu, 3 biểu đồ thanh | Đạt | [w02-dashboard](../evidence/web/w02-dashboard.png) |
+| Dashboard ≥ 3 số liệu, 1 biểu đồ | W02 | 4 số liệu, 3 biểu đồ thanh | Đạt | [w02-dashboard](../evidence/web/w02-dashboard.png), Railway: [w02-dashboard-railway](../evidence/web/w02-dashboard-railway.png) |
 | | | Trống | Đạt | [w02-trong](../evidence/web/w02-trong.png) |
 | | | Lỗi tải | Đạt | [w02-loi](../evidence/web/w02-loi.png) |
 | Form thông báo | W23 | Mở form | Đạt sau sửa lỗi 1 | [w23-form](../evidence/web/w23-form.png) |
