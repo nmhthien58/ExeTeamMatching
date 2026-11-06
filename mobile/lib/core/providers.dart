@@ -84,23 +84,32 @@ class AuthController extends AsyncNotifier<UserInfo?> {
 
   /// A03: Google Sign-In → Firebase Auth → gửi ID token cho Identity → lưu phiên. Trả `null` khi người dùng hủy.
   /// Ném [SignInFailure] (Firebase) hoặc [ApiException] (Identity, ví dụ `not-in-list` → A04).
+  /// Email Google của lần đăng nhập gần nhất – A04 cần nó sau khi đã đăng xuất Google vì bị từ chối.
+  String? lastGoogleEmail;
+
   Future<UserInfo?> signInWithGoogle() async {
     final google = ref.read(googleSignInProvider);
     final account = await google.signIn();
     if (account == null) return null;
+    lastGoogleEmail = account.email;
     final authentication = await account.authentication;
     final idToken = authentication.idToken;
     if (idToken == null) {
       throw StateError('Google không trả ID token – kiểm tra GOOGLE_SERVER_CLIENT_ID.');
     }
     final firebase = ref.read(firebaseAuthProvider);
-    await firebase.signInWithGoogle(idToken: idToken, accessToken: authentication.accessToken);
     try {
+      await firebase.signInWithGoogle(idToken: idToken, accessToken: authentication.accessToken);
       return await signInWithIdToken(idToken);
     } catch (_) {
-      // Identity từ chối (ví dụ không có trong danh sách): không giữ phiên Firebase của tài khoản đó.
+      // Firebase hoặc Identity từ chối (không có trong danh sách, tài khoản Bộ môn trên mobile…): bỏ phiên Firebase VÀ
+      // Google của tài khoản đó. Không bỏ Google thì lần bấm sau signIn() trả lại ngay tài khoản cũ, không mở hộp chọn,
+      // và bị chặn mãi tới khi xóa dữ liệu app (lỗi tìm thấy khi chạy ARTEMIS TC-17, 06/11/2026).
       try {
         await firebase.signOut();
+      } catch (_) {}
+      try {
+        await google.signOut();
       } catch (_) {}
       rethrow;
     }

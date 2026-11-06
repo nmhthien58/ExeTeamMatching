@@ -157,8 +157,9 @@ void main() {
     await tester.tap(find.text('Dùng tài khoản khác'));
     await tester.pumpAndSettle();
 
-    verify(() => google.signOut()).called(1);
-    // Đăng nhập Firebase rồi, Identity từ chối → bỏ phiên Firebase ngay; "Dùng tài khoản khác" đăng xuất thêm lần nữa.
+    // Identity từ chối → bỏ phiên Firebase và Google ngay (để lần sau hiện hộp chọn tài khoản);
+    // "Dùng tài khoản khác" đăng xuất thêm lần nữa.
+    verify(() => google.signOut()).called(2);
     expect(firebase.signedInWith, ['id-token']);
     expect(firebase.signOuts, 2);
     expect(resets, 1);

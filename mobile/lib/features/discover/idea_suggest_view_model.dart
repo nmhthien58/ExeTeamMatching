@@ -47,6 +47,7 @@ String aiErrorMessage(String code) => switch (code) {
   'network' => 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
   'bad_json' => 'AI trả kết quả không đọc được. Bấm thử lại nhé.',
   'blocked' => 'AI không xử lý được mô tả này. Hãy viết lại mô tả khác.',
+  'denied' => 'Dịch vụ AI tạm thời từ chối bản app này. Thử lại sau ít phút, hoặc tự nhập ý tưởng.',
   _ => 'Không tạo được gợi ý. Bạn vẫn có thể tự nhập ý tưởng.',
 };
 

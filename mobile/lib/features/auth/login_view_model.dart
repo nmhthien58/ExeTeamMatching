@@ -82,9 +82,11 @@ class LoginViewModel extends Notifier<LoginState> {
       final error = e.apiError;
       if (error.code == 'not-in-list') {
         state = const LoginIdle();
-        return LoginNotInList(ref.read(googleSignInProvider).currentUser?.email);
+        return LoginNotInList(ref.read(authControllerProvider.notifier).lastGoogleEmail);
       }
-      return _fail(error.isNetwork ? networkMessage : error.title);
+      // Câu giải thích của Identity (vd. wrong-client: "Tài khoản Bộ môn chỉ đăng nhập trên web.") giúp người dùng biết
+      // vì sao bị chặn; chỉ tiêu đề thì không đủ (ARTEMIS TC-17, 06/11/2026).
+      return _fail(error.isNetwork ? networkMessage : [error.title, ?error.detail].join('. '));
     }
   }
 

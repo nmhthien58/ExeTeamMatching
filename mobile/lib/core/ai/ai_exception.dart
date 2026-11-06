@@ -18,10 +18,14 @@ class AiException implements Exception {
   /// Bị chặn bởi bộ lọc an toàn hoặc không có nội dung trả về.
   static const blocked = 'blocked';
 
+  /// Firebase từ chối yêu cầu (App Check không hợp lệ, HTTP 403 / `PERMISSION_DENIED`) – thường do cấu hình,
+  /// ví dụ debug token chưa đăng ký (tìm thấy khi chạy ARTEMIS TC-19, 06/11/2026).
+  static const denied = 'denied';
+
   /// Lỗi khác (đã ghi non-fatal lên Crashlytics).
   static const unknown = 'unknown';
 
-  static const codes = [disabled, quota, network, badJson, blocked, unknown];
+  static const codes = [disabled, quota, network, badJson, blocked, denied, unknown];
 
   final String code;
 
