@@ -56,7 +56,8 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/nhom': (_) => _brandTab('Nhóm của tôi', const MyTeamScreen()),
   // A05 chặn trước S01, S02 khi sinh viên chưa đánh giá đủ 5 kỹ năng – MB-08, MB-12 (Nam).
   '/sv': (_) => ProfileGate(child: _brandTab('EXE Team Matching', const HomeScreen(), showPhaseChip: true)),
-  '/sv/ho-so': (_) => const ProfileGate(child: MyProfileScreen()),
+  // C02 của sinh viên thành tab từ 06/11/2026 (MB-62); hồ sơ S02 mở từ avatar ở BrandAppBar.
+  '/sv/tin-nhan': (_) => const ConversationsScreen(basePath: '/sv', inTab: true),
   '/sv/kham-pha': (_) => _brandTab('Khám phá', const DiscoverScreen()),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
   '/gv': (_) => const LecturerHomeScreen(),
@@ -75,6 +76,9 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
 /// Màn cấp 2 của từng khung (mở bằng `context.push`, có nút Back). Mỗi mảng thêm route của mình vào đây.
 List<RouteBase> featureRoutes(Shell shell) => switch (shell) {
       Shell.student => [
+          // S02 – MB-11 (Nam): trước là tab, từ MB-62 mở bằng avatar nên là màn cấp 2 (có Back).
+          GoRoute(path: '/sv/ho-so', builder: (_, _) => const ProfileGate(child: MyProfileScreen())),
+          _channelRoute('/sv/tin-nhan'),
           GoRoute(path: teamLecturerPath, builder: (_, _) => const TeamLecturerScreen()),
           // C09 – MB-46 (Cường).
           GoRoute(path: '/sv/nhom/lich-hop', builder: (_, _) => const TeamScheduleScreen()),

@@ -26,7 +26,7 @@ class SuggestedTeamsScreen extends ConsumerWidget {
                 icon: Icons.person_search_outlined,
                 title: 'Chưa đủ dữ liệu để gợi ý',
                 description: 'Đánh giá đủ 5 kỹ năng trong hồ sơ để hệ thống tìm nhóm cần đúng thế mạnh của bạn.',
-                action: FilledButton(onPressed: () => context.go('/sv/ho-so'), child: const Text('Hoàn thiện hồ sơ')),
+                action: FilledButton(onPressed: () => context.push('/sv/ho-so'), child: const Text('Hoàn thiện hồ sơ')),
               )
             : RefreshIndicator(
                 onRefresh: () async => ref.invalidate(teamsForMeProvider),

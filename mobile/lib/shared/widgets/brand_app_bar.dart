@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_tokens.dart';
 import 'app_logo.dart';
 import 'brand_header_view_model.dart';
+import 'profile_avatar_button.dart';
 
 /// AppBar chung cho mọi tab cấp 1 (đổi 05/11/2026 so với Lab 2, xem docs/design-traceability.md):
 /// logo ứng dụng, tên màn, dòng "EXE101 · Học kỳ SP90", nút riêng của màn ở bên phải.
 /// Màn được mở bằng `push` (có thể quay lại) thì hiện nút Back thay cho logo, nên dùng lại được ở màn cấp 2.
+/// Tab cấp 1 có avatar ở góc phải để mở hồ sơ (MB-62 – tab Hồ sơ của sinh viên đã nhường chỗ cho Tin nhắn).
 class BrandAppBar extends ConsumerWidget implements PreferredSizeWidget {
   const BrandAppBar({super.key, required this.title, this.actions = const [], this.showPhaseChip = false, this.bottom});
 
@@ -57,6 +59,7 @@ class BrandAppBar extends ConsumerWidget implements PreferredSizeWidget {
       actions: [
         if (showPhaseChip && data.chip != null) Padding(padding: const EdgeInsets.only(left: AppSpacing.s2), child: PhaseChip(label: data.chip!)),
         ...actions,
+        if (!canPop) const ProfileAvatarButton(),
         const SizedBox(width: AppSpacing.s3),
       ],
       bottom: bottom,

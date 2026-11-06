@@ -53,8 +53,9 @@ export function roleNav(shell: Exclude<Shell, 'admin'>, ctx: ShellContext): NavI
           ? { to: '/sv/kham-pha', label: 'Khám phá', icon: 'travel_explore', screen: 'S05', owner: 'Cường' }
           : { to: '/sv/du-an', label: 'Dự án', icon: 'rocket_launch', screen: 'C01', owner: 'Nguyên' },
         { to: '/sv/nhom', label: 'Nhóm', icon: 'groups', screen: 'S15', owner: 'Cường' },
+        // Từ 06/11/2026 (MB-62, FE-53): Tin nhắn thành mục riêng, Hồ sơ (S02) mở từ menu tài khoản – design-traceability.md D12.
+        { to: '/sv/tin-nhan', label: 'Tin nhắn', icon: 'forum', screen: 'C02', owner: 'Cường' },
         { to: '/sv/thong-bao', label: 'Thông báo', icon: 'notifications', screen: 'A06', owner: 'Thành' },
-        { to: '/sv/ho-so', label: 'Hồ sơ', icon: 'person', screen: 'S02', owner: 'Nam' },
       ]
     case 'lecturer':
       return ctx.isTeamFormation

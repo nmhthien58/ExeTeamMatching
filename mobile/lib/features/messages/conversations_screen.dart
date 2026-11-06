@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/phase.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/view_state.dart';
+import '../../shared/widgets/brand_app_bar.dart';
 import '../../shared/widgets/states.dart';
 import '../realtime/collab_hub.dart';
 import '../workspace/format.dart';
@@ -13,22 +15,25 @@ import 'messages_api.dart';
 
 /// C02 của sinh viên trong dự án (MB-39): kênh Nhóm và Cố vấn của nhóm mình → C03. Cố vấn mở từ dự án của nhóm cũng dùng màn này
 /// (chỉ thấy kênh Cố vấn – quy tắc 22).
+/// Từ 06/11/2026 (MB-62) màn này còn là tab Tin nhắn của sinh viên ([inTab]): app bar chung có avatar, chưa có nhóm thì
+/// có nút dẫn tới nơi tìm nhóm.
 class ConversationsScreen extends ConsumerWidget {
-  const ConversationsScreen({super.key, required this.basePath, this.workspaceId});
+  const ConversationsScreen({super.key, required this.basePath, this.workspaceId, this.inTab = false});
 
   final String basePath;
   final String? workspaceId;
+  final bool inTab;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final workspace = ref.watch(currentWorkspaceProvider(workspaceId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Tin nhắn')),
+      appBar: inTab ? const BrandAppBar(title: 'Tin nhắn') : AppBar(title: const Text('Tin nhắn')),
       body: workspace.when(
         loading: () => const SkeletonList(count: 2),
         error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(currentWorkspaceProvider(workspaceId))),
         data: (ws) => ws == null
-            ? const EmptyState(icon: Icons.group_off_outlined, title: 'Bạn chưa có nhóm')
+            ? _NoTeamState(inTab: inTab)
             : _ChannelList(
                 channels: ref.watch(channelsProvider(ws.id)),
                 onRefresh: () async => ref.invalidate(channelsProvider(ws.id)),
@@ -86,6 +91,30 @@ class AdvisorConversationsScreen extends ConsumerWidget {
           ],
         ),
     };
+  }
+}
+
+/// Sinh viên chưa có nhóm: không có kênh nào để nhắn. Ở tab thì chỉ đường đi tìm nhóm (đợt lập nhóm đóng → S31).
+class _NoTeamState extends ConsumerWidget {
+  const _NoTeamState({required this.inTab});
+
+  final bool inTab;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!inTab) return const EmptyState(icon: Icons.group_off_outlined, title: 'Bạn chưa có nhóm');
+    final formation = ref.watch(shellPhaseProvider).isTeamFormation;
+    return EmptyState(
+      icon: Icons.forum_outlined,
+      title: 'Bạn chưa có nhóm',
+      description: formation
+          ? 'Tham gia hoặc tạo nhóm để trò chuyện với các thành viên và cố vấn.'
+          : 'Đợt lập nhóm đã đóng. Hệ thống sẽ xếp bạn vào một nhóm, khi đó tin nhắn của nhóm hiện ở đây.',
+      action: FilledButton(
+        onPressed: () => formation ? context.go('/sv/kham-pha') : context.push('/sv/nhom/ghep-tu-dong'),
+        child: Text(formation ? 'Tìm nhóm' : 'Xem thông tin ghép tự động'),
+      ),
+    );
   }
 }
 
