@@ -15,7 +15,7 @@
 | Design system thành code (token → ThemeData, component → widget) | ✅ | design-traceability mục 3; không hardcode màu / cỡ chữ (flutter-handoff §5 checklist, MB-36) |
 | Màn có loading / empty / error + Thử lại | ✅ | `ViewState` + `states.dart`; checklist §5 cho mọi màn (MB-36, #134, #138) |
 | Accessibility: chạm ≥ 48 dp, chữ ≥ 14 sp, 360 / 412 dp, chữ 130% | ✅ | test `accessibility_*_test.dart` |
-| App khác Figma được ghi lại | 🟡 | design-traceability mục 4 (D1–D9). **Còn:** vẽ lại A03, header các tab, SkillSlider trong Figma (bridge Figma, cần Thiên mở plugin) 👤 |
+| App khác Figma được ghi lại | ✅ | design-traceability mục 4 (D1–D11). Figma vẽ lại 05/11 cho D1–D5, D9 (App bar, A03, S01, Skill/Slider, L02/L03); D10, D11 là page Web, để FE-49 |
 
 ## Lab 3
 
