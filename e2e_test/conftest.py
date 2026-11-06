@@ -56,9 +56,10 @@ def final_report(base_url, session_id):
         with urllib.request.urlopen(f"{base_url.rstrip('/')}/api/sessions/{session_id}/steps", timeout=30) as resp:
             steps = json.loads(resp.read().decode("utf-8"))
         for step in reversed(steps if isinstance(steps, list) else steps.get("steps", [])):
-            action = step.get("action_taken") or {}
-            if action.get("action") == "report_task_status":
-                return (action.get("args") or {}).get("explanation")
+            actions = step.get("action_taken") or []
+            for action in actions if isinstance(actions, list) else [actions]:
+                if action.get("action") == "report_task_status":
+                    return (action.get("args") or {}).get("explanation")
         time.sleep(3)
     return None
 

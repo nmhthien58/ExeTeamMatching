@@ -1,0 +1,8 @@
+{
+  "trace_id": "ad42e826-cbb8-4620-8636-614274edbada",
+  "status": "completed",
+  "succeeded": true,
+  "minutes": 17.9,
+  "report": "```json\n{\n  \"issues\": [\n    {\n      \"screen\": \"Khám phá\",\n      \"issue\": \"Các danh mục và nhãn lĩnh vực hiển thị tiếng Anh lẫn tiếng Việt như 'Domain', 'AI & Data Innovation', 'Robotics & Automation', 'Software / SaaS / Platform', 'Computer Foundation & Digital Literacy'.\",\n      \"severity\": \"thấp\"\n    },\n    {\n      \"screen\": \"Khám phá\",\n      \"issue\": \"Khi nhập tìm kiếm hoặc tương tác ô tìm kiếm, toast notification 'Đã sao chép vào bộ nhớ tạm.' xuất hiện không mong muốn.\",\n      \"severity\": \"thấp\"\n    },\n    {\n      \"screen\": \"Tạo nhóm\",\n      \"issue\": \"Trợ năng (accessibility) nhãn đếm ký tự trường Tên nhóm đọc tiếng Anh 'characters remaining' thay vì tiếng Việt.\",\n      \"severity\": \"thấp\"\n    },\n    {\n      \"screen\": \"Demo Firebase → Thử AI\",\n      \"issue\": \"Thông báo lỗi khi để trống trường mô tả ý tưởng bị tràn/cắt chữ thành 'Nhập vài câu mô tả ý tưởng trước khi ...' gây mất nội dung.\",\n      \"severity\": \"trung bình\"\n    }\n  ],\n  \"visited\": [\n    \"Trang chủ\",\n    \"Khám phá\",\n    \"Bộ lọc nhóm\",\n    \"Chi tiết nhóm\",\n    \"Sinh viên tìm nhóm\",\n    \"Hồ sơ sinh viên\",\n    \"Nhóm\",\n    \"Tạo nhóm\",\n    \"Tin nhắn\",\n    \"Thông báo\",\n    \"Hồ sơ của tôi\",\n    \"Chỉnh sửa hồ sơ\",\n    \"Cài đặt\",\n    \"Demo Firebase → Thử AI\"\n  ]\n}\n```",
+  "error": null
+}

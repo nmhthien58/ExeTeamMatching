@@ -2,7 +2,7 @@
 
 > PRM393 Lab 3 §7, Phụ lục B; Final §9. Công cụ: [Google ARTEMIS](https://github.com/google/artemis), không dùng Patrol. Mỗi ca là một hàm pytest trong `e2e_test/`, gửi một câu lệnh qua `ArtemisClient` và kiểm tra giá trị agent báo về.
 >
-> **Trạng thái (06/11/2026):** đã chạy trên thiết bị thật – 9/10 ca chạy được đạt 3/3 (TC-19 AI còn lỗi cấu hình App Check, F4). Còn thiếu: các ca `pending` và phiên khám phá (mục 6). Commit ARTEMIS pin ở `e2e_test/README.md`. Cột Kết quả ở mục 5 còn trống cho tới khi chạy trên máy thật. Đã đối chiếu với đề Lab 3 §7 (06/11/2026).
+> **Trạng thái (06/11/2026):** đã chạy trên thiết bị thật – 9/10 ca chạy được đạt 3/3 (TC-19 AI: app đã chạy đúng, trượt vì Gemini quá tải phía Google, F4–F5). Phiên khám phá đã chạy ngày 07/11/2026 (mục 6). Còn thiếu: các ca `pending`. Commit ARTEMIS pin ở `e2e_test/README.md`. Cột Kết quả ở mục 5 còn trống cho tới khi chạy trên máy thật. Đã đối chiếu với đề Lab 3 §7 (06/11/2026).
 
 ## 1. Môi trường
 
@@ -90,7 +90,8 @@ Chạy ngày 06/11/2026 trên Samsung Galaxy A71 (Android 13), APK release backe
 | TC-14 | ✅ | ✅ | ✅ | 3/3 | 22 s | `suggestions_max_items = 5` khớp Console |
 | TC-15 | ✅ | ✅ | ✅ | 3/3 | 76 s | Nút Back hệ thống (tương tác Android gốc) |
 | TC-17 | ✅ | ✅ | ✅ | 3/3 | 134 s | Lượt 1 được 0/3 (F2, F3); chạy lại sau khi sửa. Đăng nhập lại qua hộp chọn tài khoản Google (tương tác Android gốc) |
-| TC-19 | ❌ | ✅ | ❌ | 1/3 | 510 s | Xem F4 – chưa sửa xong, lỗi cấu hình |
+| TC-19 | ❌ | ✅ | ❌ | 1/3 | 510 s | Lượt 06/11, xem F4 |
+| TC-19 (07/11) | ❌ | ❌ | ❌ | 0/3 | 447 s | Sau khi đổi model: app hiện đúng "AI đang quá tải…", Gemini trả 503 – xem F5 |
 | TC-21 | ✅ | ✅ | ✅ | 3/3 | 34 s | Logcat có `view_team` (`evidence/artemis/logcat/`) |
 
 Các ca còn lại (TC-02, 06–09, 11–13, 16, 18, 20) cần điều kiện riêng (marker `pending`, bảng ở `e2e_test/README.md`) và chưa chạy ở lượt này để giữ chi phí model (~200 nghìn đồng cho cả bộ).
@@ -102,7 +103,8 @@ Các ca còn lại (TC-02, 06–09, 11–13, 16, 18, 20) cần điều kiện ri
 | F1 | TC-05 lần 1 | Agent đã trả JSON đúng nhưng test báo "không trả JSON" | Bộ test đọc bước cuối của phiên trước khi server ARTEMIS lưu xong | Timing (bộ test) | `final_report` đọc lại tối đa 6 lần, cách 3 s |
 | F2 | TC-17 lần 1 | Agent báo tab là `1` | Câu lệnh "báo tab đang chọn" mơ hồ (số thứ tự hay tên) | Câu lệnh mơ hồ | Đổi thành "tên chữ in dưới icon, ví dụ Trang chủ, không dùng số thứ tự" |
 | F3 | TC-17 lần 2, 3 | Đăng nhập lại báo "Không dùng được trên ứng dụng này" | Câu lệnh "chọn tài khoản đầu tiên" chọn tài khoản Bộ môn; Identity chặn đúng (`wrong-client`). Lỗi app đi kèm: bị từ chối thì app không đăng xuất Google nên lần sau không hiện hộp chọn tài khoản, kẹt tới khi xóa dữ liệu | Câu lệnh mơ hồ + **app** | Câu lệnh chọn theo `TEST_ACCOUNT_EMAIL`; app đăng xuất cả Google khi bị từ chối, hiện cả lý do ("Tài khoản Bộ môn chỉ đăng nhập trên web."), có test |
-| F4 | TC-19 lần 1, 3 | "Không tạo được gợi ý" lặp lại, agent thử tới hết giờ | Logcat: App Check không đổi được debug token dùng chung (HTTP 403, rồi `Too many attempts`) – token chưa đăng ký trên Console | Cấu hình (không phải code) | Đăng ký token "APK demo dùng chung" trên Console; app phân loại lỗi App Check thành `denied` với câu riêng. **Còn mở:** sau khi đăng ký vẫn `unknown`, cần xem Crashlytics non-fatal `ai_idea_suggest` |
+| F4 | TC-19 lần 1, 3 | "Không tạo được gợi ý" lặp lại, agent thử tới hết giờ | Logcat: App Check không đổi được debug token dùng chung (HTTP 403, rồi `Too many attempts`) – token chưa đăng ký trên Console | Cấu hình (không phải code) | Đăng ký token "APK demo dùng chung" trên Console; app phân loại lỗi App Check thành `denied` với câu riêng. Sau khi đăng ký vẫn `unknown`: xem F5 |
+| F5 | TC-19 (06/11 còn lại, 07/11 cả 3 lần) | `unknown`, sau đó "AI đang quá tải…" | Gọi thẳng API: App Check đổi token thành công; Gemini trả 404 vì `gemini-2.5-flash` không còn cấp cho dự án mới. Sau khi đổi sang `gemini-3.8-flash` (PR #194 + Remote Config), Gemini trả 503 "high demand" | **Cấu hình** (model ngừng cấp), rồi **Timing** (dịch vụ ngoài quá tải) | Đổi model ở code và Remote Config; lỗi 503 hiện câu "AI đang quá tải…" thay vì `unknown`. Chạy lại khi Gemini hết quá tải |
 
 ## 6. Phiên khám phá
 
@@ -110,4 +112,13 @@ Một phiên 15–30 phút, profile Pro, bắt đầu từ S01 với tài khoả
 
 | # | Màn | Vấn đề | Mức độ | Xử lý |
 |---|---|---|---|---|
-| | | chưa chạy | | |
+| E1 | Thử AI (A07) | Câu nhắc khi để trống ô mô tả bị cắt thành "…trước khi ..." | Trung bình | **App**, đã sửa: `errorMaxLines: 2` |
+| E2 | Chỉnh sửa hồ sơ (S03) | Nút "Lưu" cuối trang bị thanh tab dưới che gần hết (phiên thử) | Cao | Báo Nam xác nhận trên máy |
+| E3 | Khám phá / Chi tiết nhóm | Nhóm trạng thái "Nháp" vẫn ở "Nhóm đang tuyển" và bấm được "Xin tham gia" (phiên thử) | Trung bình | Báo Cường xác nhận đúng quy tắc hay lỗi |
+| E4 | Khám phá, Tạo nhóm, Hồ sơ | Chữ tiếng Anh lẫn vào: tên domain trong danh mục, chữ "Domain", "Plan truyền thông" | Thấp | Dữ liệu danh mục và nhãn; chủ mảng quyết định |
+| E5 | Tạo nhóm, Chỉnh sửa hồ sơ | Bộ đếm ký tự đọc "characters remaining" (chữ mặc định của Flutter) | Thấp | Chưa sửa: cần thêm bản địa hóa `vi` cho Material |
+| E6 | Khám phá | Toast "Đã sao chép vào bộ nhớ tạm." khi nhập ô tìm kiếm | – | Không phải lỗi app: toast của Android khi ARTEMIS nhập chữ qua bộ nhớ tạm |
+| E7 | Cài đặt | Mục "Demo Firebase" hiện cho người dùng (phiên thử) | – | Không phải lỗi: cố ý bật trong APK demo (`FIREBASE_DEMO=true`) để chấm Lab 3 |
+| E8 | Trang chủ | "Nhóm còn thiếu 2 người" cạnh "2/6 thành viên · còn 4 chỗ" (phiên thử) | Thấp | Không mâu thuẫn (thiếu tới tối thiểu 4, còn chỗ tới tối đa 6), chữ dễ hiểu nhầm |
+
+Phiên chính chạy ngày 07/11/2026, profile Pro, 17,9 phút, trace `ad42e826-cbb8-4620-8636-614274edbada`, qua 14 màn (Trang chủ, Khám phá, Bộ lọc, Chi tiết nhóm, Sinh viên tìm nhóm, Hồ sơ sinh viên, Nhóm, Tạo nhóm, Tin nhắn, Thông báo, Hồ sơ, Chỉnh sửa hồ sơ, Cài đặt, Thử AI). Phiên thử trước đó (6,8 phút, trace `1e0902c0-22f2-477a-a2c1-1bbacd0400c8`) dừng sớm nên không tính là phiên khám phá, nhưng vấn đề tìm được vẫn ghi ở trên. Lệnh: `uv run python explore.py`; báo cáo JSON ở `evidence/artemis/explore-*.json`.

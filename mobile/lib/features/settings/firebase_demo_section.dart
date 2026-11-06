@@ -173,6 +173,8 @@ class _AiDemoDialogState extends ConsumerState<_AiDemoDialog> {
                 labelText: 'Mô tả ý tưởng',
                 hintText: 'Ví dụ: app giúp sinh viên tìm phòng trọ gần trường, có đánh giá của người thuê cũ',
                 errorText: _emptyError ? 'Nhập vài câu mô tả ý tưởng trước khi gửi.' : null,
+                // Hộp thoại hẹp: mặc định 1 dòng làm câu nhắc bị cắt (ARTEMIS phiên khám phá 07/11/2026).
+                errorMaxLines: 2,
               ),
             ),
             const SizedBox(height: AppSpacing.s3),
