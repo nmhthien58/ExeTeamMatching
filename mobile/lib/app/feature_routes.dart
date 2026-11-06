@@ -55,7 +55,7 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/du-an': (_) => const ProjectOverviewScreen(basePath: '/sv/du-an'),
   '/sv/nhom': (_) => _brandTab('Nhóm của tôi', const MyTeamScreen()),
   // A05 chặn trước S01, S02 khi sinh viên chưa đánh giá đủ 5 kỹ năng – MB-08, MB-12 (Nam).
-  '/sv': (_) => ProfileGate(child: _brandTab('EXE Team Matching', const HomeScreen(), showPhaseChip: true)),
+  '/sv': (_) => ProfileGate(child: _brandTab('EXE Team Matching', const HomeScreen())),
   // C02 của sinh viên thành tab từ 06/11/2026 (MB-62); hồ sơ S02 mở từ avatar ở BrandAppBar.
   '/sv/tin-nhan': (_) => const ConversationsScreen(basePath: '/sv', inTab: true),
   '/sv/kham-pha': (_) => _brandTab('Khám phá', const DiscoverScreen()),
