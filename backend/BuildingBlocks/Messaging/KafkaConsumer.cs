@@ -165,6 +165,8 @@ public sealed class KafkaConsumerService(
                 }
 
                 await store.MarkProcessedAsync(envelope, stoppingToken);
+                logger.LogInformation("Đã xử lý {EventType} {EventId} từ {Topic} offset {Offset}",
+                    envelope.EventType, envelope.EventId, result.Topic, result.Offset.Value);
                 return;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
