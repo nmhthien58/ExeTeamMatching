@@ -151,7 +151,7 @@ class SeekingPostCard extends StatelessWidget {
                   runSpacing: AppSpacing.s2,
                   children: [
                     for (final s in post.skills) Chip(label: Text('${s.skill} ${s.level}/5')),
-                    for (final d in domains) Tooltip(message: d.name, child: Chip(avatar: const Icon(Icons.category_outlined, size: 18), label: Text(d.code))),
+                    for (final d in domains) Chip(avatar: const Icon(Icons.category_outlined, size: 18), label: Text(d.name)),
                   ],
                 ),
               ],
@@ -270,8 +270,7 @@ class _SeekingPostFormState extends ConsumerState<_SeekingPostForm> {
             children: [
               for (final d in domains)
                 FilterChip(
-                  label: Text(d.code),
-                  tooltip: d.name,
+                  label: Text(d.name),
                   selected: _domainIds.contains(d.id),
                   onSelected: (on) => setState(() => on ? _domainIds.add(d.id) : _domainIds.remove(d.id)),
                 ),

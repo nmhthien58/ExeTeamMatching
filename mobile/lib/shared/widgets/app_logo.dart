@@ -15,7 +15,10 @@ class AppLogo extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: context.appColors.brandOrange,
+            // Bản 6: dải cam FPT và bóng nổi ngả cam.
+            gradient: AppGradients.hero,
+            // Logo nhỏ nằm trong app bar (bị cắt bóng) nên chỉ logo lớn ở A03 có bóng nổi.
+            boxShadow: size >= 56 ? AppShadows.raised : null,
             // Logo nhỏ (header) bo góc vừa, logo lớn (A03) bo góc thẻ.
             borderRadius: BorderRadius.circular(size >= 56 ? AppRadius.lg : AppRadius.md),
           ),

@@ -96,19 +96,22 @@ ShellRoute _shellRoute(Shell shell) {
   );
 }
 
-/// Đổi tab: màn mới hiện dần và phóng nhẹ 98% → 100% (Material "fade through"), 200 ms.
+/// Đổi tab: màn mới hiện dần, phóng nhẹ 98% → 100% và nhích lên 12 dp (Material "fade through"), 280 ms (bản 6, MB-64).
 /// Người dùng bật giảm chuyển động thì đổi ngay (AppMotion, DESIGN.md 4.5).
 Page<void> _tabPage(GoRouterState state, Widget child) => CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
-      transitionDuration: AppMotion.base,
+      transitionDuration: AppMotion.tab,
       reverseTransitionDuration: Duration.zero,
       transitionsBuilder: (context, animation, _, child) {
         if (MediaQuery.maybeDisableAnimationsOf(context) == true) return child;
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
         return FadeTransition(
           opacity: curved,
-          child: ScaleTransition(scale: Tween<double>(begin: 0.98, end: 1).animate(curved), child: child),
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 0.015), end: Offset.zero).animate(curved),
+            child: ScaleTransition(scale: Tween<double>(begin: 0.98, end: 1).animate(curved), child: child),
+          ),
         );
       },
     );

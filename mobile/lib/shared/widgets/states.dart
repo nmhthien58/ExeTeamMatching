@@ -23,8 +23,24 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: theme.colorScheme.onSurfaceVariant),
-            const SizedBox(height: AppSpacing.s3),
+            // DESIGN.md 6.1: icon 48 màu Primary trong vòng 96 nền Primary Container; bản 6 thêm bóng nổi và hiện dần.
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.85, end: 1),
+              duration: AppMotion.of(context, const Duration(milliseconds: 420)),
+              curve: Curves.easeOutBack,
+              builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
+                  boxShadow: AppShadows.raised,
+                ),
+                child: Icon(icon, size: 48, color: theme.colorScheme.primary),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s4),
             Text(title, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
             if (description != null) ...[
               const SizedBox(height: AppSpacing.s1),

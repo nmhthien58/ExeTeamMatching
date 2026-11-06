@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import { Icon, StatusChip } from '@/shared/components/ui'
+import { Icon } from '@/shared/components/ui'
 import { Avatar } from '@/features/workspace/components'
 import { fitLabel, type CatalogRef, type StudentRef, type TeamCard } from './api'
 
@@ -30,7 +30,7 @@ export function DomainChips({ domains }: { domains: CatalogRef[] }) {
     <span className="flex flex-wrap gap-2">
       {domains.slice(0, 2).map((d) => (
         <span key={d.id} className="inline-flex h-8 items-center rounded-full bg-info-container px-3 font-medium text-info-dark">
-          {d.code} {d.name}
+          {d.name}
         </span>
       ))}
       {domains.length > 2 && <span className="inline-flex h-8 items-center px-1 text-text-secondary">+{domains.length - 2}</span>}
@@ -38,12 +38,28 @@ export function DomainChips({ domains }: { domains: CatalogRef[] }) {
   )
 }
 
+/** Mức phù hợp (bản 6): Rất phù hợp nền cam chữ trắng, Phù hợp nền cam nhạt, Có thể phù hợp nền xám nhạt – một màu nhấn. */
 export function FitChip({ score }: { score: number }) {
   const fit = fitLabel(score)
   return (
-    <StatusChip tone={fit.tone} icon="auto_awesome">
+    <span
+      className={clsx(
+        'inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-caption font-semibold',
+        fit.tone === 'success' ? 'bg-primary text-white' : fit.tone === 'info' ? 'bg-primary-container text-primary-dark' : 'bg-neutral-container text-text-secondary',
+      )}
+    >
+      <Icon name="auto_awesome" size={20} />
       {fit.text}
-    </StatusChip>
+    </span>
+  )
+}
+
+/** Ô chữ tắt của nhóm, giống thẻ Khám phá (FE-52). */
+export function TeamMonogram({ name }: { name: string }) {
+  return (
+    <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-[12px] bg-primary-container text-title font-semibold text-primary">
+      {name.replace(/^Nhóm\s+/i, '').charAt(0).toUpperCase()}
+    </span>
   )
 }
 
@@ -66,8 +82,9 @@ export function Reasons({ reasons }: { reasons: string[] }) {
 export function TeamSuggestionCard({ team, score, reasons, action }: { team: TeamCard; score: number; reasons: string[]; action?: ReactNode }) {
   const missing = team.requirement?.missingSpecializations ?? []
   return (
-    <article className="flex flex-col gap-2 rounded-lg bg-surface p-4 shadow-elevation-1">
-      <div className="flex flex-wrap items-start gap-2">
+    <article className="card-hover flex flex-col gap-3 rounded-lg bg-surface p-5 shadow-elevation-1">
+      <div className="flex items-start gap-3">
+        <TeamMonogram name={team.name} />
         <div className="min-w-0 flex-1">
           <h2 className="line-clamp-2 text-subtitle font-semibold">{team.name}</h2>
           {team.projectName && <p className="text-body text-text-secondary">{team.projectName}</p>}

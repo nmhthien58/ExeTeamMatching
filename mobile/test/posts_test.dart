@@ -98,7 +98,7 @@ void main() {
     expect(find.text('Nguyễn An'), findsOneWidget);
     expect(find.text('SE180009 · Marketing'), findsOneWidget);
     expect(find.text('Vai trò: Frontend'), findsOneWidget);
-    expect(find.text('D05'), findsOneWidget);
+    expect(find.text('Giáo dục'), findsOneWidget);
     expect(find.text('Mời vào nhóm'), findsNothing);
 
     await tester.tap(find.text('Nguyễn An'));
@@ -124,7 +124,7 @@ void main() {
     expect(find.text('Nhập vai trò mong muốn.'), findsOneWidget);
 
     await tester.enterText(find.widgetWithText(TextField, 'Vai trò mong muốn'), 'Backend');
-    await tester.tap(find.widgetWithText(FilterChip, 'D05'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Giáo dục'));
     await tester.tap(find.text('Đăng bài'));
     await tester.pumpAndSettle();
     expect(api.calls, ['seeking Backend [5]']);

@@ -1,6 +1,7 @@
 # DESIGN.md – EXE Team Matching System
 
 > Quy ước thiết kế cho **Mobile (Flutter, Material 3)** và **Web (React)** – web quản trị của Bộ môn và web cho Sinh viên, Giảng viên, Mentor.
+> **Bản 6 – 06/11/2026 (chiều sâu, mobile trước):** giữ nguyên mã màu, chữ, lưới và bố cục bản 5; đổi lớp hiển thị: nền trang xám ấm `#F7F6F4`, thẻ nổi bằng bóng ấm thay viền, khối đầu trang chủ dải cam FPT có vòng tiến độ học kỳ, logo dải cam, màn trống có vòng cam nhạt, đổi tab 280 ms có nhích lên. Chi tiết ở [Phụ lục F](#phụ-lục-f--thay-đổi-so-với-bản-5). Web áp dụng sau.
 > **Bản 5 – 22/10/2026 (sửa bảng màu theo sổ tay thương hiệu FPT):** cam FPT là màu nhấn duy nhất cho mọi thứ bấm được và đang chọn; xanh dương FPT `#0066B3` chỉ cho thông tin, xanh lá FPT cho thành công; mã màu lấy từ *Sổ tay thương hiệu Tập đoàn FPT* bản 3.0. Mọi điểm khác bản 4 ở [Phụ lục E](#phụ-lục-e--thay-đổi-so-với-bản-4).
 > **Bản 4 – 19/10/2026 (sau góp ý của giảng viên):** bảng màu cam/xanh FPT sáng hơn, phong cách hiện đại hơn và ít chữ hơn, component cho workspace nhóm, web cho mọi vai trò. Mọi điểm khác bản 3 ở [Phụ lục D](#phụ-lục-d--thay-đổi-so-với-bản-3).
 > **Bản 3 – 13/10/2026.** Bản 1 chuyển nguyên từ `EXE_Team_Matching_Quy_uoc_thiet_ke.docx`. Bản 2 (12/10/2026) bổ sung để đáp ứng yêu cầu accessibility và design system của PRM323 Lab 2; mọi điểm khác bản 1 được liệt kê ở [Phụ lục B](#phụ-lục-b--thay-đổi-so-với-bản-1). Bản 3 ghi lại các quy ước rút ra từ ba vòng tinh chỉnh trong [ai-design-log.md](ai-design-log.md); mọi điểm khác bản 2 được liệt kê ở [Phụ lục C](#phụ-lục-c--thay-đổi-so-với-bản-2).
@@ -751,3 +752,21 @@ Bản 5 (22/10/2026) sửa bảng màu sau khi đối chiếu với *Sổ tay th
 | 9 | 7 | Nhóm trạng thái "Secondary (xanh)" | Nhóm "Info (xanh dương FPT)", cùng icon `verified` | Như mục 4 |
 | 10 | 12.1, 13 | Ánh xạ `secondary` | `ColorScheme.secondary` = Primary Dark; nhóm Info vào `AppColors`; CSS `--ring`, `--accent` sang cam | Như mục 3, 4 |
 | 11 | Phụ lục A | Số đo bản 4 | Đo lại toàn bộ theo mã bản 5 | – |
+
+## Phụ lục F – Thay đổi so với bản 5
+
+Bản 6 (06/11/2026, MB-64) làm lại lớp hiển thị sau khi xem bản thử tương tác; mã màu FPT, kiểu chữ, khoảng cách, bố cục màn hình và luồng giữ nguyên.
+
+| Mục | Bản 5 | Bản 6 | Token / widget |
+|---|---|---|---|
+| Nền trang | `#F7F8F9` xám lạnh | `#F7F6F4` xám ấm theo cam | `Palette.background` |
+| Thẻ | Viền 1 px Border, không bóng | Không viền, bóng ấm (elevation 1,5, màu bóng nâu `#3C1E0A`) | `cardTheme`, `AppShadows.card` |
+| App bar | Nền Surface | Cùng nền trang, không đổi màu khi cuộn | `appBarTheme` |
+| Khối nổi (đầu trang, logo lớn, màn trống) | – | Bóng hai tầng ngả cam | `AppShadows.raised` |
+| Đầu trang chủ S01 | Lời chào chữ thường, vạch tiến độ 3 px | Khối dải cam FPT → cam đậm, chữ trắng, vòng tiến độ % chạy dần, chip giai đoạn kính mờ (chip rời khỏi app bar) | `AppGradients.hero`, `BrandHeader` |
+| Logo | Nền FPT Orange | Dải cam FPT | `AppLogo` |
+| Màn trống | Icon 48 màu chữ phụ | Icon 48 Primary trong vòng 96 Primary Container, bóng nổi, phóng nhẹ khi hiện (đúng mục 6.1) | `EmptyState` |
+| Tab bar | Phẳng | Bóng nhẹ phía trên, viên thuốc tròn | `navigationBarTheme` |
+| Đổi tab | 200 ms, mờ + phóng | 280 ms, mờ + phóng + nhích lên 12 dp; tắt khi giảm chuyển động | `AppMotion.tab`, `_tabPage` |
+
+Chữ trên dải cam: trắng đậm cỡ ≥ 16 (lời chào 24, %, chip 14 SemiBold) – trắng trên Primary `#C6510B` đạt 4,6:1; ở góc sáng nhất (FPT Orange) chỉ đặt chữ lớn ≥ 24 (3:1 cho chữ lớn).

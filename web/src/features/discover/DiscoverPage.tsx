@@ -245,7 +245,7 @@ function FilterFields({ value: f, onChange, compact = false }: { value: TeamFilt
   )
   return (
     <>
-      {section('Domain', domains.map((d) => chip(f.domain === d.code, d.code, () => onChange({ ...f, domain: f.domain === d.code ? undefined : d.code }), d.id, d.name)))}
+      {section('Domain', domains.map((d) => chip(f.domain === d.code, d.name, () => onChange({ ...f, domain: f.domain === d.code ? undefined : d.code }), d.id, d.name)))}
       {section(
         'Chuyên ngành đang thiếu',
         specializations.map((s) =>
