@@ -113,8 +113,8 @@ Một phiên 15–30 phút, profile Pro, bắt đầu từ S01 với tài khoả
 | # | Màn | Vấn đề | Mức độ | Xử lý |
 |---|---|---|---|---|
 | E1 | Thử AI (A07) | Câu nhắc khi để trống ô mô tả bị cắt thành "…trước khi ..." | Trung bình | **App**, đã sửa: `errorMaxLines: 2` |
-| E2 | Chỉnh sửa hồ sơ (S03) | Nút "Lưu" cuối trang bị thanh tab dưới che gần hết (phiên thử) | Cao | Báo Nam xác nhận trên máy |
-| E3 | Khám phá / Chi tiết nhóm | Nhóm trạng thái "Nháp" vẫn ở "Nhóm đang tuyển" và bấm được "Xin tham gia" (phiên thử) | Trung bình | Báo Cường xác nhận đúng quy tắc hay lỗi |
+| E2 | Chỉnh sửa hồ sơ (S03) | Nút "Lưu" cuối trang bị thanh tab dưới che gần hết (phiên thử) | Thấp | Thiên xác nhận trên máy (07/11): bị che lúc chưa cuộn, kéo xuống thì thấy và bấm được. Theo code nội dung không nằm dưới thanh tab (`RoleShell` không bật `extendBody`); chưa sửa, ghi lại cho Nam |
+| E3 | Khám phá / Chi tiết nhóm | Nhóm trạng thái "Nháp" vẫn ở "Nhóm đang tuyển" và bấm được "Xin tham gia" (phiên thử) | Trung bình | Không phải lỗi (07/11): "Nháp" là trạng thái nhóm `DRAFT` = nhóm dưới 4 người (quy tắc 15, quy-trinh mục 3a), chính là nhóm đang tuyển nên được hiện và nhận đơn (mục 3c, quy tắc 18). Đề xuất (Cường quyết): đổi nhãn ở Khám phá thành "Đang tuyển" hoặc "Nháp · chưa đủ 4 người" (`teamStatusChip` mobile, `web/src/features/my_team/api.ts`) |
 | E4 | Khám phá, Tạo nhóm, Hồ sơ | Chữ tiếng Anh lẫn vào: tên domain trong danh mục, chữ "Domain", "Plan truyền thông" | Thấp | Dữ liệu danh mục và nhãn; chủ mảng quyết định |
 | E5 | Tạo nhóm, Chỉnh sửa hồ sơ | Bộ đếm ký tự đọc "characters remaining" (chữ mặc định của Flutter) | Thấp | Chưa sửa: cần thêm bản địa hóa `vi` cho Material |
 | E6 | Khám phá | Toast "Đã sao chép vào bộ nhớ tạm." khi nhập ô tìm kiếm | – | Không phải lỗi app: toast của Android khi ARTEMIS nhập chữ qua bộ nhớ tạm |
