@@ -2,7 +2,7 @@
 
 > PRM393 Lab 3 §7, Phụ lục B; Final §9. Công cụ: [Google ARTEMIS](https://github.com/google/artemis), không dùng Patrol. Mỗi ca là một hàm pytest trong `e2e_test/`, gửi một câu lệnh qua `ArtemisClient` và kiểm tra giá trị agent báo về.
 >
-> **Trạng thái (06/11/2026):** code `e2e_test/` đã cập nhật theo app hiện tại (tab Tin nhắn, avatar Hồ sơ, S09 AI, xuất PDF), thêm TC-21 kiểm tra sự kiện Analytics; **chưa chạy trên thiết bị** – cần key Gemini. Commit ARTEMIS pin ở `e2e_test/README.md`. Cột Kết quả ở mục 5 còn trống cho tới khi chạy trên máy thật. Đã đối chiếu với đề Lab 3 §7 (06/11/2026).
+> **Trạng thái (06/11/2026):** đã chạy trên thiết bị thật – 9/10 ca chạy được đạt 3/3 (TC-19 AI còn lỗi cấu hình App Check, F4). Còn thiếu: các ca `pending` và phiên khám phá (mục 6). Commit ARTEMIS pin ở `e2e_test/README.md`. Cột Kết quả ở mục 5 còn trống cho tới khi chạy trên máy thật. Đã đối chiếu với đề Lab 3 §7 (06/11/2026).
 
 ## 1. Môi trường
 
@@ -78,13 +78,31 @@ Mỗi ca chạy 3 lần. Kết quả từng lần ghi ở `evidence/artemis/resu
 
 ## 5. Kết quả
 
-| Ca | Lần 1 | Lần 2 | Lần 3 | Tỷ lệ đạt | Thời gian trung bình | Nguyên nhân nếu dưới 3/3 và cách sửa |
+Chạy ngày 06/11/2026 trên Samsung Galaxy A71 (Android 13), APK release backend Railway, ARTEMIS commit `351ca84`, profile Flash (`gemini-3.8-flash`). Lệnh: `uv run pytest --runs 3 -v` trong `e2e_test/`; bảng sinh bằng `uv run python summarize.py`; trace mở ở console ARTEMIS `http://localhost:8000` theo cột Trace. Mỗi lần chạy ghi ở `evidence/artemis/results.csv`.
+
+| Ca | Lần 1 | Lần 2 | Lần 3 | Tỷ lệ đạt | Thời gian TB | Ghi chú |
 |---|---|---|---|---|---|---|
-| TC-01…TC-21 | chưa chạy | | | | | |
+| TC-01 | ✅ | ✅ | ✅ | 3/3 | 88 s | |
+| TC-03 | ✅ | ✅ | ✅ | 3/3 | 70 s | |
+| TC-04 | ✅ | ✅ | ✅ | 3/3 | 35 s | |
+| TC-05 | ✅ | ✅ | ✅ | 3/3 | 68 s | Lượt 1 được 2/3 (F1); chạy lại sau khi sửa |
+| TC-10 | ✅ | ✅ | ✅ | 3/3 | 65 s | Đủ 5 tab, có Tin nhắn |
+| TC-14 | ✅ | ✅ | ✅ | 3/3 | 22 s | `suggestions_max_items = 5` khớp Console |
+| TC-15 | ✅ | ✅ | ✅ | 3/3 | 76 s | Nút Back hệ thống (tương tác Android gốc) |
+| TC-17 | ✅ | ✅ | ✅ | 3/3 | 134 s | Lượt 1 được 0/3 (F2, F3); chạy lại sau khi sửa. Đăng nhập lại qua hộp chọn tài khoản Google (tương tác Android gốc) |
+| TC-19 | ❌ | ✅ | ❌ | 1/3 | 510 s | Xem F4 – chưa sửa xong, lỗi cấu hình |
+| TC-21 | ✅ | ✅ | ✅ | 3/3 | 34 s | Logcat có `view_team` (`evidence/artemis/logcat/`) |
 
-Bảng này sinh bằng `uv run python summarize.py` sau khi chạy.
+Các ca còn lại (TC-02, 06–09, 11–13, 16, 18, 20) cần điều kiện riêng (marker `pending`, bảng ở `e2e_test/README.md`) và chưa chạy ở lượt này để giữ chi phí model (~200 nghìn đồng cho cả bộ).
 
-Nguyên nhân ghi theo một trong ba nhóm: app, timing, câu lệnh mơ hồ.
+### Ca dưới 3/3: nguyên nhân và cách sửa
+
+| # | Ca | Hiện tượng | Nguyên nhân | Nhóm | Sửa |
+|---|---|---|---|---|---|
+| F1 | TC-05 lần 1 | Agent đã trả JSON đúng nhưng test báo "không trả JSON" | Bộ test đọc bước cuối của phiên trước khi server ARTEMIS lưu xong | Timing (bộ test) | `final_report` đọc lại tối đa 6 lần, cách 3 s |
+| F2 | TC-17 lần 1 | Agent báo tab là `1` | Câu lệnh "báo tab đang chọn" mơ hồ (số thứ tự hay tên) | Câu lệnh mơ hồ | Đổi thành "tên chữ in dưới icon, ví dụ Trang chủ, không dùng số thứ tự" |
+| F3 | TC-17 lần 2, 3 | Đăng nhập lại báo "Không dùng được trên ứng dụng này" | Câu lệnh "chọn tài khoản đầu tiên" chọn tài khoản Bộ môn; Identity chặn đúng (`wrong-client`). Lỗi app đi kèm: bị từ chối thì app không đăng xuất Google nên lần sau không hiện hộp chọn tài khoản, kẹt tới khi xóa dữ liệu | Câu lệnh mơ hồ + **app** | Câu lệnh chọn theo `TEST_ACCOUNT_EMAIL`; app đăng xuất cả Google khi bị từ chối, hiện cả lý do ("Tài khoản Bộ môn chỉ đăng nhập trên web."), có test |
+| F4 | TC-19 lần 1, 3 | "Không tạo được gợi ý" lặp lại, agent thử tới hết giờ | Logcat: App Check không đổi được debug token dùng chung (HTTP 403, rồi `Too many attempts`) – token chưa đăng ký trên Console | Cấu hình (không phải code) | Đăng ký token "APK demo dùng chung" trên Console; app phân loại lỗi App Check thành `denied` với câu riêng. **Còn mở:** sau khi đăng ký vẫn `unknown`, cần xem Crashlytics non-fatal `ai_idea_suggest` |
 
 ## 6. Phiên khám phá
 
