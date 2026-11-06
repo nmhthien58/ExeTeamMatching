@@ -41,3 +41,6 @@ TC-05,3,True,41.3,66a7941e-68d3-446f-a67f-100a593831cc,
 TC-17,1,True,99.2,8f915b68-d5ae-4762-8c37-e57d1a9b22b3,
 TC-17,2,True,126.5,4ba17317-c4a6-4476-8f1c-5da9cf223233,
 TC-17,3,True,176.5,c21c10aa-73a1-4c8c-b950-0aabcbfa6e68,
+TC-19,1,False,559.0,c0394dce-3a16-4957-93cc-c7edb15fdda6,"TC-19: failed assert False + where False = TaskResult(task_id='c0394dce-3a16-4957-93cc-c7edb15fdda6', status='failed', goal=""Bắt đầu: màn chi tiết một nhóm, cờ ai_idea_enabled đang bật. Bấm Xin tham g"
+TC-19,2,False,444.1,034ae756-f579-4fcf-8500-b4adfe8f187a,"TC-19: failed assert False + where False = TaskResult(task_id='034ae756-f579-4fcf-8500-b4adfe8f187a', status='failed', goal=""Bắt đầu: màn chi tiết một nhóm, cờ ai_idea_enabled đang bật. Bấm Xin tham g"
+TC-19,3,False,337.0,f2ab871e-5641-4c42-8796-16e2adf2db9a,"TC-19: failed assert False + where False = TaskResult(task_id='f2ab871e-5641-4c42-8796-16e2adf2db9a', status='failed', goal=""Bắt đầu: màn chi tiết một nhóm, cờ ai_idea_enabled đang bật. Bấm Xin tham g"
