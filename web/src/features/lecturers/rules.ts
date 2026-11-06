@@ -2,7 +2,8 @@ import { toApiError } from '@/shared/api/apiClient'
 
 // Quy tắc form giảng viên (W11), mentor (W27): cùng quy tắc với validator của Academic để báo ngay khi chưa gửi.
 
-export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+// Phần tên miền tách theo dấu chấm (không lồng `+` chồng nhau) để regex chạy tuyến tính (SonarCloud S5852).
+export const EMAIL_PATTERN = /^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$/
 export const MAX_DOMAINS = 18
 
 /** Số nguyên trong [min, max]; chuỗi rỗng hợp lệ khi `optional`. */
