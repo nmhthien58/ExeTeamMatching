@@ -149,7 +149,7 @@ final _studentTeamRoutes = [
     path: '/sv/kham-pha/nhom/:teamId',
     builder: (_, s) => TeamFormationOnly(child: TeamDetailScreen(teamId: s.pathParameters['teamId']!)),
   ),
-  GoRoute(path: '/sv/loi-moi', builder: (_, _) => const InvitationsScreen()),
+  GoRoute(path: '/sv/loi-moi', builder: (_, s) => InvitationsScreen(initialTab: s.uri.queryParameters['tab'] == 'yeu-cau' ? 1 : 0)),
   // S11, S21 – MB-17, MB-25 (Cường); chỉ trong đợt lập nhóm (quy tắc 18).
   GoRoute(path: '/sv/kham-pha/tim-nhom', builder: (_, _) => const TeamFormationOnly(child: SeekingPostFormScreen())),
   GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),

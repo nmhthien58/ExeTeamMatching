@@ -20,7 +20,7 @@ import '../meeting_schedule/meeting_schedule_api.dart' show teamScheduleProvider
       'NEEDS_REVIEW' => ('Cần xem lại', StatusTone.warning, Icons.error_outline),
       'FINALIZED' => ('Đã chốt', StatusTone.info, Icons.verified_outlined),
       'DISBANDED' => ('Đã giải tán', StatusTone.neutral, Icons.block),
-      _ => ('Nháp', StatusTone.neutral, Icons.edit_note),
+      _ => ('Chưa đủ người', StatusTone.neutral, Icons.edit_note),
     };
 
 /// S15 – Nhóm của tôi (MB-20, flutter-handoff S15). Tab cấp 1: tên nhóm + trạng thái, thanh điều kiện, cố vấn,

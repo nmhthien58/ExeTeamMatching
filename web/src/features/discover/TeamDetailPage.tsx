@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ApiError } from '@/shared/api/apiClient'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api, ApiError } from '@/shared/api/apiClient'
 import { ErrorState } from '@/shared/components/States'
 import { Banner, Button, StatusChip } from '@/shared/components/ui'
 import { PageHeader } from '@/shared/layout/PageHeader'
@@ -8,7 +9,8 @@ import { Avatar, Card, Drawer } from '@/features/workspace/components'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { useMyTeam } from '@/features/suggestions/api'
 import { DomainChips, TeamRequirementBar } from '@/features/suggestions/components'
-import { teamStatusLabel, type FullTeam } from '@/features/my_team/api'
+import { refreshTeams, teamStatusLabel, type FullTeam, type JoinRequest } from '@/features/my_team/api'
+import { CancelJoinRequestDialog } from '@/features/invitations/InvitationsPage'
 import { linkClass, ListSkeleton } from '@/features/my_team/components'
 import { useJoinRequest, useTeam } from './api'
 
@@ -95,11 +97,7 @@ function Action({ team }: { team: FullTeam }) {
           </Link>
         )
       case 'REQUESTED':
-        return (
-          <StatusChip tone="warning" icon="schedule">
-            Đã gửi yêu cầu · chờ trưởng nhóm
-          </StatusChip>
-        )
+        return <Requested team={team} onCancelled={() => snackbar.show('Đã hủy yêu cầu')} />
       case 'INVITED':
         return (
           <Link to="/sv/loi-moi" className={`${linkClass} bg-primary text-white`}>
@@ -132,6 +130,41 @@ function Action({ team }: { team: FullTeam }) {
       )}
       {snackbar.element}
     </>
+  )
+}
+
+/** Đã gửi yêu cầu đang chờ: trạng thái + Hủy yêu cầu (hỏi xác nhận); mã yêu cầu lấy từ `GET /api/join-requests/me`. */
+function Requested({ team, onCancelled }: { team: FullTeam; onCancelled: () => void }) {
+  const queryClient = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+  const mine = useQuery({ queryKey: ['join-requests', 'me'], queryFn: async () => (await api.get<JoinRequest[]>('/api/join-requests/me')).data })
+  const pending = mine.data?.find((r) => r.team?.id === team.id && r.status === 'PENDING')
+  const cancel = useMutation({
+    mutationFn: async (id: string) => api.post(`/api/join-requests/${id}/cancel`),
+    onSuccess: () => {
+      setConfirming(false)
+      onCancelled()
+    },
+    onSettled: () => refreshTeams(queryClient),
+  })
+  const error = cancel.error instanceof ApiError ? cancel.error : null
+  return (
+    <div className="flex flex-col gap-3">
+      <StatusChip tone="warning" icon="schedule">
+        Đã gửi yêu cầu · chờ trưởng nhóm
+      </StatusChip>
+      {error && <Banner tone="error" title={error.title}>{error.detail}</Banner>}
+      <Button variant="outline" className="w-full" disabled={!pending || cancel.isPending} onClick={() => setConfirming(true)}>
+        Hủy yêu cầu
+      </Button>
+      <CancelJoinRequestDialog
+        open={confirming}
+        teamName={team.name}
+        loading={cancel.isPending}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => pending && cancel.mutate(pending.id)}
+      />
+    </div>
   )
 }
 

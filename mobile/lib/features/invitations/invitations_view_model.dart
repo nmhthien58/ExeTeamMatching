@@ -76,14 +76,21 @@ class SentJoinRequestsViewModel extends Notifier<String?> {
 
   void refresh() => ref.invalidate(myJoinRequestsProvider);
 
-  Future<void> cancel(MyRequest request) async {
+  /// Hủy yêu cầu đang chờ; trả câu lỗi hoặc null khi hủy được.
+  Future<String?> cancel(MyRequest request) => cancelById(request.id);
+
+  Future<String?> cancelById(String joinRequestId) async {
+    String? error;
     try {
-      await ref.read(invitationsApiProvider).cancelJoinRequest(request.id);
-      if (ref.mounted) state = null;
+      await ref.read(invitationsApiProvider).cancelJoinRequest(joinRequestId);
     } on ApiException catch (e) {
-      if (ref.mounted) state = e.detail ?? e.title;
+      error = e.detail ?? e.title;
     }
-    if (ref.mounted) refresh();
+    if (ref.mounted) {
+      state = error;
+      refresh();
+    }
+    return error;
   }
 }
 
