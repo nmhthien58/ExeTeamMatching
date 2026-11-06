@@ -60,7 +60,7 @@ export interface Invitation {
 
 /** Nhãn trạng thái nhóm (quy tắc 15). */
 export const teamStatusLabel: Record<TeamDetail['status'], { text: string; tone: 'warning' | 'success' | 'info' | 'neutral'; icon: string }> = {
-  DRAFT: { text: 'Nháp', tone: 'neutral', icon: 'edit_note' },
+  DRAFT: { text: 'Chưa đủ người', tone: 'neutral', icon: 'edit_note' },
   ACTIVE: { text: 'Hoạt động', tone: 'success', icon: 'check_circle' },
   NEEDS_REVIEW: { text: 'Cần xem lại', tone: 'warning', icon: 'error' },
   FINALIZED: { text: 'Đã chốt', tone: 'info', icon: 'verified' },

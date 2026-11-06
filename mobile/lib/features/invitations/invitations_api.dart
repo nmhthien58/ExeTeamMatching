@@ -8,7 +8,7 @@ import '../suggestions/suggestions_api.dart' show TeamCard;
 
 /// Lời mời tôi nhận được, hoặc yêu cầu tôi đã gửi (S12) – cùng dạng: nhóm, trạng thái, hạn.
 class MyRequest {
-  const MyRequest({required this.id, required this.team, required this.status, required this.expiresAt, this.message});
+  const MyRequest({required this.id, required this.team, required this.status, required this.expiresAt, this.message, this.createdAt});
 
   final String id;
   final TeamCard? team;
@@ -18,12 +18,16 @@ class MyRequest {
   final DateTime expiresAt;
   final String? message;
 
+  /// Lúc gửi (hiện ở danh sách Yêu cầu đã gửi).
+  final DateTime? createdAt;
+
   factory MyRequest.fromJson(Map<String, dynamic> j) => MyRequest(
         id: j['id'] as String,
         team: j['team'] == null ? null : TeamCard.fromJson(Map<String, dynamic>.from(j['team'] as Map)),
         status: j['status'] as String? ?? 'PENDING',
         expiresAt: DateTime.parse(j['expiresAt'] as String),
         message: j['message'] as String?,
+        createdAt: j['createdAt'] == null ? null : DateTime.parse(j['createdAt'] as String),
       );
 }
 

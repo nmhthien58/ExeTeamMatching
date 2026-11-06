@@ -9,13 +9,44 @@ import { Card } from '@/features/workspace/components'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { refreshTeams, requestStatusLabel, timeLeft, type Invitation, type JoinRequest, type MemberChangeResult } from '@/features/my_team/api'
 import { ListSkeleton } from '@/features/my_team/components'
+import { formatDateTime } from '@/features/workspace/format'
+
+/** Nhãn yêu cầu xin vào nhóm của chính sinh viên (trưởng nhóm là người quyết định). */
+function joinRequestStatusLabel(status: JoinRequest['status']) {
+  if (status === 'ACCEPTED') return { text: 'Được chấp nhận', tone: 'success' as const }
+  if (status === 'DECLINED') return { text: 'Bị từ chối', tone: 'error' as const }
+  return requestStatusLabel[status]
+}
+
+/** Hỏi xác nhận trước khi hủy yêu cầu xin vào nhóm (S08, S12). */
+export function CancelJoinRequestDialog({ teamName, open, loading, onClose, onConfirm }: { teamName: string; open: boolean; loading?: boolean; onClose: () => void; onConfirm: () => void }) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Hủy yêu cầu?"
+      actions={
+        <>
+          <Button variant="text" onClick={onClose}>
+            Không
+          </Button>
+          <Button loading={loading} onClick={onConfirm}>
+            Hủy yêu cầu
+          </Button>
+        </>
+      }
+    >
+      Trưởng nhóm {teamName} sẽ không còn thấy yêu cầu của bạn. Bạn có thể gửi lại sau nếu nhóm còn nhận người.
+    </Dialog>
+  )
+}
 
 /**
  * S12 – Lời mời và yêu cầu của tôi (FE-37, cùng spec MB-18): tab Lời mời nhận được (thời gian còn lại, Chấp nhận có dialog / Từ chối)
  * và tab Yêu cầu đã gửi (trạng thái, Hủy khi còn chờ).
  */
 export function InvitationsPage() {
-  const [tab, setTab] = useState<'received' | 'sent'>('received')
+  const [tab, setTab] = useState<'received' | 'sent'>(() => (new URLSearchParams(window.location.search).get('tab') === 'yeu-cau' ? 'sent' : 'received'))
   return (
     <>
       <PageHeader title="Lời mời và yêu cầu" />
@@ -134,6 +165,7 @@ function Received() {
 
 function Sent() {
   const respond = useRespond()
+  const [cancelling, setCancelling] = useState<JoinRequest | null>(null)
   const requests = useQuery({ queryKey: ['join-requests', 'me'], queryFn: async () => (await api.get<JoinRequest[]>('/api/join-requests/me')).data })
   const error = respond.error instanceof ApiError ? respond.error : null
 
@@ -147,17 +179,26 @@ function Sent() {
         <Card key={r.id} className="flex flex-wrap items-center gap-3">
           <span className="min-w-0 flex-1">
             <span className="block font-medium">{r.team?.name ?? 'Nhóm'}</span>
-            <span className="text-text-secondary">{r.status === 'PENDING' ? timeLeft(r.expiresAt) : requestStatusLabel[r.status].text}</span>
+            <span className="flex flex-wrap items-center gap-2 text-text-secondary">
+              <StatusChip tone={joinRequestStatusLabel(r.status).tone}>{joinRequestStatusLabel(r.status).text}</StatusChip>
+              <span>Gửi lúc {formatDateTime(r.createdAt)}</span>
+              {r.status === 'PENDING' && <span>{timeLeft(r.expiresAt)}</span>}
+            </span>
           </span>
-          {r.status === 'PENDING' ? (
-            <Button variant="text" disabled={respond.isPending} onClick={() => respond.mutate({ kind: 'cancel', id: r.id })}>
+          {r.status === 'PENDING' && (
+            <Button variant="text" disabled={respond.isPending} onClick={() => setCancelling(r)}>
               Hủy
             </Button>
-          ) : (
-            <StatusChip tone={requestStatusLabel[r.status].tone}>{requestStatusLabel[r.status].text}</StatusChip>
           )}
         </Card>
       ))}
+      <CancelJoinRequestDialog
+        open={!!cancelling}
+        teamName={cancelling?.team?.name ?? ''}
+        loading={respond.isPending}
+        onClose={() => setCancelling(null)}
+        onConfirm={() => respond.mutate({ kind: 'cancel', id: cancelling!.id }, { onSettled: () => setCancelling(null) })}
+      />
     </div>
   )
 }

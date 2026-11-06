@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
+import '../workspace/format.dart';
 import '../workspace/workspace_widgets.dart';
 import 'invitations_api.dart';
 import 'invitations_view_model.dart';
@@ -17,14 +18,40 @@ import 'invitations_view_model.dart';
       _ => ('Đã hủy', StatusTone.neutral),
     };
 
+/// Nhãn trạng thái yêu cầu xin vào nhóm của chính sinh viên (người quyết định là trưởng nhóm).
+(String, StatusTone) joinRequestStatusChip(String status) => switch (status) {
+      'ACCEPTED' => ('Được chấp nhận', StatusTone.success),
+      'DECLINED' => ('Bị từ chối', StatusTone.error),
+      _ => requestStatusChip(status),
+    };
+
+/// Hỏi xác nhận trước khi hủy yêu cầu xin vào nhóm (S08, S12).
+Future<bool> confirmCancelJoinRequest(BuildContext context, String teamName) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hủy yêu cầu?'),
+        content: Text('Trưởng nhóm $teamName sẽ không còn thấy yêu cầu của bạn. Bạn có thể gửi lại sau nếu nhóm còn nhận người.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Không')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Hủy yêu cầu')),
+        ],
+      ),
+    ) ??
+    false;
+
 /// S12 – Lời mời và yêu cầu của tôi (MB-18): tab Lời mời nhận được (thời gian còn lại, Chấp nhận có hộp xác nhận / Từ chối)
 /// và tab Yêu cầu đã gửi (trạng thái, Hủy khi còn chờ).
+/// [initialTab] = 1 mở thẳng tab Yêu cầu đã gửi (lối vào từ Cài đặt A07).
 class InvitationsScreen extends StatelessWidget {
-  const InvitationsScreen({super.key});
+  const InvitationsScreen({super.key, this.initialTab = 0});
+
+  final int initialTab;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
         length: 2,
+        initialIndex: initialTab,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Lời mời và yêu cầu'),
@@ -152,11 +179,25 @@ class _Sent extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: AppSpacing.s3),
                 child: ListTile(
                   title: Text(r.team?.name ?? 'Nhóm'),
-                  subtitle: Text(r.status == 'PENDING' ? timeLeft(r.expiresAt) : requestStatusChip(r.status).$1),
+                  subtitle: Wrap(
+                    spacing: AppSpacing.s2,
+                    runSpacing: AppSpacing.s1,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      StatusChip(label: joinRequestStatusChip(r.status).$1, tone: joinRequestStatusChip(r.status).$2),
+                      if (r.createdAt != null) Text('Gửi lúc ${formatDateTime(r.createdAt!)}'),
+                      if (r.status == 'PENDING') Text(timeLeft(r.expiresAt)),
+                    ],
+                  ),
                   onTap: r.team == null ? null : () => context.push('/sv/kham-pha/nhom/${r.team!.id}'),
                   trailing: r.status == 'PENDING'
-                      ? TextButton(onPressed: () => vm.cancel(r), child: const Text('Hủy'))
-                      : StatusChip(label: requestStatusChip(r.status).$1, tone: requestStatusChip(r.status).$2),
+                      ? TextButton(
+                          onPressed: () async {
+                            if (await confirmCancelJoinRequest(context, r.team?.name ?? '')) await vm.cancel(r);
+                          },
+                          child: const Text('Hủy'),
+                        )
+                      : null,
                 ),
               ),
           ],

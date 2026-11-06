@@ -10,6 +10,9 @@ import '../my_team/my_team_api.dart';
 import '../my_team/my_team_screen.dart' show teamStatusChip;
 import '../suggestions/suggestion_widgets.dart' show DomainChips;
 import '../workspace/workspace_widgets.dart';
+import '../invitations/invitations_api.dart' show myJoinRequestsProvider;
+import '../invitations/invitations_screen.dart' show confirmCancelJoinRequest;
+import '../invitations/invitations_view_model.dart' show sentJoinRequestsViewModelProvider;
 import 'discover_api.dart';
 import 'idea_suggest_sheet.dart';
 import 'join_request_view_model.dart';
@@ -114,7 +117,7 @@ class _Action extends ConsumerWidget {
     Widget reason(String text) => Text(text, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium);
     return switch (team.relation) {
       'LEADER' || 'MEMBER' => OutlinedButton(onPressed: () => context.go('/sv/nhom'), child: const Text('Đây là nhóm của bạn')),
-      'REQUESTED' => const StatusChip(label: 'Đã gửi yêu cầu · chờ trưởng nhóm', tone: StatusTone.warning, icon: Icons.schedule),
+      'REQUESTED' => _Requested(team: team),
       'INVITED' => FilledButton(onPressed: () => context.push('/sv/loi-moi'), child: const Text('Xem lời mời')),
       _ when myTeam != null => reason('Bạn đã có nhóm.'),
       _ when team.isFull => reason('Nhóm đã đủ ${team.maxSize} người.'),
@@ -136,6 +139,48 @@ class _Action extends ConsumerWidget {
           child: const Text('Xin tham gia'),
         ),
     };
+  }
+}
+
+/// Đã gửi yêu cầu đang chờ: trạng thái + nút Hủy yêu cầu (hỏi xác nhận). Mã yêu cầu lấy từ `GET /api/join-requests/me`.
+class _Requested extends ConsumerStatefulWidget {
+  const _Requested({required this.team});
+
+  final MyTeam team;
+
+  @override
+  ConsumerState<_Requested> createState() => _RequestedState();
+}
+
+class _RequestedState extends ConsumerState<_Requested> {
+  bool _cancelling = false;
+
+  Future<void> _cancel(String joinRequestId) async {
+    if (!await confirmCancelJoinRequest(context, widget.team.name) || !mounted) return;
+    setState(() => _cancelling = true);
+    final error = await ref.read(sentJoinRequestsViewModelProvider.notifier).cancelById(joinRequestId);
+    if (!mounted) return;
+    setState(() => _cancelling = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error ?? 'Đã hủy yêu cầu')));
+    if (error == null) ref.invalidate(teamDetailProvider(widget.team.id));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = ref.watch(myJoinRequestsProvider).value?.where((r) => r.team?.id == widget.team.id && r.status == 'PENDING').firstOrNull;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Center(child: StatusChip(label: 'Đã gửi yêu cầu · chờ trưởng nhóm', tone: StatusTone.warning, icon: Icons.schedule)),
+        const SizedBox(height: AppSpacing.s3),
+        OutlinedButton(
+          onPressed: pending == null || _cancelling ? null : () => _cancel(pending.id),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          child: Text(_cancelling ? 'Đang hủy…' : 'Hủy yêu cầu'),
+        ),
+      ],
+    );
   }
 }
 

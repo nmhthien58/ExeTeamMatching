@@ -90,7 +90,7 @@ describe('student team screens (FE-37)', () => {
   it('S15 shows status with text and the leader shortcuts', async () => {
     routes = { '/api/teams/me': team('LEADER') }
     renderAt('/sv/nhom')
-    expect(await screen.findByText('Nháp')).toBeInTheDocument()
+    expect(await screen.findByText('Chưa đủ người')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Yêu cầu và lời mời/ })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Sửa thông tin/ })).toBeInTheDocument()
   })

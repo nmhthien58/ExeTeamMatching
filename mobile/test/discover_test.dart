@@ -17,6 +17,8 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+final _past = DateTime(2026, 1, 1);
+
 const _card = TeamCard(id: 't1', name: 'Nhóm Bình Minh', status: 'ACTIVE', memberCount: 3, projectName: 'EduSpark');
 
 MyTeam _detail({String relation = 'NONE', int members = 3}) => MyTeam(
@@ -64,16 +66,21 @@ class _FakeDiscover extends DiscoverApi {
 }
 
 class _FakeInvitations extends InvitationsApi {
-  _FakeInvitations(this.items) : super(Dio());
+  _FakeInvitations(this.items, {this.sent = const []}) : super(Dio());
 
   final List<MyRequest> items;
+  final List<MyRequest> sent;
   final accepted = <String>[];
+  final cancelled = <String>[];
+
+  @override
+  Future<void> cancelJoinRequest(String joinRequestId) async => cancelled.add(joinRequestId);
 
   @override
   Future<List<MyRequest>> invitations() async => items;
 
   @override
-  Future<List<MyRequest>> joinRequests() async => const [];
+  Future<List<MyRequest>> joinRequests() async => sent;
 
   @override
   Future<MemberChange> accept(String invitationId) async {
@@ -152,6 +159,52 @@ void main() {
         overrides: [discoverApiProvider.overrideWithValue(_FakeDiscover(detail: _detail()))], myTeam: _detail(relation: 'LEADER'));
     expect(find.text('Xin tham gia'), findsNothing);
     expect(find.text('Bạn đã có nhóm.'), findsOneWidget);
+  });
+
+  testWidgets('S08: đã gửi yêu cầu → Hủy yêu cầu, hỏi xác nhận rồi mới hủy', (tester) async {
+    final invitations = _FakeInvitations(const [], sent: [
+      MyRequest(id: 'j1', team: _card, status: 'PENDING', expiresAt: DateTime.now().add(const Duration(hours: 30))),
+    ]);
+    await _pump(tester, const TeamDetailScreen(teamId: 't1'), overrides: [
+      discoverApiProvider.overrideWithValue(_FakeDiscover(detail: _detail(relation: 'REQUESTED'))),
+      invitationsApiProvider.overrideWithValue(invitations),
+    ]);
+    expect(find.text('Đã gửi yêu cầu · chờ trưởng nhóm'), findsOneWidget);
+
+    await tester.tap(find.text('Hủy yêu cầu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Không'));
+    await tester.pumpAndSettle();
+    expect(invitations.cancelled, isEmpty);
+
+    await tester.tap(find.text('Hủy yêu cầu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Hủy yêu cầu'));
+    await tester.pumpAndSettle();
+    expect(invitations.cancelled, ['j1']);
+    expect(find.text('Đã hủy yêu cầu'), findsOneWidget);
+  });
+
+  testWidgets('S12 tab Yêu cầu đã gửi: trạng thái, ngày gửi; Hủy có xác nhận', (tester) async {
+    final api = _FakeInvitations(const [], sent: [
+      MyRequest(id: 'j1', team: _card, status: 'PENDING', expiresAt: DateTime.now().add(const Duration(hours: 30)), createdAt: DateTime(2026, 11, 7, 9)),
+      MyRequest(id: 'j2', team: const TeamCard(id: 't2', name: 'Nhóm Khởi Hành', status: 'ACTIVE', memberCount: 4), status: 'DECLINED', expiresAt: _past),
+    ]);
+    await _pump(tester, const InvitationsScreen(initialTab: 1), overrides: [invitationsApiProvider.overrideWithValue(api)]);
+    expect(find.text('Đang chờ'), findsOneWidget);
+    expect(find.text('Bị từ chối'), findsOneWidget);
+    expect(find.textContaining('Gửi lúc'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Hủy'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Hủy yêu cầu'));
+    await tester.pumpAndSettle();
+    expect(api.cancelled, ['j1']);
+  });
+
+  testWidgets('S12 tab Yêu cầu đã gửi: chưa gửi → trạng thái trống', (tester) async {
+    await _pump(tester, const InvitationsScreen(initialTab: 1), overrides: [invitationsApiProvider.overrideWithValue(_FakeInvitations(const []))]);
+    expect(find.text('Chưa gửi yêu cầu nào'), findsOneWidget);
   });
 
   testWidgets('S12: chấp nhận lời mời → xác nhận → vào nhóm, về S15', (tester) async {
