@@ -5,6 +5,7 @@ import csv
 import json
 import os
 import re
+import subprocess
 import time
 from pathlib import Path
 
@@ -86,3 +87,29 @@ def run_case(run_index):
         return values
 
     return run
+
+
+def adb(*args):
+    """Gọi ADB (biến ADB trỏ tới adb.exe nếu không có trong PATH); chọn thiết bị theo ARTEMIS_DEVICE_SERIAL."""
+    serial = os.environ.get("ARTEMIS_DEVICE_SERIAL")
+    cmd = [os.environ.get("ADB", "adb"), *(["-s", serial] if serial else []), *args]
+    return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True).stdout
+
+
+@pytest.fixture
+def analytics_log():
+    """Bật Analytics debug + log FA chi tiết, xóa Logcat trước ca; trả hàm đọc tên các sự kiện app đã ghi sau đó."""
+    adb("shell", "setprop", "debug.firebase.analytics.app", APP_PACKAGE)
+    adb("shell", "setprop", "log.tag.FA", "VERBOSE")
+    adb("shell", "setprop", "log.tag.FA-SVC", "VERBOSE")
+    adb("logcat", "-c")
+
+    def events():
+        dump = adb("logcat", "-d", "-s", "FA", "FA-SVC")
+        names = re.findall(r"Logging event.*?name=([a-z_]+)", dump)
+        (EVIDENCE / "logcat").mkdir(parents=True, exist_ok=True)
+        (EVIDENCE / "logcat" / f"analytics-{int(time.time())}.txt").write_text(dump, encoding="utf-8")
+        return names
+
+    yield events
+    adb("shell", "setprop", "debug.firebase.analytics.app", ".none.")

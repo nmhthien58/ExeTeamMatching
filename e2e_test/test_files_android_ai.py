@@ -3,7 +3,7 @@
 import pytest
 
 
-@pytest.mark.pending("MB-53")
+@pytest.mark.pending("sinh viên đã có nhóm")
 def test_tc12_export_report(run_case):
     values = run_case(
         "TC-12",
@@ -15,7 +15,7 @@ def test_tc12_export_report(run_case):
     assert values["open_button_shown"] is True
 
 
-@pytest.mark.pending("MB-53")
+@pytest.mark.pending("sinh viên đã có nhóm")
 def test_tc13_export_without_network(run_case):
     values = run_case(
         "TC-13",
@@ -39,7 +39,7 @@ def test_tc15_system_back(run_case):
     assert values["app_open"] is True
 
 
-@pytest.mark.pending("MB-52")
+@pytest.mark.pending("cài mới app")
 def test_tc16_notification_permission(run_case):
     values = run_case(
         "TC-16",
@@ -50,7 +50,6 @@ def test_tc16_notification_permission(run_case):
     assert values["permission_dialog_shown"] is False
 
 
-@pytest.mark.pending("MB-56")
 def test_tc19_ai_suggestion(run_case):
     values = run_case(
         "TC-19",
@@ -63,7 +62,7 @@ def test_tc19_ai_suggestion(run_case):
     assert values["ai_label_shown"] is True
 
 
-@pytest.mark.pending("MB-56")
+@pytest.mark.pending("cờ ai_idea_enabled tắt")
 def test_tc20_ai_flag_off(run_case):
     values = run_case(
         "TC-20",

@@ -68,7 +68,8 @@ def test_tc10_tabs(run_case):
         "Cuối cùng: báo danh sách tên tab theo thứ tự và có màn nào hiện lỗi hay không.",
         ["tabs", "error_shown"],
     )
-    assert len(values["tabs"]) >= 4
+    assert len(values["tabs"]) == 5
+    assert "Tin nhắn" in values["tabs"], "MB-62: tab Tin nhắn thay tab Hồ sơ"
     assert values["error_shown"] is False
 
 
@@ -87,7 +88,7 @@ def test_tc11_lecturer_detail(run_case):
 def test_tc14_remote_config_on_screen(run_case):
     values = run_case(
         "TC-14",
-        "Bắt đầu: tab Hồ sơ. Mở Cài đặt, cuộn xuống mục Demo Firebase. "
+        "Bắt đầu: tab Trang chủ. Bấm ảnh đại diện chữ cái ở góc phải trên để mở Hồ sơ của tôi, bấm nút Cài đặt, cuộn xuống mục Demo Firebase. "
         "Cuối cùng: báo số ở dòng 'Số nhóm gợi ý tối đa' dưới dạng số nguyên.",
         ["suggestions_max_items"],
     )
@@ -97,7 +98,7 @@ def test_tc14_remote_config_on_screen(run_case):
 def test_tc17_sign_out(run_case):
     values = run_case(
         "TC-17",
-        "Bắt đầu: tab Hồ sơ. Mở Cài đặt, bấm Đăng xuất, xác nhận Đăng xuất ở hộp thoại. "
+        "Bắt đầu: tab Trang chủ. Bấm ảnh đại diện chữ cái ở góc phải trên để mở Hồ sơ của tôi, bấm nút Cài đặt, bấm Đăng xuất, xác nhận Đăng xuất ở hộp thoại. "
         "Cuối cùng: báo màn đăng nhập có hiện hay không. Ca này chạy cuối, đăng nhập lại bằng tay sau khi xong.",
         ["login_screen_shown"],
     )

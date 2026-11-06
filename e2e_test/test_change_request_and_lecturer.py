@@ -49,7 +49,7 @@ def test_tc09_future_checkpoint_is_blocked(run_case):
     assert values["future_date_accepted"] is False
 
 
-@pytest.mark.pending("MB-52")
+@pytest.mark.pending("Bộ môn duyệt yêu cầu trên web")
 def test_tc18_cross_role_notification(run_case):
     values = run_case(
         "TC-18",
