@@ -91,7 +91,7 @@ export function LoginPage() {
 }
 
 const highlights = [
-  { icon: 'diversity_3', text: 'Sinh viên tự lập nhóm EXE101, ghép theo kỹ năng' },
+  { icon: 'diversity_3', text: 'Sinh viên tự lập nhóm EXE, ghép theo kỹ năng' },
   { icon: 'school', text: 'Ghép giảng viên và mentor tự động theo chuyên môn' },
   { icon: 'insights', text: 'Bộ môn theo dõi tiến độ từng đợt, chốt danh sách' },
 ]
