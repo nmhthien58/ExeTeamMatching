@@ -82,7 +82,7 @@ function InviteAction({ student, team }: { student: StudentProfile; team: TeamDe
   if (!isLeader || !isTeamFormation) return null
   if (sent || invited.data?.includes(student.id)) return <StatusChip tone="info" icon="send">Đã mời</StatusChip>
   if (invited.isLoading) return null
-  if (isFull) return <p className="text-body text-text-secondary">Nhóm đã đủ 6 người</p>
+  if (isFull) return <p className="text-body text-text-secondary">Nhóm đã đủ người</p>
 
   const close = () => {
     setOpen(false)

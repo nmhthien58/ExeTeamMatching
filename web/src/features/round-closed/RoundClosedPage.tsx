@@ -5,6 +5,7 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { useIsTeamFormation, useMyCourse } from '@/shared/phase/usePhase'
 import { useMyTeam } from '@/features/suggestions/api'
 import { formatDateTime } from '@/features/workspace/format'
+import { useTeamRules } from '@/shared/lib/teamRules'
 
 const linkClass = 'inline-flex min-h-10 items-center justify-center rounded-md px-4 font-medium'
 
@@ -13,6 +14,7 @@ const linkClass = 'inline-flex min-h-10 items-center justify-center rounded-md p
  * chưa có nhóm → hệ thống sẽ ghép tự động.
  */
 export function RoundClosedPage() {
+  const rules = useTeamRules()
   const course = useMyCourse()
   const { phase } = useIsTeamFormation(course.data)
   const team = useMyTeam()
@@ -53,7 +55,7 @@ export function RoundClosedPage() {
             <Icon name="auto_awesome" size={48} className="text-primary" />
             <p className="text-subtitle font-semibold">Bạn sẽ được ghép nhóm tự động</p>
             <p className="max-w-[420px] text-body text-text-secondary">
-              Hệ thống đưa bạn vào nhóm còn thiếu người hoặc lập nhóm mới đủ 4–6 người, ít nhất 2 chuyên ngành. Bạn sẽ nhận thông báo khi có kết quả.
+              Hệ thống đưa bạn vào nhóm còn thiếu người hoặc lập nhóm mới đủ {rules.minSize}–{rules.maxSize} người, ít nhất {rules.minSpecializations} chuyên ngành. Bạn sẽ nhận thông báo khi có kết quả.
             </p>
             <Link to="/sv/thong-bao" className={`${linkClass} border border-primary text-primary-dark hover:bg-primary-container`}>
               Xem thông báo

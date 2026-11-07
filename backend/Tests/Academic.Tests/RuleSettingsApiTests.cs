@@ -56,6 +56,8 @@ public sealed class RuleSettingsApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await _api.CreateClient().GetAsync("/api/rule-settings")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Admin.PutAsJsonAsync("/api/rule-settings", new { minTeamSize = 1 })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Admin.PutAsJsonAsync("/api/rule-settings", new { minTeamSize = 7, maxTeamSize = 6 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Admin.PutAsJsonAsync("/api/rule-settings", new { maxTeamRatio = 0 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await Admin.PutAsJsonAsync("/api/rule-settings", new { maxTeamRatio = 1.5 })).StatusCode);
     }
 
     public async Task InitializeAsync()

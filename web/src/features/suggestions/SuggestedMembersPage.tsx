@@ -43,7 +43,7 @@ function Suggestions({ team }: { team: TeamDetail }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {isFull && <Banner tone="success" title="Nhóm đã đủ 6 người" />}
+      {isFull && <Banner tone="success" title={`Nhóm đã đủ ${team.requirement?.maxSize ?? 6} người`} />}
       {!isLeader && <p className="text-body text-text-secondary">Chỉ trưởng nhóm gửi được lời mời.</p>}
       {missing.length > 0 && (
         <p className="flex flex-wrap items-center gap-2">

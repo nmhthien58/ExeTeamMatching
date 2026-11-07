@@ -8,17 +8,18 @@ namespace Academic.Services.Settings;
 /// <summary>Schema <c>RuleSettings</c>.</summary>
 public sealed record RuleSettingsResponse(
     int MinTeamSize, int MaxTeamSize, int MinSpecializations, int InvitationExpiryHours, IReadOnlyList<int> ReminderHours,
-    int MaxIdeasPerJoinRequest, int InterestExtraSlots, int MaxInterestsUnlimited, int MaxLecturerPreferences, int MaxFileSizeMb)
+    int MaxIdeasPerJoinRequest, int InterestExtraSlots, int MaxInterestsUnlimited, int MaxLecturerPreferences, int MaxFileSizeMb, decimal MaxTeamRatio)
 {
     public static RuleSettingsResponse From(RuleSetting s) => new(
         s.MinTeamSize, s.MaxTeamSize, s.MinSpecializations, s.InvitationExpiryHours, s.ReminderHours.Select(h => (int)h).ToList(),
-        s.MaxIdeasPerJoinRequest, s.InterestExtraSlots, s.MaxInterestsUnlimited, s.MaxLecturerPreferences, s.MaxFileSizeMb);
+        s.MaxIdeasPerJoinRequest, s.InterestExtraSlots, s.MaxInterestsUnlimited, s.MaxLecturerPreferences, s.MaxFileSizeMb, s.MaxTeamRatio);
 }
 
 /// <summary>Body của <c>PUT /api/rule-settings</c>. Trường bỏ trống thì giữ nguyên.</summary>
 public sealed record RuleSettingsInput(
     int? MinTeamSize, int? MaxTeamSize, int? MinSpecializations, int? InvitationExpiryHours, IReadOnlyList<int>? ReminderHours,
-    int? MaxIdeasPerJoinRequest, int? InterestExtraSlots, int? MaxInterestsUnlimited, int? MaxLecturerPreferences, int? MaxFileSizeMb);
+    int? MaxIdeasPerJoinRequest, int? InterestExtraSlots, int? MaxInterestsUnlimited, int? MaxLecturerPreferences, int? MaxFileSizeMb,
+    decimal? MaxTeamRatio = null);
 
 /// <summary>Giới hạn từng trường, khớp CHECK của <c>academic.rule_settings</c>. Quan hệ giữa các trường kiểm tra ở <see cref="RuleSettingRules"/>.</summary>
 public sealed class RuleSettingsInputValidator : AbstractValidator<RuleSettingsInput>
@@ -42,5 +43,6 @@ public sealed class RuleSettingsInputValidator : AbstractValidator<RuleSettingsI
         RuleFor(x => x.MaxInterestsUnlimited).InclusiveBetween(1, 100).WithMessage("Giới hạn quan tâm từ 1 đến 100.");
         RuleFor(x => x.MaxLecturerPreferences).InclusiveBetween(1, 10).WithMessage("Số nguyện vọng từ 1 đến 10.");
         RuleFor(x => x.MaxFileSizeMb).InclusiveBetween(1, 100).WithMessage("Dung lượng file từ 1 đến 100 MB.");
+        RuleFor(x => x.MaxTeamRatio).InclusiveBetween(0.01m, 1m).WithMessage("Hệ số số nhóm từ 0,01 đến 1.");
     }
 }

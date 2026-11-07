@@ -115,6 +115,24 @@ describe('student team screens (FE-37)', () => {
     expect(router.state.location.pathname).toBe('/sv/nhom')
   })
 
+  it('S13 explains the course team limit and points to Khám phá', async () => {
+    routes = { '/api/domains': [{ id: 4, code: 'D04', name: 'Software' }], '/api/teams/me': team('LEADER') }
+    post.mockRejectedValue(new ApiError({ status: 409, code: 'team-limit-reached', title: 'Đã đủ số nhóm của môn', detail: 'Môn này đã có đủ 100 nhóm trong kỳ.' }))
+    const router = renderAt('/sv/nhom/tao')
+    const user = userEvent.setup()
+
+    await user.type(await screen.findByLabelText('Tên nhóm'), 'Nhóm Mới')
+    await user.click(screen.getByRole('button', { name: 'Chọn domain' }))
+    await user.click(await screen.findByRole('checkbox', { name: /D04/ }))
+    await user.click(screen.getByRole('button', { name: 'Chọn (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Tạo nhóm' }))
+
+    expect(await screen.findByText('Môn này đã có đủ 100 nhóm trong kỳ.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Thử lại' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sang Khám phá' }))
+    expect(router.state.location.pathname).toBe('/sv/kham-pha')
+  })
+
   it('S05 lists open teams with seats left', async () => {
     routes = { '/api/teams': { items: [card], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 } }
     renderAt('/sv/kham-pha')

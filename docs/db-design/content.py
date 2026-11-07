@@ -78,7 +78,7 @@ _RULES = [
      f"{C('team_members.role')} LEADER / MEMBER; partial unique {C('uq_team_members_one_leader')} (≤ 1 leader); constraint trigger "
      f"deferred {C('trg_team_members_composition')} → {C('ck_team_exactly_one_leader')} (= 1 leader lúc COMMIT, đổi leader trong một "
      f"transaction được); {C('teams.member_count')} do {C('trg_team_members_count')} duy trì + {C('ck_teams_member_count')} "
-     f"(0–6) chặn người thứ 7 ngay; khi FINALIZED trigger ép 4–6 ({C('ck_team_finalized_size')})."),
+     f"(0–50, khung của W05); sĩ số thật theo W05 do Team Service kiểm tra (BE-90); khi FINALIZED trigger giữ khung 2–50 ({C('ck_team_finalized_size')})."),
     ("2. ≥ 2 chuyên ngành khi chốt",
      f"Snapshot {C('team_members.specialization_id')}; trigger {C('trg_teams_composition')} → {C('ck_team_finalized_specializations')} "
      f"đếm DISTINCT khi status = FINALIZED (kể cả khi thay thành viên sau đó)."),

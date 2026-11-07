@@ -52,7 +52,7 @@ class RoundClosedScreen extends ConsumerWidget {
               Text('Bạn sẽ được ghép nhóm tự động', style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
               const SizedBox(height: AppSpacing.s2),
               Text(
-                'Hệ thống đưa bạn vào nhóm còn thiếu người hoặc lập nhóm mới đủ 4–6 người, ít nhất 2 chuyên ngành. Bạn sẽ nhận thông báo khi có kết quả.',
+                'Hệ thống đưa bạn vào nhóm còn thiếu người hoặc lập nhóm mới đủ sĩ số và số chuyên ngành theo quy định của Bộ môn. Bạn sẽ nhận thông báo khi có kết quả.',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),

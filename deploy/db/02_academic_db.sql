@@ -272,6 +272,7 @@ CREATE TABLE academic.rule_settings (
     max_interests_unlimited smallint    NOT NULL DEFAULT 10, -- rule 19: giới hạn quan tâm khi giảng viên không có số nhóm tối đa
     max_lecturer_preferences smallint   NOT NULL DEFAULT 3,  -- rule 9: số nguyện vọng giảng viên của nhóm
     max_file_size_mb        smallint    NOT NULL DEFAULT 25, -- rule 24
+    max_team_ratio          numeric(3,2) NOT NULL DEFAULT 0.20, -- BE-89: số nhóm tối đa của môn = floor(số sinh viên × hệ số)
     updated_by              uuid,
     updated_at              timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT pk_rule_settings PRIMARY KEY (id),
@@ -281,7 +282,8 @@ CREATE TABLE academic.rule_settings (
     CONSTRAINT ck_rule_settings_ideas CHECK (max_ideas_per_join_request BETWEEN 1 AND 10),
     CONSTRAINT ck_rule_settings_interest CHECK (interest_extra_slots BETWEEN 0 AND 10 AND max_interests_unlimited BETWEEN 1 AND 100),
     CONSTRAINT ck_rule_settings_preferences CHECK (max_lecturer_preferences BETWEEN 1 AND 10),
-    CONSTRAINT ck_rule_settings_file_size CHECK (max_file_size_mb BETWEEN 1 AND 100)
+    CONSTRAINT ck_rule_settings_file_size CHECK (max_file_size_mb BETWEEN 1 AND 100),
+    CONSTRAINT ck_rule_settings_team_ratio CHECK (max_team_ratio BETWEEN 0.01 AND 1.00)
 );
 
 -- ---------- Transactional Outbox ----------

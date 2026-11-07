@@ -14,6 +14,7 @@ export interface RuleSettings {
   maxInterestsUnlimited: number
   maxLecturerPreferences: number
   maxFileSizeMb: number
+  maxTeamRatio: number
 }
 
 export type NumberField = Exclude<keyof RuleSettings, 'reminderHours'>
@@ -33,10 +34,11 @@ export function useSaveRuleSettings() {
 }
 
 /** Giới hạn từng ô, khớp RuleSettingsInputValidator ở Academic. */
-export const fieldRules: Record<NumberField, { label: string; min: number; max: number; unit?: string; hint?: string }> = {
+export const fieldRules: Record<NumberField, { label: string; min: number; max: number; unit?: string; hint?: string; step?: number }> = {
   minTeamSize: { label: 'Sĩ số tối thiểu', min: 2, max: 50, unit: 'người' },
   maxTeamSize: { label: 'Sĩ số tối đa', min: 2, max: 50, unit: 'người' },
   minSpecializations: { label: 'Số chuyên ngành tối thiểu', min: 1, max: 50, hint: 'Nhóm phải có ít nhất số chuyên ngành này.' },
+  maxTeamRatio: { label: 'Hệ số số nhóm tối đa', min: 0.01, max: 1, step: 0.01, hint: 'Số nhóm tối đa của môn trong kỳ = số sinh viên × hệ số, làm tròn xuống. Ví dụ 500 sinh viên × 0,2 = 100 nhóm.' },
   invitationExpiryHours: { label: 'Hạn hiệu lực lời mời', min: 1, max: 720, unit: 'giờ' },
   maxIdeasPerJoinRequest: { label: 'Số ý tưởng tối đa khi xin vào nhóm', min: 1, max: 10 },
   maxLecturerPreferences: { label: 'Số nguyện vọng giảng viên của nhóm', min: 1, max: 10 },
@@ -61,7 +63,8 @@ export function validateRules(values: RuleValues): Record<string, string> {
   for (const [field, rule] of Object.entries(fieldRules) as [NumberField, (typeof fieldRules)[NumberField]][]) {
     const text = values[field].trim()
     const n = Number(text)
-    if (!/^\d+$/.test(text) || n < rule.min || n > rule.max) errors[field] = `Từ ${rule.min} đến ${rule.max}.`
+    const wellFormed = rule.step ? text !== '' && Number.isFinite(n) : /^\d+$/.test(text)
+    if (!wellFormed || n < rule.min || n > rule.max) errors[field] = `Từ ${rule.min} đến ${rule.max}.`
   }
   if (!errors.minTeamSize && !errors.maxTeamSize && Number(values.maxTeamSize) < Number(values.minTeamSize)) {
     errors.maxTeamSize = 'Phải lớn hơn hoặc bằng sĩ số tối thiểu.'
