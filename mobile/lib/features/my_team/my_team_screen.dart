@@ -9,6 +9,7 @@ import '../../shared/widgets/team_requirement_bar.dart';
 import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import '../workspace/workspace_widgets.dart';
 import '../lecturers/paths.dart';
+import 'leader_vote.dart';
 import 'my_team_api.dart';
 import 'project_card.dart';
 import 'team_advisors.dart';
@@ -88,6 +89,7 @@ class _TeamOverview extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
+        LeaderVoteCard(teamId: team.id),
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,

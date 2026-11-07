@@ -26,6 +26,9 @@ Bản nháp chốt ở tuần 1 để 5 người làm song song; BE-61 (19/10/20
 |---|---|
 | `round-closed` | Đợt đăng ký chưa mở hoặc đã khóa (rule 6) |
 | `already-in-team` | Sinh viên đã thuộc một nhóm trong học kỳ (rule 4) |
+| `leader-vote-open` | Nhóm đang có đề nghị đổi nhóm trưởng (BE-88) |
+| `leader-vote-closed` | Đề nghị đã kết thúc (BE-88) |
+| `leader-vote-not-allowed` | Nhóm đã chốt, nhóm EXE201 hoặc nhóm chưa đủ 2 người (BE-88) |
 | `team-full` | Nhóm đã đủ 6 người |
 | `not-leader` | Thao tác chỉ dành cho trưởng nhóm |
 | `pending-exists` | Đã có lời mời / yêu cầu / yêu cầu đổi nhóm đang chờ |

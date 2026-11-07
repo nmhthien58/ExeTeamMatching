@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/workspace_widgets.dart';
+import 'leader_vote.dart';
 import 'members_view_model.dart';
 import 'my_team_api.dart';
 
 /// S17 – Thành viên nhóm (MB-22): trưởng nhóm xóa / chuyển quyền qua menu, thành viên rời nhóm; mọi thao tác có AlertDialog.
 /// Nhóm EXE201 kế thừa: thay đổi chỉ ghi nhận, chờ Bộ môn duyệt (quy tắc 7).
+/// Thành viên thường của nhóm EXE101 còn mở đề nghị được người làm nhóm trưởng (MB-63), nhóm bỏ phiếu ở S15.
 class MembersScreen extends ConsumerStatefulWidget {
   const MembersScreen({super.key});
 
@@ -43,6 +45,12 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
     if (outcome.leaving && outcome.applied) context.go('/sv/nhom');
   }
 
+  Future<void> _propose(MyTeam team, Member nominee) async {
+    final message = await showProposeLeaderSheet(context, team: team, nominee: nominee);
+    if (message == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final team = ref.watch(myTeamDetailProvider);
@@ -59,6 +67,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   Widget _list(MyTeam team) {
     final error = ref.watch(membersViewModelProvider);
     final canChange = team.isOpen || team.isInherited;
+    final canPropose = !team.isLeader && team.isOpen && !team.isInherited && team.courseCode != 'EXE201' && team.memberCount >= 2;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
@@ -79,6 +88,12 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (m.isLeader) const StatusChip(label: 'Trưởng nhóm', tone: StatusTone.info),
+                      if (canPropose && !m.isLeader)
+                        PopupMenuButton<String>(
+                          tooltip: 'Thao tác với ${m.fullName}',
+                          onSelected: (_) => _propose(team, m),
+                          itemBuilder: (_) => const [PopupMenuItem(value: 'propose', child: Text('Đề nghị làm nhóm trưởng'))],
+                        ),
                       if (team.isLeader && !m.isLeader && canChange)
                         PopupMenuButton<String>(
                           tooltip: 'Thao tác với ${m.fullName}',

@@ -24,6 +24,7 @@ public static class TeamDbErrors
         "ck_teams_member_count" => new ConflictException("team-full", "Nhóm đã đủ người", "Nhóm đã có 6 thành viên."),
         "uq_invitations_pending" or "uq_join_requests_pending" or "uq_change_requests_pending" =>
             new ConflictException("pending-exists", "Đã có yêu cầu đang chờ", "Đã có lời mời hoặc yêu cầu đang chờ xử lý."),
+        "uq_leader_votes_one_open" => new ConflictException("leader-vote-open", "Nhóm đang có đề nghị", "Nhóm đang có một đề nghị đổi nhóm trưởng chưa kết thúc."),
         "ck_team_finalized_size" or "ck_team_finalized_specializations" =>
             new ConflictException("composition-invalid", "Nhóm chưa đủ điều kiện", "Nhóm cần 4–6 thành viên và ít nhất 2 chuyên ngành."),
         "ck_join_requests_ideas" => new ConflictException("ideas-required", "Thiếu ý tưởng", "Cần 1–3 ý tưởng hoặc chọn \"Chưa có ý tưởng\"."),

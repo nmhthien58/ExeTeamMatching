@@ -1,6 +1,6 @@
 # Đề xuất: bỏ phiếu đổi nhóm trưởng (BE-88, MB-63, FE-54)
 
-> 06/11/2026 – Thiên. Trạng thái: **đề xuất, chờ Cường xem** (Team Service – module Members là vùng của Cường; đổi DB script và sự kiện Kafka cần Thiên duyệt theo AGENTS.md mục 4).
+> 06/11/2026 – Thiên. Trạng thái: **đã làm (BE-88, MB-63, FE-54, giao Nguyên 07/11/2026)** (Team Service – module Members là vùng của Cường; đổi DB script và sự kiện Kafka cần Thiên duyệt theo AGENTS.md mục 4).
 
 ## 1. Vấn đề
 

@@ -64,9 +64,10 @@ public sealed class TeamDbContextModelTests
             dir = dir.Parent;
         }
         Assert.NotNull(dir);
-        var sql = File.ReadAllText(Path.Combine(dir.FullName, "deploy", "db", "03_team_db.sql"));
+        var sql = File.ReadAllText(Path.Combine(dir.FullName, "deploy", "db", "03_team_db.sql"))
+            + File.ReadAllText(Path.Combine(dir.FullName, "deploy", "db", "migrations", "BE-88_leader_votes.sql"));
 
-        return Regex.Matches(sql, @"CREATE TABLE team\.(\w+) \((.*?)\r?\n\);", RegexOptions.Singleline)
+        return Regex.Matches(sql, @"CREATE TABLE (?:IF NOT EXISTS )?team\.(\w+) \((.*?)\r?\n\);", RegexOptions.Singleline)
             .ToDictionary(
                 m => m.Groups[1].Value,
                 m => Regex.Matches(m.Groups[2].Value, @"^\s{4}([a-z_]+)\s+(?:uuid|varchar|smallint|integer|bigint|boolean|timestamptz|text|jsonb|numeric)", RegexOptions.Multiline)
