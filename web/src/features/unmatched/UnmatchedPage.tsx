@@ -13,6 +13,7 @@ import { useCourseParam, useCurrentSemester } from '@/features/dashboard/adminAp
 import { CourseToggle } from '@/features/dashboard/CourseToggle'
 import { useSpecializations, type StudentRef } from '@/features/suggestions/api'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
+import { useTeamRules } from '@/shared/lib/teamRules'
 
 const columns: ColumnDef<StudentRef, unknown>[] = [
   { header: 'MSSV', accessorKey: 'studentCode', meta: { sortKey: 'studentCode' } },
@@ -25,6 +26,7 @@ const columns: ColumnDef<StudentRef, unknown>[] = [
  * Admin chạy lại được. Trạng thái: có dữ liệu; không còn sinh viên lẻ.
  */
 export function UnmatchedPage() {
+  const rules = useTeamRules()
   const [course, setCourse] = useCourseParam()
   const semester = useCurrentSemester()
   const { isTeamFormation, phase } = useIsTeamFormation(course)
@@ -125,7 +127,7 @@ export function UnmatchedPage() {
           </>
         }
       >
-        Sinh viên còn lẻ được bổ sung vào nhóm cần xem lại, phần còn lại lập nhóm mới 4–6 người. Sinh viên và nhóm được thông báo ngay.
+        Sinh viên còn lẻ được bổ sung vào nhóm cần xem lại, phần còn lại lập nhóm mới {rules.minSize}–{rules.maxSize} người. Sinh viên và nhóm được thông báo ngay.
         {run.error && <p className="mt-2 text-error">{toApiError(run.error).detail ?? toApiError(run.error).title}</p>}
       </Dialog>
       {snackbar.element}

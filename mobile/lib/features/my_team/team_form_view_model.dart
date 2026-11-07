@@ -37,6 +37,9 @@ class TeamFormState {
 
   String? get projectNameError => error?.fieldErrors['projectName']?.first;
 
+  /// Môn đã đủ số nhóm trong kỳ (BE-89): không thử lại được, View gợi ý sang Khám phá.
+  bool get isTeamLimitReached => error?.code == 'team-limit-reached';
+
   /// Lỗi chung (không gắn ô nào) hiện bằng banner.
   String? get generalError => error != null && error!.fieldErrors.isEmpty ? error!.detail ?? error!.title : null;
 }

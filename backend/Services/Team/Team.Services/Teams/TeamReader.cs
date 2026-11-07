@@ -8,14 +8,15 @@ public sealed class TeamReader(ITeamRepository teams, IAcademicClient academic)
 {
     public async Task<Catalogs> LoadCatalogsAsync(CancellationToken ct)
     {
+        var rules = await academic.GetTeamRulesAsync(ct);
         try
         {
             return new Catalogs((await academic.GetDomainsAsync(ct)).ToDictionary(d => d.Id),
-                (await academic.GetSpecializationsAsync(ct)).ToDictionary(s => s.Id));
+                (await academic.GetSpecializationsAsync(ct)).ToDictionary(s => s.Id), rules);
         }
         catch (HttpRequestException)
         {
-            return Catalogs.Empty;
+            return Catalogs.Empty with { Rules = rules };
         }
     }
 

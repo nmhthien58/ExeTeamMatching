@@ -9,6 +9,7 @@ import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { useMyTeam, type TeamMember } from '@/features/suggestions/api'
 import { useMemberAction, type FullTeam } from './api'
 import { ListSkeleton } from './components'
+import { ProposeLeaderDialog } from './LeaderVote'
 
 type Pending = { kind: 'remove' | 'transfer'; member: TeamMember } | { kind: 'leave' }
 
@@ -39,9 +40,12 @@ function Members({ team }: { team: FullTeam }) {
   const snackbar = useSnackbar()
   const action = useMemberAction(team.id)
   const [pending, setPending] = useState<Pending | null>(null)
+  const [nominee, setNominee] = useState<TeamMember | null>(null)
   const isLeader = team.myRelation === 'LEADER'
   const canChange = team.status === 'DRAFT' || team.status === 'ACTIVE' || !!team.isInherited
   const error = action.error instanceof ApiError ? action.error : null
+  const isOpen = team.status === 'DRAFT' || team.status === 'ACTIVE'
+  const canPropose = !isLeader && isOpen && !team.isInherited && team.courseCode !== 'EXE201' && team.memberCount >= 2
 
   const confirm = () => {
     if (!pending) return
@@ -83,6 +87,11 @@ function Members({ team }: { team: FullTeam }) {
                 <span className="text-text-secondary">{[m.studentCode, m.specialization?.name].filter(Boolean).join(' · ')}</span>
               </span>
               {m.role === 'LEADER' && <StatusChip tone="info">Trưởng nhóm</StatusChip>}
+              {canPropose && m.role !== 'LEADER' && (
+                <Button variant="text" onClick={() => setNominee(m)}>
+                  Đề nghị làm nhóm trưởng
+                </Button>
+              )}
               {isLeader && m.role !== 'LEADER' && canChange && (
                 <span className="flex gap-1">
                   <Button variant="text" onClick={() => setPending({ kind: 'transfer', member: m })}>
@@ -120,6 +129,16 @@ function Members({ team }: { team: FullTeam }) {
       >
         {dialog?.body}
       </Dialog>
+      <ProposeLeaderDialog
+        teamId={team.id}
+        memberCount={team.memberCount}
+        nominee={nominee}
+        onClose={() => setNominee(null)}
+        onSent={() => {
+          setNominee(null)
+          snackbar.show('Đã gửi đề nghị')
+        }}
+      />
       {snackbar.element}
     </div>
   )

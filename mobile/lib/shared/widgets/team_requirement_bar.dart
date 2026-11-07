@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_tokens.dart';
 
 /// Thanh điều kiện nhóm (DESIGN.md 6.1, quy tắc 1–2): 6 chấm thành viên kèm chữ "4/6 thành viên".
-/// Dạng đầy đủ thêm 2 dòng kiểm tra "4–6 thành viên" và "Ít nhất 2 chuyên ngành".
+/// Dạng đầy đủ thêm 2 dòng kiểm tra số thành viên và số chuyên ngành theo quy tắc W05.
 class TeamRequirementBar extends StatelessWidget {
   const TeamRequirementBar({
     super.key,

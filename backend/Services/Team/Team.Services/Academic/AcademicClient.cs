@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Team.Services.Teams;
 
 namespace Team.Services.Academic;
 
@@ -84,6 +86,12 @@ public interface IAcademicClient
     /// <summary>Đổi danh sách MSSV sang snapshot (import mốc EXE101).</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsByCodeAsync(Guid? semesterId, IReadOnlyCollection<string> studentCodes, CancellationToken ct);
 
+    /// <summary>
+    /// Quy tắc lập nhóm ở W05 (<c>GET /api/rule-settings</c>, cache 1 phút). Không ném lỗi: Academic không trả lời thì dùng giá trị đọc được
+    /// gần nhất, chưa có thì <see cref="TeamRuleSet.Default"/>, để lập nhóm không dừng theo Academic.
+    /// </summary>
+    Task<TeamRuleSet> GetTeamRulesAsync(CancellationToken ct) => Task.FromResult(TeamRuleSet.Default);
+
     /// <summary>Danh mục domain D01–D18 (cache 10 phút).</summary>
     Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct);
 
@@ -94,12 +102,39 @@ public interface IAcademicClient
 public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcademicClient
 {
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan RulesTtl = TimeSpan.FromMinutes(1);
+    private const string RulesKey = "rule-settings";
+    private const string LastRulesKey = "rule-settings:last";
+
+    private sealed record RuleSettingsDto(int? MinTeamSize, int? MaxTeamSize, int? MinSpecializations, decimal? MaxTeamRatio);
 
     /// <summary>pageSize tối đa của Academic (<c>LecturerQueryValidator</c>, <c>MentorQueryValidator</c>: 1–100).</summary>
     internal const int LecturerPageSize = 100;
 
     /// <summary>Chặn vòng lặp khi Academic trả totalPages sai.</summary>
     private const int MaxLecturerPages = 100;
+
+    public async Task<TeamRuleSet> GetTeamRulesAsync(CancellationToken ct)
+    {
+        if (cache.TryGetValue(RulesKey, out TeamRuleSet? cached) && cached is not null)
+        {
+            return cached;
+        }
+        try
+        {
+            var data = await http.GetFromJsonAsync<RuleSettingsDto>("/api/rule-settings", ct);
+            var d = TeamRuleSet.Default;
+            var rules = new TeamRuleSet(data?.MinTeamSize ?? d.MinSize, data?.MaxTeamSize ?? d.MaxSize, data?.MinSpecializations ?? d.MinSpecializations,
+                data?.MaxTeamRatio ?? d.MaxTeamRatio);
+            cache.Set(RulesKey, rules, RulesTtl);
+            cache.Set(LastRulesKey, rules);
+            return rules;
+        }
+        catch (Exception e) when (e is HttpRequestException or JsonException || (e is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            return cache.TryGetValue(LastRulesKey, out TeamRuleSet? last) && last is not null ? last : TeamRuleSet.Default;
+        }
+    }
 
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => GetOrNullAsync<SemesterDto>("/api/semesters/current", ct);
 

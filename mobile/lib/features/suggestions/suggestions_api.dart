@@ -49,7 +49,9 @@ class TeamCard {
     this.projectName,
     this.domains = const [],
     this.missingSpecializations = const [],
+    this.minSize = 4,
     this.maxSize = 6,
+    this.minSpecializations = 2,
   });
 
   final String id;
@@ -59,7 +61,11 @@ class TeamCard {
   final String? projectName;
   final List<CatalogRef> domains;
   final List<CatalogRef> missingSpecializations;
+
+  /// Quy tắc Bộ môn đặt ở W05 (BE-90), API trả trong `requirement`.
+  final int minSize;
   final int maxSize;
+  final int minSpecializations;
 
   factory TeamCard.fromJson(Map<String, dynamic> j) {
     final requirement = j['requirement'] == null ? const <String, dynamic>{} : Map<String, dynamic>.from(j['requirement'] as Map);
@@ -73,7 +79,9 @@ class TeamCard {
       missingSpecializations: [
         for (final s in (requirement['missingSpecializations'] as List? ?? const [])) CatalogRef.fromJson(Map<String, dynamic>.from(s as Map)),
       ],
+      minSize: requirement['minSize'] as int? ?? 4,
       maxSize: requirement['maxSize'] as int? ?? 6,
+      minSpecializations: requirement['minSpecializations'] as int? ?? 2,
     );
   }
 }

@@ -14,6 +14,7 @@ using Microsoft.IdentityModel.Tokens;
 using Team.Repositories.Context;
 using Team.Services.Academic;
 using Team.Services.Matching;
+using Team.Services.Teams;
 
 namespace Team.Tests;
 
@@ -95,6 +96,11 @@ public sealed class FakeAcademic : IAcademicClient
     private readonly Dictionary<Guid, StudentSnapshot> _students = new();
 
     public SemesterDto Semester { get; set; } = new(Guid.NewGuid(), "FA26", "Fall 2026");
+
+    /// <summary>Quy tắc W05; mặc định hệ số 1 để test không vướng giới hạn số nhóm (BE-89).</summary>
+    public TeamRuleSet Rules { get; set; } = TeamRuleSet.Default with { MaxTeamRatio = 1m };
+
+    public Task<TeamRuleSet> GetTeamRulesAsync(CancellationToken ct) => Task.FromResult(Rules);
 
     public HashSet<string> OpenCourses { get; } = ["EXE101", "EXE201"];
 

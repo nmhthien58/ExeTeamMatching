@@ -12,7 +12,7 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
     [
         (Topics.Student, ["StudentImported", "StudentProfileUpdated", "LecturerRegistered", "LecturerProfileUpdated", "MentorRegistered"]),
         (Topics.Registration, ["RoundOpened", "RoundClosed", "DeadlineApproaching"]),
-        (Topics.Team, ["TeamFinalized", "TeamNeedsReview", "ProjectChanged"]),
+        (Topics.Team, ["TeamFinalized", "TeamNeedsReview", "ProjectChanged", "LeaderVoteOpened", "LeaderVoteClosed"]),
         (Topics.Invitation, ["InvitationSent", "InvitationAccepted", "InvitationDeclined", "InvitationExpired", "JoinRequestSubmitted", "JoinRequestAccepted", "JoinRequestDeclined"]),
         (Topics.ChangeRequest, ["ChangeRequestSubmitted", "ChangeRequestApproved", "ChangeRequestRejected"]),
         (Topics.Assignment, ["TopicInterestOpened", "TopicInterestClosed", "LecturerPreferencesUpdated", "LecturerAssigned", "MentorAssigned", "MentorUnassigned", "AdvisorMatchingCompleted"]),
@@ -159,8 +159,11 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
                 foreach (var r in Students(data, "memberStudentIds")) yield return r;
                 break;
             case "MentorUnassigned": yield return ("MENTOR", Id(data, "mentorId")); break;
-            case "TeamFinalized":
+            case "TeamFinalized": case "LeaderVoteClosed":
                 foreach (var r in Students(data, "memberStudentIds")) yield return r;
+                break;
+            case "LeaderVoteOpened":
+                foreach (var r in Students(data, "recipientStudentIds")) yield return r;
                 break;
             case "DeadlineApproaching":
                 foreach (var r in Students(data, "studentIdsWithoutTeam")) yield return r;
@@ -214,6 +217,14 @@ public sealed class NotificationEventHandler(NotificationDbContext db) : IIntegr
             "MentorAssigned" => ("Đã ghép mentor", $"Mentor {String(data, "mentorName") ?? "của nhóm"} đã được ghép với nhóm. Lý do: {MatchReason(data)}.", teamLink),
             "MentorUnassigned" => ("Không còn phụ trách nhóm", "Bạn không còn là mentor của nhóm này.", teamLink),
             "AdvisorMatchingCompleted" => ("Đã ghép cố vấn", $"Còn {String(data, "unmatchedCount") ?? "0"} nhóm chưa có cố vấn.", "app://admin/advisor-matching"),
+            "LeaderVoteOpened" => ("Đề nghị đổi nhóm trưởng", $"{String(data, "proposerName") ?? "Một thành viên"} đề nghị {String(data, "nomineeName") ?? "thành viên khác"} làm nhóm trưởng. Hãy bỏ phiếu trong 48 giờ.", teamLink),
+            "LeaderVoteClosed" => ("Kết quả đề nghị đổi nhóm trưởng", String(data, "status") switch
+                {
+                    "PASSED" => $"{String(data, "nomineeName") ?? "Thành viên được đề cử"} đã trở thành nhóm trưởng.",
+                    "REJECTED" => "Đề nghị không được thông qua.",
+                    "EXPIRED" => "Đề nghị đã hết hạn.",
+                    _ => "Đề nghị đã bị hủy.",
+                }, teamLink),
             "TeamFinalized" => ("Nhóm đã được chốt", "Danh sách thành viên nhóm đã được chốt.", teamLink),
             "TeamNeedsReview" => ("Nhóm cần xem xét", "Có nhóm chưa đủ điều kiện sau khi đóng đợt.", "app://admin/teams"),
             "DeadlineApproaching" => ("Sắp hết hạn lập nhóm", "Đợt lập nhóm sắp đóng. Hãy hoàn tất nhóm của bạn.", "app://teams"),

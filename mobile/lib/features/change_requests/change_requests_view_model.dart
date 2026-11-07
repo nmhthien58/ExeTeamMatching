@@ -125,7 +125,7 @@ class CreateChangeRequestViewModel extends Notifier<CreateChangeRequestState> {
     return ChangeSelectionSummary(
       count: count,
       specializationCount: projected.values.map((member) => member.specialization?.id).whereType<int>().toSet().length,
-      canContinue: !(state.selected.isEmpty && name.isEmpty || count < 4 || count > 6 || (name.isNotEmpty && name.length < 2)),
+      canContinue: !(state.selected.isEmpty && name.isEmpty || count < team.card.minSize || count > team.card.maxSize || (name.isNotEmpty && name.length < 2)),
     );
   }
 

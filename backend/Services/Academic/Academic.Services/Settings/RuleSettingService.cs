@@ -73,6 +73,7 @@ public static class RuleSettingRules
         s.MaxInterestsUnlimited = (short)(input.MaxInterestsUnlimited ?? s.MaxInterestsUnlimited);
         s.MaxLecturerPreferences = (short)(input.MaxLecturerPreferences ?? s.MaxLecturerPreferences);
         s.MaxFileSizeMb = (short)(input.MaxFileSizeMb ?? s.MaxFileSizeMb);
+        s.MaxTeamRatio = input.MaxTeamRatio ?? s.MaxTeamRatio;
     }
 }
 

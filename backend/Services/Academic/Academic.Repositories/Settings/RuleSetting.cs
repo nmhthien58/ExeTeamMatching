@@ -28,6 +28,9 @@ public class RuleSetting
     /// <summary>Rule 24.</summary>
     public short MaxFileSizeMb { get; set; } = 25;
 
+    /// <summary>BE-89: số nhóm tối đa của môn trong kỳ = floor(số sinh viên của môn × hệ số).</summary>
+    public decimal MaxTeamRatio { get; set; } = 0.20m;
+
     public Guid? UpdatedBy { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }

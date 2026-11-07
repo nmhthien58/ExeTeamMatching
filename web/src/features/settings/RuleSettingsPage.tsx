@@ -8,7 +8,7 @@ import { Field, inputClass } from '@/features/semesters/Field'
 import { fieldRules, parseReminders, useRuleSettings, useSaveRuleSettings, validateRules, type NumberField, type RuleSettings, type RuleValues } from './api'
 
 const groups: { title: string; fields: NumberField[]; withReminders?: boolean }[] = [
-  { title: 'Nhóm', fields: ['minTeamSize', 'maxTeamSize', 'minSpecializations'] },
+  { title: 'Nhóm', fields: ['minTeamSize', 'maxTeamSize', 'minSpecializations', 'maxTeamRatio'] },
   { title: 'Lời mời và xin vào nhóm', fields: ['invitationExpiryHours', 'maxIdeasPerJoinRequest'], withReminders: true },
   { title: 'Ghép giảng viên và mentor', fields: ['maxLecturerPreferences', 'interestExtraSlots', 'maxInterestsUnlimited'] },
   { title: 'File', fields: ['maxFileSizeMb'] },
@@ -91,6 +91,7 @@ function RuleForm({ settings }: { settings: RuleSettings }) {
                       type="number"
                       min={rule.min}
                       max={rule.max}
+                      step={rule.step}
                       value={values[f]}
                       onChange={(e) => setValues((v) => ({ ...v, [f]: e.target.value }))}
                       className={inputClass}

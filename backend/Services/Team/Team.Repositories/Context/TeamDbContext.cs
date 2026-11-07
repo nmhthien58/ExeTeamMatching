@@ -11,6 +11,7 @@ using Team.Repositories.Invitations;
 using Team.Repositories.JoinRequests;
 using Team.Repositories.LecturerAssignments;
 using Team.Repositories.LecturerPreferences;
+using Team.Repositories.LeaderVotes;
 using Team.Repositories.Members;
 using Team.Repositories.MentorAssignments;
 using Team.Repositories.Posts;
@@ -130,6 +131,8 @@ public class TeamDbContext(DbContextOptions<TeamDbContext> options) : DbContext(
         });
         modelBuilder.Entity<TeamDomain>(e => { e.ToTable("team_domains"); e.HasKey(x => new { x.TeamId, x.DomainId }); });
         modelBuilder.Entity<TeamMember>(e => { e.ToTable("team_members"); e.HasKey(x => x.Id); e.Property(x => x.JoinedAt).HasDefaultValueSql("now()"); Xmin(e.Property(x => x.Version)); });
+        modelBuilder.Entity<LeaderVote>(e => { e.ToTable("leader_votes"); e.HasKey(x => x.Id); });
+        modelBuilder.Entity<LeaderVoteBallot>(e => { e.ToTable("leader_vote_ballots"); e.HasKey(x => new { x.VoteId, x.StudentId }); e.HasOne<LeaderVote>().WithMany().HasForeignKey(x => x.VoteId); });
         modelBuilder.Entity<Invitation>(e => { e.ToTable("invitations"); e.HasKey(x => x.Id); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); e.Property(x => x.ExpiresAt).HasDefaultValueSql("now() + interval '72 hours'"); Xmin(e.Property(x => x.Version)); });
         modelBuilder.Entity<JoinRequest>(e => { e.ToTable("join_requests"); e.HasKey(x => x.Id); e.Property(x => x.CreatedAt).HasDefaultValueSql("now()"); e.Property(x => x.ExpiresAt).HasDefaultValueSql("now() + interval '72 hours'"); Xmin(e.Property(x => x.Version)); });
         modelBuilder.Entity<JoinRequestIdea>(e => { e.ToTable("join_request_ideas"); e.HasKey(x => new { x.JoinRequestId, x.Position }); });

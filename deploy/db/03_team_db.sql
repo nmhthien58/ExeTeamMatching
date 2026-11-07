@@ -75,7 +75,7 @@ CREATE TABLE team.teams (
     CONSTRAINT fk_teams_project FOREIGN KEY (project_id) REFERENCES team.projects (id) ON DELETE RESTRICT,
     CONSTRAINT ck_teams_course CHECK (course_code IN ('EXE101', 'EXE201')),
     CONSTRAINT ck_teams_status CHECK (status IN ('DRAFT', 'ACTIVE', 'NEEDS_REVIEW', 'FINALIZED', 'DISBANDED')),
-    CONSTRAINT ck_teams_member_count CHECK (member_count BETWEEN 0 AND 6),
+    CONSTRAINT ck_teams_member_count CHECK (member_count BETWEEN 0 AND 50),
     CONSTRAINT ck_teams_name CHECK (char_length(btrim(name)) >= 2),
     CONSTRAINT ck_teams_finalized_at CHECK (status <> 'FINALIZED' OR finalized_at IS NOT NULL),
     CONSTRAINT ck_teams_inherited CHECK ((NOT is_inherited AND source_team_id IS NULL) OR course_code = 'EXE201')
@@ -140,6 +140,11 @@ CREATE TABLE team.team_domains (
 );
 CREATE INDEX idx_team_domains_domain_code ON team.team_domains (domain_code);
 CREATE UNIQUE INDEX uq_team_domains_primary ON team.team_domains (team_id) WHERE is_primary;
+
+-- ---------- Bỏ phiếu đổi nhóm trưởng (BE-88) ----------
+\ir migrations/BE-88_leader_votes.sql
+SET ROLE team_svc;
+SET search_path = team, public;
 
 -- ---------- Lời mời, yêu cầu tham gia (rule 8: hết hạn 72 giờ) ----------
 CREATE TABLE team.invitations (
@@ -492,7 +497,7 @@ CREATE TRIGGER trg_recruitment_posts_updated_at BEFORE UPDATE ON team.recruitmen
 CREATE TRIGGER trg_seeking_posts_updated_at BEFORE UPDATE ON team.seeking_posts FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
 CREATE TRIGGER trg_change_requests_updated_at BEFORE UPDATE ON team.change_requests FOR EACH ROW EXECUTE FUNCTION team.set_updated_at();
 
--- member_count luôn khớp số dòng team_members; CHECK ≤ 6 chặn người thứ 7 ngay khi INSERT.
+-- member_count luôn khớp số dòng team_members; sĩ số tối đa theo W05 do Team Service kiểm tra (BE-90).
 CREATE OR REPLACE FUNCTION team.tg_team_members_count() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
@@ -517,37 +522,10 @@ END $$;
 CREATE TRIGGER trg_team_members_immutable BEFORE UPDATE ON team.team_members
     FOR EACH ROW EXECUTE FUNCTION team.tg_team_members_immutable();
 
--- Kiểm tra cơ cấu nhóm lúc COMMIT (deferred): đúng 1 leader khi có thành viên (rule 1);
--- khi FINALIZED: 4–6 người và ≥ 2 chuyên ngành (rule 1, 2 – hard block).
-CREATE OR REPLACE FUNCTION team.check_team_composition(p_team_id uuid) RETURNS void LANGUAGE plpgsql AS $$
-DECLARE
-    v_status  varchar(12);
-    v_members integer;
-    v_leaders integer;
-    v_specs   integer;
-BEGIN
-    SELECT status INTO v_status FROM team.teams WHERE id = p_team_id;
-    IF NOT FOUND OR v_status = 'DISBANDED' THEN
-        RETURN;
-    END IF;
-    SELECT count(*), count(*) FILTER (WHERE role = 'LEADER'), count(DISTINCT specialization_id)
-      INTO v_members, v_leaders, v_specs
-      FROM team.team_members WHERE team_id = p_team_id;
-    IF v_members > 0 AND v_leaders <> 1 THEN
-        RAISE EXCEPTION 'Nhóm % phải có đúng 1 trưởng nhóm (đang có %)', p_team_id, v_leaders
-            USING ERRCODE = '23514', CONSTRAINT = 'ck_team_exactly_one_leader';
-    END IF;
-    IF v_status = 'FINALIZED' THEN
-        IF v_members NOT BETWEEN 4 AND 6 THEN
-            RAISE EXCEPTION 'Nhóm % đã chốt phải có 4–6 thành viên (đang có %)', p_team_id, v_members
-                USING ERRCODE = '23514', CONSTRAINT = 'ck_team_finalized_size';
-        END IF;
-        IF v_specs < 2 THEN
-            RAISE EXCEPTION 'Nhóm % đã chốt phải có ít nhất 2 chuyên ngành (đang có %)', p_team_id, v_specs
-                USING ERRCODE = '23514', CONSTRAINT = 'ck_team_finalized_specializations';
-        END IF;
-    END IF;
-END $$;
+-- Kiểm tra cơ cấu nhóm lúc COMMIT (deferred): hàm team.check_team_composition và CHECK sĩ số ở migration BE-90 (giới hạn theo W05).
+\ir migrations/BE-90_team_composition_from_w05.sql
+SET ROLE team_svc;
+SET search_path = team, public;
 
 CREATE OR REPLACE FUNCTION team.tg_team_members_composition() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

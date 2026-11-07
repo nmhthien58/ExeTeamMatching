@@ -4,7 +4,7 @@ import { Button, Dialog } from '@/shared/components/ui'
 import type { StudentRef } from './api'
 
 const inviteErrors: Record<string, string> = {
-  'team-full': 'Nhóm đã đủ 6 người.',
+  'team-full': 'Nhóm đã đủ người.',
   'already-in-team': 'Sinh viên này vừa vào một nhóm khác.',
   'pending-exists': 'Bạn đã mời sinh viên này, lời mời còn hiệu lực.',
   'round-closed': 'Đợt lập nhóm đã đóng, không gửi được lời mời.',

@@ -16,7 +16,7 @@ import { useSnackbar } from '@/features/workspace/useSnackbar'
 type View = 'NEEDS_REVIEW' | 'FINALIZED'
 
 const errorText: Record<string, string> = {
-  'composition-invalid': 'Nhóm chưa đủ 4–6 người hoặc chưa có 2 chuyên ngành. Thêm hoặc chuyển thành viên ở Kết quả ghép rồi chốt lại.',
+  'composition-invalid': 'Nhóm chưa đủ sĩ số hoặc số chuyên ngành theo quy tắc. Thêm hoặc chuyển thành viên ở Kết quả ghép rồi chốt lại.',
 }
 
 /** Vấn đề của nhóm theo quy tắc 1, 2 (đọc từ requirement của TeamCard). */

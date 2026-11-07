@@ -28,7 +28,7 @@ Mọi message có cùng envelope (JSON, camelCase). Message key = `aggregateId` 
 | `exe.student` | StudentImported, StudentProfileUpdated, LecturerRegistered, LecturerProfileUpdated, MentorRegistered | Academic (outbox) | Identity (tạo sẵn tài khoản), Notification (contacts), Matching (read model), Team (gỡ mentor khi khóa) |
 | `exe.registration` | RoundOpened, RoundClosed | Academic (outbox) | Notification, Job (lên lịch đóng đợt) |
 | `exe.registration` | DeadlineApproaching | Job (publish trực tiếp) | Notification |
-| `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject, UnmatchedStudentsReminded | Team (outbox) | Matching, Notification, Collaboration |
+| `exe.team` | TeamCreated, MemberJoined, MemberLeft, LeaderChanged, LeaderVoteOpened, LeaderVoteClosed, TeamFinalized, TeamNeedsReview, ProjectCreated, ProjectChanged, TeamLinkedToProject, UnmatchedStudentsReminded | Team (outbox) | Matching, Notification, Collaboration |
 | `exe.invitation` | InvitationSent, InvitationAccepted, InvitationDeclined, InvitationExpired, JoinRequestSubmitted, JoinRequestAccepted, JoinRequestDeclined | Team (outbox) | Notification |
 | `exe.change-request` | ChangeRequestSubmitted, ChangeRequestApproved, ChangeRequestRejected | Team (outbox) | Notification |
 | `exe.assignment` | TopicInterestOpened, TopicInterestClosed, LecturerPreferencesUpdated, LecturerAssigned, MentorAssigned, MentorUnassigned, AdvisorMatchingCompleted | Team (outbox) | Notification, Matching (số quan tâm, nhóm đã có giảng viên), Collaboration (quyền workspace) |
@@ -103,6 +103,11 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 { "teamId": "uuid", "semesterId": "uuid", "studentId": "uuid", "reason": "LEAVE", "memberCount": 4 }   // reason: LEAVE | REMOVED | CHANGE_REQUEST | ADMIN
 // LeaderChanged
 { "teamId": "uuid", "oldLeaderStudentId": "uuid", "newLeaderStudentId": "uuid" }
+// LeaderVoteOpened – recipientStudentIds: mọi thành viên trừ người đề nghị (BE-88)
+{ "voteId": "uuid", "teamId": "uuid", "semesterId": "uuid", "teamName": "Nhóm A", "proposedByStudentId": "uuid", "proposerName": "An",
+  "nomineeStudentId": "uuid", "nomineeName": "Bình", "expiresAt": "2026-11-09T11:00:00Z", "recipientStudentIds": ["uuid"] }
+// LeaderVoteClosed – status: PASSED | REJECTED | EXPIRED | CANCELLED (BE-88)
+{ "voteId": "uuid", "teamId": "uuid", "semesterId": "uuid", "teamName": "Nhóm A", "status": "PASSED", "nomineeName": "Bình", "memberStudentIds": ["uuid"] }
 // TeamFinalized
 { "teamId": "uuid", "semesterId": "uuid", "memberStudentIds": ["uuid"], "finalizedBy": "SYSTEM" }       // SYSTEM | ADMIN
 // TeamNeedsReview

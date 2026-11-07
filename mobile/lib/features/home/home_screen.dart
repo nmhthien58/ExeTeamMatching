@@ -92,8 +92,8 @@ class _Home extends ConsumerWidget {
   static Widget? _nextAction(BuildContext context, HomeData h) {
     final (String title, String? description, String? button, String? path) = switch (h.nextAction) {
       'CREATE_OR_JOIN' => ('Bạn chưa có nhóm', 'Tạo nhóm mới hoặc xin vào một nhóm đang tuyển.', 'Tạo nhóm', '/sv/nhom/tao'),
-      'INVITE_MEMBERS' => ('Nhóm cần thêm thành viên', 'Nhóm cần 4–6 người.', h.isLeader ? 'Mời thành viên' : null, '/sv/nhom/goi-y'),
-      'ADD_SPECIALIZATION' => ('Nhóm cần thêm chuyên ngành', 'Nhóm cần ít nhất 2 chuyên ngành.', h.isLeader ? 'Gợi ý thành viên' : null, '/sv/nhom/goi-y'),
+      'INVITE_MEMBERS' => ('Nhóm cần thêm thành viên', 'Nhóm cần ${h.team?.minSize ?? 4}–${h.team?.maxSize ?? 6} người.', h.isLeader ? 'Mời thành viên' : null, '/sv/nhom/goi-y'),
+      'ADD_SPECIALIZATION' => ('Nhóm cần thêm chuyên ngành', 'Nhóm cần ít nhất ${h.team?.minSpecializations ?? 2} chuyên ngành.', h.isLeader ? 'Gợi ý thành viên' : null, '/sv/nhom/goi-y'),
       'CHOOSE_LECTURER' => ('Chọn giảng viên', 'Thêm nguyện vọng giảng viên trước hạn.', 'Xem nhóm', '/sv/nhom'),
       'SUBMIT_CHANGE_REQUEST' => ('Gửi yêu cầu đổi nhóm', 'Nhóm có thay đổi chưa gửi Bộ môn.', 'Xem nhóm', '/sv/nhom'),
       'WAIT_REVIEW' => ('Đang chờ Bộ môn duyệt', 'Yêu cầu đổi nhóm đang được xem xét.', null, null),

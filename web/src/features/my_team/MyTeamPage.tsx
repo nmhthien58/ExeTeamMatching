@@ -12,6 +12,7 @@ import { AdvisorsCard, CheckpointCard } from './AdvisorsCard'
 import { teamStatusLabel, type FullTeam } from './api'
 import { linkClass, ListSkeleton } from './components'
 import { ProjectCard } from './ProjectCard'
+import { LeaderVoteCard } from './LeaderVote'
 
 /**
  * S15 – Nhóm của tôi (FE-37, cùng spec MB-20): tên + trạng thái, điều kiện nhóm, cố vấn, thay đổi chờ duyệt (EXE201 kế thừa),
@@ -75,6 +76,7 @@ function Overview({ team }: { team: FullTeam }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
       <div className="flex flex-col gap-4">
+        <LeaderVoteCard teamId={team.id} />
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-headline font-semibold">{team.name}</h2>

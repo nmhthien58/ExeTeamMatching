@@ -62,8 +62,9 @@ public sealed class SuggestionService(
 
         var result = await matching.SuggestTeamsAsync(semester.Id, me.CourseCode, studentId, query.Limit, ct);
         // Bỏ nhóm vừa đủ người / đã chốt / đã giải tán mà read model chưa kịp biết.
+        var maxSize = (await rounds.TeamRulesAsync(ct)).MaxSize;
         var graphs = (await teams.ListGraphsAsync(result.Select(r => r.TeamId).ToList(), ct))
-            .Where(g => g.Team.Status is TeamStatuses.Draft or TeamStatuses.Active && g.Members.Count < TeamRules.MaxSize)
+            .Where(g => g.Team.Status is TeamStatuses.Draft or TeamStatuses.Active && g.Members.Count < maxSize)
             .ToDictionary(g => g.Team.Id);
         var catalogs = await reader.LoadCatalogsAsync(ct);
         return result.Where(r => graphs.ContainsKey(r.TeamId))

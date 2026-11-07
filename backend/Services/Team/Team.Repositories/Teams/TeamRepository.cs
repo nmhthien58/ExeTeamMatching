@@ -51,6 +51,9 @@ public interface ITeamRepository
     Task<Guid?> FindTeamIdOfStudentAsync(Guid studentId, CancellationToken ct);
 
     /// <summary>Rule 4: sinh viên đã có nhóm trong học kỳ.</summary>
+    /// <summary>Số nhóm của môn trong kỳ, không tính nhóm đã giải tán (BE-89).</summary>
+    Task<int> CountActiveTeamsAsync(Guid semesterId, string courseCode, CancellationToken ct) => Task.FromResult(0);
+
     Task<bool> IsStudentInTeamAsync(Guid semesterId, Guid studentId, CancellationToken ct);
 
     Task<bool> IsNameTakenAsync(Guid semesterId, string courseCode, string name, Guid? exceptTeamId, CancellationToken ct);
@@ -167,6 +170,9 @@ public sealed class TeamRepository(TeamDbContext db) : ITeamRepository
             .OrderByDescending(m => m.JoinedAt)
             .Select(m => (Guid?)m.TeamId)
             .FirstOrDefaultAsync(ct);
+
+    public Task<int> CountActiveTeamsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
+        db.Set<TeamEntity>().CountAsync(t => t.SemesterId == semesterId && t.CourseCode == courseCode && t.Status != "DISBANDED", ct);
 
     public Task<bool> IsStudentInTeamAsync(Guid semesterId, Guid studentId, CancellationToken ct) =>
         db.Set<TeamMember>().AnyAsync(m => m.SemesterId == semesterId && m.StudentId == studentId, ct);

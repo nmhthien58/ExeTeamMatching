@@ -5,8 +5,11 @@ using Team.Services.Academic;
 namespace Team.Services.Teams;
 
 /// <summary>Danh mục của Academic để gắn tên domain / chuyên ngành; rỗng khi Academic không trả lời (chỉ mất tên, không mất dữ liệu).</summary>
-public sealed record Catalogs(IReadOnlyDictionary<int, CatalogItem> Domains, IReadOnlyDictionary<int, CatalogItem> Specializations)
+public sealed record Catalogs(IReadOnlyDictionary<int, CatalogItem> Domains, IReadOnlyDictionary<int, CatalogItem> Specializations, TeamRuleSet? Rules = null)
 {
+    /// <summary>Quy tắc lập nhóm đi kèm danh mục để thẻ nhóm hiện đúng sĩ số theo W05 (BE-90).</summary>
+    public TeamRuleSet TeamRules => Rules ?? TeamRuleSet.Default;
+
     public static readonly Catalogs Empty = new(new Dictionary<int, CatalogItem>(), new Dictionary<int, CatalogItem>());
 
     public CatalogRef Specialization(int id) =>
@@ -20,6 +23,7 @@ public static class TeamMapper
         var team = g.Team;
         var memberCount = g.Members.Count;
         var specializationCount = g.Members.Select(m => m.SpecializationId).Distinct().Count();
+        var rules = catalogs.TeamRules;
         return new TeamCardResponse
         {
             Id = team.Id,
@@ -31,13 +35,13 @@ public static class TeamMapper
             Status = team.Status,
             Domains = g.Domains.Select(d => new CatalogRef(d.DomainId, d.DomainCode, catalogs.Domains.GetValueOrDefault(d.DomainId)?.Name)).ToList(),
             MemberCount = memberCount,
-            OpenSlots = Math.Max(0, TeamRules.MaxSize - memberCount),
+            OpenSlots = Math.Max(0, rules.MaxSize - memberCount),
             Leader = g.Members.FirstOrDefault(m => m.Role == MemberRoles.Leader) is { } leader ? ToRef(leader, catalogs) : null,
             LecturerName = g.LecturerName,
             MentorName = g.MentorName,
             // missingSpecializations cần biết nhóm cần chuyên ngành nào (bài tuyển, BE-31) – hiện để trống.
-            Requirement = new TeamRequirement(memberCount, TeamRules.MinSize, TeamRules.MaxSize, specializationCount, TeamRules.MinSpecializations,
-                TeamRules.IsValid(memberCount, specializationCount), []),
+            Requirement = new TeamRequirement(memberCount, rules.MinSize, rules.MaxSize, specializationCount, rules.MinSpecializations,
+                TeamRules.IsValid(memberCount, specializationCount, rules), []),
         };
     }
 

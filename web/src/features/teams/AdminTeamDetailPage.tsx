@@ -76,7 +76,7 @@ function Detail({ team }: { team: FullTeam }) {
                 ask(
                   finalized
                     ? { action: { kind: 'reopen' }, title: 'Mở lại nhóm?', body: 'Nhóm trở lại trạng thái đang hoạt động, thành viên sửa được nhóm.', confirm: 'Mở lại', done: 'Đã mở lại nhóm' }
-                    : { action: { kind: 'finalize' }, title: 'Chốt nhóm?', body: 'Hệ thống kiểm tra 4–6 thành viên và ít nhất 2 chuyên ngành; sau khi chốt nhóm không tự đổi thành viên được.', confirm: 'Chốt nhóm', done: 'Đã chốt nhóm' },
+                    : { action: { kind: 'finalize' }, title: 'Chốt nhóm?', body: `Hệ thống kiểm tra ${team.requirement?.minSize ?? 4}–${team.requirement?.maxSize ?? 6} thành viên và ít nhất ${team.requirement?.minSpecializations ?? 2} chuyên ngành; sau khi chốt nhóm không tự đổi thành viên được.`, confirm: 'Chốt nhóm', done: 'Đã chốt nhóm' },
                 )
               }
             >

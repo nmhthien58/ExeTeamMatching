@@ -1,6 +1,7 @@
 using BuildingBlocks.Errors;
 using ExeTeamMatching.Protos.Matching.V1;
 using Grpc.Core;
+using Team.Services.Academic;
 using Team.Services.Teams;
 
 namespace Team.Services.Matching;
@@ -51,29 +52,34 @@ public interface IMatchingClient
         IReadOnlyCollection<AdvisorMatchingTeam> teams, IReadOnlyCollection<AdvisorMatchingAdvisor> advisors, CancellationToken ct);
 }
 
-public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc) : IMatchingClient
+public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc, IAcademicClient academic) : IMatchingClient
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
-    public Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct) =>
-        CallAsync(async options =>
+    public async Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct)
+    {
+        var rules = await academic.GetTeamRulesAsync(ct);
+        return await CallAsync(async options =>
         {
             var request = new ValidateCompositionRequest
             {
-                MinSize = TeamRules.MinSize, MaxSize = TeamRules.MaxSize, MinSpecializations = TeamRules.MinSpecializations,
+                MinSize = rules.MinSize, MaxSize = rules.MaxSize, MinSpecializations = rules.MinSpecializations,
             };
             request.Members.AddRange(members.Select(m => new MemberInfo { StudentId = m.StudentId.ToString(), SpecializationId = m.SpecializationId }));
             var response = await grpc.ValidateCompositionAsync(request, options);
             return new CompositionCheck(response.IsValid, response.Violations.Select(v => v.Code).ToList(), response.Violations.Select(v => v.Message).ToList());
         }, ct);
+    }
 
-    public Task<AutoAssignPlan> PlanAutoAssignmentAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
-        CallAsync(async options =>
+    public async Task<AutoAssignPlan> PlanAutoAssignmentAsync(Guid semesterId, string courseCode, CancellationToken ct)
+    {
+        var rules = await academic.GetTeamRulesAsync(ct);
+        return await CallAsync(async options =>
         {
             var response = await grpc.PlanAutoAssignmentAsync(new PlanAutoAssignmentRequest
             {
                 SemesterId = semesterId.ToString(), Course = ToCourse(courseCode),
-                MinSize = TeamRules.MinSize, MaxSize = TeamRules.MaxSize, MinSpecializations = TeamRules.MinSpecializations,
+                MinSize = rules.MinSize, MaxSize = rules.MaxSize, MinSpecializations = rules.MinSpecializations,
             }, options);
             return new AutoAssignPlan(
                 response.Fills.Select(f => new PlannedFill(Guid.Parse(f.TeamId), f.StudentIds.Select(Guid.Parse).ToList())).ToList(),
@@ -81,6 +87,7 @@ public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc) :
                     t.Members.Select(m => Guid.Parse(m.StudentId)).ToList())).ToList(),
                 response.UnassignedStudentIds.Select(Guid.Parse).ToList());
         }, ct);
+    }
 
     public Task<SuggestedMembers> SuggestMembersAsync(Guid semesterId, string courseCode, Guid teamId, int limit, CancellationToken ct) =>
         CallAsync(async options =>
