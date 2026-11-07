@@ -109,6 +109,32 @@ paths:
       summary: Thành viên rời nhóm (trưởng nhóm phải chuyển quyền trước)
       parameters: [ { $ref: '#/components/parameters/TeamId' } ]
       responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MemberChangeResult' } } } }, '409': { $ref: '#/components/responses/Problem' } }
+  /api/teams/{teamId}/leader-votes/current:
+    get:
+      tags: [LeaderVotes]
+      summary: Đề nghị đổi nhóm trưởng đang mở (BE-88)
+      parameters: [{ name: teamId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LeaderVote' } } } }, '204': { description: Không có đề nghị đang mở } }
+  /api/teams/{teamId}/leader-votes:
+    post:
+      tags: [LeaderVotes]
+      summary: Mở đề nghị đổi nhóm trưởng (409 leader-vote-open, leader-vote-not-allowed)
+      parameters: [{ name: teamId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [nomineeStudentId], properties: { nomineeStudentId: { type: string, format: uuid }, reason: { type: string, maxLength: 300 } } } } } }
+      responses: { '201': { description: Đã mở, content: { application/json: { schema: { $ref: '#/components/schemas/LeaderVote' } } } } }
+  /api/teams/{teamId}/leader-votes/{voteId}/ballot:
+    put:
+      tags: [LeaderVotes]
+      summary: Bỏ hoặc đổi phiếu; trả đề nghị sau khi đếm (409 leader-vote-closed)
+      parameters: [{ name: teamId, in: path, required: true, schema: { type: string, format: uuid } }, { name: voteId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [approve], properties: { approve: { type: boolean } } } } } }
+      responses: { '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/LeaderVote' } } } } }
+  /api/teams/{teamId}/leader-votes/{voteId}:
+    delete:
+      tags: [LeaderVotes]
+      summary: Người đề nghị rút đề nghị
+      parameters: [{ name: teamId, in: path, required: true, schema: { type: string, format: uuid } }, { name: voteId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '204': { description: Đã rút } }
   /api/teams/{teamId}/transfer-leader:
     post:
       tags: [Members]
@@ -668,6 +694,9 @@ components:
       description: Lỗi theo RFC 7807
       content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
   schemas:
+    LeaderVote:
+      type: object
+      properties: { id: { type: string, format: uuid }, teamId: { type: string, format: uuid }, status: { type: string, enum: [OPEN, PASSED, REJECTED, EXPIRED, CANCELLED] }, nominee: { type: object, properties: { studentId: { type: string, format: uuid }, fullName: { type: string } } }, proposedBy: { type: object, properties: { studentId: { type: string, format: uuid }, fullName: { type: string } } }, reason: { type: string }, createdAt: { type: string, format: date-time }, expiresAt: { type: string, format: date-time }, approveCount: { type: integer }, rejectCount: { type: integer }, requiredApprovals: { type: integer }, memberCount: { type: integer }, myBallot: { type: boolean, nullable: true }, canWithdraw: { type: boolean } }
     Problem:
       type: object
       properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string }, traceId: { type: string }, errors: { type: object, additionalProperties: { type: array, items: { type: string } } } }

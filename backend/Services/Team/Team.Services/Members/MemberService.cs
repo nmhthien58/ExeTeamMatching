@@ -4,6 +4,7 @@ using Team.Repositories.AuditLog;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
+using Team.Services.LeaderVotes;
 using Team.Services.Teams;
 
 namespace Team.Services.Members;
@@ -28,7 +29,7 @@ public interface IMemberService
 /// <summary>Module Members của Team Service (BE-30, rule 1, 6, 7, 10, 15).</summary>
 public sealed class MemberService(
     ITeamRepository teams, IMemberRepository members, MembershipService membership, RoundGuard rounds, AuditLogWriter audit,
-    ITeamService teamService) : IMemberService
+    ITeamService teamService, LeaderVoteCloser leaderVotes) : IMemberService
 {
     public async Task<MemberChangeResult> RemoveAsync(Guid teamId, Guid studentId, ClaimsPrincipal user, CancellationToken ct)
     {
@@ -75,6 +76,7 @@ public sealed class MemberService(
         audit.Add(team.Id, "TeamMember", target.StudentId, "LEADER_CHANGED", user.ToAuditActor(),
             new { leader = me.StudentCode }, new { leader = target.StudentCode });
         members.AddEvent(MemberEventTypes.LeaderChanged, team.Id, new LeaderChanged(team.Id, me.StudentId, target.StudentId));
+        await leaderVotes.CancelOpenAsync(team, current, onlyNominee: null, ct);
         await members.SaveChangesAsync(ct);
         return new(true, await teamService.GetAsync(teamId, user, ct));
     }

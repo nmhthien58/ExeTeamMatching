@@ -5,6 +5,7 @@ import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../discover/posts_api.dart' show RecruitmentPost;
 import '../suggestions/suggestions_api.dart' show CatalogRef, myTeamProvider;
+import 'leader_vote.dart' show LeaderVote;
 
 // Model theo docs/contracts/openapi/team.yaml (tag Teams, Members, Invitations, JoinRequests) – các trường S13–S17, S20 dùng.
 
@@ -243,6 +244,27 @@ class MyTeamApi {
 
   Future<MemberChange> transferLeader(String teamId, String studentId) =>
       _change(() => _dio.post<Map<String, dynamic>>('/api/teams/$teamId/transfer-leader', data: {'studentId': studentId}));
+
+  /// Đề nghị đổi nhóm trưởng đang mở (BE-88); API trả 204 khi không có.
+  Future<LeaderVote?> currentLeaderVote(String teamId) => _call(() async {
+        final response = await _dio.get<dynamic>('/api/teams/$teamId/leader-votes/current');
+        return response.data is Map ? LeaderVote.fromJson(_map(response.data)) : null;
+      });
+
+  Future<LeaderVote> openLeaderVote(String teamId, String nomineeStudentId, String reason) => _call(() async {
+        final response = await _dio.post<Map<String, dynamic>>('/api/teams/$teamId/leader-votes',
+            data: {'nomineeStudentId': nomineeStudentId, if (reason.isNotEmpty) 'reason': reason});
+        return LeaderVote.fromJson(response.data!);
+      });
+
+  Future<LeaderVote> castLeaderBallot(String teamId, String voteId, bool approve) => _call(() async {
+        final response = await _dio.put<Map<String, dynamic>>('/api/teams/$teamId/leader-votes/$voteId/ballot', data: {'approve': approve});
+        return LeaderVote.fromJson(response.data!);
+      });
+
+  Future<void> withdrawLeaderVote(String teamId, String voteId) => _call(() async {
+        await _dio.delete<void>('/api/teams/$teamId/leader-votes/$voteId');
+      });
 
   Future<List<JoinRequestItem>> joinRequests(String teamId) => _call(() async {
         final response = await _dio.get<List<dynamic>>('/api/teams/$teamId/join-requests', queryParameters: {'status': 'PENDING'});

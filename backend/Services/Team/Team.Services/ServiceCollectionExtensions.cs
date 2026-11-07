@@ -18,6 +18,7 @@ using Team.Services.Invitations;
 using Team.Services.JoinRequests;
 using Team.Services.LecturerPreferences;
 using Team.Services.Matching;
+using Team.Services.LeaderVotes;
 using Team.Services.Members;
 using Team.Services.Posts;
 using Team.Services.Projects;
@@ -53,7 +54,7 @@ public static class ServiceCollectionExtensions
             .AddHttpMessageHandler<ServiceTokenHandler>();
 
         // Module: Teams, Members, Invitations, JoinRequests, Posts, AuditLog (Cường); Finalization, AutoAssign… (Nguyên); ChangeRequests, BaselineImport, AdvisorAssignments, LecturerPreferences, TopicInterests… (Thành).
-        services.AddTeamsModule().AddMembersModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
+        services.AddTeamsModule().AddMembersModule().AddLeaderVotesModule().AddInvitationsModule().AddJoinRequestsModule().AddPostsModule()
             .AddAuditLogModule().AddChangeRequestsModule().AddBaselineImportModule()
             .AddAdvisorAssignmentsModule().AddLecturerPreferencesModule().AddTopicInterestsModule();
         services.AddProjectsModule();

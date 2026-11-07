@@ -141,6 +141,11 @@ CREATE TABLE team.team_domains (
 CREATE INDEX idx_team_domains_domain_code ON team.team_domains (domain_code);
 CREATE UNIQUE INDEX uq_team_domains_primary ON team.team_domains (team_id) WHERE is_primary;
 
+-- ---------- Bỏ phiếu đổi nhóm trưởng (BE-88) ----------
+\ir migrations/BE-88_leader_votes.sql
+SET ROLE team_svc;
+SET search_path = team, public;
+
 -- ---------- Lời mời, yêu cầu tham gia (rule 8: hết hạn 72 giờ) ----------
 CREATE TABLE team.invitations (
     id                    uuid         NOT NULL DEFAULT gen_random_uuid(),

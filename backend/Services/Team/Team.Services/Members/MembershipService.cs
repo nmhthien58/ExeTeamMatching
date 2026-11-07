@@ -3,6 +3,7 @@ using Team.Repositories.ChangeRequests;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
+using Team.Services.LeaderVotes;
 using Team.Services.Teams;
 
 namespace Team.Services.Members;
@@ -27,7 +28,7 @@ public sealed record LeaderChanged(Guid TeamId, Guid OldLeaderStudentId, Guid Ne
 /// Nhóm EXE201 kế thừa (rule 7): không đổi thành viên ngay mà ghi thay đổi chờ duyệt (<see cref="ChangeRequestItem"/> chưa gắn yêu cầu);
 /// gom vào yêu cầu đổi nhóm và duyệt thuộc module ChangeRequests.
 /// </summary>
-public sealed class MembershipService(IMemberRepository members, ITeamRepository teams, AuditLogWriter audit, IAcademicClient academic, TimeProvider clock)
+public sealed class MembershipService(IMemberRepository members, ITeamRepository teams, AuditLogWriter audit, LeaderVoteCloser leaderVotes, IAcademicClient academic, TimeProvider clock)
 {
     /// <summary>
     /// Thêm sinh viên vào nhóm; true nếu vào ngay, false nếu thành thay đổi chờ duyệt.
@@ -87,7 +88,9 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
             return false;
         }
 
-        var count = (await members.ListAsync(team.Id, ct)).Count - 1;
+        var current = await members.ListAsync(team.Id, ct);
+        var count = current.Count - 1;
+        await leaderVotes.CancelOpenAsync(team, current, member.StudentId, ct);
         members.Remove(member);
         team.Status = TeamRules.StatusAfterMemberChange(team.Status, count, await academic.GetTeamRulesAsync(ct));
         audit.Add(team.Id, "TeamMember", member.StudentId, reason == "LEAVE" ? "MEMBER_LEFT" : "MEMBER_REMOVED", actor,
