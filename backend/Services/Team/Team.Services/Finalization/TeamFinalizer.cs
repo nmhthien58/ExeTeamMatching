@@ -1,6 +1,7 @@
 using Team.Repositories.AuditLog;
 using Team.Repositories.Members;
 using Team.Repositories.Teams;
+using Team.Services.Academic;
 using Team.Services.Matching;
 using Team.Services.Teams;
 
@@ -8,9 +9,10 @@ namespace Team.Services.Finalization;
 
 /// <summary>
 /// Chốt nhóm / đưa nhóm vào "Cần xem lại" (rule 13, 14), dùng chung cho đóng đợt, Admin và ghép tự động.
-/// Điều kiện hợp lệ (rule 1, 2) hỏi Matching.ValidateComposition; trigger <c>check_team_composition</c> của team_db chặn lần cuối lúc COMMIT.
+/// Điều kiện hợp lệ (rule 1, 2, theo cấu hình W05) hỏi Matching.ValidateComposition; trigger <c>check_team_composition</c> của team_db chỉ giữ
+/// giới hạn cứng (đúng 1 trưởng nhóm, không vượt khung W05) vì DB không đọc được cấu hình của Academic.
 /// </summary>
-public sealed class TeamFinalizer(IMatchingClient matching, ITeamRepository teams, AuditLogWriter audit, TimeProvider clock)
+public sealed class TeamFinalizer(IMatchingClient matching, ITeamRepository teams, IAcademicClient academic, AuditLogWriter audit, TimeProvider clock)
 {
     public const string BySystem = "SYSTEM";
     public const string ByAdmin = "ADMIN";
@@ -43,7 +45,7 @@ public sealed class TeamFinalizer(IMatchingClient matching, ITeamRepository team
     {
         if (team.Status is TeamStatuses.Draft or TeamStatuses.Active)
         {
-            team.Status = TeamRules.StatusAfterMemberChange(team.Status, members.Count);
+            team.Status = TeamRules.StatusAfterMemberChange(team.Status, members.Count, await academic.GetTeamRulesAsync(ct));
         }
         else if (team.Status == TeamStatuses.Finalized && await CheckAsync(members, ct) is { IsValid: false } check)
         {

@@ -46,7 +46,7 @@ void main() {
     test('lỗi nghiệp vụ → câu riêng; mã lạ → detail', () async {
       api.error = const ApiException(status: 409, code: 'team-full', title: 'Conflict');
       expect(await vm().send(''), isFalse);
-      expect(state().error, 'Nhóm đã đủ 6 người.');
+      expect(state().error, 'Nhóm đã đủ người.');
       api.error = const ApiException(status: 409, code: 'other', title: 'Conflict', detail: 'Chi tiết');
       await vm().send('');
       expect((state().error, state().sending), ('Chi tiết', false));

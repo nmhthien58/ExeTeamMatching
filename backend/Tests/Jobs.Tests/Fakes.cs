@@ -48,6 +48,10 @@ public sealed class FakeJobClient : IBackgroundJobClient
 
 public sealed class FakeAcademic : IAcademicClient
 {
+    public TeamRuleSettings? Rules { get; set; }
+
+    public Task<TeamRuleSettings?> GetTeamRulesAsync(CancellationToken ct) => Task.FromResult(Rules);
+
     public Dictionary<string, RoundDto> OpenRounds { get; } = [];
     public List<Guid> Closed { get; } = [];
 

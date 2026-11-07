@@ -19,7 +19,7 @@ function useDebounced<T>(value: T, ms = 300) {
 
 /**
  * S19 – Tìm và mời sinh viên (FE-40): tìm theo tên / MSSV, lọc chuyên ngành, chỉ sinh viên chưa có nhóm; gửi lời mời kèm lời nhắn.
- * Trạng thái: kết quả; không tìm thấy; nhóm đã đủ 6 người; đang gửi.
+ * Trạng thái: kết quả; không tìm thấy; nhóm đã đủ người; đang gửi.
  */
 export function InviteStudentsPage() {
   const team = useMyTeam()
@@ -38,7 +38,7 @@ export function InviteStudentsPage() {
     <>
       <PageHeader title="Mời sinh viên" />
       <div className="flex flex-col gap-4">
-        {isFull && <Banner tone="success" title="Nhóm đã đủ 6 người">Không gửi thêm lời mời được.</Banner>}
+        {isFull && <Banner tone="success" title={`Nhóm đã đủ ${team.data?.requirement?.maxSize ?? 6} người`}>Không gửi thêm lời mời được.</Banner>}
         {team.data && !isLeader && <p className="text-body text-text-secondary">Chỉ trưởng nhóm gửi được lời mời.</p>}
 
         <div className="flex flex-wrap gap-3">

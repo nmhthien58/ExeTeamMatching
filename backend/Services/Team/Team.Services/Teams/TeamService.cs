@@ -50,6 +50,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
             throw TeamErrors.AlreadyInTeam();
         }
 
+        await RequireTeamQuotaAsync(semester.Id, me.CourseCode, ct);
         var name = input.Name.Trim();
         await RequireUniqueNameAsync(semester.Id, me.CourseCode, name, null, ct);
         var domains = await ResolveDomainsAsync(input, ct);
@@ -165,7 +166,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         var teamPhase = await rounds.PhaseAsync(team.CourseCode, team.SemesterId, ct);
         var nextAction = TeamRules.NextAction(new NextActionInput(true, isLeader, teamPhase, team.Status, graph.Members.Count,
             graph.Members.Select(m => m.SpecializationId).Distinct().Count(), stats.HasLecturer, stats.HasLecturerPreferences,
-            stats.HasUnsubmittedChanges, stats.HasPendingChangeRequest));
+            stats.HasUnsubmittedChanges, stats.HasPendingChangeRequest, await academic.GetTeamRulesAsync(ct)));
         return new TeamHomeResponse(TeamMapper.ToCard(graph, await reader.LoadCatalogsAsync(ct)), isLeader, invitations,
             isLeader ? stats.PendingJoinRequests : 0, nextAction, teamPhase, stats.InterestedLecturers, team.IsAutoAssigned);
     }
@@ -188,12 +189,24 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
             courseCode = query.CourseCode;
         }
 
+        var rules = await academic.GetTeamRulesAsync(ct);
         var (ids, total) = await teams.SearchAsync(new TeamSearch(semesterId, courseCode, query.Search, query.Domain, query.MissingSpecializationId,
-            query.MinOpenSlots, query.Status, query.InvalidOnly, HideFullAndDisbanded: studentView, TeamRules.MaxSize, TeamRules.MinSize,
-            TeamRules.MinSpecializations, query.Sort, query.Page, query.PageSize), ct);
+            query.MinOpenSlots, query.Status, query.InvalidOnly, HideFullAndDisbanded: studentView, rules.MaxSize, rules.MinSize,
+            rules.MinSpecializations, query.Sort, query.Page, query.PageSize), ct);
         var catalogs = await reader.LoadCatalogsAsync(ct);
         var cards = (await teams.ListGraphsAsync(ids, ct)).Select(g => TeamMapper.ToCard(g, catalogs)).ToList();
         return new PagedResponse<TeamCardResponse>(cards, query.Page, query.PageSize, total, (total + query.PageSize - 1) / query.PageSize);
+    }
+
+    /// <summary>BE-89: chặn tạo nhóm khi số nhóm của môn trong kỳ (trừ đã giải tán) đạt floor(số sinh viên × hệ số ở W05).</summary>
+    private async Task RequireTeamQuotaAsync(Guid semesterId, string courseCode, CancellationToken ct)
+    {
+        var rules = await academic.GetTeamRulesAsync(ct);
+        var students = await academic.ListSemesterStudentsAsync(semesterId, courseCode, ct);
+        if (rules.MaxTeams(students.Count) is { } maxTeams && await teams.CountActiveTeamsAsync(semesterId, courseCode, ct) >= maxTeams)
+        {
+            throw TeamErrors.TeamLimitReached(maxTeams);
+        }
     }
 
     private async Task RequireUniqueNameAsync(Guid semesterId, string courseCode, string name, Guid? exceptTeamId, CancellationToken ct)

@@ -92,7 +92,7 @@ public sealed class FinalizationService(
             if (await rounds.PhaseAsync(team.CourseCode, team.SemesterId, ct) == Phases.TeamFormation)
             {
                 var count = (await members.ListAsync(teamId, ct)).Count;
-                (team.Status, team.FinalizedAt) = (TeamRules.StatusAfterMemberChange(TeamStatuses.Active, count), null);
+                (team.Status, team.FinalizedAt) = (TeamRules.StatusAfterMemberChange(TeamStatuses.Active, count, await rounds.TeamRulesAsync(ct)), null);
                 audit.Add(team.Id, "Team", team.Id, "TEAM_REOPENED", actor, new { status = TeamStatuses.Finalized }, new { status = team.Status });
             }
             else
@@ -108,9 +108,10 @@ public sealed class FinalizationService(
     {
         var team = await RequireTeamAsync(teamId, ct);
         var current = await members.ListAsync(teamId, ct);
-        if (current.Count >= TeamRules.MaxSize)
+        var maxSize = (await rounds.TeamRulesAsync(ct)).MaxSize;
+        if (current.Count >= maxSize)
         {
-            throw TeamErrors.TeamFull();
+            throw TeamErrors.TeamFull(maxSize);
         }
         var student = await rounds.LookupAsync(team.SemesterId, request.StudentId, ct);
         if (student.CourseCode != team.CourseCode)
@@ -164,9 +165,10 @@ public sealed class FinalizationService(
         var sourceMembers = await members.ListAsync(source.Id, ct);
         var moving = sourceMembers.FirstOrDefault(m => m.StudentId == studentId) ?? throw TeamErrors.MemberNotFound(studentId);
         var targetMembers = await members.ListAsync(target.Id, ct);
-        if (targetMembers.Count >= TeamRules.MaxSize)
+        var maxSize = (await rounds.TeamRulesAsync(ct)).MaxSize;
+        if (targetMembers.Count >= maxSize)
         {
-            throw TeamErrors.TeamFull();
+            throw TeamErrors.TeamFull(maxSize);
         }
 
         var actor = user.ToAuditActor();

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fieldRules, validateRules, type RuleValues } from './api'
 
 const get = vi.fn()
 const put = vi.fn()
@@ -18,7 +19,7 @@ const { PageHeaderProvider } = await import('@/shared/layout/PageHeader')
 
 const settings = {
   minTeamSize: 4, maxTeamSize: 6, minSpecializations: 2, invitationExpiryHours: 72, reminderHours: [72, 24],
-  maxIdeasPerJoinRequest: 3, interestExtraSlots: 2, maxInterestsUnlimited: 10, maxLecturerPreferences: 3, maxFileSizeMb: 25,
+  maxIdeasPerJoinRequest: 3, interestExtraSlots: 2, maxInterestsUnlimited: 10, maxLecturerPreferences: 3, maxFileSizeMb: 25, maxTeamRatio: 0.2,
 }
 const batches = [
   { id: 'b1', semesterId: 'fa', fileName: 'ds-exe101.xlsx', totalRows: 120, successRows: 118, failedRows: 2, status: 'COMPLETED', importedByName: 'Dev Admin', createdAt: '2026-10-30T03:00:00Z' },
@@ -59,6 +60,12 @@ describe('W05 – Cấu hình quy tắc (FE-11)', () => {
   beforeEach(() => {
     get.mockReset()
     put.mockReset()
+  })
+
+  it('accepts a decimal team ratio and rejects one out of range', () => {
+    const values = { ...Object.fromEntries(Object.entries(fieldRules).map(([k, r]) => [k, String(r.min)])), maxTeamSize: '6', reminderHours: '72' } as RuleValues
+    expect(validateRules({ ...values, maxTeamRatio: '0.2' }).maxTeamRatio).toBeUndefined()
+    expect(validateRules({ ...values, maxTeamRatio: '1.5' }).maxTeamRatio).toBe('Từ 0.01 đến 1.')
   })
 
   it('loads the current settings and saves a change with reminders sorted', async () => {

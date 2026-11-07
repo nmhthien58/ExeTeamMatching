@@ -80,6 +80,7 @@ public sealed class AutoAssignService(
         List<StudentSnapshot> Take(IEnumerable<Guid> ids, int max) =>
             ids.Where(id => snapshots.ContainsKey(id) && !placed.Contains(id)).Take(max).Select(id => { placed.Add(id); return snapshots[id]; }).ToList();
 
+        var maxSize = (await academic.GetTeamRulesAsync(ct)).MaxSize;
         var filled = new List<Guid>();
         foreach (var fill in fills)
         {
@@ -90,7 +91,7 @@ public sealed class AutoAssignService(
                 continue;
             }
             var current = await members.ListAsync(team.Id, ct);
-            var students = Take(fill.StudentIds, TeamRules.MaxSize - current.Count);
+            var students = Take(fill.StudentIds, maxSize - current.Count);
             if (students.Count == 0)
             {
                 continue;
@@ -104,7 +105,7 @@ public sealed class AutoAssignService(
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var plan in newTeams)
         {
-            var students = Take(plan.StudentIds, TeamRules.MaxSize);
+            var students = Take(plan.StudentIds, maxSize);
             if (students.Count == 0)
             {
                 continue;

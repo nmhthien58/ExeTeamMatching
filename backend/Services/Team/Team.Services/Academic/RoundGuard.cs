@@ -6,6 +6,9 @@ namespace Team.Services.Academic;
 /// <summary>Kiểm tra học kỳ, sinh viên và đợt đang mở qua Academic – dùng chung cho các module của Team Service (rule 4, 5, 6, 18).</summary>
 public sealed class RoundGuard(IAcademicClient academic)
 {
+    /// <summary>Quy tắc lập nhóm hiện hành (W05).</summary>
+    public Task<Teams.TeamRuleSet> TeamRulesAsync(CancellationToken ct) => academic.GetTeamRulesAsync(ct);
+
     /// <summary>Học kỳ hiện hành và snapshot của sinh viên; 403 not-in-list nếu không thuộc học kỳ (rule 5).</summary>
     public async Task<(SemesterDto Semester, StudentSnapshot Student)> ResolveStudentAsync(Guid studentId, CancellationToken ct)
     {

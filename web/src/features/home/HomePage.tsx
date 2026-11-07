@@ -11,6 +11,7 @@ import { useMyCourse, usePhases } from '@/shared/phase/usePhase'
 import { formatDateTime } from '@/features/workspace/format'
 import { useSuggestedTeams, type TeamCard } from '@/features/suggestions/api'
 import { TeamRequirementBar, TeamSuggestionCard } from '@/features/suggestions/components'
+import { useTeamRules } from '@/shared/lib/teamRules'
 
 /** `GET /api/teams/me/home` (team.yaml). */
 interface HomeData {
@@ -26,8 +27,8 @@ interface HomeData {
 /** Việc nên làm theo nextAction: tiêu đề, mô tả, nút (chỉ trưởng nhóm với việc của nhóm), đường dẫn. */
 const actions: Record<string, { title: string; text: string; button?: string; to?: string; leaderOnly?: boolean }> = {
   CREATE_OR_JOIN: { title: 'Bạn chưa có nhóm', text: 'Tạo nhóm mới hoặc xin vào một nhóm đang tuyển.', button: 'Tạo nhóm', to: '/sv/nhom/tao' },
-  INVITE_MEMBERS: { title: 'Nhóm cần thêm thành viên', text: 'Nhóm cần 4–6 người.', button: 'Mời thành viên', to: '/sv/nhom/goi-y', leaderOnly: true },
-  ADD_SPECIALIZATION: { title: 'Nhóm cần thêm chuyên ngành', text: 'Nhóm cần ít nhất 2 chuyên ngành.', button: 'Gợi ý thành viên', to: '/sv/nhom/goi-y', leaderOnly: true },
+  INVITE_MEMBERS: { title: 'Nhóm cần thêm thành viên', text: 'Nhóm cần {minSize}–{maxSize} người.', button: 'Mời thành viên', to: '/sv/nhom/goi-y', leaderOnly: true },
+  ADD_SPECIALIZATION: { title: 'Nhóm cần thêm chuyên ngành', text: 'Nhóm cần ít nhất {minSpecializations} chuyên ngành.', button: 'Gợi ý thành viên', to: '/sv/nhom/goi-y', leaderOnly: true },
   CHOOSE_LECTURER: { title: 'Chọn giảng viên', text: 'Thêm nguyện vọng giảng viên trước hạn.', button: 'Xem nhóm', to: '/sv/nhom' },
   SUBMIT_CHANGE_REQUEST: { title: 'Gửi yêu cầu đổi nhóm', text: 'Nhóm có thay đổi chưa gửi Bộ môn.', button: 'Xem nhóm', to: '/sv/nhom' },
   WAIT_REVIEW: { title: 'Đang chờ Bộ môn duyệt', text: 'Yêu cầu đổi nhóm đang được xem xét.' },
@@ -105,6 +106,8 @@ function Hero({ data, firstName }: { data: HomeData; firstName?: string }) {
   const phases = usePhases()
   const phase = phases.data?.find((p) => p.courseCode === myCourse.data) ?? phases.data?.[0]
   const action = actions[data.nextAction]
+  const rules = useTeamRules()
+  const actionText = action?.text.replace('{minSize}', String(rules.minSize)).replace('{maxSize}', String(rules.maxSize)).replace('{minSpecializations}', String(rules.minSpecializations))
   const deadline = data.phase === 'TEAM_FORMATION' ? phase?.teamFormationDeadlineAt : undefined
   const days = deadline ? Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000)) : undefined
   const showButton = !!action?.button && (!action.leaderOnly || data.isLeader)
@@ -121,7 +124,7 @@ function Hero({ data, firstName }: { data: HomeData; firstName?: string }) {
           <h2 className="mt-2 text-[30px] font-semibold leading-10 tracking-[-0.015em]">Chào {firstName ?? 'bạn'}</h2>
           {action && (
             <p className="mt-1 max-w-[560px] text-body text-ink-text">
-              <span className="font-semibold text-white">{action.title}.</span> {action.text}
+              <span className="font-semibold text-white">{action.title}.</span> {actionText}
             </p>
           )}
           {(showButton || canExplore) && (

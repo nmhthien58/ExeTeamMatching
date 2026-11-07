@@ -49,7 +49,7 @@ class _SuggestedMembersScreenState extends ConsumerState<SuggestedMembersScreen>
     final theme = Theme.of(context);
     final suggestions = ref.watch(memberSuggestionsProvider(team.card.id));
     final header = <Widget>[
-      if (team.isFull) const Padding(padding: EdgeInsets.only(bottom: AppSpacing.s3), child: StatusChip(label: 'Nhóm đã đủ 6 người', tone: StatusTone.success)),
+      if (team.isFull) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.s3), child: StatusChip(label: 'Nhóm đã đủ ${team.card.maxSize} người', tone: StatusTone.success)),
       if (!team.isLeader)
         Padding(padding: const EdgeInsets.only(bottom: AppSpacing.s3), child: Text('Chỉ trưởng nhóm gửi được lời mời.', style: theme.textTheme.bodyMedium)),
       if ((suggestions.value?.missingSpecializations ?? const []).isNotEmpty)
