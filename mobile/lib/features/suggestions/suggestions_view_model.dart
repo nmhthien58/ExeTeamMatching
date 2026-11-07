@@ -8,7 +8,7 @@ import '../../core/firebase/remote_config_service.dart';
 
 /// Câu báo lỗi nghiệp vụ khi gửi lời mời (S18, S19).
 const inviteErrors = {
-  'team-full': 'Nhóm đã đủ 6 người.',
+  'team-full': 'Nhóm đã đủ người.',
   'already-in-team': 'Sinh viên này vừa vào một nhóm khác.',
   'pending-exists': 'Bạn đã mời sinh viên này, lời mời còn hiệu lực.',
   'round-closed': 'Đợt lập nhóm đã đóng, không gửi được lời mời.',

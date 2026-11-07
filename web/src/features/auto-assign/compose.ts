@@ -1,10 +1,6 @@
 import type { StudentRef } from '@/features/suggestions/api'
+import { DEFAULT_TEAM_RULES, type TeamRules } from '@/shared/lib/teamRules'
 import type { MemberMove } from './api'
-
-/** Quy tắc 1, 2 – giống ValidateComposition của Matching. */
-export const MIN_SIZE = 4
-export const MAX_SIZE = 6
-export const MIN_SPECIALIZATIONS = 2
 
 export interface DraftTeam {
   id: string
@@ -19,15 +15,15 @@ export interface Composition {
   problems: string[]
 }
 
-/** Kiểm tra tại chỗ khi Admin chuyển sinh viên (W21): sĩ số 4–6 và ít nhất 2 chuyên ngành. */
-export function checkComposition(members: StudentRef[]): Composition {
+/** Kiểm tra tại chỗ khi Admin chuyển sinh viên (W21) theo quy tắc W05, giống ValidateComposition của Matching. */
+export function checkComposition(members: StudentRef[], rules: TeamRules = DEFAULT_TEAM_RULES): Composition {
   const count = members.length
   const specializations = new Set(members.map((m) => m.specialization?.id).filter((id) => id !== undefined)).size
   const problems: string[] = []
-  if (count < MIN_SIZE) problems.push(`Thiếu ${MIN_SIZE - count} người`)
-  if (count > MAX_SIZE) problems.push(`Quá ${count - MAX_SIZE} người`)
-  if (specializations < MIN_SPECIALIZATIONS) problems.push('Cần thêm chuyên ngành thứ hai')
-  return { isValid: problems.length === 0, tooMany: count > MAX_SIZE, problems }
+  if (count < rules.minSize) problems.push(`Thiếu ${rules.minSize - count} người`)
+  if (count > rules.maxSize) problems.push(`Quá ${count - rules.maxSize} người`)
+  if (specializations < rules.minSpecializations) problems.push(`Cần ít nhất ${rules.minSpecializations} chuyên ngành`)
+  return { isValid: problems.length === 0, tooMany: count > rules.maxSize, problems }
 }
 
 /**

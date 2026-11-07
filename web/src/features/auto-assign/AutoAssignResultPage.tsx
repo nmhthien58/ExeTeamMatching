@@ -11,6 +11,7 @@ import { formatDateTime } from '@/features/workspace/format'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { PartialSaveError, useAutoAssignResult, useRunAutoAssign, useSaveMoves, useTeamDetails, type AutoAssignResult, type MemberMove } from './api'
 import { AutoAssignTabs } from './AutoAssignTabs'
+import { useTeamRules } from '@/shared/lib/teamRules'
 import { addMove, applyMoves, checkComposition, type DraftTeam } from './compose'
 
 /**
@@ -77,8 +78,9 @@ function Adjustments({ result }: { result: AutoAssignResult }) {
   const base: DraftTeam[] = teamCards.map((t, i) => ({ id: t.id, name: t.name, isNew: newIds.has(t.id), members: details[i]?.data?.members ?? [] }))
   const draft = applyMoves(base, result.unassignedStudents, moves)
   const movedIds = new Set(moves.map((m) => m.studentId))
-  const blocked = draft.teams.some((t) => checkComposition(t.members).tooMany)
-  const stillInvalid = draft.teams.filter((t) => !checkComposition(t.members).isValid).length
+  const rules = useTeamRules()
+  const blocked = draft.teams.some((t) => checkComposition(t.members, rules).tooMany)
+  const stillInvalid = draft.teams.filter((t) => !checkComposition(t.members, rules).isValid).length
 
   const moveTo = (student: StudentRef, toTeamId: string) => {
     const from = draft.teams.find((t) => t.members.some((m) => m.id === student.id))?.id ?? null
@@ -118,7 +120,7 @@ function Adjustments({ result }: { result: AutoAssignResult }) {
             {stillInvalid} nhóm chưa đủ điều kiện
           </StatusChip>
         )}
-        {blocked && <span className="text-body text-error">Có nhóm quá 6 người – chuyển bớt trước khi lưu.</span>}
+        {blocked && <span className="text-body text-error">Có nhóm quá {rules.maxSize} người – chuyển bớt trước khi lưu.</span>}
         {save.error && (
           <span role="alert" className="text-body text-error">
             {save.error instanceof PartialSaveError ? `Đã lưu ${save.error.saved}, lỗi: ${save.error.cause.detail ?? save.error.cause.title}` : 'Lưu không thành công'}
@@ -164,7 +166,7 @@ function TeamColumn({ team, teams, movedIds, onMove }: {
   onMove: (student: StudentRef, toTeamId: string) => void
 }) {
   const [over, setOver] = useState(false)
-  const composition = checkComposition(team.members)
+  const composition = checkComposition(team.members, useTeamRules())
   const onDrop = (e: DragEvent) => {
     e.preventDefault()
     setOver(false)

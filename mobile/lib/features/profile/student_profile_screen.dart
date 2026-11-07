@@ -103,7 +103,7 @@ class _InviteActionState extends ConsumerState<_InviteAction> {
       return const StatusChip(label: 'Đã mời', tone: StatusTone.info, icon: Icons.send_outlined);
     }
     if (invited.isLoading) return const SizedBox.shrink();
-    if (team.isFull) return Text('Nhóm đã đủ 6 người', style: Theme.of(context).textTheme.bodyMedium);
+    if (team.isFull) return Text('Nhóm đã đủ ${team.card.maxSize} người', style: Theme.of(context).textTheme.bodyMedium);
     return FilledButton.icon(onPressed: () => _invite(team), icon: const Icon(Icons.person_add_alt_1_outlined), label: const Text('Gửi lời mời'));
   }
 }

@@ -17,6 +17,9 @@ public sealed record SemesterDto(Guid Id, string Code, DateOnly StartDate, DateO
 /// <summary>Schema <c>Round</c> (academic.yaml).</summary>
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status);
 
+/// <summary>Schema <c>RuleSettings</c> (phần quy tắc lập nhóm).</summary>
+public sealed record TeamRuleSettings(int MinTeamSize, int MaxTeamSize, int MinSpecializations);
+
 public interface IAcademicClient
 {
     /// <summary>Đợt đang mở của môn và loại đợt; null nếu không có (404).</summary>
@@ -27,6 +30,9 @@ public interface IAcademicClient
 
     /// <summary>Học kỳ hiện hành (<c>GET /api/semesters/current</c>); null khi Bộ môn chưa đặt (404).</summary>
     Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct);
+
+    /// <summary>Quy tắc lập nhóm ở W05 (<c>GET /api/rule-settings</c>); null khi Academic không trả lời thì job dùng <c>JobsOptions</c>.</summary>
+    Task<TeamRuleSettings?> GetTeamRulesAsync(CancellationToken ct) => Task.FromResult<TeamRuleSettings?>(null);
 }
 
 public sealed class AcademicClient(HttpClient http) : IAcademicClient
@@ -40,6 +46,18 @@ public sealed class AcademicClient(HttpClient http) : IAcademicClient
         }
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<RoundDto>(ct);
+    }
+
+    public async Task<TeamRuleSettings?> GetTeamRulesAsync(CancellationToken ct)
+    {
+        try
+        {
+            return await http.GetFromJsonAsync<TeamRuleSettings>("/api/rule-settings", ct);
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
     }
 
     public async Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct)

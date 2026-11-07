@@ -21,12 +21,12 @@ public static class TeamDbErrors
     private static AppException? FromPostgres(PostgresException pg) => pg.ConstraintName switch
     {
         "uq_team_members_semester_student" => new ConflictException("already-in-team", "Sinh viên đã có nhóm", "Sinh viên đã thuộc một nhóm trong học kỳ này."),
-        "ck_teams_member_count" => new ConflictException("team-full", "Nhóm đã đủ người", "Nhóm đã có 6 thành viên."),
+        "ck_teams_member_count" => new ConflictException("team-full", "Nhóm đã đủ người", "Nhóm đã đủ sĩ số tối đa."),
         "uq_invitations_pending" or "uq_join_requests_pending" or "uq_change_requests_pending" =>
             new ConflictException("pending-exists", "Đã có yêu cầu đang chờ", "Đã có lời mời hoặc yêu cầu đang chờ xử lý."),
         "uq_leader_votes_one_open" => new ConflictException("leader-vote-open", "Nhóm đang có đề nghị", "Nhóm đang có một đề nghị đổi nhóm trưởng chưa kết thúc."),
         "ck_team_finalized_size" or "ck_team_finalized_specializations" =>
-            new ConflictException("composition-invalid", "Nhóm chưa đủ điều kiện", "Nhóm cần 4–6 thành viên và ít nhất 2 chuyên ngành."),
+            new ConflictException("composition-invalid", "Nhóm chưa đủ điều kiện", "Nhóm chưa đủ sĩ số hoặc số chuyên ngành theo quy tắc."),
         "ck_join_requests_ideas" => new ConflictException("ideas-required", "Thiếu ý tưởng", "Cần 1–3 ý tưởng hoặc chọn \"Chưa có ý tưởng\"."),
         "uq_lecturer_assignments_active" or "uq_mentor_assignments_active" =>
             new ConflictException("team-has-advisor", "Nhóm đã có cố vấn", "Nhóm đã có cố vấn cùng loại đang hiệu lực."),

@@ -20,9 +20,15 @@ const { PageHeaderProvider } = await import('@/shared/layout/PageHeader')
 const student = (id: string, spec: number): StudentRef => ({ id, studentCode: `SE${id}`, fullName: `SV ${id}`, specialization: { id: spec, code: `C${spec}`, name: `Ngành ${spec}` } })
 
 describe('W21 adjustments', () => {
+  it('follows the rules set in W05', () => {
+    const rules = { minSize: 2, maxSize: 3, minSpecializations: 3 }
+    expect(checkComposition([student('1', 1), student('2', 2)], rules).problems).toEqual(['Cần ít nhất 3 chuyên ngành'])
+    expect(checkComposition([student('1', 1), student('2', 2), student('3', 3), student('4', 3)], rules).tooMany).toBe(true)
+  })
+
   it('checks 4–6 members and two specializations', () => {
     expect(checkComposition([student('1', 1), student('2', 1), student('3', 2), student('4', 2)]).isValid).toBe(true)
-    expect(checkComposition([student('1', 1), student('2', 1), student('3', 1)]).problems).toEqual(['Thiếu 1 người', 'Cần thêm chuyên ngành thứ hai'])
+    expect(checkComposition([student('1', 1), student('2', 1), student('3', 1)]).problems).toEqual(['Thiếu 1 người', 'Cần ít nhất 2 chuyên ngành'])
     expect(checkComposition(Array.from({ length: 7 }, (_, i) => student(String(i), i))).tooMany).toBe(true)
   })
 

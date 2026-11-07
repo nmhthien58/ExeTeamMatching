@@ -11,7 +11,7 @@ import 'suggestions_api.dart';
 import 'suggestions_view_model.dart';
 
 /// S19 – Tìm và mời sinh viên (MB-23): tìm theo tên / MSSV, lọc chuyên ngành, chỉ sinh viên chưa có nhóm, lời nhắn.
-/// Trạng thái: kết quả · không tìm thấy · nhóm đã đủ 6 người · đang gửi.
+/// Trạng thái: kết quả · không tìm thấy · nhóm đã đủ người · đang gửi.
 class InviteStudentsScreen extends ConsumerStatefulWidget {
   const InviteStudentsScreen({super.key});
 
@@ -63,7 +63,7 @@ class _InviteStudentsScreenState extends ConsumerState<InviteStudentsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (isFull) const Padding(padding: EdgeInsets.only(bottom: AppSpacing.s3), child: StatusChip(label: 'Nhóm đã đủ 6 người', tone: StatusTone.success)),
+                if (isFull) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.s3), child: StatusChip(label: 'Nhóm đã đủ ${team?.card.maxSize ?? 6} người', tone: StatusTone.success)),
                 if (team != null && !isLeader)
                   Padding(padding: const EdgeInsets.only(bottom: AppSpacing.s3), child: Text('Chỉ trưởng nhóm gửi được lời mời.', style: Theme.of(context).textTheme.bodyMedium)),
                 TextField(

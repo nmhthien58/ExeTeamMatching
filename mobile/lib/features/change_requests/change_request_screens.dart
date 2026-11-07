@@ -352,24 +352,24 @@ class _CreateChangeRequestScreenState
             border: OutlineInputBorder(),
           ),
         ),
-        if (count < 4)
+        if (count < team.card.minSize)
           _Notice(
             icon: Icons.error_outline,
             color: scheme.error,
-            text: 'Nhóm còn dưới 4 người. Không thể gửi yêu cầu.',
+            text: 'Nhóm còn dưới ${team.card.minSize} người. Không thể gửi yêu cầu.',
           )
-        else if (count > 6)
+        else if (count > team.card.maxSize)
           _Notice(
             icon: Icons.error_outline,
             color: scheme.error,
-            text: 'Nhóm vượt quá 6 người. Không thể gửi yêu cầu.',
+            text: 'Nhóm vượt quá ${team.card.maxSize} người. Không thể gửi yêu cầu.',
           )
-        else if (specializationCount < 2)
+        else if (specializationCount < team.card.minSpecializations)
           _Notice(
             icon: Icons.warning_amber,
             color: scheme.tertiary,
             text:
-                'Nhóm chưa có đủ 2 chuyên ngành. Bộ môn sẽ kiểm tra khi chốt nhóm.',
+                'Nhóm chưa có đủ ${team.card.minSpecializations} chuyên ngành. Bộ môn sẽ kiểm tra khi chốt nhóm.',
           ),
         const SizedBox(height: AppSpacing.s4),
         FilledButton(

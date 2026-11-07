@@ -8,6 +8,7 @@ import { SectionTitle, StatCard } from '@/shared/components/StatCard'
 import { PageHeader } from '@/shared/layout/PageHeader'
 import { formatDateTime } from '@/features/workspace/format'
 import { timeLeft, useCourseParam, useCurrentSemester, useOpenTeamRound, useStatistics, type StatisticsOverview } from './adminApi'
+import { useTeamRules } from '@/shared/lib/teamRules'
 import { CourseToggle } from './CourseToggle'
 
 /**
@@ -155,6 +156,7 @@ function ProgressRing({ percent, label }: { percent: number; label: string }) {
 }
 
 function Statistics({ stats, course }: { stats: StatisticsOverview; course: string }) {
+  const rules = useTeamRules()
   const total = stats.studentsWithTeam + stats.studentsWithoutTeam
   const sizes = Object.entries(stats.teamsBySize).sort(([a], [b]) => Number(a) - Number(b))
   return (
@@ -174,11 +176,11 @@ function Statistics({ stats, course }: { stats: StatisticsOverview; course: stri
       </div>
 
       <section className="stagger-in rounded-lg bg-surface p-6 shadow-elevation-1" style={{ '--i': 4 } as CSSProperties}>
-        <SectionTitle icon="bar_chart" title="Nhóm theo sĩ số" hint="Nhóm dưới 4 người tô màu cảnh báo" />
+        <SectionTitle icon="bar_chart" title="Nhóm theo sĩ số" hint={`Nhóm dưới ${rules.minSize} người tô màu cảnh báo`} />
         {sizes.length === 0 ? (
           <p className="text-text-secondary">Chưa có nhóm nào.</p>
         ) : (
-          <BarList items={sizes.map(([size, count]) => ({ label: `${size} người`, count, warn: Number(size) < 4 }))} unit="nhóm" />
+          <BarList items={sizes.map(([size, count]) => ({ label: `${size} người`, count, warn: Number(size) < rules.minSize }))} unit="nhóm" />
         )}
       </section>
 

@@ -12,12 +12,14 @@ namespace Jobs.Host.Jobs;
 public sealed class AutoAssignUnmatchedJob(
     MatchingService.MatchingServiceClient matching,
     ITeamClient team,
+    IAcademicClient academic,
     IOptions<JobsOptions> options,
     ILogger<AutoAssignUnmatchedJob> logger)
 {
     public async Task RunAsync(Guid semesterId, string courseCode, CancellationToken ct)
     {
-        var rules = options.Value;
+        var fallback = options.Value;
+        var rules = await academic.GetTeamRulesAsync(ct) ?? new TeamRuleSettings(fallback.MinTeamSize, fallback.MaxTeamSize, fallback.MinSpecializations);
         var plan = await matching.PlanAutoAssignmentAsync(new PlanAutoAssignmentRequest
         {
             SemesterId = semesterId.ToString(),

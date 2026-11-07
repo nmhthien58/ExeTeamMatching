@@ -8,6 +8,9 @@ namespace Team.Tests;
 /// <summary>Matching giả: kiểm tra cơ cấu theo rule 1, 2 như Matching thật; phương án ghép và gợi ý do test đặt sẵn.</summary>
 public sealed class FakeMatching : IMatchingClient
 {
+    /// <summary>Quy tắc W05 test đang dùng (BE-90).</summary>
+    public TeamRuleSet Rules { get; set; } = TeamRuleSet.Default;
+
     public AutoAssignPlan Plan { get; set; } = new([], [], []);
 
     public SuggestedMembers Members { get; set; } = new([], []);
@@ -27,15 +30,15 @@ public sealed class FakeMatching : IMatchingClient
     public Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct)
     {
         var violations = new List<string>();
-        if (members.Count < TeamRules.MinSize)
+        if (members.Count < Rules.MinSize)
         {
             violations.Add("TOO_FEW_MEMBERS");
         }
-        if (members.Count > TeamRules.MaxSize)
+        if (members.Count > Rules.MaxSize)
         {
             violations.Add("TOO_MANY_MEMBERS");
         }
-        if (members.Select(m => m.SpecializationId).Distinct().Count() < TeamRules.MinSpecializations)
+        if (members.Select(m => m.SpecializationId).Distinct().Count() < Rules.MinSpecializations)
         {
             violations.Add("NOT_ENOUGH_SPECIALIZATIONS");
         }

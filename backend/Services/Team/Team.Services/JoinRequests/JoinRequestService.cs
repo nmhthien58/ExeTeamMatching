@@ -65,9 +65,10 @@ public sealed class JoinRequestService(
         {
             throw TeamErrors.AlreadyInTeam();
         }
-        if (graph.Members.Count >= TeamRules.MaxSize)
+        var maxSize = (await rounds.TeamRulesAsync(ct)).MaxSize;
+        if (graph.Members.Count >= maxSize)
         {
-            throw TeamErrors.TeamFull();
+            throw TeamErrors.TeamFull(maxSize);
         }
 
         var now = clock.GetUtcNow();

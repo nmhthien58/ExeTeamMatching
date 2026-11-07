@@ -69,9 +69,10 @@ public sealed class StatisticsService(
     public async Task<DeadlineReminderTargets> GetDeadlineReminderTargetsAsync(DeadlineReminderTargetsQuery query, CancellationToken ct)
     {
         var teams = new List<Guid>();
+        var minSize = (await academic.GetTeamRulesAsync(ct)).MinSize;
         foreach (var course in Courses(query.CourseCode))
         {
-            teams.AddRange(await repository.ListTeamsUnderSizeAsync(query.SemesterId, course, TeamRules.MinSize, ct));
+            teams.AddRange(await repository.ListTeamsUnderSizeAsync(query.SemesterId, course, minSize, ct));
         }
         return new DeadlineReminderTargets(await UnassignedAsync(query.SemesterId, query.CourseCode, ct), teams);
     }

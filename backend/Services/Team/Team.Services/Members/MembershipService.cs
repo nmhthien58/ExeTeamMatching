@@ -28,7 +28,7 @@ public sealed record LeaderChanged(Guid TeamId, Guid OldLeaderStudentId, Guid Ne
 /// Nhóm EXE201 kế thừa (rule 7): không đổi thành viên ngay mà ghi thay đổi chờ duyệt (<see cref="ChangeRequestItem"/> chưa gắn yêu cầu);
 /// gom vào yêu cầu đổi nhóm và duyệt thuộc module ChangeRequests.
 /// </summary>
-public sealed class MembershipService(IMemberRepository members, ITeamRepository teams, AuditLogWriter audit, LeaderVoteCloser leaderVotes, TimeProvider clock)
+public sealed class MembershipService(IMemberRepository members, ITeamRepository teams, AuditLogWriter audit, LeaderVoteCloser leaderVotes, IAcademicClient academic, TimeProvider clock)
 {
     /// <summary>
     /// Thêm sinh viên vào nhóm; true nếu vào ngay, false nếu thành thay đổi chờ duyệt.
@@ -37,9 +37,10 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
     public async Task<bool> JoinAsync(TeamEntity team, StudentSnapshot student, string source, AuditActor actor, Guid keepRequestId, CancellationToken ct)
     {
         var current = await members.ListAsync(team.Id, ct);
-        if (current.Count >= TeamRules.MaxSize)
+        var rules = await academic.GetTeamRulesAsync(ct);
+        if (current.Count >= rules.MaxSize)
         {
-            throw TeamErrors.TeamFull();
+            throw TeamErrors.TeamFull(rules.MaxSize);
         }
         if (await teams.IsStudentInTeamAsync(team.SemesterId, student.Id, ct))
         {
@@ -63,7 +64,7 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
             SpecializationId = student.SpecializationId, Role = MemberRoles.Member, JoinSource = source,
         });
         var count = current.Count + 1;
-        team.Status = TeamRules.StatusAfterMemberChange(team.Status, count);
+        team.Status = TeamRules.StatusAfterMemberChange(team.Status, count, rules);
         await CancelOtherPendingAsync(team.SemesterId, student.Id, keepRequestId, ct);
         audit.Add(team.Id, "TeamMember", student.Id, "MEMBER_JOINED", actor, newValues: new { student.StudentCode, source, memberCount = count });
         members.AddEvent(MemberEventTypes.MemberJoined, team.Id,
@@ -91,7 +92,7 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
         var count = current.Count - 1;
         await leaderVotes.CancelOpenAsync(team, current, member.StudentId, ct);
         members.Remove(member);
-        team.Status = TeamRules.StatusAfterMemberChange(team.Status, count);
+        team.Status = TeamRules.StatusAfterMemberChange(team.Status, count, await academic.GetTeamRulesAsync(ct));
         audit.Add(team.Id, "TeamMember", member.StudentId, reason == "LEAVE" ? "MEMBER_LEFT" : "MEMBER_REMOVED", actor,
             oldValues: new { member.StudentCode, member.Role }, newValues: new { memberCount = count });
         members.AddEvent(MemberEventTypes.MemberLeft, team.Id, new MemberLeft(team.Id, team.SemesterId, member.StudentId, reason, count));

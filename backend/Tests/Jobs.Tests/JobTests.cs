@@ -130,7 +130,7 @@ public sealed class JobTests
         var team = new FakeTeam();
         var semesterId = Guid.NewGuid();
 
-        await new AutoAssignUnmatchedJob(matching, team, Options.Create(new JobsOptions()), NullLogger<AutoAssignUnmatchedJob>.Instance)
+        await new AutoAssignUnmatchedJob(matching, team, new FakeAcademic(), Options.Create(new JobsOptions()), NullLogger<AutoAssignUnmatchedJob>.Instance)
             .RunAsync(semesterId, "EXE201", Ct);
 
         Assert.Equal(Course.Exe201, matching.LastRequest!.Course);
@@ -142,11 +142,23 @@ public sealed class JobTests
     }
 
     [Fact]
+    public async Task Auto_assign_uses_w05_rules_when_academic_answers()
+    {
+        var matching = new FakeMatching(new PlanAutoAssignmentResponse());
+        var academic = new FakeAcademic { Rules = new TeamRuleSettings(3, 5, 3) };
+
+        await new AutoAssignUnmatchedJob(matching, new FakeTeam(), academic, Options.Create(new JobsOptions()), NullLogger<AutoAssignUnmatchedJob>.Instance)
+            .RunAsync(Guid.NewGuid(), "EXE101", Ct);
+
+        Assert.Equal((3, 5, 3), (matching.LastRequest!.MinSize, matching.LastRequest.MaxSize, matching.LastRequest.MinSpecializations));
+    }
+
+    [Fact]
     public async Task Empty_plan_is_not_applied()
     {
         var team = new FakeTeam();
 
-        await new AutoAssignUnmatchedJob(new FakeMatching(new PlanAutoAssignmentResponse()), team, Options.Create(new JobsOptions()),
+        await new AutoAssignUnmatchedJob(new FakeMatching(new PlanAutoAssignmentResponse()), team, new FakeAcademic(), Options.Create(new JobsOptions()),
             NullLogger<AutoAssignUnmatchedJob>.Instance).RunAsync(Guid.NewGuid(), "EXE101", Ct);
 
         Assert.Empty(team.Applied);

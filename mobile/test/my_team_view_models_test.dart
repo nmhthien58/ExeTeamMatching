@@ -124,6 +124,12 @@ Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 /// MB-49 – ViewModel của S13/S16, S17, S20, S21, S22 test riêng, không dựng widget.
 void main() {
+  test('S13: đủ số nhóm của môn thì không cho thử lại (BE-89)', () {
+    final state = TeamFormState(error: ApiException(status: 409, code: 'team-limit-reached', title: 'Đã đủ số nhóm của môn'));
+    expect(state.isTeamLimitReached, isTrue);
+    expect(const TeamFormState().isTeamLimitReached, isFalse);
+  });
+
   late _FakeTeamApi api;
   late _FakeHistory history;
   late _FakePosts posts;

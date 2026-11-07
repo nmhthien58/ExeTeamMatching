@@ -50,7 +50,15 @@ export function TeamFormPage({ team }: { team?: FullTeam }) {
       <PageHeader title={team ? 'Sửa thông tin' : 'Tạo nhóm'} />
       <Card className="flex max-w-2xl flex-col gap-4">
         {apiError && Object.keys(apiError.fieldErrors).length === 0 && (
-          <Banner tone="error" title={apiError.title} action={<Button variant="text" onClick={submit}>Thử lại</Button>}>
+          <Banner
+            tone="error"
+            title={apiError.title}
+            action={
+              apiError.code === 'team-limit-reached'
+                ? <Button variant="text" onClick={() => navigate('/sv/kham-pha')}>Sang Khám phá</Button>
+                : <Button variant="text" onClick={submit}>Thử lại</Button>
+            }
+          >
             {apiError.detail}
           </Banner>
         )}

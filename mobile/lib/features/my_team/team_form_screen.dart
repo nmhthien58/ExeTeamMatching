@@ -65,7 +65,11 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
         padding: const EdgeInsets.all(AppSpacing.s4),
         children: [
           if (state.generalError case final message?) ...[
-            ErrorBanner(message: message, onRetry: saving ? null : _save),
+            ErrorBanner(message: message, onRetry: saving || state.isTeamLimitReached ? null : _save),
+            if (state.isTeamLimitReached) ...[
+              const SizedBox(height: AppSpacing.s2),
+              OutlinedButton(onPressed: () => context.go('/sv/kham-pha'), child: const Text('Sang Khám phá')),
+            ],
             const SizedBox(height: AppSpacing.s4),
           ],
           TextField(

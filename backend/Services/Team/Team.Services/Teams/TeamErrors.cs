@@ -27,7 +27,10 @@ public static class TeamErrors
 
     public static NotFoundException MemberNotFound(Guid studentId) => new("thành viên", studentId);
 
-    public static ConflictException TeamFull() => new("team-full", "Nhóm đã đủ người", $"Nhóm đã có {TeamRules.MaxSize} thành viên.");
+    public static ConflictException TeamFull(int maxSize) => new("team-full", "Nhóm đã đủ người", $"Nhóm đã có {maxSize} thành viên.");
+
+    public static ConflictException TeamLimitReached(int maxTeams) => new("team-limit-reached", "Đã đủ số nhóm của môn",
+        $"Môn này đã có đủ {maxTeams} nhóm trong kỳ, không tạo thêm nhóm được. Hãy tìm nhóm còn chỗ ở Khám phá.");
 
     // Mã chưa có trong docs/contracts/README.md – đề xuất bổ sung.
     public static ConflictException RequestNotPending() =>

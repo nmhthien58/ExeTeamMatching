@@ -67,7 +67,7 @@ Trigger và constraint dùng tên ổn định để service map lỗi PostgreSQ
 | `uq_team_members_semester_student` | Sinh viên đã thuộc một nhóm trong học kỳ (rule 4) |
 | `ck_teams_member_count` | Nhóm đã đủ 6 người |
 | `uq_team_members_one_leader`, `ck_team_exactly_one_leader` | Nhóm phải có đúng 1 trưởng nhóm (kiểm tra lúc COMMIT, đổi leader trong cùng transaction được) |
-| `ck_team_finalized_size`, `ck_team_finalized_specializations` | Chốt nhóm cần 4–6 người và ≥ 2 chuyên ngành (rule 1, 2) |
+| `ck_team_finalized_size`, `ck_team_finalized_specializations` | Khung cứng của DB (2–50 người, ≥ 1 chuyên ngành); quy tắc thật theo W05 do Team Service kiểm tra, từ BE-90. Trước đây: chốt nhóm cần 4–6 người và ≥ 2 chuyên ngành (rule 1, 2) |
 | `uq_invitations_pending`, `uq_join_requests_pending` | Đã có lời mời / yêu cầu đang chờ |
 | `uq_change_requests_pending` | Nhóm đã có yêu cầu đổi nhóm đang chờ duyệt |
 | `ex_registration_rounds_overlap` | Đợt đăng ký bị chồng thời gian |

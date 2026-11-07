@@ -127,7 +127,7 @@ public sealed class TeamQueryValidator : AbstractValidator<TeamQuery>
         RuleFor(x => x.Domain).Matches("^D(0[1-9]|1[0-8])$").When(x => x.Domain is not null).WithMessage("domain phải có dạng D01–D18.");
         // shortcut: Team không lưu mã lớp của thành viên; cần dữ liệu lớp từ Academic để lọc.
         RuleFor(x => x.ClassCode).Null().WithMessage("Chưa hỗ trợ lọc theo mã lớp.");
-        RuleFor(x => x.MinOpenSlots).InclusiveBetween(0, TeamRules.MaxSize).When(x => x.MinOpenSlots is not null);
+        RuleFor(x => x.MinOpenSlots).InclusiveBetween(0, TeamRules.MaxConfigurableSize).When(x => x.MinOpenSlots is not null);
         RuleFor(x => x.Sort).Must(s => Sorts.Contains(s)).WithMessage("sort không hợp lệ.");
         RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
         RuleFor(x => x.PageSize).InclusiveBetween(1, 100);

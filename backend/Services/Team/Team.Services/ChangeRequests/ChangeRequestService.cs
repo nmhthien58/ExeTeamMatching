@@ -118,13 +118,14 @@ public sealed class ChangeRequestService(
         var baseline = await changes.ListBaselineMembersAsync(teamId, ct);
         if (baseline.Count == 0) throw TeamErrors.Invalid("teamId", "Nhóm chưa có mốc thành viên EXE101.");
         var projected = ProjectMembers(graph.Members, selected);
-        if (projected.Count < TeamRules.MinSize)
+        var rules = await academic.GetTeamRulesAsync(ct);
+        if (projected.Count < rules.MinSize)
         {
-            throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm phải có ít nhất {TeamRules.MinSize} thành viên.");
+            throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm phải có ít nhất {rules.MinSize} thành viên.");
         }
-        if (projected.Count > TeamRules.MaxSize)
+        if (projected.Count > rules.MaxSize)
         {
-            throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm không được quá {TeamRules.MaxSize} thành viên.");
+            throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm không được quá {rules.MaxSize} thành viên.");
         }
 
         var changedCount = selected.Count(i => i.Action is "ADD" or "REMOVE");
@@ -209,10 +210,11 @@ public sealed class ChangeRequestService(
         {
             var current = currentMembers;
             var projected = ProjectMembers(current, items);
-            if (projected.Count < TeamRules.MinSize)
-                throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm phải có ít nhất {TeamRules.MinSize} thành viên.");
-            if (projected.Count > TeamRules.MaxSize)
-                throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm không được quá {TeamRules.MaxSize} thành viên.");
+            var rules = await academic.GetTeamRulesAsync(ct);
+            if (projected.Count < rules.MinSize)
+                throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm phải có ít nhất {rules.MinSize} thành viên.");
+            if (projected.Count > rules.MaxSize)
+                throw TeamErrors.Invalid("itemIds", $"Sau thay đổi nhóm không được quá {rules.MaxSize} thành viên.");
             await ApplyApprovedItemsAsync(graph.Team, current, items, request, user, ct);
             (request.Status, request.ReviewedByAccountId, request.ReviewedAt, request.ReviewNote) =
                 ("APPROVED", user.GetUserId(), clock.GetUtcNow(), note);
@@ -300,7 +302,7 @@ public sealed class ChangeRequestService(
                     throw TeamErrors.Invalid("items", $"Loại thay đổi {item.Action} không được hỗ trợ.");
             }
         }
-        team.Status = TeamRules.StatusAfterMemberChange(team.Status, count);
+        team.Status = TeamRules.StatusAfterMemberChange(team.Status, count, await academic.GetTeamRulesAsync(ct));
     }
 
     private async Task ApplyProjectChangeAsync(TeamEntity team, ChangeRequestItem item, ChangeRequest request, ClaimsPrincipal user, CancellationToken ct)
