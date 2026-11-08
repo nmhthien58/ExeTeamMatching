@@ -78,6 +78,7 @@ class FakeLecturerHomeApi extends LecturerHomeApi {
   Future<Map<String, dynamic>> getTeamDetail(String teamId) async => {
     'id': teamId,
     'name': teamId == 'team-beta' ? 'Team Beta' : 'Team Alpha',
+    'courseCode': 'EXE201',
   };
 
   @override

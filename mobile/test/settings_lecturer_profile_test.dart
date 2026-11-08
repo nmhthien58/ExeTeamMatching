@@ -152,7 +152,7 @@ void main() {
     expect(find.text('EXE101: 3 nhóm · EXE201: Không giới hạn'), findsOneWidget);
     expect(find.text('D01 · AI & Data'), findsOneWidget);
 
-    await tester.tap(find.text('Sửa'));
+    await tester.tap(find.text('Sửa').last);
     await tester.pumpAndSettle();
     expect(find.text('Đã chọn 2/18'), findsOneWidget);
     expect(find.text('D09 · Đã ngừng'), findsOneWidget, reason: 'domain đã ngừng đang có vẫn bỏ chọn được');
@@ -165,7 +165,7 @@ void main() {
     expect(api.saved, [1, 2]);
     expect(find.text('Đã lưu chuyên môn'), findsOneWidget);
     expect(find.text('D02 · Robotics'), findsOneWidget);
-    expect(find.text('Sửa'), findsOneWidget);
+    expect(find.text('Sửa'), findsNWidgets(2));
   });
 
   testWidgets('L06: lỗi lưu hiện tại chỗ, giữ lựa chọn', (tester) async {
@@ -173,7 +173,7 @@ void main() {
       saveError: const ApiException(status: 400, code: 'validation', title: 'Dữ liệu không hợp lệ', fieldErrors: {'domainIds': ['Domain không tồn tại.']}),
     );
     await _pump(tester, const LecturerProfileScreen(), lecturer: api);
-    await tester.tap(find.text('Sửa'));
+    await tester.tap(find.text('Sửa').last);
     await tester.pumpAndSettle();
     await tester.tap(find.text('D02 · Robotics'));
     await tester.tap(find.text('Lưu'));
@@ -198,7 +198,7 @@ void main() {
     expect(find.text('Hồ sơ chưa hoàn thiện'), findsOneWidget);
     expect(find.text('EXE101: Chưa khai báo · EXE201: Chưa khai báo'), findsOneWidget);
 
-    await tester.tap(find.text('Sửa'));
+    await tester.tap(find.text('Sửa').last);
     await tester.pumpAndSettle();
 
     final textFields = find.byType(TextFormField);
