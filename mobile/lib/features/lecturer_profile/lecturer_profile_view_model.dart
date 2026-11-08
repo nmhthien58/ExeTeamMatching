@@ -72,6 +72,19 @@ class LecturerProfileViewModel extends Notifier<LecturerProfileEditState> {
     final editing = state.editing;
     if (editing == null) return false;
 
+    // Hồ sơ chỉ hoàn thiện khi khai báo đủ số nhóm mong muốn của cả hai môn (BE-93): khảo sát lần đầu bắt buộc nhập.
+    if (profile != null &&
+        !profile.isProfileCompleted &&
+        (state.desiredTeamsExe101 == null || state.desiredTeamsExe201 == null)) {
+      state = LecturerProfileEditState(
+        editing: editing,
+        desiredTeamsExe101: state.desiredTeamsExe101,
+        desiredTeamsExe201: state.desiredTeamsExe201,
+        error: 'Nhập số nhóm mong muốn cho cả EXE101 và EXE201',
+      );
+      return false;
+    }
+
     final max101 = profile?.maxTeamsExe101 ?? 4;
     final max201 = profile?.maxTeamsExe201 ?? 4;
 

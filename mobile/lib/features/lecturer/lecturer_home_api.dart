@@ -288,6 +288,22 @@ final lecturerMyTopicInterestsProvider =
       (ref) => ref.watch(lecturerHomeApiProvider).getMyTopicInterests(),
     );
 
+/// Quan tâm OPEN của giảng viên với nhóm thuộc môn [courseCode]. `/topic-interests/me` trả mọi môn
+/// và không kèm mã môn, nên đọc môn của từng nhóm để lọc (L01 đếm "Đang quan tâm" theo môn đang xem).
+final lecturerOpenInterestsByCourseProvider = FutureProvider.autoDispose
+    .family<List<TopicInterestItem>, String>((ref, courseCode) async {
+      final api = ref.watch(lecturerHomeApiProvider);
+      final interests = await ref.watch(lecturerMyTopicInterestsProvider.future);
+      final open = interests.where((i) => i.status == 'OPEN').toList();
+      final teams = await Future.wait(open.map((i) => api.getTeamDetail(i.teamId)));
+      return [
+        for (var i = 0; i < open.length; i++)
+          if ((teams[i]['courseCode']?.toString() ?? 'EXE101').toUpperCase() ==
+              courseCode.toUpperCase())
+            open[i],
+      ];
+    });
+
 final lecturerTopicRecommendationsProvider = FutureProvider.autoDispose
     .family<TopicRecommendationsResponse, String?>(
       (ref, courseCode) => ref
@@ -358,12 +374,27 @@ final advisorTeamActivityProvider = FutureProvider.autoDispose
           ),
     );
 
+/// L07: giảng viên xem đề tài của cả EXE101 và EXE201 (lọc môn ở client). API trả một môn mỗi lần và
+/// thiếu `courseCode` thì mặc định EXE101, nên giảng viên gọi từng môn rồi gộp; mentor giữ như cũ.
 final advisorTopicRecommendationsProvider = FutureProvider.autoDispose
-    .family<TopicRecommendationsResponse, String>(
-      (ref, advisorKind) => ref
-          .watch(lecturerHomeApiProvider)
-          .getRecommendations(advisorKind: advisorKind),
-    );
+    .family<TopicRecommendationsResponse, String>((ref, advisorKind) async {
+      final api = ref.watch(lecturerHomeApiProvider);
+      if (advisorKind != 'LECTURER') {
+        return api.getRecommendations(advisorKind: advisorKind);
+      }
+      final parts = await Future.wait([
+        for (final course in const ['EXE101', 'EXE201'])
+          api.getRecommendations(
+            advisorKind: advisorKind,
+            courseCode: course,
+            pageSize: 100,
+          ),
+      ]);
+      return TopicRecommendationsResponse.merge({
+        'EXE101': parts[0].onlyCourse('EXE101'),
+        'EXE201': parts[1].onlyCourse('EXE201'),
+      });
+    });
 
 final advisorMyInterestsProvider = FutureProvider.autoDispose
     .family<List<TopicInterestItem>, String>(

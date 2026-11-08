@@ -185,6 +185,7 @@ class TopicRecommendationsResponse {
     this.interestOpen = true,
     this.matchingAt,
     this.items = const [],
+    this.byCourse = const {},
   });
 
   final int openInterestCount;
@@ -193,6 +194,53 @@ class TopicRecommendationsResponse {
   final bool interestOpen;
   final DateTime? matchingAt;
   final List<TopicRecommendationItem> items;
+
+  /// Kết quả riêng từng môn khi đã gộp bằng [merge]; rỗng khi chỉ đọc một môn.
+  final Map<String, TopicRecommendationsResponse> byCourse;
+
+  /// Số liệu của môn [course] (null hoặc không có = số đã gộp).
+  TopicRecommendationsResponse forCourse(String? course) =>
+      (course == null ? null : byCourse[course]) ?? this;
+
+  /// Chỉ giữ đề tài của môn [course] (phòng khi API trả lẫn môn khác).
+  TopicRecommendationsResponse onlyCourse(String course) =>
+      TopicRecommendationsResponse(
+        openInterestCount: openInterestCount,
+        interestLimit: interestLimit,
+        remainingCapacity: remainingCapacity,
+        interestOpen: interestOpen,
+        matchingAt: matchingAt,
+        items: [
+          for (final i in items)
+            if (i.courseCode.toUpperCase() == course) i,
+        ],
+      );
+
+  /// Gộp nhiều môn: nối danh sách, cộng số đang quan tâm và giới hạn, mở khi có môn đang mở.
+  factory TopicRecommendationsResponse.merge(
+    Map<String, TopicRecommendationsResponse> parts,
+  ) {
+    final values = parts.values.toList();
+    final open = values.where((p) => p.interestOpen).toList();
+    final matching = (open.isEmpty ? values : open)
+        .map((p) => p.matchingAt)
+        .whereType<DateTime>()
+        .toList()
+      ..sort();
+    final remaining =
+        values.map((p) => p.remainingCapacity).whereType<int>().toList();
+    return TopicRecommendationsResponse(
+      openInterestCount: values.fold(0, (sum, p) => sum + p.openInterestCount),
+      interestLimit: values.fold(0, (sum, p) => sum + p.interestLimit),
+      remainingCapacity: remaining.isEmpty
+          ? null
+          : remaining.fold<int>(0, (sum, r) => sum + r),
+      interestOpen: open.isNotEmpty,
+      matchingAt: matching.isEmpty ? null : matching.first,
+      items: [for (final p in values) ...p.items],
+      byCourse: parts,
+    );
+  }
 
   factory TopicRecommendationsResponse.fromJson(Map<String, dynamic> j) {
     return TopicRecommendationsResponse(
