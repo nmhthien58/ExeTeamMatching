@@ -113,12 +113,36 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
     public async Task<LecturerResponse> GetMeAsync(ClaimsPrincipal user, CancellationToken ct) =>
         await ToResponseAsync(await FindMeAsync(user, ct), showPhone: true, ct);
 
-    /// <summary>Giảng viên chỉ sửa domain chuyên môn (L06); số nhóm tối đa và trạng thái do Admin đặt.</summary>
+    /// <summary>Giảng viên sửa domain chuyên môn và số nhóm mong muốn (L06, BE-93); số nhóm tối đa và trạng thái do Admin đặt.</summary>
     public async Task<LecturerResponse> UpdateMeAsync(LecturerProfileInput input, ClaimsPrincipal user, CancellationToken ct)
     {
         var lecturer = await FindMeAsync(user, ct);
         var current = await CurrentDomainIdsAsync(lecturer.Id, ct);
-        var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds!, current, ct);
+        var domainIds = await ValidateDomainsAsync(lecturers, input.DomainIds ?? current, current, ct);
+
+        if (input.DesiredTeamsExe101 is { } d101)
+        {
+            if (lecturer.MaxTeamsExe101 is { } max101 && d101 > max101)
+            {
+                throw Invalid("desiredTeamsExe101", $"Số nhóm mong muốn EXE101 ({d101}) không được vượt quá số nhóm tối đa ({max101}).");
+            }
+            lecturer.DesiredTeamsExe101 = (short)d101;
+        }
+
+        if (input.DesiredTeamsExe201 is { } d201)
+        {
+            if (lecturer.MaxTeamsExe201 is { } max201 && d201 > max201)
+            {
+                throw Invalid("desiredTeamsExe201", $"Số nhóm mong muốn EXE201 ({d201}) không được vượt quá số nhóm tối đa ({max201}).");
+            }
+            lecturer.DesiredTeamsExe201 = (short)d201;
+        }
+
+        if (domainIds.Count >= 1 && lecturer.DesiredTeamsExe101 is not null && lecturer.DesiredTeamsExe201 is not null)
+        {
+            lecturer.ProfileCompletedAt ??= DateTimeOffset.UtcNow;
+        }
+
         await lecturers.ReplaceDomainsAsync(lecturer.Id, domainIds, ct);
         lecturers.AddEvent(LecturerEventTypes.LecturerProfileUpdated, lecturer.Id, ProfileEvent(lecturer, domainIds));
         await lecturers.SaveAsync(ct);
@@ -132,6 +156,12 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
         lecturer.Phone = LecturerRules.NormalizePhone(input.Phone);
         lecturer.MaxTeamsExe101 = (short?)input.MaxTeamsExe101;
         lecturer.MaxTeamsExe201 = (short?)input.MaxTeamsExe201;
+        if (input.DesiredTeamsExe101 is { } d101) lecturer.DesiredTeamsExe101 = (short)d101;
+        if (input.DesiredTeamsExe201 is { } d201) lecturer.DesiredTeamsExe201 = (short)d201;
+        if (input.DomainIds is { Count: >= 1 } && lecturer.DesiredTeamsExe101 is not null && lecturer.DesiredTeamsExe201 is not null)
+        {
+            lecturer.ProfileCompletedAt ??= DateTimeOffset.UtcNow;
+        }
     }
 
     /// <summary>
@@ -189,8 +219,19 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
     private async Task<IReadOnlyList<LecturerResponse>> ToResponsesAsync(IReadOnlyList<Lecturer> items, bool showPhone, CancellationToken ct)
     {
         var domains = (await lecturers.ListDomainsAsync(items.Select(l => l.Id).ToList(), ct)).ToLookup(d => d.LecturerId);
-        return items.Select(l => new LecturerResponse(l.Id, l.FullName, l.Email, showPhone ? l.Phone : null,
-            domains[l.Id].Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), l.MaxTeamsExe101, l.MaxTeamsExe201, l.IsActive)).ToList();
+        return items.Select(l => new LecturerResponse(
+            l.Id,
+            l.FullName,
+            l.Email,
+            showPhone ? l.Phone : null,
+            domains[l.Id].Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(),
+            l.MaxTeamsExe101,
+            l.MaxTeamsExe201,
+            l.DesiredTeamsExe101,
+            l.DesiredTeamsExe201,
+            l.ProfileCompletedAt != null,
+            l.ProfileCompletedAt,
+            l.IsActive)).ToList();
     }
 
     private static LecturerRegisteredEvent RegisteredEvent(Lecturer l, IReadOnlyList<int> domainIds) =>

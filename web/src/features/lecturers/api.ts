@@ -15,6 +15,10 @@ export interface Lecturer {
   /** null = không giới hạn (rule 9). */
   maxTeamsExe101: number | null
   maxTeamsExe201: number | null
+  desiredTeamsExe101?: number | null
+  desiredTeamsExe201?: number | null
+  isProfileCompleted: boolean
+  profileCompletedAt?: string | null
   isActive: boolean
 }
 
@@ -25,7 +29,76 @@ export interface LecturerInput {
   domainIds: number[]
   maxTeamsExe101: number | null
   maxTeamsExe201: number | null
+  desiredTeamsExe101?: number | null
+  desiredTeamsExe201?: number | null
   isActive?: boolean
+}
+
+/** Schema import giảng viên từ Excel (BE-93, FE-57). */
+export interface LecturerImportRow {
+  rowNumber: number
+  email: string
+  fullName: string
+  phone: string | null
+}
+
+export interface LecturerImportRowError {
+  field: string
+  message: string
+}
+
+export interface LecturerImportErrorRow extends LecturerImportRow {
+  errors: LecturerImportRowError[]
+}
+
+export interface LecturerImportPreview {
+  previewId: string
+  fileName: string
+  totalRows: number
+  validRows: LecturerImportRow[]
+  errorRows: LecturerImportErrorRow[]
+}
+
+export interface LecturerImportResult {
+  totalRows: number
+  successRows: number
+  failedRows: number
+  errors: string[]
+}
+
+export async function downloadLecturerTemplate() {
+  const { data } = await api.get<Blob>('/api/imports/lecturers/template', { responseType: 'blob' })
+  const url = URL.createObjectURL(data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'mau-import-giang-vien.xlsx'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+export function usePreviewLecturerImport() {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return (
+        await api.post<LecturerImportPreview>('/api/imports/lecturers/preview', form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+      ).data
+    },
+  })
+}
+
+export function useConfirmLecturerImport() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async (previewId: string) =>
+      (await api.post<LecturerImportResult>(`/api/imports/lecturers/${previewId}/confirm`)).data,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: lecturerKeys.all })
+    },
+  })
 }
 
 /** Domain trong danh mục; domain đã ngừng dùng chỉ được giữ ở người đang có. */

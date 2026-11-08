@@ -75,7 +75,12 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
     public async Task<IReadOnlyList<AdvisorCandidate>> ListActiveAsync(string courseCode, CancellationToken ct)
     {
         var lecturers = await AcademicCall.RunAsync(academic.ListActiveLecturersAsync, ct);
-        return lecturers.Where(l => l.IsActive).Select(l => ToCandidate(l, courseCode)).OrderBy(l => l.FullName).ThenBy(l => l.Id).ToList();
+        return lecturers
+            .Where(l => l.IsActive && l.IsProfileCompleted)
+            .Select(l => ToCandidate(l, courseCode))
+            .OrderBy(l => l.FullName)
+            .ThenBy(l => l.Id)
+            .ToList();
     }
 
     public Task<Dictionary<Guid, int>> CountLoadsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
@@ -122,9 +127,11 @@ public sealed class LecturerAdvisorSource(IAcademicClient academic, IAdvisorMatc
         writer.Stage(team, advisor.Id, advisor.FullName, item.Reason!, item.PreferenceRank, LecturerAssignmentWriter.SourceAuto, runId, null, null,
             previous: null, memberStudentIds, actor);
 
-    /// <summary>Số nhóm tối đa theo môn (rule 9): <c>MaxTeamsExe101</c> / <c>MaxTeamsExe201</c>, null = không giới hạn.</summary>
+    /// <summary>Số nhóm tối đa theo môn (rule 9, BE-93): ưu tiên DesiredTeams do giảng viên khai báo, sau đó mới dùng MaxTeams.</summary>
     public static int? MaxTeamsFor(LecturerSnapshot lecturer, string courseCode) =>
-        courseCode == "EXE201" ? lecturer.MaxTeamsExe201 : lecturer.MaxTeamsExe101;
+        courseCode == "EXE201"
+            ? (lecturer.DesiredTeamsExe201 ?? lecturer.MaxTeamsExe201)
+            : (lecturer.DesiredTeamsExe101 ?? lecturer.MaxTeamsExe101);
 
     public static AdvisorCandidate ToCandidate(LecturerSnapshot l, string courseCode) =>
         new(l.Id, l.FullName, l.Domains.Select(d => new CatalogRef(d.Id, d.Code, d.Name)).ToList(), MaxTeamsFor(l, courseCode), 0, LecturerId: l.Id);

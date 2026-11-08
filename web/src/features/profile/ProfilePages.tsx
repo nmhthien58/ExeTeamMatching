@@ -7,7 +7,7 @@ import { PageHeader } from '@/shared/layout/PageHeader'
 import { useIsTeamFormation } from '@/shared/phase/usePhase'
 import { useMyTeam } from '@/features/suggestions/api'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
-import { useMyProfile, useSaveProfile } from './api'
+import { useMyProfile, useSaveProfile, useLecturerProfile } from './api'
 import { Avatar, cardClass, ProfileForm, Section, SkillBars } from './components'
 
 const linkClass = 'inline-flex min-h-10 items-center rounded-md px-4 font-medium'
@@ -30,6 +30,17 @@ export function ProfileGate({ children }: { children: ReactNode }) {
   const profile = useMyProfile(!!user?.studentId)
   if (profile.isLoading) return <ProfileSkeleton />
   if (profile.data?.profileCompleted === false) return <Navigate to="/sv/ho-so/hoan-thien" replace />
+  return <>{children}</>
+}
+
+/**
+ * Giảng viên chưa khai báo chuyên môn hoặc số nhóm mong muốn phải qua L06 trước (BE-93).
+ * Không chặn nếu đang ở trang hồ sơ hoặc không tải được hồ sơ.
+ */
+export function LecturerProfileGate({ children }: { children: ReactNode }) {
+  const profile = useLecturerProfile()
+  if (profile.isLoading) return <ProfileSkeleton />
+  if (profile.data?.isProfileCompleted === false) return <Navigate to="/gv/ho-so" replace />
   return <>{children}</>
 }
 

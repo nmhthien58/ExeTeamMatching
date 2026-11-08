@@ -52,6 +52,16 @@ export interface LecturerProfile {
   domains: CatalogRef[]
   maxTeamsExe101?: number | null
   maxTeamsExe201?: number | null
+  desiredTeamsExe101?: number | null
+  desiredTeamsExe201?: number | null
+  isProfileCompleted: boolean
+  profileCompletedAt?: string | null
+}
+
+export interface LecturerProfileInput {
+  domainIds: number[]
+  desiredTeamsExe101?: number | null
+  desiredTeamsExe201?: number | null
 }
 
 const keys = {
@@ -110,7 +120,10 @@ export function useLecturerProfile() {
 export function useSaveLecturerProfile() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (domainIds: number[]) => (await api.put<LecturerProfile>('/api/lecturers/me', { domainIds })).data,
+    mutationFn: async (input: LecturerProfileInput | number[]) => {
+      const payload = Array.isArray(input) ? { domainIds: input } : input
+      return (await api.put<LecturerProfile>('/api/lecturers/me', payload)).data
+    },
     onSuccess: (profile) => {
       queryClient.setQueryData(keys.lecturerMe, profile)
     },

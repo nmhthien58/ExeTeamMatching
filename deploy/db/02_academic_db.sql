@@ -174,6 +174,9 @@ CREATE TABLE academic.lecturers (
     phone              varchar(15),
     max_teams_exe101   smallint,                             -- rule 9: số nhóm tối đa do Admin đặt, NULL = không giới hạn
     max_teams_exe201   smallint,
+    desired_teams_exe101 smallint,                           -- BE-93: số nhóm mong muốn do GV khai báo
+    desired_teams_exe201 smallint,
+    profile_completed_at timestamptz,                        -- BE-93: thời điểm GV hoàn tất khai báo hồ sơ (chuyên môn + số nhóm)
     is_active          boolean      NOT NULL DEFAULT true,
     created_at         timestamptz  NOT NULL DEFAULT now(),
     updated_at         timestamptz  NOT NULL DEFAULT now(),
@@ -183,7 +186,10 @@ CREATE TABLE academic.lecturers (
     CONSTRAINT ck_lecturers_phone CHECK (phone IS NULL OR phone ~ '^\+?[0-9]{9,14}$'),
     CONSTRAINT ck_lecturers_max_teams CHECK (
         (max_teams_exe101 IS NULL OR max_teams_exe101 BETWEEN 0 AND 200)
-        AND (max_teams_exe201 IS NULL OR max_teams_exe201 BETWEEN 0 AND 200))
+        AND (max_teams_exe201 IS NULL OR max_teams_exe201 BETWEEN 0 AND 200)),
+    CONSTRAINT ck_lecturers_desired_teams CHECK (
+        (desired_teams_exe101 IS NULL OR desired_teams_exe101 BETWEEN 0 AND 200)
+        AND (desired_teams_exe201 IS NULL OR desired_teams_exe201 BETWEEN 0 AND 200))
 );
 
 -- Chuyên môn của giảng viên chọn từ danh mục domain (rule 12) – đầu vào gợi ý đề tài (rule 19, L07).
