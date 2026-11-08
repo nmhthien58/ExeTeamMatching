@@ -7,13 +7,19 @@ import '../../core/providers.dart';
 // Model theo docs/contracts/openapi/team.yaml và academic.yaml – chỉ các trường màn hình S07, S18, S19, S30, S31 dùng.
 
 class CatalogRef {
-  const CatalogRef({required this.id, required this.code, required this.name});
+  const CatalogRef({required this.id, required this.code, required this.name, this.majorId});
 
   final int id;
   final String code;
   final String name;
+  final int? majorId;
 
-  factory CatalogRef.fromJson(Map<String, dynamic> j) => CatalogRef(id: j['id'] as int, code: j['code'] as String? ?? '', name: j['name'] as String? ?? '');
+  factory CatalogRef.fromJson(Map<String, dynamic> j) => CatalogRef(
+        id: j['id'] as int,
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        majorId: j['majorId'] as int?,
+      );
 }
 
 class StudentRef {

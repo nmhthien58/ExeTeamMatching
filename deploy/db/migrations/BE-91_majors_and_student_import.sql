@@ -16,33 +16,24 @@ CREATE TABLE IF NOT EXISTS academic.majors (
     CONSTRAINT ck_majors_code CHECK (code ~ '^[A-Z]{2,10}$')
 );
 
--- Seed tạm các ngành
+-- Seed các ngành theo tiền tố MSSV (BE-91)
 INSERT INTO academic.majors (code, name) VALUES
-    ('SE', 'Kỹ thuật phần mềm'),
-    ('AI', 'Trí tuệ nhân tạo'),
-    ('IA', 'An toàn thông tin'),
-    ('GD', 'Thiết kế đồ họa'),
-    ('MC', 'Truyền thông đa phương tiện'),
-    ('MKT', 'Marketing'),
-    ('IB', 'Kinh doanh quốc tế'),
-    ('HS', 'Quản trị khách sạn'),
+    ('SE', 'Công nghệ thông tin'),
     ('SS', 'Quản trị kinh doanh'),
-    ('SA', 'Tài chính - Ngân hàng')
+    ('HS', 'Truyền thông đa phương tiện'),
+    ('IB', 'Kinh doanh quốc tế'),
+    ('SA', 'Ngôn ngữ')
 ON CONFLICT (code) DO NOTHING;
 
 -- 2. Thêm major_id vào specializations
 ALTER TABLE academic.specializations ADD COLUMN IF NOT EXISTS major_id integer REFERENCES academic.majors (id) ON DELETE RESTRICT;
 CREATE INDEX IF NOT EXISTS idx_specializations_major_id ON academic.specializations (major_id);
 
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SE') WHERE code IN ('SE', 'IOT') AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'AI') WHERE code = 'AI' AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IA') WHERE code = 'IA' AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'GD') WHERE code = 'GD' AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'MC') WHERE code = 'MC' AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'MKT') WHERE code = 'DM' AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IB') WHERE code IN ('IB', 'LOG') AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'HS') WHERE code = 'HM' AND major_id IS NULL;
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SA') WHERE code = 'FIN' AND major_id IS NULL;
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SE') WHERE code IN ('SE', 'AI', 'IA', 'GD', 'IOT') AND major_id IS NULL;
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SS') WHERE code IN ('DM', 'FIN', 'LOG', 'HM', 'LAW') AND major_id IS NULL;
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'HS') WHERE code = 'MC' AND major_id IS NULL;
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IB') WHERE code = 'IB' AND major_id IS NULL;
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SA') WHERE code IN ('EN', 'JP', 'KR', 'CN') AND major_id IS NULL;
 
 -- 3. Cập nhật bảng students
 ALTER TABLE academic.students ALTER COLUMN student_code TYPE varchar(10);
@@ -53,13 +44,25 @@ ALTER TABLE academic.students ALTER COLUMN specialization_id DROP NOT NULL;
 
 ALTER TABLE academic.students ADD COLUMN IF NOT EXISTS major_id integer REFERENCES academic.majors (id) ON DELETE RESTRICT;
 
--- Suy ra major_id cho các sinh viên hiện có từ 2-3 ký tự đầu của student_code
+-- Suy ra major_id cho các sinh viên hiện có từ tiền tố chữ của student_code
 UPDATE academic.students s
-SET major_id = COALESCE(
-    (SELECT m.id FROM academic.majors m WHERE m.code = SUBSTRING(s.student_code FROM '^[A-Z]+')),
-    (SELECT m.id FROM academic.majors m WHERE m.code = 'SE')
-)
+SET major_id = (SELECT m.id FROM academic.majors m WHERE m.code = SUBSTRING(s.student_code FROM '^[A-Z]+'))
 WHERE s.major_id IS NULL;
+
+-- Báo lỗi rõ ràng nếu có MSSV không suy được ngành thay vì gán bừa
+DO $$
+DECLARE
+    v_unmapped text;
+BEGIN
+    SELECT string_agg(student_code, ', ')
+    INTO v_unmapped
+    FROM academic.students
+    WHERE major_id IS NULL;
+
+    IF v_unmapped IS NOT NULL AND v_unmapped <> '' THEN
+        RAISE EXCEPTION 'Không thể xác định major_id cho các sinh viên có MSSV: %', v_unmapped;
+    END IF;
+END $$;
 
 ALTER TABLE academic.students ALTER COLUMN major_id SET NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_students_major_id ON academic.students (major_id);

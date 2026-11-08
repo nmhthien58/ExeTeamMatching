@@ -7,7 +7,7 @@ namespace Academic.Repositories.Students;
 /// Snapshot sinh viên trong một học kỳ. <see cref="CourseCode"/>, <see cref="ClassCode"/> lấy từ <c>semester_enrollments</c> của học kỳ đó;
 /// null khi sinh viên không có trong danh sách học kỳ.
 /// </summary>
-public sealed record StudentSnapshotRow(Guid Id, string StudentCode, string FullName, int? SpecializationId, string? CourseCode, string? ClassCode);
+public sealed record StudentSnapshotRow(Guid Id, string StudentCode, string FullName, int? SpecializationId, string? CourseCode, string? ClassCode, int MajorId = 0);
 
 /// <summary>Bộ lọc danh sách sinh viên của một học kỳ. <see cref="Sort"/>: name, -name, studentCode, -studentCode.</summary>
 public sealed record StudentDirectoryFilter(
@@ -117,6 +117,6 @@ public sealed class StudentRepository(AcademicDbContext db) : IStudentRepository
                join c in db.ClassCodes on e.ClassCodeId equals c.Id into classes
                from c in classes.DefaultIfEmpty()
                orderby s.StudentCode
-               select new StudentSnapshotRow(s.Id, s.StudentCode, s.FullName, s.SpecializationId, e.CourseCode, c.Code))
+               select new StudentSnapshotRow(s.Id, s.StudentCode, s.FullName, s.SpecializationId, e.CourseCode, c.Code, s.MajorId))
             .ToListAsync(ct);
 }

@@ -79,4 +79,4 @@ public static class StudentProfileEventTypes
 }
 
 public sealed record StudentProfileUpdatedEvent(
-    Guid StudentId, string FullName, string Email, int? SpecializationId, IReadOnlyList<SkillRating> Skills, bool IsSeekingTeam, bool ProfileCompleted);
+    Guid StudentId, string FullName, string Email, int? SpecializationId, IReadOnlyList<SkillRating> Skills, bool IsSeekingTeam, bool ProfileCompleted, int MajorId = 0);

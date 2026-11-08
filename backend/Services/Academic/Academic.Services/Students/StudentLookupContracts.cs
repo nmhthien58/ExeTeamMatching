@@ -8,7 +8,7 @@ namespace Academic.Services.Students;
 /// <summary>
 /// Schema <c>StudentSnapshot</c>. Sinh viên không có trong danh sách học kỳ: <c>isEnrolled = false</c>, <c>courseCode</c> và <c>classCode</c> = null.
 /// </summary>
-public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int SpecializationId, string? ClassCode, string? CourseCode, bool IsEnrolled);
+public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string? ClassCode, string? CourseCode, bool IsEnrolled, int MajorId = 0);
 
 /// <summary>Body của <c>POST /internal/students/lookup</c>.</summary>
 public sealed record StudentLookupRequest(Guid? SemesterId, IReadOnlyList<Guid>? StudentIds);

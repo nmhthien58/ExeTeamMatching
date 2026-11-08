@@ -13,7 +13,7 @@ public enum CatalogKind
 }
 
 /// <summary>Một dòng danh mục ở dạng chung. Mã lớp không có cột tên nên <see cref="Name"/> = <see cref="Code"/>; chỉ domain có mô tả.</summary>
-public sealed record CatalogRow(int Id, string Code, string Name, string? Description, bool IsActive);
+public sealed record CatalogRow(int Id, string Code, string Name, string? Description, bool IsActive, int? MajorId = null);
 
 public interface ICatalogRepository
 {
@@ -50,7 +50,7 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
                 await db.SaveChangesAsync(ct);
                 return ToRow(major);
             case CatalogKind.Specializations:
-                var specialization = new Specialization { Code = row.Code, Name = row.Name, IsActive = row.IsActive };
+                var specialization = new Specialization { Code = row.Code, Name = row.Name, IsActive = row.IsActive, MajorId = row.MajorId };
                 db.Specializations.Add(specialization);
                 await db.SaveChangesAsync(ct);
                 return ToRow(specialization);
@@ -85,6 +85,10 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
                     return null;
                 }
                 (specialization.Code, specialization.Name, specialization.IsActive) = (row.Code, row.Name, row.IsActive);
+                if (row.MajorId.HasValue)
+                {
+                    specialization.MajorId = row.MajorId.Value;
+                }
                 await db.SaveChangesAsync(ct);
                 return ToRow(specialization);
             case CatalogKind.Domains:
@@ -112,7 +116,7 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
         CatalogKind.Majors => db.Majors.AsNoTracking()
             .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive }),
         CatalogKind.Specializations => db.Specializations.AsNoTracking()
-            .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive }),
+            .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive, MajorId = x.MajorId }),
         CatalogKind.Domains => db.Domains.AsNoTracking()
             .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, Description = x.Description, IsActive = x.IsActive }),
         _ => db.ClassCodes.AsNoTracking()
@@ -126,13 +130,14 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
         public string Name { get; init; } = string.Empty;
         public string? Description { get; init; }
         public bool IsActive { get; init; }
+        public int? MajorId { get; init; }
 
-        public CatalogRow ToRow() => new(Id, Code, Name, Description, IsActive);
+        public CatalogRow ToRow() => new(Id, Code, Name, Description, IsActive, MajorId);
     }
 
     private static CatalogRow ToRow(Major x) => new(x.Id, x.Code, x.Name, null, x.IsActive);
 
-    private static CatalogRow ToRow(Specialization x) => new(x.Id, x.Code, x.Name, null, x.IsActive);
+    private static CatalogRow ToRow(Specialization x) => new(x.Id, x.Code, x.Name, null, x.IsActive, x.MajorId);
 
     private static CatalogRow ToRow(Domain x) => new(x.Id, x.Code, x.Name, x.Description, x.IsActive);
 

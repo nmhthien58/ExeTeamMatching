@@ -14,18 +14,13 @@ RESET ROLE;
 \connect academic_db
 SET ROLE academic_svc;
 
--- TODO: Kiểm tra lại tên ngành chuẩn của từng mã ngành
+-- Majors theo mã tiền tố MSSV thật (BE-91)
 INSERT INTO academic.majors (code, name) VALUES
-    ('SE', 'Kỹ thuật phần mềm'),
-    ('AI', 'Trí tuệ nhân tạo'),
-    ('IA', 'An toàn thông tin'),
-    ('GD', 'Thiết kế đồ họa'),
-    ('MC', 'Truyền thông đa phương tiện'),
-    ('MKT', 'Marketing'),
-    ('IB', 'Kinh doanh quốc tế'),
-    ('HS', 'Quản trị khách sạn'),
+    ('SE', 'Công nghệ thông tin'),
     ('SS', 'Quản trị kinh doanh'),
-    ('SA', 'Tài chính - Ngân hàng')
+    ('HS', 'Truyền thông đa phương tiện'),
+    ('IB', 'Kinh doanh quốc tế'),
+    ('SA', 'Ngôn ngữ')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO academic.specializations (code, name) VALUES
@@ -47,15 +42,11 @@ INSERT INTO academic.specializations (code, name) VALUES
     ('CN', 'Ngôn ngữ Trung')
 ON CONFLICT (code) DO NOTHING;
 
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SE') WHERE code IN ('SE', 'IOT');
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'AI') WHERE code = 'AI';
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IA') WHERE code = 'IA';
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'GD') WHERE code = 'GD';
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'MC') WHERE code = 'MC';
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'MKT') WHERE code = 'DM';
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IB') WHERE code IN ('IB', 'LOG');
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'HS') WHERE code = 'HM';
-UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SA') WHERE code = 'FIN';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SE') WHERE code IN ('SE', 'AI', 'IA', 'GD', 'IOT');
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SS') WHERE code IN ('DM', 'FIN', 'LOG', 'HM', 'LAW');
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'HS') WHERE code = 'MC';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IB') WHERE code = 'IB';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SA') WHERE code IN ('EN', 'JP', 'KR', 'CN');
 
 INSERT INTO academic.domains (code, name, description) VALUES
     ('D01', 'AI & Data Innovation', 'AI / IT'),

@@ -11,7 +11,7 @@ public sealed class StudentImportTests
     private static readonly Guid EnrolledOther = Guid.NewGuid();
 
     private static readonly ImportReference Reference = new(
-        [new CatalogEntry(1, "SE", "Kỹ thuật phần mềm", true), new CatalogEntry(2, "GD", "Thiết kế đồ họa", true), new CatalogEntry(3, "MKT", "Marketing", true), new CatalogEntry(4, "OLD", "Ngừng", false)],
+        [new CatalogEntry(1, "SE", "Công nghệ thông tin", true), new CatalogEntry(2, "SS", "Quản trị kinh doanh", true), new CatalogEntry(3, "HS", "Truyền thông đa phương tiện", true), new CatalogEntry(4, "OLD", "Ngừng", false)],
         [new CatalogEntry(10, "SE1950", null, true), new CatalogEntry(11, "EXE101OLD", null, false)],
         [new ExistingStudent(Existing, "SE111111", "old@example.com"), new ExistingStudent(EnrolledOther, "SE222222", "two@example.com")],
         new Dictionary<Guid, string> { [EnrolledOther] = "EXE201" },
@@ -63,8 +63,8 @@ public sealed class StudentImportTests
 
     [Theory]
     [InlineData("SE184118", 1)]
-    [InlineData("GD184118", 2)]
-    [InlineData("MKT190601", 3)]
+    [InlineData("SS184118", 2)]
+    [InlineData("HS184118", 3)]
     public void Major_is_deduced_from_student_code_prefix(string code, int expectedMajorId)
     {
         var check = Single(Row(2, code: code));

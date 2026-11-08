@@ -24,7 +24,11 @@ public sealed class CatalogsController(ICatalogService catalogs) : ControllerBas
     public Task<CatalogItem> UpdateMajor(int id, CatalogInput input, CancellationToken ct) => catalogs.UpdateAsync(CatalogKind.Majors, id, input, ct);
 
     [HttpGet("specializations")]
-    public Task<IReadOnlyList<CatalogItem>> Specializations(CancellationToken ct) => catalogs.ListAsync(CatalogKind.Specializations, ct);
+    public async Task<IReadOnlyList<CatalogItem>> Specializations([FromQuery] int? majorId, CancellationToken ct)
+    {
+        var list = await catalogs.ListAsync(CatalogKind.Specializations, ct);
+        return majorId.HasValue ? list.Where(s => s.MajorId == majorId.Value).ToList() : list;
+    }
 
     [HttpPost("specializations")]
     [Authorize(Policy = Policies.Admin)]

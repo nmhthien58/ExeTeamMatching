@@ -22,6 +22,7 @@ class StudentProfile {
     required this.fullName,
     this.specialization,
     this.specializationId,
+    this.majorId,
     this.majorCode,
     this.majorName,
     this.classCode,
@@ -39,6 +40,7 @@ class StudentProfile {
   final String fullName;
   final String? specialization;
   final int? specializationId;
+  final int? majorId;
   final String? majorCode;
   final String? majorName;
   final String? classCode;
@@ -66,6 +68,7 @@ class StudentProfile {
       fullName: j['fullName'] as String? ?? '',
       specialization: specialization?['name'] as String?,
       specializationId: specialization?['id'] as int?,
+      majorId: major?['id'] as int?,
       majorCode: major?['code'] as String?,
       majorName: major?['name'] as String?,
       classCode: j['classCode'] as String?,

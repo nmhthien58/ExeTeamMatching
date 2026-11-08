@@ -9,6 +9,7 @@ export interface CatalogItem {
   name: string
   description?: string | null
   isActive: boolean
+  majorId?: number | null
 }
 
 export interface CatalogInput {
@@ -16,6 +17,7 @@ export interface CatalogInput {
   name: string
   description?: string | null
   isActive?: boolean
+  majorId?: number | null
 }
 
 export type CatalogKind = 'class-codes' | 'domains' | 'specializations' | 'majors'
@@ -60,6 +62,7 @@ export interface CatalogValues {
   name: string
   description: string
   isActive: boolean
+  majorId?: number | null
 }
 
 export function validateCatalog(kind: CatalogKind, values: CatalogValues): Record<string, string> {
@@ -74,5 +77,8 @@ export function validateCatalog(kind: CatalogKind, values: CatalogValues): Recor
     else if (name.length > rules.maxName) errors.name = `Tên tối đa ${rules.maxName} ký tự.`
   }
   if (rules.hasDescription && values.description.trim().length > 500) errors.description = 'Mô tả tối đa 500 ký tự.'
+  if (kind === 'specializations' && !values.majorId) {
+    errors.majorId = 'Chọn ngành.'
+  }
   return errors
 }

@@ -77,7 +77,7 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
         }
 
         students.AddEvent(StudentProfileEventTypes.StudentProfileUpdated, student.Id, new StudentProfileUpdatedEvent(
-            student.Id, student.FullName, student.Email, student.SpecializationId, ratings, student.IsSeekingTeam, ProfileCompleted: profileCompleted));
+            student.Id, student.FullName, student.Email, student.SpecializationId, ratings, student.IsSeekingTeam, ProfileCompleted: profileCompleted, MajorId: student.MajorId));
         await students.SaveAsync(ct);
         return await ToResponseAsync(student, showContact: true, ct, ratings);
     }

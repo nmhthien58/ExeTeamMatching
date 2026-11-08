@@ -120,7 +120,10 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final theme = Theme.of(context);
     final state = ref.watch(profileFormViewModelProvider(widget.profile));
     final missing = state.missing;
-    final specializations = ref.watch(specializationsProvider).value ?? const [];
+    final allSpecializations = ref.watch(specializationsProvider).value ?? const [];
+    final specializations = allSpecializations
+        .where((s) => widget.profile.majorId == null || s.majorId == null || s.majorId == widget.profile.majorId)
+        .toList();
     final hasMatchingSpec = specializations.any((s) => s.id == state.specializationId);
     final selectedValue = hasMatchingSpec ? state.specializationId : null;
     return ListView(

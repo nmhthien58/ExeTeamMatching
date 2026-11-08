@@ -58,7 +58,7 @@ public static partial class StudentImportRules
             }
             else if (!StudentCodePattern().IsMatch(row.StudentCode))
             {
-                Error(ImportFields.StudentCode, "MSSV phải gồm 2–3 chữ cái và 6 chữ số (ví dụ SE184118, MKT1906).");
+                Error(ImportFields.StudentCode, "MSSV phải gồm 2–3 chữ cái và 6 chữ số (ví dụ SE184118).");
             }
             else if (!seenCodes.TryAdd(row.StudentCode, row.RowNumber))
             {

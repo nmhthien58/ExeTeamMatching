@@ -52,7 +52,7 @@ public sealed class CatalogsApiTests : IAsyncLifetime
         await admin.GetFromJsonAsync<List<CatalogItem>>("/api/specializations"); // nạp cache
         Assert.NotNull(await CachedAsync(CatalogKind.Specializations));
 
-        var response = await admin.PostAsJsonAsync("/api/specializations", new { code = $"t_{_suffix}", name = "Chuyên ngành thử" });
+        var response = await admin.PostAsJsonAsync("/api/specializations", new { code = $"t_{_suffix}", name = "Chuyên ngành thử", majorId = 1 });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = (await response.Content.ReadFromJsonAsync<CatalogItem>())!;
         _specializations.Add(created.Id);

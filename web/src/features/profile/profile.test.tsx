@@ -59,7 +59,7 @@ const notFound = new ApiError({ status: 404, code: 'not-found', title: 'Không t
 /** API giả theo đường dẫn; thiếu đường dẫn nào thì lỗi ngay để lộ lời gọi ngoài dự kiến. */
 function respond(routes: Record<string, unknown>) {
   const merged: Record<string, unknown> = {
-    '/api/specializations': [{ id: 1, code: 'SE', name: 'Kỹ thuật phần mềm', isActive: true }],
+    '/api/specializations': [{ id: 1, code: 'SE', name: 'Kỹ thuật phần mềm', isActive: true, majorId: 1 }],
     ...routes,
   }
   get.mockImplementation(async (url: string) => {

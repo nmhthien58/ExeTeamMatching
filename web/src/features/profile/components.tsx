@@ -102,7 +102,7 @@ export function ProfileForm({
   const [description, setDescription] = useState(profile.description ?? '')
   const [isSeekingTeam, setIsSeekingTeam] = useState(profile.isSeekingTeam)
   const { data: specializations } = useCatalog('specializations')
-  const activeSpecializations = specializations?.filter((s) => s.isActive) ?? []
+  const activeSpecializations = specializations?.filter((s) => s.isActive && (profile.major?.id ? s.majorId === profile.major.id : true)) ?? []
 
   const missingSkills = skills.filter((s) => levels[s.key] === undefined).length
   const missingSpec = specializationId === null
