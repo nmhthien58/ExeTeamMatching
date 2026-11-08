@@ -130,10 +130,61 @@ class LecturerProfileScreen extends ConsumerWidget {
   }
 }
 
-class _LecturerProfileView extends ConsumerWidget {
-  const _LecturerProfileView({required this.profile});
+/// Khảo sát lần đầu (MB-66): giảng viên chưa khai báo chuyên môn và số nhóm mong muốn thì thấy L06 ở chế độ sửa
+/// thay cho [child]. Lưu xong hồ sơ được làm mới, [child] hiện ngay tại chỗ. Không đọc được hồ sơ thì không chặn.
+class LecturerProfileGate extends ConsumerWidget {
+  const LecturerProfileGate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(lecturerProfileProvider);
+    if (profile.isLoading && !profile.hasValue) {
+      return const Scaffold(body: SafeArea(child: SkeletonList(count: 3)));
+    }
+    final p = profile.value;
+    if (p != null && !p.isProfileCompleted) return _LecturerSurveyScreen(profile: p);
+    return child;
+  }
+}
+
+class _LecturerSurveyScreen extends ConsumerStatefulWidget {
+  const _LecturerSurveyScreen({required this.profile});
 
   final LecturerProfile profile;
+
+  @override
+  ConsumerState<_LecturerSurveyScreen> createState() => _LecturerSurveyScreenState();
+}
+
+class _LecturerSurveyScreenState extends ConsumerState<_LecturerSurveyScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Mở sẵn chế độ sửa để giảng viên khai báo ngay.
+    Future.microtask(() {
+      if (!mounted) return;
+      if (ref.read(lecturerProfileViewModelProvider).editing == null) {
+        ref.read(lecturerProfileViewModelProvider.notifier).startEditing(widget.profile);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Khảo sát giảng viên'), automaticallyImplyLeading: false),
+        body: _LecturerProfileView(profile: widget.profile, survey: true),
+      );
+}
+
+class _LecturerProfileView extends ConsumerWidget {
+  const _LecturerProfileView({required this.profile, this.survey = false});
+
+  final LecturerProfile profile;
+
+  /// Khảo sát lần đầu: mở sẵn chế độ sửa, không có nút Hủy.
+  final bool survey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -192,7 +243,12 @@ class _LecturerProfileView extends ConsumerWidget {
         const SizedBox(height: AppSpacing.s1),
         Text(p.email, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         const SizedBox(height: AppSpacing.s4),
-        Text('Số nhóm mong muốn hướng dẫn', style: theme.textTheme.titleMedium),
+        Row(
+          children: [
+            Expanded(child: Text('Số nhóm mong muốn hướng dẫn', style: theme.textTheme.titleMedium)),
+            if (editing == null) TextButton(onPressed: () => vm.startEditing(p), child: const Text('Sửa')),
+          ],
+        ),
         const SizedBox(height: AppSpacing.s2),
         Text(
           'EXE101: ${p.desiredTeamsExe101 != null ? '${p.desiredTeamsExe101} nhóm' : 'Chưa khai báo'} · EXE201: ${p.desiredTeamsExe201 != null ? '${p.desiredTeamsExe201} nhóm' : 'Chưa khai báo'}',
@@ -232,7 +288,7 @@ class _LecturerProfileView extends ConsumerWidget {
             onToggle: vm.toggle,
             onChangedDesired101: vm.setDesiredTeamsExe101,
             onChangedDesired201: vm.setDesiredTeamsExe201,
-            onCancel: vm.cancel,
+            onCancel: survey ? null : vm.cancel,
             onSave: save,
           ),
       ],
@@ -266,7 +322,7 @@ class _DomainEditor extends ConsumerWidget {
   final ValueChanged<int> onToggle;
   final ValueChanged<int?> onChangedDesired101;
   final ValueChanged<int?> onChangedDesired201;
-  final VoidCallback onCancel;
+  final VoidCallback? onCancel;
   final VoidCallback onSave;
 
   @override
@@ -331,8 +387,10 @@ class _DomainEditor extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(onPressed: saving ? null : onCancel, child: const Text('Hủy')),
-                    const SizedBox(width: AppSpacing.s2),
+                    if (onCancel != null) ...[
+                      TextButton(onPressed: saving ? null : onCancel, child: const Text('Hủy')),
+                      const SizedBox(width: AppSpacing.s2),
+                    ],
                     LoadingButton(label: 'Lưu', loading: saving, expand: false, onPressed: onSave),
                   ],
                 ),

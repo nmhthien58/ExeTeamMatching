@@ -96,10 +96,25 @@ public sealed class StudentImportTests
 
     [Theory]
     [InlineData("", "Thiếu mã lớp.")]
-    [InlineData("EXE101ZZ99", "không có trong danh mục")]
     [InlineData("EXE101OLD", "đã ngừng dùng")]
-    public void Class_code_is_required_and_must_be_active(string classCode, string message) =>
+    [InlineData("AB", "không hợp lệ")]
+    [InlineData("SE_1801", "không hợp lệ")]
+    [InlineData("VERY_LONG_CLASS_CODE_OVER_20_CHARS", "không hợp lệ")]
+    public void Class_code_is_required_and_must_be_valid_or_active(string classCode, string message) =>
         AssertError(Row(2, classCode: classCode), "classCode", message);
+
+    [Theory]
+    [InlineData("EXE101ZZ99")]
+    [InlineData("SE1801")]
+    [InlineData("IA1902")]
+    public void Unknown_class_code_with_valid_format_is_accepted_with_warning(string classCode)
+    {
+        var check = Single(Row(2, classCode: classCode));
+        Assert.True(check.IsValid);
+        Assert.Empty(check.Errors);
+        Assert.Equal(0, check.ClassCodeId);
+        Assert.Equal("Mã lớp mới, sẽ được tạo", check.Row.Warning);
+    }
 
     [Theory]
     [InlineData("12345678")]

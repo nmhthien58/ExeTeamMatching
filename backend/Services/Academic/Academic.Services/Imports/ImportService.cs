@@ -5,6 +5,7 @@ using Academic.Repositories.Imports;
 using Academic.Repositories.Lecturers;
 using Academic.Repositories.Semesters;
 using Academic.Repositories.Students;
+using Academic.Services.Caching;
 using Academic.Services.Lecturers;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
@@ -49,7 +50,8 @@ public sealed partial class ImportService(
     ILecturerRepository lecturers,
     ImportPreviewStore previews,
     IValidator<ImportPreviewInput> validator,
-    TimeProvider clock) : IImportService
+    TimeProvider clock,
+    AcademicCache? cache = null) : IImportService
 {
     private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
     private static readonly Regex PhonePattern = new(@"^\+?[0-9]{9,14}$", RegexOptions.Compiled);
@@ -101,11 +103,26 @@ public sealed partial class ImportService(
         };
         imports.Add(batch);
 
+        var newClassCodes = valid
+            .Where(c => c.ClassCodeId == 0)
+            .Select(c => c.Row.ClassCode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var newClassMap = newClassCodes.Count > 0
+            ? await imports.EnsureClassCodesAsync(newClassCodes, ct)
+            : new Dictionary<string, int>();
+
+        if (newClassCodes.Count > 0 && cache != null)
+        {
+            await cache.InvalidateAsync(AcademicCacheKeys.Catalog("class-codes"), ct);
+        }
+
         var studentsById = students.ToDictionary(s => s.Id);
         var enrollmentsByStudent = enrollments.ToDictionary(e => e.StudentId);
         foreach (var check in valid)
         {
             var row = check.Row;
+            var classCodeId = check.ClassCodeId != 0 ? check.ClassCodeId : newClassMap[row.ClassCode];
             if (check.ExistingStudentId is not { } studentId || !studentsById.TryGetValue(studentId, out var student))
             {
                 student = new Student { Id = Guid.NewGuid(), StudentCode = row.StudentCode };
@@ -122,7 +139,7 @@ public sealed partial class ImportService(
 
             if (enrollmentsByStudent.TryGetValue(student.Id, out var enrollment))
             {
-                enrollment.ClassCodeId = check.ClassCodeId;
+                enrollment.ClassCodeId = classCodeId;
                 enrollment.ImportBatchId = batch.Id;
             }
             else
@@ -130,7 +147,7 @@ public sealed partial class ImportService(
                 imports.Add(new SemesterEnrollment
                 {
                     Id = Guid.NewGuid(), SemesterId = semester.Id, StudentId = student.Id, CourseCode = preview.CourseCode,
-                    ClassCodeId = check.ClassCodeId, ImportBatchId = batch.Id,
+                    ClassCodeId = classCodeId, ImportBatchId = batch.Id,
                 });
             }
 

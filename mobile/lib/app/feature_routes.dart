@@ -60,7 +60,8 @@ final Map<String, Widget Function(GoRouterState state)> tabScreens = {
   '/sv/tin-nhan': (_) => const ConversationsScreen(basePath: '/sv', inTab: true),
   '/sv/kham-pha': (_) => _brandTab('Khám phá', const DiscoverScreen()),
   '/sv/thong-bao': (_) => const NotificationsScreen(roleRoot: '/sv'),
-  '/gv': (_) => const LecturerHomeScreen(),
+  // Khảo sát chuyên môn và số nhóm mong muốn chặn trước L01 khi hồ sơ giảng viên chưa hoàn thiện – MB-66.
+  '/gv': (_) => const LecturerProfileGate(child: LecturerHomeScreen()),
   '/gv/nhom': (_) => const AdvisedTeamsScreen(advisorKind: 'LECTURER'),
   '/mentor': (_) => const MentorHomeScreen(),
   '/mentor/nhom': (_) => const AdvisedTeamsScreen(advisorKind: 'MENTOR'),

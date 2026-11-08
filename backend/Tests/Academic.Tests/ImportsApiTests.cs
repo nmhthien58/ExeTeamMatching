@@ -244,6 +244,42 @@ public sealed class ImportsApiTests : IAsyncLifetime
         Assert.False(await _api.QueryDbAsync(db => db.Students.AnyAsync(s => s.StudentCode == taken)));
     }
 
+    [Fact]
+    public async Task Import_with_new_class_code_shows_warning_in_preview_and_creates_class_on_confirm()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var semester = await CreateSemesterAsync();
+        var specialization = await _api.QueryDbAsync(db => db.Specializations.FirstAsync(s => s.IsActive));
+        var newClassCode = $"AUTO{Random.Shared.Next(100000, 999999)}";
+        string codeA = NewCode(), codeB = NewCode();
+
+        Assert.False(await _api.QueryDbAsync(db => db.ClassCodes.AnyAsync(c => c.Code == newClassCode)));
+
+        var preview = await PreviewAsync(semester.Id, "EXE101",
+            [codeA, "Sinh Viên 1", $"{codeA}@example.test", specialization.Code, newClassCode.ToLowerInvariant(), ""],
+            [codeB, "Sinh Viên 2", $"{codeB}@example.test", specialization.Code, newClassCode, ""]);
+
+        Assert.Equal(2, preview.TotalRows);
+        Assert.Equal(2, preview.ValidRows.Count);
+        Assert.Empty(preview.ErrorRows);
+        Assert.All(preview.ValidRows, r => Assert.Equal("Mã lớp mới, sẽ được tạo", r.Warning));
+
+        var batch = await ConfirmAsync(preview);
+        Assert.Equal(2, batch.SuccessRows);
+
+        var createdClass = await _api.QueryDbAsync(db => db.ClassCodes.FirstOrDefaultAsync(c => c.Code == newClassCode));
+        Assert.NotNull(createdClass);
+        Assert.True(createdClass.IsActive);
+
+        var enrollments = await _api.QueryDbAsync(db => db.SemesterEnrollments.Where(e => e.SemesterId == semester.Id).ToListAsync());
+        Assert.Equal(2, enrollments.Count);
+        Assert.All(enrollments, e => Assert.Equal(createdClass.Id, e.ClassCodeId));
+    }
+
     private string NewCode()
     {
         var code = $"ZX{Random.Shared.Next(0, 1_000_000):D6}";

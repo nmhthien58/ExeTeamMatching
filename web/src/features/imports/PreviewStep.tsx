@@ -34,6 +34,7 @@ function RowsTable({ rows }: { rows: ImportRow[] }) {
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   const shown = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const showErrors = rows.some(isErrorRow)
+  const showWarnings = rows.some((r) => Boolean(r.warning))
   return (
     <div className="rounded-lg bg-surface shadow-elevation-1">
       <div className="overflow-x-auto">
@@ -48,6 +49,11 @@ function RowsTable({ rows }: { rows: ImportRow[] }) {
               {showErrors && (
                 <th scope="col" className="h-11 min-w-64 px-4 text-left text-caption font-semibold text-text-secondary">
                   Lỗi
+                </th>
+              )}
+              {showWarnings && (
+                <th scope="col" className="h-11 min-w-56 px-4 text-left text-caption font-semibold text-text-secondary">
+                  Cảnh báo
                 </th>
               )}
             </tr>
@@ -67,6 +73,15 @@ function RowsTable({ rows }: { rows: ImportRow[] }) {
                         {fieldLabels[e.field] ?? e.field}: {e.message}
                       </p>
                     ))}
+                  </td>
+                )}
+                {showWarnings && (
+                  <td className="px-4 py-2">
+                    {row.warning && (
+                      <span className="inline-flex items-center rounded-full bg-status-warning/15 px-2.5 py-0.5 text-xs font-medium text-status-warning">
+                        {row.warning}
+                      </span>
+                    )}
                   </td>
                 )}
               </tr>

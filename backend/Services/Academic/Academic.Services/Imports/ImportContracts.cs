@@ -7,7 +7,7 @@ namespace Academic.Services.Imports;
 // Schema của academic.yaml (tag Imports). JSON camelCase, thời gian UTC.
 
 /// <summary>Schema <c>ImportRow</c>. Dòng lỗi giữ nguyên giá trị đọc từ file (đã bỏ khoảng trắng hai đầu).</summary>
-public sealed record ImportRow(int RowNumber, string StudentCode, string FullName, string Email, string SpecializationCode, string ClassCode, string? Phone);
+public sealed record ImportRow(int RowNumber, string StudentCode, string FullName, string Email, string SpecializationCode, string ClassCode, string? Phone, string? Warning = null);
 
 /// <summary>Một lỗi của dòng: <c>field</c> là tên trường của <see cref="ImportRow"/>.</summary>
 public sealed record ImportRowError(string Field, string Message);
@@ -15,10 +15,10 @@ public sealed record ImportRowError(string Field, string Message);
 /// <summary>Phần tử <c>errorRows</c> của <c>ImportPreview</c>: <see cref="ImportRow"/> kèm danh sách lỗi.</summary>
 public sealed record ImportErrorRow(
     int RowNumber, string StudentCode, string FullName, string Email, string SpecializationCode, string ClassCode, string? Phone,
-    IReadOnlyList<ImportRowError> Errors)
+    IReadOnlyList<ImportRowError> Errors, string? Warning = null)
 {
     public static ImportErrorRow From(ImportRow r, IReadOnlyList<ImportRowError> errors) =>
-        new(r.RowNumber, r.StudentCode, r.FullName, r.Email, r.SpecializationCode, r.ClassCode, r.Phone, errors);
+        new(r.RowNumber, r.StudentCode, r.FullName, r.Email, r.SpecializationCode, r.ClassCode, r.Phone, errors, r.Warning);
 }
 
 /// <summary>Schema <c>ImportPreview</c>.</summary>

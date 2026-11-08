@@ -205,7 +205,9 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
   Widget _buildTeamFormationView(BuildContext context) {
     final theme = Theme.of(context);
     final preferencesMeAsync = ref.watch(lecturerPreferencesMeProvider);
-    final myInterestsAsync = ref.watch(lecturerMyTopicInterestsProvider);
+    final myInterestsAsync = ref.watch(
+      lecturerOpenInterestsByCourseProvider(_selectedCourse),
+    );
     final recommendationsAsync = ref.watch(
       lecturerTopicRecommendationsProvider(_selectedCourse),
     );
@@ -364,8 +366,9 @@ class _LecturerHomeScreenState extends ConsumerState<LecturerHomeScreen>
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, _) => ErrorState(
                   error: err,
-                  onRetry: () =>
-                      ref.invalidate(lecturerMyTopicInterestsProvider),
+                  onRetry: () => ref.invalidate(
+                    lecturerOpenInterestsByCourseProvider(_selectedCourse),
+                  ),
                 ),
                 data: (interests) {
                   final openInterests = openInterestsOf(interests);

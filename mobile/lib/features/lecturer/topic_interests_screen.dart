@@ -157,18 +157,19 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
             : ' · Ghép tuần 6');
 
     final items = _vm.byCourse(response.items, (i) => i.courseCode);
+    final stats = response.forCourse(_selectedCourse);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header limit banner
         Text(
-          'Đang quan tâm ${response.openInterestCount}/${response.interestLimit}$matchingText',
+          'Đang quan tâm ${stats.openInterestCount}/${stats.interestLimit}$matchingText',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
-        if (!response.interestOpen)
+        if (!stats.interestOpen)
           const Padding(
             padding: EdgeInsets.only(top: AppSpacing.s2),
             child: Text(
@@ -261,10 +262,11 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
     TopicRecommendationItem item,
     TopicRecommendationsResponse response,
   ) {
-    final canToggle = response.interestOpen &&
+    final stats = response.forCourse(item.courseCode);
+    final canToggle = stats.interestOpen &&
         !item.hasAdvisor &&
         (item.isInterested ||
-            response.openInterestCount < response.interestLimit);
+            stats.openInterestCount < stats.interestLimit);
     final memberText =
         '${item.projectName ?? 'Chưa đặt tên đề tài'} · ${item.memberCount}${item.maxMemberCount == null ? '' : '/${item.maxMemberCount}'} thành viên';
 
@@ -609,7 +611,7 @@ class _TopicDetailScreenState extends ConsumerState<TopicDetailScreen> {
           final rec = recAsync.asData?.value.items
               .where((i) => i.teamId == widget.teamId)
               .firstOrNull;
-          final recResponse = recAsync.asData?.value;
+          final recResponse = recAsync.asData?.value.forCourse(courseCode);
 
           final myInterest = interestsAsync.asData?.value
               .where(
