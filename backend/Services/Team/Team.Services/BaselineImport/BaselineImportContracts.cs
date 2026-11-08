@@ -7,7 +7,12 @@ public sealed record BaselineImportResponse(
     int StudentCount,
     int LinkedProjectCount,
     int UnlinkedTeamCount,
-    IReadOnlyList<BaselineImportRowError> Errors);
+    IReadOnlyList<BaselineImportRowError> Errors,
+    int NeedsReviewTeamCount = 0,
+    int SkippedTeamCount = 0,
+    int FreeStudentCount = 0,
+    IReadOnlyList<InheritedTeamSummary>? Teams = null,
+    IReadOnlyList<BaselineImportRowError>? Warnings = null);
 
 public sealed record ParsedBaselineRecord(
     int RowNumber,

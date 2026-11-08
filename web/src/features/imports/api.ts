@@ -58,6 +58,12 @@ export interface BaselineResult {
   linkedProjectCount: number
   unlinkedTeamCount: number
   errors: { row: number; message: string }[]
+  /** Đối chiếu file mốc với sinh viên EXE201 kỳ này (BE-92): nhóm thiếu người là DRAFT. */
+  needsReviewTeamCount?: number
+  skippedTeamCount?: number
+  freeStudentCount?: number
+  teams?: InheritedTeamSummary[] | null
+  warnings?: { row: number; message: string }[] | null
 }
 
 /** `POST /api/teams/auto-inherit` (BE-92, FE-56). */
