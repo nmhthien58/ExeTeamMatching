@@ -162,6 +162,60 @@ describe('W11 – Giảng viên (FE-17)', () => {
     expect(Object.keys(validateLecturer({ ...valid, fullName: ' ', email: 'x', phone: '123', maxTeamsExe101: '201', maxTeamsExe201: '1.5' })).sort())
       .toEqual(['email', 'fullName', 'maxTeamsExe101', 'maxTeamsExe201', 'phone'])
   })
+
+  it('shows Chua khai bao badge and desired teams count in table (FE-57)', async () => {
+    const incompleteLecturer = {
+      ...ha,
+      id: 'l3',
+      fullName: 'Vũ Văn Mới',
+      email: 'moi@example.com',
+      isProfileCompleted: false,
+      desiredTeamsExe101: 2,
+      desiredTeamsExe201: 1,
+    }
+    respond({ '/api/lecturers': page([ha, incompleteLecturer]) })
+    renderAt('/admin/giang-vien')
+
+    await screen.findByText('Vũ Văn Mới')
+    const row = screen.getByText('Vũ Văn Mới').closest('tr')!
+    expect(within(row).getByText('Chưa khai báo')).toBeInTheDocument()
+    expect(within(row).getByText(/muốn: 2/)).toBeInTheDocument()
+  })
+
+  it('imports lecturers via Excel preview and confirm dialog (FE-57)', async () => {
+    respond()
+    post.mockImplementation(async (url: string) => {
+      if (url === '/api/imports/lecturers/preview') {
+        return {
+          data: {
+            previewId: 'prev-123',
+            validRows: [{ rowNumber: 2, fullName: 'Nguyễn Văn Import', email: 'import@fpt.edu.vn', phone: null }],
+            errorRows: [],
+          },
+        }
+      }
+      if (url === '/api/imports/lecturers/prev-123/confirm') {
+        return { data: { totalRows: 1, successRows: 1, failedRows: 0, errors: [] } }
+      }
+      throw new Error(`POST ${url} not handled`)
+    })
+
+    renderAt('/admin/giang-vien')
+    await screen.findByText('Trần Thu Hà')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Import Excel' }))
+    expect(screen.getByRole('dialog', { name: 'Import giảng viên từ file Excel' })).toBeInTheDocument()
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    const file = new File(['dummy content'], 'giang-vien.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    await userEvent.upload(fileInput, file)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Kiểm tra file' }))
+    expect(await screen.findByText('Nguyễn Văn Import')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /Xác nhận import/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Import giảng viên từ file Excel' })).not.toBeInTheDocument())
+  })
 })
 
 describe('W27 – Mentor (FE-34)', () => {

@@ -106,6 +106,12 @@ public sealed class AdvisorMatchingRulesTests : IAsyncLifetime
         var lecturer = new LecturerSnapshot(Guid.NewGuid(), "GV", "gv@example.edu", [], 3, null, true);
         Assert.Equal(3, LecturerAdvisorSource.MaxTeamsFor(lecturer, "EXE101"));
         Assert.Null(LecturerAdvisorSource.MaxTeamsFor(lecturer, "EXE201"));
+
+        // BE-93: When desired teams is configured by lecturer, it takes precedence over max teams
+        var lecturerWithDesired = new LecturerSnapshot(Guid.NewGuid(), "GV", "gv@example.edu", [], 4, 5, true,
+            DesiredTeamsExe101: 2, DesiredTeamsExe201: 1, IsProfileCompleted: true);
+        Assert.Equal(2, LecturerAdvisorSource.MaxTeamsFor(lecturerWithDesired, "EXE101"));
+        Assert.Equal(1, LecturerAdvisorSource.MaxTeamsFor(lecturerWithDesired, "EXE201"));
     }
 
     [Fact]

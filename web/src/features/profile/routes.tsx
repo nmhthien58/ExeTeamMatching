@@ -1,6 +1,6 @@
 import type { RouteObject } from 'react-router-dom'
 import { LecturerProfilePage } from './LecturerProfilePage'
-import { CompleteProfilePage, EditProfilePage, MyProfilePage, ProfileGate } from './ProfilePages'
+import { CompleteProfilePage, EditProfilePage, LecturerProfileGate, MyProfilePage, ProfileGate } from './ProfilePages'
 import { SettingsPage } from './SettingsPage'
 import { StudentProfilePage } from './StudentProfilePage'
 
@@ -25,4 +25,9 @@ export const mentorProfileRoutes: RouteObject[] = [{ path: 'cai-dat', element: <
 /** Bọc route sinh viên: chưa hoàn thiện hồ sơ thì sang A05 (rule 16). Giữ nguyên path để App.tsx nhận ra màn đã làm. */
 export function requireCompletedProfile(routes: RouteObject[]): RouteObject[] {
   return routes.map((route) => ({ ...route, element: <ProfileGate>{route.element}</ProfileGate> }) as RouteObject)
+}
+
+/** Bọc route giảng viên: chưa hoàn thiện chuyên môn / số nhóm mong muốn thì sang L06 (BE-93). */
+export function requireCompletedLecturerProfile(routes: RouteObject[]): RouteObject[] {
+  return routes.map((route) => ({ ...route, element: <LecturerProfileGate>{route.element}</LecturerProfileGate> }) as RouteObject)
 }

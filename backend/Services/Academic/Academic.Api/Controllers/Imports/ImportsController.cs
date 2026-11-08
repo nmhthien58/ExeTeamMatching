@@ -34,6 +34,24 @@ public sealed class ImportsController(IImportService imports) : ControllerBase
     /// <summary>Lịch sử import, mới nhất trước.</summary>
     [HttpGet]
     public Task<PagedResponse<ImportBatchResponse>> List([FromQuery] ImportQuery query, CancellationToken ct) => imports.ListAsync(query, ct);
+
+    [HttpGet("lecturers/template")]
+    public FileContentResult LecturerTemplate() => File(imports.GetLecturerTemplate(), XlsxType, "mau-import-giang-vien.xlsx");
+
+    /// <summary>Tải file Excel giảng viên và xem trước dòng hợp lệ / dòng lỗi (BE-93).</summary>
+    [HttpPost("lecturers/preview")]
+    [RequestSizeLimit(ImportPreviewInputValidator.MaxFileBytes + 64 * 1024)]
+    public async Task<LecturerImportPreviewResponse> PreviewLecturers([FromForm] LecturerImportForm form, CancellationToken ct)
+    {
+        await using var stream = form.File?.OpenReadStream();
+        return await imports.PreviewLecturersAsync(
+            new LecturerImportPreviewInput(stream, form.File?.FileName, form.File?.Length ?? 0), User, ct);
+    }
+
+    /// <summary>Xác nhận import giảng viên, tạo tài khoản và phát LecturerRegistered (BE-93).</summary>
+    [HttpPost("lecturers/{previewId:guid}/confirm")]
+    public Task<LecturerImportConfirmResult> ConfirmLecturers(Guid previewId, CancellationToken ct) =>
+        imports.ConfirmLecturersAsync(previewId, User, ct);
 }
 
 /// <summary>Form <c>multipart/form-data</c>: <c>file</c>, <c>semesterId</c>, <c>courseCode</c>.</summary>

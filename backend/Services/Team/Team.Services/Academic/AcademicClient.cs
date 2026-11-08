@@ -32,7 +32,18 @@ public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullNam
 public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive);
 
 /// <summary>Snapshot giảng viên từ Academic (academic.yaml).</summary>
-public sealed record LecturerSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int? MaxTeamsExe101, int? MaxTeamsExe201, bool IsActive);
+public sealed record LecturerSnapshot(
+    Guid Id,
+    string FullName,
+    string Email,
+    IReadOnlyList<CatalogItem> Domains,
+    int? MaxTeamsExe101,
+    int? MaxTeamsExe201,
+    bool IsActive,
+    int? DesiredTeamsExe101 = null,
+    int? DesiredTeamsExe201 = null,
+    bool IsProfileCompleted = true,
+    DateTimeOffset? ProfileCompletedAt = null);
 
 /// <summary>
 /// Snapshot mentor từ Academic (schema <c>Mentor</c>, BE-66 của Nam). <c>currentTeamCount</c> của Academic không đọc: số nhóm đang mentor

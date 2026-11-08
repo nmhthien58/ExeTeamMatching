@@ -17,7 +17,17 @@ const lecturerSettingsPath = '/gv/cai-dat';
 const maxDomains = 18;
 
 class LecturerProfile {
-  const LecturerProfile({required this.fullName, required this.email, required this.domains, this.maxTeamsExe101, this.maxTeamsExe201});
+  const LecturerProfile({
+    required this.fullName,
+    required this.email,
+    required this.domains,
+    this.maxTeamsExe101,
+    this.maxTeamsExe201,
+    this.desiredTeamsExe101,
+    this.desiredTeamsExe201,
+    this.isProfileCompleted = true,
+    this.profileCompletedAt,
+  });
 
   final String fullName;
   final String email;
@@ -27,16 +37,26 @@ class LecturerProfile {
   final int? maxTeamsExe101;
   final int? maxTeamsExe201;
 
+  /// Giảng viên tự khai báo (BE-93).
+  final int? desiredTeamsExe101;
+  final int? desiredTeamsExe201;
+  final bool isProfileCompleted;
+  final String? profileCompletedAt;
+
   factory LecturerProfile.fromJson(Map<String, dynamic> j) => LecturerProfile(
         fullName: j['fullName'] as String? ?? '',
         email: j['email'] as String? ?? '',
         domains: [for (final d in (j['domains'] as List? ?? const [])) CatalogRef.fromJson(Map<String, dynamic>.from(d as Map))],
         maxTeamsExe101: j['maxTeamsExe101'] as int?,
         maxTeamsExe201: j['maxTeamsExe201'] as int?,
+        desiredTeamsExe101: j['desiredTeamsExe101'] as int?,
+        desiredTeamsExe201: j['desiredTeamsExe201'] as int?,
+        isProfileCompleted: j['isProfileCompleted'] as bool? ?? false,
+        profileCompletedAt: j['profileCompletedAt'] as String?,
       );
 }
 
-/// academic.yaml – Lecturers `me` (L06). Giảng viên chỉ sửa domain chuyên môn; số nhóm tối đa do Bộ môn đặt.
+/// academic.yaml – Lecturers `me` (L06). Giảng viên sửa domain chuyên môn và số nhóm mong muốn; số nhóm tối đa do Bộ môn đặt.
 class LecturerProfileApi {
   LecturerProfileApi(this._dio);
 
@@ -50,13 +70,24 @@ class LecturerProfileApi {
     }
   }
 
-  Future<LecturerProfile> saveDomains(List<int> domainIds) async {
+  Future<LecturerProfile> saveProfile({
+    required List<int> domainIds,
+    int? desiredTeamsExe101,
+    int? desiredTeamsExe201,
+  }) async {
     try {
-      return LecturerProfile.fromJson((await _dio.put<Map<String, dynamic>>('/api/lecturers/me', data: {'domainIds': domainIds})).data!);
+      final data = <String, dynamic>{
+        'domainIds': domainIds,
+      };
+      if (desiredTeamsExe101 != null) data['desiredTeamsExe101'] = desiredTeamsExe101;
+      if (desiredTeamsExe201 != null) data['desiredTeamsExe201'] = desiredTeamsExe201;
+      return LecturerProfile.fromJson((await _dio.put<Map<String, dynamic>>('/api/lecturers/me', data: data)).data!);
     } on DioException catch (e) {
       throw e.apiError;
     }
   }
+
+  Future<LecturerProfile> saveDomains(List<int> domainIds) => saveProfile(domainIds: domainIds);
 
   /// Chỉ domain đang dùng.
   Future<List<CatalogRef>> domains() async {
@@ -109,7 +140,7 @@ class _LecturerProfileView extends ConsumerWidget {
     final vm = ref.read(lecturerProfileViewModelProvider.notifier);
     final state = ref.watch(lecturerProfileViewModelProvider);
     Future<void> save() async {
-      if (!await vm.save() || !context.mounted) return;
+      if (!await vm.save(profile) || !context.mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('Đã lưu chuyên môn')));
@@ -123,9 +154,50 @@ class _LecturerProfileView extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
+        if (!p.isProfileCompleted) ...[
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.s3),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: theme.colorScheme.error),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: theme.colorScheme.error),
+                const SizedBox(width: AppSpacing.s2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Hồ sơ chưa hoàn thiện',
+                        style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.error, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: AppSpacing.s1),
+                      Text(
+                        'Bạn cần chọn ít nhất 1 hướng chuyên môn và khai báo số nhóm mong muốn hướng dẫn (tối đa ${p.maxTeamsExe101 ?? 4} nhóm cho EXE101 và ${p.maxTeamsExe201 ?? 4} nhóm cho EXE201) trước khi được tham gia ghép nhóm tự động.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onErrorContainer),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s4),
+        ],
         Text(p.fullName, style: theme.textTheme.titleLarge),
         const SizedBox(height: AppSpacing.s1),
         Text(p.email, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: AppSpacing.s4),
+        Text('Số nhóm mong muốn hướng dẫn', style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.s2),
+        Text(
+          'EXE101: ${p.desiredTeamsExe101 != null ? '${p.desiredTeamsExe101} nhóm' : 'Chưa khai báo'} · EXE201: ${p.desiredTeamsExe201 != null ? '${p.desiredTeamsExe201} nhóm' : 'Chưa khai báo'}',
+          style: theme.textTheme.bodyMedium,
+        ),
         const SizedBox(height: AppSpacing.s4),
         Text('Số nhóm tối đa nhận', style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSpacing.s2),
@@ -152,9 +224,14 @@ class _LecturerProfileView extends ConsumerWidget {
           _DomainEditor(
             selected: editing,
             current: p.domains,
+            profile: p,
+            desiredTeamsExe101: state.desiredTeamsExe101,
+            desiredTeamsExe201: state.desiredTeamsExe201,
             saving: state.saving,
             error: state.error,
             onToggle: vm.toggle,
+            onChangedDesired101: vm.setDesiredTeamsExe101,
+            onChangedDesired201: vm.setDesiredTeamsExe201,
             onCancel: vm.cancel,
             onSave: save,
           ),
@@ -167,18 +244,28 @@ class _DomainEditor extends ConsumerWidget {
   const _DomainEditor({
     required this.selected,
     required this.current,
+    required this.profile,
+    required this.desiredTeamsExe101,
+    required this.desiredTeamsExe201,
     required this.saving,
     required this.error,
     required this.onToggle,
+    required this.onChangedDesired101,
+    required this.onChangedDesired201,
     required this.onCancel,
     required this.onSave,
   });
 
   final Set<int> selected;
   final List<CatalogRef> current;
+  final LecturerProfile profile;
+  final int? desiredTeamsExe101;
+  final int? desiredTeamsExe201;
   final bool saving;
   final String? error;
   final ValueChanged<int> onToggle;
+  final ValueChanged<int?> onChangedDesired101;
+  final ValueChanged<int?> onChangedDesired201;
   final VoidCallback onCancel;
   final VoidCallback onSave;
 
@@ -210,6 +297,36 @@ class _DomainEditor extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.s2),
                 Text('Đã chọn ${selected.length}/$maxDomains', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(height: AppSpacing.s2),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: desiredTeamsExe101?.toString() ?? '',
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Mong muốn EXE101 (tối đa ${profile.maxTeamsExe101 ?? 4})',
+                          hintText: 'Số nhóm',
+                          isDense: true,
+                        ),
+                        onChanged: (v) => onChangedDesired101(int.tryParse(v)),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.s2),
+                    Expanded(
+                      child: TextFormField(
+                        initialValue: desiredTeamsExe201?.toString() ?? '',
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Mong muốn EXE201 (tối đa ${profile.maxTeamsExe201 ?? 4})',
+                          hintText: 'Số nhóm',
+                          isDense: true,
+                        ),
+                        onChanged: (v) => onChangedDesired201(int.tryParse(v)),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpacing.s3),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
