@@ -10,9 +10,18 @@ public sealed class CatalogRulesTests
     [Fact]
     public void Code_is_trimmed_and_upper_cased()
     {
-        var row = CatalogRules.Validate(CatalogKind.Specializations, new(" se_ai ", " Trí tuệ nhân tạo ", "bỏ qua", null), 0, true);
+        var row = CatalogRules.Validate(CatalogKind.Specializations, new(" se_ai ", " Trí tuệ nhân tạo ", "bỏ qua", null, MajorId: 1), 0, true);
 
-        Assert.Equal(new CatalogRow(0, "SE_AI", "Trí tuệ nhân tạo", null, true), row);
+        Assert.Equal(new CatalogRow(0, "SE_AI", "Trí tuệ nhân tạo", null, true, MajorId: 1), row);
+    }
+
+    [Fact]
+    public void Specialization_requires_major_id_on_create()
+    {
+        var ex = Assert.Throws<RequestValidationException>(() =>
+            CatalogRules.Validate(CatalogKind.Specializations, new("SE_AI", "Trí tuệ nhân tạo", null, null), 0, true));
+
+        Assert.Contains("majorId", ex.Errors.Keys);
     }
 
     [Theory]

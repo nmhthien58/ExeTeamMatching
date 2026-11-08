@@ -15,7 +15,7 @@ public sealed record SkillRating(string Skill, int Level);
 /// <see cref="HasTeam"/>, <see cref="CurrentTeamId"/> thuộc Team Service – tạm thời false / null (xem báo cáo BE-19).
 /// </summary>
 public sealed record StudentProfileResponse(
-    Guid Id, string StudentCode, string FullName, string Email, CatalogRef Specialization, string? ClassCode, string? CourseCode,
+    Guid Id, string StudentCode, string FullName, string Email, CatalogRef? Specialization, CatalogRef Major, string? ClassCode, string? CourseCode,
     bool HasTeam, bool IsSeekingTeam, string? Phone, bool ContactEmailVisible, IReadOnlyList<SkillRating> Skills,
     string? Description, bool ProfileCompleted, Guid? CurrentTeamId);
 
@@ -24,7 +24,7 @@ public sealed record StudentProfileResponse(
 /// <see cref="HasTeam"/> thuộc Team Service – tạm thời false (xem BE-18).
 /// </summary>
 public sealed record StudentSummaryResponse(
-    Guid Id, string StudentCode, string FullName, string Email, CatalogRef Specialization, string ClassCode, string CourseCode,
+    Guid Id, string StudentCode, string FullName, string Email, CatalogRef? Specialization, string ClassCode, string CourseCode,
     bool HasTeam, bool IsSeekingTeam);
 
 /// <summary>
@@ -35,8 +35,8 @@ public sealed record StudentQuery(
     Guid? SemesterId, string? CourseCode, string? Search, string? ClassCode, int? SpecializationId, bool? HasTeam,
     string? Sort, int Page = 1, int PageSize = 20);
 
-/// <summary>Body của <c>PUT /api/students/me</c>: chỉ 5 kỹ năng, mô tả, công tắc tìm nhóm (rule 16). <see cref="IsSeekingTeam"/> bỏ trống thì giữ nguyên.</summary>
-public sealed record StudentProfileInput(IReadOnlyList<SkillRating>? Skills, string? Description, bool? IsSeekingTeam);
+/// <summary>Body của <c>PUT /api/students/me</c>: 5 kỹ năng, mô tả, công tắc tìm nhóm, và chuyên ngành (rule 16, BE-91). <see cref="IsSeekingTeam"/> bỏ trống thì giữ nguyên.</summary>
+public sealed record StudentProfileInput(IReadOnlyList<SkillRating>? Skills, string? Description, bool? IsSeekingTeam, int? SpecializationId = null);
 
 /// <summary>5 kỹ năng cố định (CHECK <c>ck_student_skills_skill</c>), theo thứ tự hiển thị.</summary>
 public static class SkillNames
@@ -79,4 +79,4 @@ public static class StudentProfileEventTypes
 }
 
 public sealed record StudentProfileUpdatedEvent(
-    Guid StudentId, string FullName, string Email, int SpecializationId, IReadOnlyList<SkillRating> Skills, bool IsSeekingTeam, bool ProfileCompleted);
+    Guid StudentId, string FullName, string Email, int? SpecializationId, IReadOnlyList<SkillRating> Skills, bool IsSeekingTeam, bool ProfileCompleted, int MajorId = 0);

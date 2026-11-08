@@ -15,7 +15,7 @@ public sealed class ReadModelProjector(IMatchingReadModel model)
     // ---------- exe.student ----------
 
     public Task HandleAsync(StudentImported e, CancellationToken ct) =>
-        model.SaveStudentAsync(e.StudentId, e.SemesterId, e.CourseCode, e.FullName, e.SpecializationId, ct);
+        model.SaveStudentAsync(e.StudentId, e.SemesterId, e.CourseCode, e.FullName, e.SpecializationId ?? 0, ct);
 
     public Task HandleAsync(StudentProfileUpdated e, CancellationToken ct)
     {
@@ -27,7 +27,7 @@ public sealed class ReadModelProjector(IMatchingReadModel model)
                 skills[skill] = Math.Clamp(rating.Level, 1, 5);
             }
         }
-        return model.SaveStudentProfileAsync(e.StudentId, e.FullName, e.SpecializationId, skills, e.IsSeekingTeam, ct);
+        return model.SaveStudentProfileAsync(e.StudentId, e.FullName, e.SpecializationId ?? 0, skills, e.IsSeekingTeam, ct);
     }
 
     public Task HandleAsync(LecturerRegistered e, CancellationToken ct) =>

@@ -50,11 +50,11 @@ Kiểu: `uuid` là chuỗi uuid, thời gian là chuỗi UTC ISO 8601.
 ```jsonc
 // StudentImported – mỗi sinh viên một message, key = studentId. phone từ file import (tùy chọn, chuỗi)
 { "studentId": "uuid", "studentCode": "SE184118", "fullName": "Nguyễn Văn A", "email": "a@gmail.com",
-  "phone": "0901234567", "specializationId": 1, "semesterId": "uuid", "semesterEndDate": "2026-12-26",
+  "phone": "0901234567", "specializationId": 1, "majorId": 1, "semesterId": "uuid", "semesterEndDate": "2026-12-26",
   "courseCode": "EXE101", "classCode": "EXE101SE01" }
 
 // StudentProfileUpdated – key = studentId. skills: đủ 5 kỹ năng (rule 16) hoặc rỗng khi chưa đánh giá
-{ "studentId": "uuid", "fullName": "Nguyễn Văn A", "email": "a@gmail.com", "specializationId": 1,
+{ "studentId": "uuid", "fullName": "Nguyễn Văn A", "email": "a@gmail.com", "specializationId": 1, "majorId": 1,
   "skills": [ { "skill": "TECHNOLOGY", "level": 4 }, { "skill": "UI_UX_DESIGN", "level": 2 },
               { "skill": "MANAGEMENT", "level": 3 }, { "skill": "MARKETING", "level": 1 },
               { "skill": "COMMUNICATION_PLANNING", "level": 2 } ],

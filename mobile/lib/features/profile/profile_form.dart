@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
+import '../suggestions/suggestions_api.dart' show specializationsProvider;
 import 'profile_api.dart';
 import 'profile_form_view_model.dart';
 
@@ -119,11 +120,34 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
     final theme = Theme.of(context);
     final state = ref.watch(profileFormViewModelProvider(widget.profile));
     final missing = state.missing;
+    final allSpecializations = ref.watch(specializationsProvider).value ?? const [];
+    final specializations = allSpecializations
+        .where((s) => widget.profile.majorId == null || s.majorId == null || s.majorId == widget.profile.majorId)
+        .toList();
+    final hasMatchingSpec = specializations.any((s) => s.id == state.specializationId);
+    final selectedValue = hasMatchingSpec ? state.specializationId : null;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [
         ?widget.header,
         if (state.error != null) ...[ErrorBanner(message: 'Chưa lưu được hồ sơ. ${state.error}', onRetry: _submit), const SizedBox(height: AppSpacing.s4)],
+        Text('Chuyên ngành', style: theme.textTheme.titleMedium),
+        const SizedBox(height: AppSpacing.s2),
+        DropdownButtonFormField<int>(
+          isExpanded: true,
+          initialValue: selectedValue,
+          decoration: InputDecoration(
+            labelText: 'Chuyên ngành *',
+            hintText: 'Chọn chuyên ngành của bạn',
+            errorText: state.missingSpec ? 'Vui lòng chọn chuyên ngành' : null,
+          ),
+          items: [
+            for (final spec in specializations)
+              DropdownMenuItem(value: spec.id, child: Text('${spec.name} (${spec.code})', overflow: TextOverflow.ellipsis)),
+          ],
+          onChanged: (id) => _vm.setSpecialization(id),
+        ),
+        const SizedBox(height: AppSpacing.s4),
         Text('Kỹ năng', style: theme.textTheme.titleMedium),
         const SizedBox(height: AppSpacing.s2),
         for (final MapEntry(key: skill, value: label) in skillLabels.entries)
@@ -148,7 +172,11 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
           Text('Còn $missing kỹ năng chưa đánh giá', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: AppSpacing.s2),
         ],
-        LoadingButton(label: widget.submitLabel, loading: state.saving, onPressed: missing > 0 ? null : _submit),
+        if (state.missingSpec) ...[
+          Text('Chưa chọn chuyên ngành', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
+          const SizedBox(height: AppSpacing.s2),
+        ],
+        LoadingButton(label: widget.submitLabel, loading: state.saving, onPressed: !state.canSave ? null : _submit),
       ],
     );
   }

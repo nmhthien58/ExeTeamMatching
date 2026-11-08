@@ -15,7 +15,7 @@ public static class StudentImportFile
     public const int MaxRows = 3000;
 
     /// <summary>Tiêu đề trong file mẫu, theo thứ tự cột.</summary>
-    public static readonly IReadOnlyList<string> Headers = ["MSSV", "Họ tên", "Email", "Chuyên ngành", "Mã lớp", "SĐT"];
+    public static readonly IReadOnlyList<string> Headers = ["MSSV", "Họ tên", "Email", "Mã lớp", "SĐT"];
 
     // Tên tiêu đề nhận được (đã bỏ dấu, khoảng trắng, viết thường) → trường của ImportRow.
     private static readonly Dictionary<string, string> Aliases = new()
@@ -28,7 +28,7 @@ public static class StudentImportFile
         ["sdt"] = ImportFields.Phone, ["sodienthoai"] = ImportFields.Phone, ["dienthoai"] = ImportFields.Phone, ["phone"] = ImportFields.Phone,
     };
 
-    private static readonly string[] RequiredFields = [ImportFields.StudentCode, ImportFields.FullName, ImportFields.Email, ImportFields.SpecializationCode, ImportFields.ClassCode];
+    private static readonly string[] RequiredFields = [ImportFields.StudentCode, ImportFields.FullName, ImportFields.Email, ImportFields.ClassCode];
 
     /// <summary>
     /// Đọc các dòng dữ liệu, bỏ dòng trống. Giá trị là chuỗi đã bỏ khoảng trắng hai đầu; ô số (SĐT gõ dạng số) đọc thành chuỗi chữ số.
@@ -90,8 +90,8 @@ public static class StudentImportFile
         }
         sheet.Row(1).Style.Font.Bold = true;
         sheet.Column(1).Style.NumberFormat.Format = "@";
-        sheet.Column(6).Style.NumberFormat.Format = "@";
-        string[] example = ["SE184118", "Nguyễn Văn A", "a.nguyen@example.com", "SE", "EXE101SE01", "0901234567"];
+        sheet.Column(5).Style.NumberFormat.Format = "@";
+        string[] example = ["SE184118", "Nguyễn Văn A", "a.nguyen@example.com", "SE1950", "0901234567"];
         for (var i = 0; i < example.Length; i++)
         {
             sheet.Cell(2, i + 1).Value = example[i];
@@ -155,5 +155,5 @@ public static class ImportFields
     public const string Phone = "phone";
 
     /// <summary>Cùng thứ tự với <see cref="StudentImportFile.Headers"/>.</summary>
-    public static readonly string[] All = [StudentCode, FullName, Email, SpecializationCode, ClassCode, Phone];
+    public static readonly string[] All = [StudentCode, FullName, Email, ClassCode, Phone];
 }

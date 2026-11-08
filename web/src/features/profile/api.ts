@@ -24,7 +24,8 @@ export interface StudentProfile {
   studentCode: string
   fullName: string
   email: string
-  specialization: CatalogRef
+  major: CatalogRef
+  specialization?: CatalogRef | null
   classCode?: string | null
   courseCode?: 'EXE101' | 'EXE201' | null
   hasTeam: boolean
@@ -37,6 +38,7 @@ export interface StudentProfile {
 }
 
 export interface StudentProfileInput {
+  specializationId?: number | null
   skills: SkillRating[]
   description?: string
   /** Bỏ trống thì giữ nguyên (ngoài giai đoạn lập nhóm S03 không có công tắc này). */

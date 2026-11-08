@@ -51,7 +51,7 @@ function Details({ student, team }: { student: StudentProfile; team: TeamDetail 
         <Avatar name={student.fullName} />
         <div className="min-w-0 flex-1">
           <h2 className="text-title font-semibold">{student.fullName}</h2>
-          <p className="text-body text-text-secondary">{[student.studentCode, student.specialization.name, student.classCode].filter(Boolean).join(' · ')}</p>
+          <p className="text-body text-text-secondary">{[student.studentCode, student.major?.name, student.specialization?.name, student.classCode].filter(Boolean).join(' · ')}</p>
           {email && <p className="text-body">{email}</p>}
         </div>
         {teammate ? <StatusChip tone="success" icon="groups">Cùng nhóm với bạn</StatusChip> : <InviteAction student={student} team={team} />}

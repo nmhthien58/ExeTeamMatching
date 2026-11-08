@@ -40,7 +40,7 @@ class CompleteProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final subtitle = [profile.fullName, profile.studentCode, profile.specialization].where((s) => s.isNotEmpty).join(' · ');
+    final subtitle = [profile.fullName, profile.studentCode, profile.majorName, profile.specialization].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
     return Scaffold(
       appBar: AppBar(title: const Text('Hoàn thiện hồ sơ'), automaticallyImplyLeading: false),
       body: ProfileForm(
@@ -56,7 +56,8 @@ class CompleteProfileScreen extends ConsumerWidget {
             children: [
               _InfoRow('Họ tên', profile.fullName),
               _InfoRow('MSSV', profile.studentCode),
-              _InfoRow('Chuyên ngành', profile.specialization),
+              _InfoRow('Ngành', profile.majorName ?? 'Chưa có'),
+              _InfoRow('Chuyên ngành', profile.specialization ?? 'Chưa chọn'),
               _InfoRow('Mã lớp', profile.classCode ?? 'Chưa có'),
             ],
           ),
@@ -126,7 +127,7 @@ class _ProfileView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final team = ref.watch(myTeamProvider);
-    final subtitle = [profile.studentCode, profile.specialization, profile.classCode].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+    final subtitle = [profile.studentCode, profile.majorName, profile.specialization, profile.classCode].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
       children: [

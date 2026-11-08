@@ -28,6 +28,14 @@ public sealed class CatalogService(ICatalogRepository catalogs, AcademicCache ca
     {
         var row = CatalogRules.Validate(kind, input, id: 0, isActive: input.IsActive ?? true);
         await EnsureCodeFreeAsync(kind, row, ct);
+        if (kind == CatalogKind.Specializations && row.MajorId.HasValue)
+        {
+            var major = await catalogs.GetAsync(CatalogKind.Majors, row.MajorId.Value, ct);
+            if (major is null || !major.IsActive)
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]> { ["majorId"] = ["Ngành không tồn tại hoặc đã ngừng dùng."] });
+            }
+        }
 
         var saved = await SaveAsync(() => catalogs.AddAsync(kind, row, ct));
         await cache.InvalidateAsync(CacheKey(kind), ct);
@@ -37,8 +45,25 @@ public sealed class CatalogService(ICatalogRepository catalogs, AcademicCache ca
     public async Task<CatalogItem> UpdateAsync(CatalogKind kind, int id, CatalogInput input, CancellationToken ct)
     {
         var current = await catalogs.GetAsync(kind, id, ct) ?? throw CatalogErrors.NotFound(kind, id);
-        var row = CatalogRules.Validate(kind, input, id, input.IsActive ?? current.IsActive);
+        var majorId = kind == CatalogKind.Specializations ? (input.MajorId ?? current.MajorId) : null;
+        var row = CatalogRules.Validate(kind, input with { MajorId = majorId }, id, input.IsActive ?? current.IsActive);
         await EnsureCodeFreeAsync(kind, row, ct);
+        if (kind == CatalogKind.Specializations && row.MajorId.HasValue)
+        {
+            var major = await catalogs.GetAsync(CatalogKind.Majors, row.MajorId.Value, ct);
+            if (major is null || !major.IsActive)
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]> { ["majorId"] = ["Ngành không tồn tại hoặc đã ngừng dùng."] });
+            }
+        }
+        if (kind == CatalogKind.Majors && !row.IsActive && current.IsActive)
+        {
+            var specs = await catalogs.ListAsync(CatalogKind.Specializations, ct);
+            if (specs.Any(s => s.MajorId == id && s.IsActive))
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]> { ["isActive"] = ["Không thể ngừng dùng ngành khi vẫn còn chuyên ngành đang hoạt động."] });
+            }
+        }
 
         var saved = await SaveAsync(() => catalogs.UpdateAsync(kind, row, ct)) ?? throw CatalogErrors.NotFound(kind, id);
         await cache.InvalidateAsync(CacheKey(kind), ct);
@@ -68,7 +93,7 @@ public sealed class CatalogService(ICatalogRepository catalogs, AcademicCache ca
         }
     }
 
-    private static CatalogItem ToItem(CatalogRow row) => new(row.Id, row.Code, row.Name, row.Description, row.IsActive);
+    private static CatalogItem ToItem(CatalogRow row) => new(row.Id, row.Code, row.Name, row.Description, row.IsActive, row.MajorId);
 }
 
 /// <summary>Kiểm tra dữ liệu theo ràng buộc CHECK của deploy/db/02_academic_db.sql, trước khi ghi DB.</summary>
@@ -76,6 +101,7 @@ public static partial class CatalogRules
 {
     public static string Path(CatalogKind kind) => kind switch
     {
+        CatalogKind.Majors => "majors",
         CatalogKind.Specializations => "specializations",
         CatalogKind.Domains => "domains",
         _ => "class-codes",
@@ -91,6 +117,7 @@ public static partial class CatalogRules
 
         var (codePattern, codeHint) = kind switch
         {
+            CatalogKind.Majors => (MajorCode(), "2–10 ký tự: chữ in hoa"),
             CatalogKind.Specializations => (SpecializationCode(), "2–20 ký tự: chữ in hoa, số hoặc _"),
             CatalogKind.Domains => (DomainCode(), "D01 đến D18"),
             _ => (ClassCode(), "3–20 ký tự: chữ in hoa hoặc số"),
@@ -123,7 +150,7 @@ public static partial class CatalogRules
             }
         }
 
-        if (kind == CatalogKind.Specializations)
+        if (kind is CatalogKind.Specializations or CatalogKind.Majors)
         {
             description = null;
         }
@@ -132,12 +159,20 @@ public static partial class CatalogRules
             errors["description"] = ["Mô tả tối đa 500 ký tự."];
         }
 
+        if (kind == CatalogKind.Specializations && id == 0 && (input.MajorId is null or <= 0))
+        {
+            errors["majorId"] = ["Chọn ngành."];
+        }
+
         if (errors.Count > 0)
         {
             throw new RequestValidationException(errors);
         }
-        return new CatalogRow(id, code, name, description, isActive);
+        return new CatalogRow(id, code, name, description, isActive, input.MajorId);
     }
+
+    [GeneratedRegex("^[A-Z]{2,10}$")]
+    private static partial Regex MajorCode();
 
     [GeneratedRegex("^[A-Z0-9_]{2,20}$")]
     private static partial Regex SpecializationCode();
@@ -154,6 +189,7 @@ public static class CatalogErrors
 {
     public static NotFoundException NotFound(CatalogKind kind, int id) => new(kind switch
     {
+        CatalogKind.Majors => "ngành",
         CatalogKind.Specializations => "chuyên ngành",
         CatalogKind.Domains => "domain",
         _ => "mã lớp",

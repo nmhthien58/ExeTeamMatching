@@ -20,7 +20,11 @@ class StudentProfile {
     required this.id,
     required this.studentCode,
     required this.fullName,
-    required this.specialization,
+    this.specialization,
+    this.specializationId,
+    this.majorId,
+    this.majorCode,
+    this.majorName,
     this.classCode,
     this.email,
     this.hasTeam = false,
@@ -34,7 +38,11 @@ class StudentProfile {
   final String id;
   final String studentCode;
   final String fullName;
-  final String specialization;
+  final String? specialization;
+  final int? specializationId;
+  final int? majorId;
+  final String? majorCode;
+  final String? majorName;
   final String? classCode;
 
   /// Null với người ngoài nhóm (quy tắc 11).
@@ -52,12 +60,17 @@ class StudentProfile {
 
   factory StudentProfile.fromJson(Map<String, dynamic> j) {
     final email = j['email'] as String?;
-    final specialization = j['specialization'] == null ? const <String, dynamic>{} : Map<String, dynamic>.from(j['specialization'] as Map);
+    final specialization = j['specialization'] == null ? null : Map<String, dynamic>.from(j['specialization'] as Map);
+    final major = j['major'] == null ? null : Map<String, dynamic>.from(j['major'] as Map);
     return StudentProfile(
       id: j['id'] as String,
       studentCode: j['studentCode'] as String? ?? '',
       fullName: j['fullName'] as String? ?? '',
-      specialization: specialization['name'] as String? ?? '',
+      specialization: specialization?['name'] as String?,
+      specializationId: specialization?['id'] as int?,
+      majorId: major?['id'] as int?,
+      majorCode: major?['code'] as String?,
+      majorName: major?['name'] as String?,
       classCode: j['classCode'] as String?,
       email: email == null || email.isEmpty ? null : email,
       hasTeam: j['hasTeam'] as bool? ?? false,
@@ -95,12 +108,18 @@ class ProfileApi {
     }
   }
 
-  /// Chỉ 5 kỹ năng, giới thiệu, công tắc tìm nhóm (quy tắc 16). [isSeekingTeam] null thì giữ nguyên.
-  Future<StudentProfile> saveMe({required Map<String, int> skills, required String description, bool? isSeekingTeam}) async {
+  /// Chỉ 5 kỹ năng, giới thiệu, chuyên ngành, công tắc tìm nhóm (quy tắc 16). [isSeekingTeam] null thì giữ nguyên.
+  Future<StudentProfile> saveMe({
+    required Map<String, int> skills,
+    required String description,
+    int? specializationId,
+    bool? isSeekingTeam,
+  }) async {
     try {
       final response = await _dio.put<Map<String, dynamic>>('/api/students/me', data: {
         'skills': [for (final skill in skillLabels.keys) {'skill': skill, 'level': skills[skill]}],
         'description': description,
+        'specializationId': ?specializationId,
         'isSeekingTeam': ?isSeekingTeam,
       });
       return StudentProfile.fromJson(response.data!);

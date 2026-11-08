@@ -20,7 +20,6 @@ const columns: { key: keyof ImportRow; label: string }[] = [
   { key: 'studentCode', label: 'MSSV' },
   { key: 'fullName', label: 'Họ tên' },
   { key: 'email', label: 'Email' },
-  { key: 'specializationCode', label: 'Chuyên ngành' },
   { key: 'classCode', label: 'Mã lớp' },
   { key: 'phone', label: 'SĐT' },
 ]

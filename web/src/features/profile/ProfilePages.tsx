@@ -52,15 +52,18 @@ export function CompleteProfilePage() {
         <div className="flex flex-col gap-4">
           <details className={cardClass}>
             <summary className="cursor-pointer font-medium">
-              Thông tin từ bộ môn: {data.fullName} · {data.studentCode} · {data.specialization.name}
+              Thông tin từ bộ môn: {data.fullName} · {data.studentCode} · {data.major?.name ?? ''}
+              {data.specialization ? ` · ${data.specialization.name}` : ''}
             </summary>
             <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body">
               <dt className="text-text-secondary">Họ tên</dt>
               <dd>{data.fullName}</dd>
               <dt className="text-text-secondary">MSSV</dt>
               <dd>{data.studentCode}</dd>
+              <dt className="text-text-secondary">Ngành</dt>
+              <dd>{data.major?.name ? `${data.major.name} (${data.major.code})` : 'Chưa có'}</dd>
               <dt className="text-text-secondary">Chuyên ngành</dt>
-              <dd>{data.specialization.name}</dd>
+              <dd>{data.specialization?.name ? `${data.specialization.name} (${data.specialization.code})` : 'Chưa chọn'}</dd>
               <dt className="text-text-secondary">Mã lớp</dt>
               <dd>{data.classCode ?? 'Chưa có'}</dd>
             </dl>
@@ -96,7 +99,7 @@ export function MyProfilePage() {
             <Avatar name={data.fullName} />
             <div className="min-w-0">
               <h2 className="text-title font-semibold">{data.fullName}</h2>
-              <p className="text-body text-text-secondary">{[data.studentCode, data.specialization.name, data.classCode].filter(Boolean).join(' · ')}</p>
+              <p className="text-body text-text-secondary">{[data.studentCode, data.major?.name, data.specialization?.name, data.classCode].filter(Boolean).join(' · ')}</p>
               {data.isSeekingTeam && <div className="mt-2"><StatusChip tone="info" icon="person_search">Đang tìm nhóm</StatusChip></div>}
             </div>
           </section>

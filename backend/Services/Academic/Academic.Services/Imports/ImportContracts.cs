@@ -75,5 +75,5 @@ public static class StudentEventTypes
 }
 
 public sealed record StudentImportedEvent(
-    Guid StudentId, string StudentCode, string FullName, string Email, string? Phone, int SpecializationId,
-    Guid SemesterId, DateOnly SemesterEndDate, string CourseCode, string ClassCode);
+    Guid StudentId, string StudentCode, string FullName, string Email, string? Phone, int? SpecializationId,
+    Guid SemesterId, DateOnly SemesterEndDate, string CourseCode, string ClassCode, int MajorId);

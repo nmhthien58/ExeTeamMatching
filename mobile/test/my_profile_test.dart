@@ -18,13 +18,25 @@ const _an = StudentProfile(
   id: 's1',
   studentCode: 'SE184118',
   fullName: 'Nguyễn Văn An',
-  specialization: 'Kỹ thuật phần mềm',
+  specialization: 'Thiết kế đồ họa',
+  specializationId: 5,
+  majorCode: 'SE',
+  majorName: 'Kỹ thuật phần mềm',
   classCode: 'SE1801',
   skills: _full,
   description: 'Thích làm backend',
 );
 
-const _new = StudentProfile(id: 's1', studentCode: 'SE184118', fullName: 'Nguyễn Văn An', specialization: 'Kỹ thuật phần mềm', profileCompleted: false);
+const _new = StudentProfile(
+  id: 's1',
+  studentCode: 'SE184118',
+  fullName: 'Nguyễn Văn An',
+  specialization: 'Thiết kế đồ họa',
+  specializationId: 5,
+  majorCode: 'SE',
+  majorName: 'Kỹ thuật phần mềm',
+  profileCompleted: false,
+);
 
 class _FakeProfileApi extends ProfileApi {
   _FakeProfileApi(this.profile) : super(Dio());
@@ -37,14 +49,22 @@ class _FakeProfileApi extends ProfileApi {
   Future<StudentProfile> me() async => profile;
 
   @override
-  Future<StudentProfile> saveMe({required Map<String, int> skills, required String description, bool? isSeekingTeam}) async {
+  Future<StudentProfile> saveMe({
+    required Map<String, int> skills,
+    required String description,
+    int? specializationId,
+    bool? isSeekingTeam,
+  }) async {
     if (saveError != null) throw saveError!;
-    saved = {'skills': skills, 'description': description, 'isSeekingTeam': isSeekingTeam};
+    saved = {'skills': skills, 'description': description, 'specializationId': specializationId, 'isSeekingTeam': isSeekingTeam};
     profile = StudentProfile(
       id: profile.id,
       studentCode: profile.studentCode,
       fullName: profile.fullName,
       specialization: profile.specialization,
+      specializationId: specializationId ?? profile.specializationId,
+      majorCode: profile.majorCode,
+      majorName: profile.majorName,
       skills: skills,
       description: description,
       isSeekingTeam: isSeekingTeam ?? profile.isSeekingTeam,

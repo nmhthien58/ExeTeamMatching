@@ -93,7 +93,11 @@ public sealed class ImportService(
             }
             student.FullName = row.FullName;
             student.Email = row.Email;
-            student.SpecializationId = check.SpecializationId;
+            student.MajorId = check.MajorId;
+            if (check.SpecializationId is { } specId)
+            {
+                student.SpecializationId = specId;
+            }
             student.Phone = row.Phone ?? student.Phone;
 
             if (enrollmentsByStudent.TryGetValue(student.Id, out var enrollment))
@@ -112,7 +116,7 @@ public sealed class ImportService(
 
             imports.AddStudentEvent(StudentEventTypes.StudentImported, student.Id, new StudentImportedEvent(
                 student.Id, student.StudentCode, student.FullName, student.Email, student.Phone, student.SpecializationId,
-                semester.Id, semester.EndDate, preview.CourseCode, row.ClassCode));
+                semester.Id, semester.EndDate, preview.CourseCode, row.ClassCode, student.MajorId));
         }
 
         try
@@ -145,14 +149,14 @@ public sealed class ImportService(
         var emails = rows.Select(r => r.Email).Where(e => e.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var classCodes = rows.Select(r => r.ClassCode.ToUpperInvariant()).Where(c => c.Length > 0).Distinct().ToList();
 
-        var specializations = await imports.ListSpecializationsAsync(ct);
+        var majors = await imports.ListMajorsAsync(ct);
         var classes = await imports.ListClassCodesAsync(classCodes, ct);
         var students = await imports.FindStudentsAsync(codes, emails, ct);
         var enrollments = await imports.FindEnrollmentsAsync(semesterId, students.Select(s => s.Id).ToList(), ct);
         var mentorEmails = await imports.FindMentorEmailsAsync(emails, ct);
 
         var reference = new ImportReference(
-            specializations.Select(s => new CatalogEntry(s.Id, s.Code, s.Name, s.IsActive)).ToList(),
+            majors.Select(m => new CatalogEntry(m.Id, m.Code, m.Name, m.IsActive)).ToList(),
             classes.Select(c => new CatalogEntry(c.Id, c.Code, null, c.IsActive)).ToList(),
             students.Select(s => new ExistingStudent(s.Id, s.StudentCode, s.Email)).ToList(),
             enrollments.ToDictionary(e => e.StudentId, e => e.CourseCode),

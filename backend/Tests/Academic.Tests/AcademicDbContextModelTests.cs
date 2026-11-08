@@ -12,11 +12,11 @@ public sealed class AcademicDbContextModelTests
         .UseNpgsql("Host=unused").UseSnakeCaseNamingConvention().Options);
 
     [Fact]
-    public void Db_script_has_the_15_expected_tables()
+    public void Db_script_has_the_16_expected_tables()
     {
         Assert.Equal(new HashSet<string>
         {
-            "specializations", "domains", "class_codes", "semesters", "registration_rounds", "students", "student_skills",
+            "majors", "specializations", "domains", "class_codes", "semesters", "registration_rounds", "students", "student_skills",
             "lecturers", "lecturer_domains", "mentors", "mentor_domains", "import_batches", "semester_enrollments",
             "rule_settings", "outbox_messages",
         }, ReadScriptTables().Keys.ToHashSet());
