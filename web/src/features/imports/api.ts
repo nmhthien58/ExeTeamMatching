@@ -12,6 +12,7 @@ export interface ImportRow {
   specializationCode?: string | null
   classCode: string
   phone: string | null
+  warning?: string | null
 }
 
 export interface ImportRowError {

@@ -154,6 +154,18 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
     expect(screen.getByRole('tab', { name: 'Dòng hợp lệ (1)' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('W07: hiện cảnh báo mã lớp mới trên dòng hợp lệ', async () => {
+    const user = userEvent.setup()
+    const validWithWarning = { ...validRow, warning: 'Mã lớp mới, sẽ được tạo' }
+    post.mockResolvedValueOnce({ data: { previewId: 'p2', fileName: 'ds.xlsx', totalRows: 1, validRows: [validWithWarning], errorRows: [] } })
+    renderPage()
+    await screen.findByLabelText('Học kỳ')
+    await uploadAndPreview(user)
+
+    expect(await screen.findByText('Tất cả dòng đều hợp lệ')).toBeInTheDocument()
+    expect(within(screen.getByRole('table')).getByText('Mã lớp mới, sẽ được tạo')).toBeInTheDocument()
+  })
+
   it('W07: bản xem trước hết hạn thì mời tải lại file', async () => {
     const user = userEvent.setup()
     post.mockImplementation(async (url: string) => {
