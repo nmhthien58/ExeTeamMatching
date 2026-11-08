@@ -100,7 +100,7 @@ Dưới đây là thống kê từ bộ dữ liệu thực tế tại FPT Univer
 | Cổng kiểm thử | Lệnh thực thi | Kết quả |
 |---|---|---|
 | **Backend Build** | `dotnet build backend/ExeTeamMatching.sln` | 0 errors, 0 warnings |
-| **Backend Unit Tests** | `dotnet test backend/ExeTeamMatching.sln` | 784/784 passed |
+| **Backend Unit Tests** | `dotnet test backend/ExeTeamMatching.sln` | 858/858 passed |
 | **Frontend Web Tests** | `npm --prefix web test` | 249/249 passed (36 suites) |
 | **Frontend Web Build** | `npm --prefix web run build` | Build thành công (exit code 0) |
 | **Mobile Tests** | `flutter test` | 607/607 passed |
