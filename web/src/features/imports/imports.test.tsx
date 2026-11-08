@@ -202,7 +202,7 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
 
     post.mockResolvedValueOnce({ data: ok })
     await user.click(screen.getByRole('button', { name: 'Kiểm tra file' }))
-    expect(await screen.findByText('File hợp lệ, chưa tạo nhóm nào')).toBeInTheDocument()
+    expect(await screen.findByText('Kết quả đối chiếu, chưa tạo nhóm nào')).toBeInTheDocument()
 
     post.mockResolvedValueOnce({ data: ok })
     await user.click(screen.getByRole('button', { name: 'Import mốc' }))
@@ -262,7 +262,7 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
     expect(await screen.findByText('Xem trước kết quả kế thừa nhóm')).toBeInTheDocument()
     expect(screen.getByText('Nhóm Rồng Vàng')).toBeInTheDocument()
     expect(screen.getByText('Nhóm Chiến Binh')).toBeInTheDocument()
-    expect(screen.getByText(/Thiếu 2: SE160003, SE160004/)).toBeInTheDocument()
+    expect(screen.getByText(/Không học EXE201 kỳ này: SE160003, SE160004/)).toBeInTheDocument()
 
     post.mockResolvedValueOnce({ data: autoInheritData })
     await user.click(screen.getByRole('button', { name: 'Xác nhận tạo nhóm kế thừa' }))
