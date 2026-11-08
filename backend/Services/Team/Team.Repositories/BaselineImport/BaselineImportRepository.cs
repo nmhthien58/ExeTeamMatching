@@ -68,6 +68,49 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
         )).ToList();
     }
 
+    public async Task<IReadOnlyList<Exe101TeamWithMembers>> GetPreviousExe101TeamsAsync(Guid currentSemesterId, CancellationToken ct)
+    {
+        var previousSemesterId = await db.Set<TeamEntity>().AsNoTracking()
+            .Where(t => t.CourseCode == "EXE101" && t.SemesterId != currentSemesterId && t.Status != "DISBANDED")
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => (Guid?)t.SemesterId)
+            .FirstOrDefaultAsync(ct);
+
+        if (previousSemesterId == null) return [];
+
+        var teams = await db.Set<TeamEntity>().AsNoTracking()
+            .Where(t => t.CourseCode == "EXE101" && t.SemesterId == previousSemesterId && t.Status != "DISBANDED")
+            .Select(t => new { t.Id, t.Name, t.SemesterId, t.ProjectId })
+            .ToListAsync(ct);
+
+        if (teams.Count == 0) return [];
+
+        var teamIds = teams.Select(t => t.Id).ToList();
+
+        var members = await db.Set<TeamMember>().AsNoTracking()
+            .Where(m => teamIds.Contains(m.TeamId))
+            .OrderBy(m => m.Role == "LEADER" ? 0 : 1)
+            .ThenBy(m => m.JoinedAt)
+            .Select(m => new OldTeamMemberInfo(m.TeamId, m.StudentId, m.StudentCode, m.FullName, m.SpecializationId, m.Role))
+            .ToListAsync(ct);
+
+        var membersByTeam = members.GroupBy(m => m.TeamId).ToDictionary(g => g.Key, g => (IReadOnlyList<OldTeamMemberInfo>)g.ToList());
+
+        var projectIds = teams.Where(t => t.ProjectId != null).Select(t => t.ProjectId!.Value).Distinct().ToList();
+        var projects = await db.Set<Projects.Project>().AsNoTracking()
+            .Where(p => projectIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Name, ct);
+
+        return teams.Select(t => new Exe101TeamWithMembers(
+            t.Id,
+            t.Name,
+            t.SemesterId,
+            t.ProjectId,
+            t.ProjectId != null && projects.TryGetValue(t.ProjectId.Value, out var pName) ? pName : null,
+            membersByTeam.TryGetValue(t.Id, out var mList) ? mList : []
+        )).ToList();
+    }
+
     public async Task SaveImportedTeamsAsync(
         IReadOnlyList<TeamEntity> teams,
         IReadOnlyList<TeamMember> members,

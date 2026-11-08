@@ -56,7 +56,7 @@ public sealed class TeamReader(ITeamRepository teams, IAcademicClient academic)
         }
         var byId = found.ToDictionary(s => s.Id);
         return ids.ToDictionary(id => id, id => byId.TryGetValue(id, out var s)
-            ? new StudentRef(id, s.StudentCode, s.FullName, catalogs.Specialization(s.SpecializationId))
+            ? new StudentRef(id, s.StudentCode, s.FullName, catalogs.Specialization(s.SpecializationId ?? 0))
             : new StudentRef(id, "", "", new CatalogRef(0, null, null)));
     }
 }

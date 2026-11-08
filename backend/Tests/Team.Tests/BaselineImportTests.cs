@@ -21,6 +21,7 @@ public sealed class BaselineImportTests
         public HashSet<string> ExistingTeamNames { get; } = [];
         public Dictionary<string, TeamEntity> Exe101Teams { get; } = new(StringComparer.OrdinalIgnoreCase);
         public List<Exe101CandidateTeam> Exe101Candidates { get; } = [];
+        public List<Exe101TeamWithMembers> PreviousExe101Teams { get; } = [];
 
         public List<TeamEntity> SavedTeams { get; } = [];
         public List<TeamMember> SavedMembers { get; } = [];
@@ -50,6 +51,9 @@ public sealed class BaselineImportTests
             }
             return Task.FromResult<IReadOnlyList<Exe101CandidateTeam>>(list);
         }
+
+        public Task<IReadOnlyList<Exe101TeamWithMembers>> GetPreviousExe101TeamsAsync(Guid currentSemesterId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Exe101TeamWithMembers>>(PreviousExe101Teams);
 
         public Task SaveImportedTeamsAsync(
             IReadOnlyList<TeamEntity> teams,
@@ -466,5 +470,244 @@ public sealed class BaselineImportTests
 
         var response = await client.PostAsync("/api/teams/baseline-import", content);
         Assert.Equal(System.Net.HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public void Real_SU26_EXE101_Group_List_xlsx_can_be_parsed_successfully()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? docPath = null;
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "docs", "SU26_EXE101 _ Group List.xlsx");
+            if (File.Exists(candidate))
+            {
+                docPath = candidate;
+                break;
+            }
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(docPath);
+        Assert.True(File.Exists(docPath), $"File {docPath} must exist for real test");
+
+        using var fileStream = File.OpenRead(docPath);
+        var errors = new List<BaselineImportRowError>();
+        var records = BaselineImportFileParser.Parse(fileStream, "SU26_EXE101 _ Group List.xlsx", errors);
+
+        Assert.Empty(errors);
+        Assert.NotEmpty(records);
+        var teams = records.GroupBy(r => r.TeamName).ToList();
+        Assert.True(teams.Count >= 10, $"Expected at least 10 teams, got {teams.Count}");
+
+        var teamsWithoutLeader = teams.Where(t => !t.Any(m => m.IsLeader)).Select(t => t.Key).ToList();
+        Assert.True(teamsWithoutLeader.Count == 0, $"Teams without leader: {string.Join("; ", teamsWithoutLeader)}");
+    }
+
+    [Fact]
+    public void Real_FA26_EXE201_Group_List_xlsx_can_be_parsed_successfully()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        string? docPath = null;
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, "docs", "FA26_EXE201 _ Group List.xlsx");
+            if (File.Exists(candidate))
+            {
+                docPath = candidate;
+                break;
+            }
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(docPath);
+        Assert.True(File.Exists(docPath), $"File {docPath} must exist for real test");
+
+        using var fileStream = File.OpenRead(docPath);
+        var errors = new List<BaselineImportRowError>();
+        var records = BaselineImportFileParser.Parse(fileStream, "FA26_EXE201 _ Group List.xlsx", errors);
+
+        Assert.Empty(errors);
+        Assert.NotEmpty(records);
+        var teams = records.GroupBy(r => r.TeamName).ToList();
+        Assert.True(teams.Count >= 10, $"Expected at least 10 teams, got {teams.Count}");
+
+        var teamsWithoutLeader = teams.Where(t => !t.Any(m => m.IsLeader)).Select(t => t.Key).ToList();
+        Assert.True(teamsWithoutLeader.Count == 0, $"Teams without leader: {string.Join("; ", teamsWithoutLeader)}");
+    }
+
+    [Fact]
+    public async Task AutoInherit_when_all_members_enrolled_creates_draft_team_and_links_project()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        var s1 = fakeAcademic.EnrollWithCode("SE160001", "Leader Name");
+        var s2 = fakeAcademic.EnrollWithCode("SE160002", "Member 2");
+        var s3 = fakeAcademic.EnrollWithCode("SE160003", "Member 3");
+        var s4 = fakeAcademic.EnrollWithCode("SE160004", "Member 4");
+
+        var prevProjectId = Guid.NewGuid();
+        var prevTeamId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            prevTeamId,
+            "Nhóm Rồng Vàng",
+            fakeAcademic.Semester.Id,
+            prevProjectId,
+            "EduPlatform",
+            [
+                new OldTeamMemberInfo(prevTeamId, s1.Id, "SE160001", "Leader Name", 1, MemberRoles.Leader),
+                new OldTeamMemberInfo(prevTeamId, s2.Id, "SE160002", "Member 2", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, s3.Id, "SE160003", "Member 3", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, s4.Id, "SE160004", "Member 4", 1, MemberRoles.Member)
+            ]
+        ));
+
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var response = await service.AutoInheritAsync(new AutoInheritRequest(fakeAcademic.Semester.Id, DryRun: false), CancellationToken.None);
+
+        Assert.Equal(1, response.InheritedTeamCount);
+        Assert.Equal(4, response.InheritedStudentCount);
+        Assert.Equal(0, response.FreeStudentCount);
+        Assert.Equal(0, response.NeedsReviewTeamCount);
+
+        Assert.Single(repo.SavedTeams);
+        var team = repo.SavedTeams.Single();
+        Assert.Equal("Nhóm Rồng Vàng", team.Name);
+        Assert.Equal("DRAFT", team.Status);
+        Assert.Equal(prevProjectId, team.ProjectId);
+
+        var leaderMember = repo.SavedMembers.Single(m => m.TeamId == team.Id && m.Role == MemberRoles.Leader);
+        Assert.Equal(s1.Id, leaderMember.StudentId);
+        Assert.Equal(4, repo.SavedMembers.Count);
+        Assert.Equal(4, repo.SavedBaselineMembers.Count);
+    }
+
+    [Fact]
+    public async Task AutoInherit_when_fewer_than_4_members_enrolled_creates_needs_review_team()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        var s1 = fakeAcademic.EnrollWithCode("SE160001", "Leader Name");
+        var s2 = fakeAcademic.EnrollWithCode("SE160002", "Member 2");
+        // s3 and s4 NOT enrolled in current semester
+
+        var prevTeamId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            prevTeamId,
+            "Nhóm Rồng Vàng",
+            fakeAcademic.Semester.Id,
+            null,
+            null,
+            [
+                new OldTeamMemberInfo(prevTeamId, s1.Id, "SE160001", "Leader Name", 1, MemberRoles.Leader),
+                new OldTeamMemberInfo(prevTeamId, s2.Id, "SE160002", "Member 2", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160003", "Member 3", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160004", "Member 4", 1, MemberRoles.Member)
+            ]
+        ));
+
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var response = await service.AutoInheritAsync(new AutoInheritRequest(fakeAcademic.Semester.Id, DryRun: false), CancellationToken.None);
+
+        Assert.Equal(1, response.InheritedTeamCount);
+        Assert.Equal(2, response.InheritedStudentCount);
+        Assert.Equal(1, response.NeedsReviewTeamCount);
+
+        Assert.Single(repo.SavedTeams);
+        var team = repo.SavedTeams.Single();
+        Assert.Equal("NEEDS_REVIEW", team.Status);
+        Assert.Equal(2, repo.SavedMembers.Count);
+        Assert.Single(response.Teams);
+        Assert.Equal("NEEDS_REVIEW", response.Teams[0].Status);
+        Assert.Equal(2, response.Teams[0].MissingOldMemberStudentCodes.Count);
+    }
+
+    [Fact]
+    public async Task AutoInherit_when_old_leader_absent_promotes_first_member_to_leader()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        // s1 (old leader) not enrolled
+        var s2 = fakeAcademic.EnrollWithCode("SE160002", "Member 2");
+        var s3 = fakeAcademic.EnrollWithCode("SE160003", "Member 3");
+        var s4 = fakeAcademic.EnrollWithCode("SE160004", "Member 4");
+        var s5 = fakeAcademic.EnrollWithCode("SE160005", "Member 5");
+
+        var prevTeamId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            prevTeamId,
+            "Nhóm Alpha",
+            fakeAcademic.Semester.Id,
+            null,
+            null,
+            [
+                new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160001", "Old Leader", 1, MemberRoles.Leader),
+                new OldTeamMemberInfo(prevTeamId, s2.Id, "SE160002", "Member 2", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, s3.Id, "SE160003", "Member 3", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, s4.Id, "SE160004", "Member 4", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(prevTeamId, s5.Id, "SE160005", "Member 5", 1, MemberRoles.Member)
+            ]
+        ));
+
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var response = await service.AutoInheritAsync(new AutoInheritRequest(fakeAcademic.Semester.Id, DryRun: false), CancellationToken.None);
+
+        var team = repo.SavedTeams.Single();
+        var leaderMember = repo.SavedMembers.Single(m => m.TeamId == team.Id && m.Role == MemberRoles.Leader);
+        Assert.Equal(s2.Id, leaderMember.StudentId);
+        Assert.Equal("SE160002", response.Teams[0].LeaderStudentCode);
+    }
+
+    [Fact]
+    public async Task AutoInherit_dry_run_does_not_commit_to_db()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        var s1 = fakeAcademic.EnrollWithCode("SE160001", "Leader");
+        var s2 = fakeAcademic.EnrollWithCode("SE160002", "M2");
+        var s3 = fakeAcademic.EnrollWithCode("SE160003", "M3");
+        var s4 = fakeAcademic.EnrollWithCode("SE160004", "M4");
+
+        var prevTeamId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            prevTeamId, "Nhóm 1", fakeAcademic.Semester.Id, null, null,
+            [
+                new OldTeamMemberInfo(prevTeamId, s1.Id, "SE160001", "Leader", 1, "Leader"),
+                new OldTeamMemberInfo(prevTeamId, s2.Id, "SE160002", "M2", 1, "Member"),
+                new OldTeamMemberInfo(prevTeamId, s3.Id, "SE160003", "M3", 1, "Member"),
+                new OldTeamMemberInfo(prevTeamId, s4.Id, "SE160004", "M4", 1, "Member")
+            ]
+        ));
+
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var response = await service.AutoInheritAsync(new AutoInheritRequest(fakeAcademic.Semester.Id, DryRun: true), CancellationToken.None);
+
+        Assert.Equal(1, response.InheritedTeamCount);
+        Assert.Empty(repo.SavedTeams);
+        Assert.Empty(repo.SavedMembers);
+        Assert.Empty(repo.SavedBaselineMembers);
+    }
+
+    [Fact]
+    public async Task AutoInherit_when_zero_members_enrolled_does_not_create_team()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+        // None of the members enrolled
+
+        var prevTeamId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            prevTeamId, "Nhóm Cũ", fakeAcademic.Semester.Id, null, null,
+            [
+                new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160001", "M1", 1, "Leader"),
+                new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160002", "M2", 1, "Member")
+            ]
+        ));
+
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var response = await service.AutoInheritAsync(new AutoInheritRequest(fakeAcademic.Semester.Id, DryRun: false), CancellationToken.None);
+
+        Assert.Equal(0, response.InheritedTeamCount);
+        Assert.Empty(repo.SavedTeams);
     }
 }

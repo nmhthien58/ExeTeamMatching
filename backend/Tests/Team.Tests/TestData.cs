@@ -41,7 +41,7 @@ public static class TestData
             db.AddRange(students.Select(s => new TeamMember
             {
                 TeamId = team.Id, SemesterId = api.Academic.Semester.Id, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName,
-                SpecializationId = s.SpecializationId, JoinSource = "INVITATION",
+                SpecializationId = s.SpecializationId ?? 0, JoinSource = "INVITATION",
             }));
             return db.SaveChangesAsync();
         });
@@ -69,11 +69,11 @@ public static class TestData
                 db.Add(new TeamMember
                 {
                     TeamId = teamId, SemesterId = semesterId, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName,
-                    SpecializationId = s.SpecializationId, Role = role, JoinSource = "INHERITED",
+                    SpecializationId = s.SpecializationId ?? 0, Role = role, JoinSource = "INHERITED",
                 });
                 db.Add(new TeamBaselineMember
                 {
-                    TeamId = teamId, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName, SpecializationId = s.SpecializationId, Role = role,
+                    TeamId = teamId, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName, SpecializationId = s.SpecializationId ?? 0, Role = role,
                 });
             }
             return db.SaveChangesAsync();

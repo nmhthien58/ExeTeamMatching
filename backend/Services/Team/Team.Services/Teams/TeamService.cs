@@ -61,7 +61,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         teams.Add(new TeamMember
         {
             TeamId = team.Id, SemesterId = semester.Id, StudentId = studentId, StudentCode = me.StudentCode, FullName = me.FullName,
-            SpecializationId = me.SpecializationId, Role = MemberRoles.Leader, JoinSource = "CREATOR",
+            SpecializationId = me.SpecializationId ?? 0, Role = MemberRoles.Leader, JoinSource = "CREATOR",
         });
         foreach (var d in domains)
         {

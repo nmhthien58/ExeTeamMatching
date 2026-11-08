@@ -61,14 +61,14 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
         members.Add(new TeamMember
         {
             TeamId = team.Id, SemesterId = team.SemesterId, StudentId = student.Id, StudentCode = student.StudentCode, FullName = student.FullName,
-            SpecializationId = student.SpecializationId, Role = MemberRoles.Member, JoinSource = source,
+            SpecializationId = student.SpecializationId ?? 0, Role = MemberRoles.Member, JoinSource = source,
         });
         var count = current.Count + 1;
         team.Status = TeamRules.StatusAfterMemberChange(team.Status, count, rules);
         await CancelOtherPendingAsync(team.SemesterId, student.Id, keepRequestId, ct);
         audit.Add(team.Id, "TeamMember", student.Id, "MEMBER_JOINED", actor, newValues: new { student.StudentCode, source, memberCount = count });
         members.AddEvent(MemberEventTypes.MemberJoined, team.Id,
-            new MemberJoined(team.Id, team.SemesterId, student.Id, student.FullName, student.SpecializationId, source, count));
+            new MemberJoined(team.Id, team.SemesterId, student.Id, student.FullName, student.SpecializationId ?? 0, source, count));
         return true;
     }
 
