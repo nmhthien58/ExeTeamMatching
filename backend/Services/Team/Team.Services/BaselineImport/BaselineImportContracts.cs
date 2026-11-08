@@ -15,3 +15,35 @@ public sealed record ParsedBaselineRecord(
     string? ProjectName,
     string StudentCode,
     bool IsLeader);
+
+public sealed record AutoInheritRequest(
+    Guid SemesterId,
+    bool DryRun = false,
+    IReadOnlyList<string>? StudentCodes = null);
+
+public sealed record InheritedTeamMemberSummary(
+    Guid StudentId,
+    string StudentCode,
+    string FullName,
+    int? SpecializationId,
+    bool IsLeader);
+
+public sealed record InheritedTeamSummary(
+    Guid? TeamId,
+    string TeamName,
+    Guid? OldTeamId,
+    Guid? ProjectId,
+    string? ProjectName,
+    string LeaderStudentCode,
+    string LeaderName,
+    int MemberCount,
+    IReadOnlyList<InheritedTeamMemberSummary> Members,
+    IReadOnlyList<string> MissingOldMemberStudentCodes,
+    string Status);
+
+public sealed record AutoInheritResponse(
+    int InheritedTeamCount,
+    int InheritedStudentCount,
+    int FreeStudentCount,
+    int NeedsReviewTeamCount,
+    IReadOnlyList<InheritedTeamSummary> Teams);

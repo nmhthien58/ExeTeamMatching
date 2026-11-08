@@ -39,7 +39,7 @@ public sealed record PlannedAdvisorMatch(Guid TeamId, Guid? AdvisorId, string? R
 /// <summary>Lời gọi gRPC tới Matching Service (PROJECT_CONTEXT §5.5). Matching lỗi hoặc quá hạn → 503 matching-unavailable.</summary>
 public interface IMatchingClient
 {
-    Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct);
+    Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int? SpecializationId)> members, CancellationToken ct);
 
     Task<AutoAssignPlan> PlanAutoAssignmentAsync(Guid semesterId, string courseCode, CancellationToken ct);
 
@@ -56,7 +56,7 @@ public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc, I
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
-    public async Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct)
+    public async Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int? SpecializationId)> members, CancellationToken ct)
     {
         var rules = await academic.GetTeamRulesAsync(ct);
         return await CallAsync(async options =>
@@ -65,7 +65,7 @@ public sealed class MatchingClient(MatchingService.MatchingServiceClient grpc, I
             {
                 MinSize = rules.MinSize, MaxSize = rules.MaxSize, MinSpecializations = rules.MinSpecializations,
             };
-            request.Members.AddRange(members.Select(m => new MemberInfo { StudentId = m.StudentId.ToString(), SpecializationId = m.SpecializationId }));
+            request.Members.AddRange(members.Select(m => new MemberInfo { StudentId = m.StudentId.ToString(), SpecializationId = m.SpecializationId ?? 0 }));
             var response = await grpc.ValidateCompositionAsync(request, options);
             return new CompositionCheck(response.IsValid, response.Violations.Select(v => v.Code).ToList(), response.Violations.Select(v => v.Message).ToList());
         }, ct);

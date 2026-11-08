@@ -36,6 +36,7 @@ const data: Record<string, unknown[]> = {
     { id: 2, code: 'D02', name: 'Robotics', description: null, isActive: false },
   ],
   '/api/specializations': [],
+  '/api/majors': [{ id: 1, code: 'SE', name: 'Kỹ thuật phần mềm', description: null, isActive: true }],
 }
 
 function renderAt(path: string) {
@@ -108,8 +109,9 @@ describe('W12–W14 – Danh mục (FE-18, FE-19, FE-20)', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Thêm chuyên ngành' })[0])
     await type(within(drawer()).getByRole('textbox', { name: /^Mã/ }), 'SE')
     await type(within(drawer()).getByRole('textbox', { name: 'Tên' }), 'Kỹ thuật phần mềm')
+    await userEvent.selectOptions(within(drawer()).getByRole('combobox'), '1')
     await userEvent.click(within(drawer()).getByRole('button', { name: 'Lưu' }))
     expect(await within(drawer()).findByText('Mã SE đã tồn tại.')).toBeInTheDocument()
-    expect(post).toHaveBeenCalledWith('/api/specializations', { code: 'SE', name: 'Kỹ thuật phần mềm' })
+    expect(post).toHaveBeenCalledWith('/api/specializations', { code: 'SE', name: 'Kỹ thuật phần mềm', majorId: 1 })
   })
 })

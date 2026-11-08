@@ -16,7 +16,7 @@ import { adminRuleSettingsRoutes } from '@/features/settings/routes'
 import { adminSemesterRoutes } from '@/features/semesters/routes'
 import { changeRequestRoutes, studentChangeRequestRoutes } from '@/features/change-requests/routes'
 import { projectRoutes } from '@/features/projects/routes'
-import { completeProfileRoute, lecturerProfileRoutes, mentorProfileRoutes, requireCompletedProfile, studentProfileRoutes } from '@/features/profile/routes'
+import { completeProfileRoute, lecturerProfileRoutes, mentorProfileRoutes, requireCompletedLecturerProfile, requireCompletedProfile, studentProfileRoutes } from '@/features/profile/routes'
 import { lecturerScheduleRoutes, studentScheduleRoutes } from '@/features/meeting-schedule/routes'
 import { advisorMessageRoutes } from '@/features/messages/routes'
 import { lecturerCalendarRoutes } from '@/features/meetings/routes'
@@ -34,6 +34,9 @@ import { studentNotificationRoutes, lecturerNotificationRoutes, mentorNotificati
 export const featureRoutes: Record<Shell, RouteObject[]> = {
   admin: [...adminSemesterRoutes, ...adminImportRoutes, ...adminStudentRoutes, ...adminLecturerRoutes, ...adminMentorRoutes, ...adminCatalogRoutes, ...adminRuleSettingsRoutes, ...adminAutoAssignRoutes, ...adminTeamRoutes, ...adminAuditLogRoutes, ...adminClientErrorRoutes, ...adminLecturerMatchingRoutes, ...adminMentorMatchingRoutes, ...changeRequestRoutes, ...projectRoutes, ...adminAnnouncementRoutes],
   student: [completeProfileRoute, ...requireCompletedProfile([workspaceRoutes('/sv'), studentMessagesRoute, ...suggestionRoutes, ...studentTeamRoutes, ...studentScheduleRoutes, ...studentProfileRoutes, ...studentAdvisorRoutes, ...studentChangeRequestRoutes, ...studentNotificationRoutes])],
-  lecturer: [workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerScheduleRoutes, ...lecturerCalendarRoutes, ...lecturerProfileRoutes, ...lecturerRoutes, ...lecturerNotificationRoutes],
+  lecturer: [
+    ...lecturerProfileRoutes,
+    ...requireCompletedLecturerProfile([workspaceRoutes('/gv'), ...advisorMessageRoutes, ...lecturerScheduleRoutes, ...lecturerCalendarRoutes, ...lecturerRoutes, ...lecturerNotificationRoutes]),
+  ],
   mentor: [workspaceRoutes('/mentor'), ...advisorMessageRoutes, ...mentorProfileRoutes, ...mentorRoutes, ...mentorNotificationRoutes],
 }

@@ -52,8 +52,9 @@ Luồng 12 (thông báo và nhắc lịch) chạy xuyên suốt cả kỳ.
 2. **Import sinh viên** từ Excel (W06–W08):
    - Hệ thống kiểm tra MSSV (2 chữ + 6 số), email, chuyên ngành; báo lỗi từng dòng trước khi lưu.
    - Lưu xong thì phát `StudentImported`; Identity tạo sẵn tài khoản ở trạng thái *chờ đăng nhập*.
-3. **Khai báo giảng viên** (W11):
-   - Nhập email, chuyên môn (domain) và **số nhóm tối đa theo môn**. Có thể để trống = không giới hạn.
+3. **Khai báo / Import giảng viên** (W11):
+   - Thêm từng giảng viên hoặc **import danh sách từ file Excel** (.xlsx) gồm các cột: Email (@fpt.edu.vn hoặc @fe.edu.vn), Họ và tên, SĐT (tùy chọn).
+   - Hệ thống kiểm tra định dạng email, trùng lặp và cấu hình mặc định trần tối đa (4 nhóm/môn). Giảng viên mới import có trạng thái *Chưa khai báo* (chưa chọn domain và số nhóm mong muốn).
    - Hệ thống phát `LecturerRegistered` để giảng viên đăng nhập được.
 4. **Tạo mentor** (W27):
    - Nhập họ tên, tổ chức, email, chuyên môn, trong trường hay ngoài trường, **số nhóm tối đa**.
@@ -81,7 +82,9 @@ Luồng 12 (thông báo và nhắc lịch) chạy xuyên suốt cả kỳ.
    - Kéo **5 thanh kỹ năng 1–5**: Công nghệ, UI/UX, Quản trị, Marketing, Plan truyền thông. Thanh nào chưa chạm thì chưa lưu được.
    - Viết mô tả (≤ 500 ký tự).
    - **Không có ô số điện thoại hay Zalo.** Số điện thoại lấy từ file import và chỉ người trong nhóm thấy.
-4. Giảng viên và mentor vào thẳng trang chủ: giảng viên L01, mentor M01.
+4. **Giảng viên và mentor:**
+   - **Giảng viên:** lần đầu đăng nhập bắt buộc hoàn thiện hồ sơ tại L06: chọn ít nhất 1 domain chuyên môn và khai báo số nhóm mong muốn hướng dẫn (≤ số nhóm tối đa do Bộ môn quy định). Nếu chưa hoàn thành hồ sơ, hệ thống chuyển hướng về L06 và giảng viên chưa được tham gia thuật toán ghép nhóm tự động (BE-93). Sau khi hoàn thành, vào trang chủ L01.
+   - **Mentor:** vào thẳng trang chủ M01.
 
 **Kết quả:** sinh viên có hồ sơ để trưởng nhóm đánh giá và để hệ thống gợi ý ghép.
 
@@ -188,7 +191,8 @@ Sinh viên EXE201 không có nhóm EXE101 thì lập nhóm tự do như luồng 
    | 3 | Giảng viên quan tâm nhóm (ai ít nhóm hơn trước) | Giảng viên quan tâm |
    | 4 | EXE201: giảng viên EXE101 của cùng đề tài; còn lại: giảng viên trùng chuyên môn nhiều nhất, ít nhóm nhất | Theo chuyên môn |
 
-   - **Giảng viên đã đủ số nhóm tối đa** thì nhóm chuyển xuống ứng viên tiếp theo.
+   - **Điều kiện tham gia ghép:** chỉ xét các giảng viên đang hoạt động và **đã hoàn thành hồ sơ** (`isProfileCompleted == true`, BE-93). Giảng viên chưa chọn domain hoặc chưa khai báo số nhóm mong muốn sẽ không được ghép tự động.
+   - **Sức chứa giảng viên:** ưu tiên theo **số nhóm mong muốn** (`desiredTeamsExe101`, `desiredTeamsExe201`) do giảng viên khai báo; nếu chưa có thì theo trần tối đa do Bộ môn cấu hình (`maxTeamsExe101`, `maxTeamsExe201`). Giảng viên đã đủ sức chứa thì nhóm chuyển xuống ứng viên tiếp theo.
    - **Tranh chấp trong cùng một bậc** (nhiều nhóm cùng muốn một giảng viên sắp đủ chỗ): giảng viên giữ nhóm xếp mình cao hơn, rồi tới nhóm trùng chuyên môn nhiều hơn.
 5. **Áp dụng kết quả trong một lần:**
    - Mỗi nhóm có giảng viên kèm nhãn lý do.

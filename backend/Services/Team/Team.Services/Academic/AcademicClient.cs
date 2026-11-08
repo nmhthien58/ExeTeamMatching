@@ -26,13 +26,24 @@ public sealed record SemesterDto(
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, string? Name = null);
 
 /// <summary>Schema <c>StudentSnapshot</c>.</summary>
-public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int SpecializationId, string CourseCode, bool IsEnrolled);
+public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1);
 
 /// <summary>Schema <c>CatalogItem</c> (domain, chuyên ngành).</summary>
 public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive);
 
 /// <summary>Snapshot giảng viên từ Academic (academic.yaml).</summary>
-public sealed record LecturerSnapshot(Guid Id, string FullName, string Email, IReadOnlyList<CatalogItem> Domains, int? MaxTeamsExe101, int? MaxTeamsExe201, bool IsActive);
+public sealed record LecturerSnapshot(
+    Guid Id,
+    string FullName,
+    string Email,
+    IReadOnlyList<CatalogItem> Domains,
+    int? MaxTeamsExe101,
+    int? MaxTeamsExe201,
+    bool IsActive,
+    int? DesiredTeamsExe101 = null,
+    int? DesiredTeamsExe201 = null,
+    bool IsProfileCompleted = true,
+    DateTimeOffset? ProfileCompletedAt = null);
 
 /// <summary>
 /// Snapshot mentor từ Academic (schema <c>Mentor</c>, BE-66 của Nam). <c>currentTeamCount</c> của Academic không đọc: số nhóm đang mentor

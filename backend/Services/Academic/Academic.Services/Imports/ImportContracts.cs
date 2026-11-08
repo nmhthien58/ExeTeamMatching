@@ -37,6 +37,11 @@ public sealed record ImportBatchResponse(
 /// <summary>Form <c>multipart/form-data</c> của <c>POST /api/imports/students/preview</c>, đã tách khỏi <c>IFormFile</c>.</summary>
 public sealed record ImportPreviewInput(Stream? File, string? FileName, long FileLength, Guid? SemesterId, string? CourseCode);
 
+public sealed class LecturerImportForm
+{
+    public Microsoft.AspNetCore.Http.IFormFile? File { get; init; }
+}
+
 /// <summary>Query của <c>GET /api/imports</c>.</summary>
 public sealed record ImportQuery(Guid? SemesterId, int Page = 1, int PageSize = 20);
 
@@ -75,5 +80,5 @@ public static class StudentEventTypes
 }
 
 public sealed record StudentImportedEvent(
-    Guid StudentId, string StudentCode, string FullName, string Email, string? Phone, int SpecializationId,
-    Guid SemesterId, DateOnly SemesterEndDate, string CourseCode, string ClassCode);
+    Guid StudentId, string StudentCode, string FullName, string Email, string? Phone, int? SpecializationId,
+    Guid SemesterId, DateOnly SemesterEndDate, string CourseCode, string ClassCode, int MajorId);

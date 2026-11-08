@@ -24,7 +24,8 @@ export interface StudentProfile {
   studentCode: string
   fullName: string
   email: string
-  specialization: CatalogRef
+  major: CatalogRef
+  specialization?: CatalogRef | null
   classCode?: string | null
   courseCode?: 'EXE101' | 'EXE201' | null
   hasTeam: boolean
@@ -37,6 +38,7 @@ export interface StudentProfile {
 }
 
 export interface StudentProfileInput {
+  specializationId?: number | null
   skills: SkillRating[]
   description?: string
   /** Bỏ trống thì giữ nguyên (ngoài giai đoạn lập nhóm S03 không có công tắc này). */
@@ -50,6 +52,16 @@ export interface LecturerProfile {
   domains: CatalogRef[]
   maxTeamsExe101?: number | null
   maxTeamsExe201?: number | null
+  desiredTeamsExe101?: number | null
+  desiredTeamsExe201?: number | null
+  isProfileCompleted: boolean
+  profileCompletedAt?: string | null
+}
+
+export interface LecturerProfileInput {
+  domainIds: number[]
+  desiredTeamsExe101?: number | null
+  desiredTeamsExe201?: number | null
 }
 
 const keys = {
@@ -108,7 +120,10 @@ export function useLecturerProfile() {
 export function useSaveLecturerProfile() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (domainIds: number[]) => (await api.put<LecturerProfile>('/api/lecturers/me', { domainIds })).data,
+    mutationFn: async (input: LecturerProfileInput | number[]) => {
+      const payload = Array.isArray(input) ? { domainIds: input } : input
+      return (await api.put<LecturerProfile>('/api/lecturers/me', payload)).data
+    },
     onSuccess: (profile) => {
       queryClient.setQueryData(keys.lecturerMe, profile)
     },

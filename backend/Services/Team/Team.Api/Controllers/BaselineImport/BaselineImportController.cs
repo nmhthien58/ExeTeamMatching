@@ -31,4 +31,16 @@ public sealed class BaselineImportController(IBaselineImportService baselineImpo
         var result = await baselineImport.ImportAsync(semesterId, stream, file.FileName, dryRun, ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Tự động đối chiếu và kế thừa nhóm EXE201 từ EXE101 kỳ trước (BE-92).
+    /// </summary>
+    [HttpPost("auto-inherit")]
+    public async Task<ActionResult<AutoInheritResponse>> AutoInherit(
+        [FromBody] AutoInheritRequest request,
+        CancellationToken ct = default)
+    {
+        var result = await baselineImport.AutoInheritAsync(request, ct);
+        return Ok(result);
+    }
 }

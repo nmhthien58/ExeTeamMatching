@@ -3,16 +3,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Academic.Repositories.Catalogs;
 
-/// <summary>Ba danh mục của rule 12: chuyên ngành, domain, mã lớp (W12–W14).</summary>
+/// <summary>Bốn danh mục của rule 12: ngành, chuyên ngành, domain, mã lớp (W12–W14, BE-91).</summary>
 public enum CatalogKind
 {
+    Majors,
     Specializations,
     Domains,
     ClassCodes,
 }
 
 /// <summary>Một dòng danh mục ở dạng chung. Mã lớp không có cột tên nên <see cref="Name"/> = <see cref="Code"/>; chỉ domain có mô tả.</summary>
-public sealed record CatalogRow(int Id, string Code, string Name, string? Description, bool IsActive);
+public sealed record CatalogRow(int Id, string Code, string Name, string? Description, bool IsActive, int? MajorId = null);
 
 public interface ICatalogRepository
 {
@@ -43,8 +44,13 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
     {
         switch (kind)
         {
+            case CatalogKind.Majors:
+                var major = new Major { Code = row.Code, Name = row.Name, IsActive = row.IsActive };
+                db.Majors.Add(major);
+                await db.SaveChangesAsync(ct);
+                return ToRow(major);
             case CatalogKind.Specializations:
-                var specialization = new Specialization { Code = row.Code, Name = row.Name, IsActive = row.IsActive };
+                var specialization = new Specialization { Code = row.Code, Name = row.Name, IsActive = row.IsActive, MajorId = row.MajorId };
                 db.Specializations.Add(specialization);
                 await db.SaveChangesAsync(ct);
                 return ToRow(specialization);
@@ -65,12 +71,24 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
     {
         switch (kind)
         {
+            case CatalogKind.Majors:
+                if (await db.Majors.FindAsync([row.Id], ct) is not { } major)
+                {
+                    return null;
+                }
+                (major.Code, major.Name, major.IsActive) = (row.Code, row.Name, row.IsActive);
+                await db.SaveChangesAsync(ct);
+                return ToRow(major);
             case CatalogKind.Specializations:
                 if (await db.Specializations.FindAsync([row.Id], ct) is not { } specialization)
                 {
                     return null;
                 }
                 (specialization.Code, specialization.Name, specialization.IsActive) = (row.Code, row.Name, row.IsActive);
+                if (row.MajorId.HasValue)
+                {
+                    specialization.MajorId = row.MajorId.Value;
+                }
                 await db.SaveChangesAsync(ct);
                 return ToRow(specialization);
             case CatalogKind.Domains:
@@ -95,8 +113,10 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
     /// <summary>Chiếu sang <see cref="RowView"/> (property init) để EF còn dịch được Where / OrderBy phía sau sang SQL.</summary>
     private IQueryable<RowView> Rows(CatalogKind kind) => kind switch
     {
-        CatalogKind.Specializations => db.Specializations.AsNoTracking()
+        CatalogKind.Majors => db.Majors.AsNoTracking()
             .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive }),
+        CatalogKind.Specializations => db.Specializations.AsNoTracking()
+            .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive, MajorId = x.MajorId }),
         CatalogKind.Domains => db.Domains.AsNoTracking()
             .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, Description = x.Description, IsActive = x.IsActive }),
         _ => db.ClassCodes.AsNoTracking()
@@ -110,11 +130,14 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
         public string Name { get; init; } = string.Empty;
         public string? Description { get; init; }
         public bool IsActive { get; init; }
+        public int? MajorId { get; init; }
 
-        public CatalogRow ToRow() => new(Id, Code, Name, Description, IsActive);
+        public CatalogRow ToRow() => new(Id, Code, Name, Description, IsActive, MajorId);
     }
 
-    private static CatalogRow ToRow(Specialization x) => new(x.Id, x.Code, x.Name, null, x.IsActive);
+    private static CatalogRow ToRow(Major x) => new(x.Id, x.Code, x.Name, null, x.IsActive);
+
+    private static CatalogRow ToRow(Specialization x) => new(x.Id, x.Code, x.Name, null, x.IsActive, x.MajorId);
 
     private static CatalogRow ToRow(Domain x) => new(x.Id, x.Code, x.Name, x.Description, x.IsActive);
 

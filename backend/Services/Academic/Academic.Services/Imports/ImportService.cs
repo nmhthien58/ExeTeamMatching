@@ -1,8 +1,11 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Academic.Repositories.Imports;
+using Academic.Repositories.Lecturers;
 using Academic.Repositories.Semesters;
 using Academic.Repositories.Students;
+using Academic.Services.Lecturers;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
 using FluentValidation;
@@ -16,12 +19,20 @@ public interface IImportService
 {
     byte[] GetTemplate();
 
+    byte[] GetLecturerTemplate();
+
     /// <summary>Đọc và kiểm tra file, giữ bản xem trước 30 phút. Chưa ghi dữ liệu.</summary>
     Task<ImportPreviewResponse> PreviewAsync(ImportPreviewInput input, ClaimsPrincipal user, CancellationToken ct);
 
     Task<ImportBatchResponse> ConfirmAsync(Guid previewId, ClaimsPrincipal user, CancellationToken ct);
 
     Task<PagedResponse<ImportBatchResponse>> ListAsync(ImportQuery query, CancellationToken ct);
+
+    /// <summary>Đọc và kiểm tra file Excel giảng viên (BE-93).</summary>
+    Task<LecturerImportPreviewResponse> PreviewLecturersAsync(LecturerImportPreviewInput input, ClaimsPrincipal user, CancellationToken ct);
+
+    /// <summary>Xác nhận import giảng viên, tạo tài khoản và phát LecturerRegistered (BE-93).</summary>
+    Task<LecturerImportConfirmResult> ConfirmLecturersAsync(Guid previewId, ClaimsPrincipal user, CancellationToken ct);
 }
 
 /// <summary>
@@ -33,10 +44,19 @@ public interface IImportService
 /// danh sách học kỳ và outbox trong một lần <c>SaveChanges</c>. MSSV đã có hồ sơ thì cập nhật họ tên, email, chuyên ngành
 /// và SĐT (khi file có) theo file; sinh viên đã có trong học kỳ cùng môn thì cập nhật mã lớp.
 /// </remarks>
-public sealed class ImportService(
-    IImportRepository imports, ImportPreviewStore previews, IValidator<ImportPreviewInput> validator, TimeProvider clock) : IImportService
+public sealed partial class ImportService(
+    IImportRepository imports,
+    ILecturerRepository lecturers,
+    ImportPreviewStore previews,
+    IValidator<ImportPreviewInput> validator,
+    TimeProvider clock) : IImportService
 {
+    private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
+    private static readonly Regex PhonePattern = new(@"^\+?[0-9]{9,14}$", RegexOptions.Compiled);
+
     public byte[] GetTemplate() => StudentImportFile.CreateTemplate();
+
+    public byte[] GetLecturerTemplate() => LecturerImportFile.CreateTemplate();
 
     public async Task<ImportPreviewResponse> PreviewAsync(ImportPreviewInput input, ClaimsPrincipal user, CancellationToken ct)
     {
@@ -93,7 +113,11 @@ public sealed class ImportService(
             }
             student.FullName = row.FullName;
             student.Email = row.Email;
-            student.SpecializationId = check.SpecializationId;
+            student.MajorId = check.MajorId;
+            if (check.SpecializationId is { } specId)
+            {
+                student.SpecializationId = specId;
+            }
             student.Phone = row.Phone ?? student.Phone;
 
             if (enrollmentsByStudent.TryGetValue(student.Id, out var enrollment))
@@ -112,7 +136,7 @@ public sealed class ImportService(
 
             imports.AddStudentEvent(StudentEventTypes.StudentImported, student.Id, new StudentImportedEvent(
                 student.Id, student.StudentCode, student.FullName, student.Email, student.Phone, student.SpecializationId,
-                semester.Id, semester.EndDate, preview.CourseCode, row.ClassCode));
+                semester.Id, semester.EndDate, preview.CourseCode, row.ClassCode, student.MajorId));
         }
 
         try
@@ -134,6 +158,149 @@ public sealed class ImportService(
             items.Select(ImportBatchResponse.From).ToList(), query.Page, query.PageSize, total);
     }
 
+    public async Task<LecturerImportPreviewResponse> PreviewLecturersAsync(LecturerImportPreviewInput input, ClaimsPrincipal user, CancellationToken ct)
+    {
+        if (input.File is null) throw Invalid("file", "Chọn file Excel.");
+        if (string.IsNullOrWhiteSpace(input.FileName) || !input.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            throw Invalid("file", "Chỉ nhận file .xlsx.");
+        if (input.FileLength <= 0) throw Invalid("file", "File rỗng.");
+        if (input.FileLength > ImportPreviewInputValidator.MaxFileBytes)
+            throw Invalid("file", "File tối đa 5 MB.");
+
+        var rows = LecturerImportFile.Read(input.File);
+        var existingEmails = await lecturers.FindExistingEmailsAsync(rows.Select(r => r.Email).ToList(), ct);
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var validRows = new List<LecturerImportRow>();
+        var errorRows = new List<LecturerImportErrorRow>();
+
+        foreach (var row in rows)
+        {
+            var errors = new List<LecturerImportRowError>();
+            var fullName = row.FullName?.Trim() ?? "";
+            var email = row.Email?.Trim() ?? "";
+            var phone = row.Phone?.Trim();
+
+            if (string.IsNullOrWhiteSpace(fullName))
+            {
+                errors.Add(new LecturerImportRowError("fullName", "Nhập họ tên."));
+            }
+            else if (fullName.Length > 150)
+            {
+                errors.Add(new LecturerImportRowError("fullName", "Họ tên tối đa 150 ký tự."));
+            }
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                errors.Add(new LecturerImportRowError("email", "Nhập email."));
+            }
+            else if (email.Length > 254 || !EmailPattern.IsMatch(email))
+            {
+                errors.Add(new LecturerImportRowError("email", "Email không đúng định dạng."));
+            }
+            else if (!email.EndsWith("@fpt.edu.vn", StringComparison.OrdinalIgnoreCase) &&
+                     !email.EndsWith("@fe.edu.vn", StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add(new LecturerImportRowError("email", "Email giảng viên phải có đuôi @fpt.edu.vn hoặc @fe.edu.vn."));
+            }
+            else if (!seenEmails.Add(email))
+            {
+                errors.Add(new LecturerImportRowError("email", "Email bị trùng lặp trong file."));
+            }
+            else if (existingEmails.Contains(email.ToLowerInvariant()))
+            {
+                errors.Add(new LecturerImportRowError("email", "Email đã tồn tại trong hệ thống."));
+            }
+
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var normPhone = LecturerRules.NormalizePhone(phone);
+                if (normPhone is null || !PhonePattern.IsMatch(normPhone))
+                {
+                    errors.Add(new LecturerImportRowError("phone", "SĐT phải gồm 9–14 chữ số, có thể bắt đầu bằng +."));
+                }
+            }
+
+            if (errors.Count == 0)
+            {
+                validRows.Add(row);
+            }
+            else
+            {
+                errorRows.Add(new LecturerImportErrorRow(row.RowNumber, email, fullName, phone, errors));
+            }
+        }
+
+        var previewId = Guid.NewGuid();
+        var fileName = Path.GetFileName(input.FileName!);
+        await previews.SaveLecturerAsync(previewId, new StoredLecturerPreview(fileName, user.GetUserId(), rows), ct);
+
+        return new LecturerImportPreviewResponse(previewId, fileName, rows.Count, validRows, errorRows);
+    }
+
+    public async Task<LecturerImportConfirmResult> ConfirmLecturersAsync(Guid previewId, ClaimsPrincipal user, CancellationToken ct)
+    {
+        var preview = await previews.GetLecturerAsync(previewId, ct)
+            ?? throw new NotFoundException("bản xem trước import giảng viên", previewId);
+
+        var existingEmails = await lecturers.FindExistingEmailsAsync(preview.Rows.Select(r => r.Email).ToList(), ct);
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var successCount = 0;
+        var failedCount = 0;
+        var errors = new List<string>();
+
+        var now = clock.GetUtcNow();
+
+        foreach (var row in preview.Rows)
+        {
+            var email = row.Email.Trim();
+            var fullName = row.FullName.Trim();
+            var phone = row.Phone?.Trim();
+
+            if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email) ||
+                !EmailPattern.IsMatch(email) ||
+                (!email.EndsWith("@fpt.edu.vn", StringComparison.OrdinalIgnoreCase) && !email.EndsWith("@fe.edu.vn", StringComparison.OrdinalIgnoreCase)) ||
+                !seenEmails.Add(email) ||
+                existingEmails.Contains(email.ToLowerInvariant()))
+            {
+                failedCount++;
+                errors.Add($"Dòng {row.RowNumber}: Email '{email}' không hợp lệ hoặc đã tồn tại.");
+                continue;
+            }
+
+            var lecturerId = Guid.NewGuid();
+            var lecturer = new Lecturer
+            {
+                Id = lecturerId,
+                FullName = fullName,
+                Email = email,
+                Phone = LecturerRules.NormalizePhone(phone),
+                MaxTeamsExe101 = 4,
+                MaxTeamsExe201 = 4,
+                DesiredTeamsExe101 = null,
+                DesiredTeamsExe201 = null,
+                ProfileCompletedAt = null,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            lecturers.Add(lecturer);
+            lecturers.AddEvent(LecturerEventTypes.LecturerRegistered, lecturerId,
+                new LecturerRegisteredEvent(lecturerId, fullName, email, [], 4, 4, true));
+            successCount++;
+        }
+
+        if (successCount > 0)
+        {
+            await lecturers.SaveAsync(ct);
+        }
+
+        await previews.RemoveLecturerAsync(previewId, ct);
+        return new LecturerImportConfirmResult(preview.Rows.Count, successCount, failedCount, errors);
+    }
+
     private async Task<IReadOnlyList<ImportRowCheck>> CheckAsync(IReadOnlyList<ImportRow> rows, Guid semesterId, string courseCode, CancellationToken ct) =>
         (await LoadAndCheckAsync(rows, semesterId, courseCode, ct)).Checks;
 
@@ -145,14 +312,14 @@ public sealed class ImportService(
         var emails = rows.Select(r => r.Email).Where(e => e.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var classCodes = rows.Select(r => r.ClassCode.ToUpperInvariant()).Where(c => c.Length > 0).Distinct().ToList();
 
-        var specializations = await imports.ListSpecializationsAsync(ct);
+        var majors = await imports.ListMajorsAsync(ct);
         var classes = await imports.ListClassCodesAsync(classCodes, ct);
         var students = await imports.FindStudentsAsync(codes, emails, ct);
         var enrollments = await imports.FindEnrollmentsAsync(semesterId, students.Select(s => s.Id).ToList(), ct);
         var mentorEmails = await imports.FindMentorEmailsAsync(emails, ct);
 
         var reference = new ImportReference(
-            specializations.Select(s => new CatalogEntry(s.Id, s.Code, s.Name, s.IsActive)).ToList(),
+            majors.Select(m => new CatalogEntry(m.Id, m.Code, m.Name, m.IsActive)).ToList(),
             classes.Select(c => new CatalogEntry(c.Id, c.Code, null, c.IsActive)).ToList(),
             students.Select(s => new ExistingStudent(s.Id, s.StudentCode, s.Email)).ToList(),
             enrollments.ToDictionary(e => e.StudentId, e => e.CourseCode),

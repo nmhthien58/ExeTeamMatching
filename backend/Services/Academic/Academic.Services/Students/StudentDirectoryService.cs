@@ -31,7 +31,7 @@ public sealed class StudentDirectoryService(IStudentRepository students, ISemest
         return PagedResponse<StudentSummaryResponse>.Create(
             items.Select(r => new StudentSummaryResponse(
                 r.Id, r.StudentCode, r.FullName, showEmail ? r.Email : string.Empty,
-                new CatalogRef(r.SpecializationId, r.SpecializationCode, r.SpecializationName),
+                r.SpecializationId is { } specId && specId > 0 ? new CatalogRef(specId, r.SpecializationCode, r.SpecializationName) : null,
                 r.ClassCode, r.CourseCode, HasTeam: false, r.IsSeekingTeam)).ToList(),
             query.Page, query.PageSize, total);
     }

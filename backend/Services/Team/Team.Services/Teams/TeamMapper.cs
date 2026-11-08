@@ -22,7 +22,7 @@ public static class TeamMapper
     {
         var team = g.Team;
         var memberCount = g.Members.Count;
-        var specializationCount = g.Members.Select(m => m.SpecializationId).Distinct().Count();
+        var specializationCount = TeamDiversityRule.CountDiversity(g.Members);
         var rules = catalogs.TeamRules;
         return new TeamCardResponse
         {
@@ -50,7 +50,7 @@ public static class TeamMapper
         IdeaDescription = g.Project?.Description,
         Project = g.Project is { } p ? new ProjectSummary(p.Id, p.Name, p.Description, p.CurrentVersion, p.OriginCourseCode, null) : null,
         // pendingChange (nhóm EXE201 kế thừa) do module ChangeRequests của Thành bổ sung.
-        Members = g.Members.Select(m => new MemberResponse(m.StudentId, m.StudentCode, m.FullName, catalogs.Specialization(m.SpecializationId),
+        Members = g.Members.Select(m => new MemberResponse(m.StudentId, m.StudentCode, m.FullName, catalogs.Specialization(m.SpecializationId ?? 0),
             m.Role, null, null, m.JoinedAt, null)).ToList(),
         IsInherited = g.Team.IsInherited,
         IsAutoAssigned = g.Team.IsAutoAssigned,
@@ -70,5 +70,5 @@ public static class TeamMapper
         : "NONE";
 
     private static StudentRef ToRef(TeamMember m, Catalogs catalogs) =>
-        new(m.StudentId, m.StudentCode, m.FullName, catalogs.Specialization(m.SpecializationId));
+        new(m.StudentId, m.StudentCode, m.FullName, catalogs.Specialization(m.SpecializationId ?? 0));
 }

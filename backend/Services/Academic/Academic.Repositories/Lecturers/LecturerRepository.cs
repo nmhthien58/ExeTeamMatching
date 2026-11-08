@@ -22,6 +22,9 @@ public interface ILecturerRepository
 
     Task<bool> EmailExistsAsync(string email, Guid? exceptId, CancellationToken ct);
 
+    /// <summary>Tìm các email đã tồn tại trong DB trong tập email truyền vào (so sánh không phân biệt hoa thường).</summary>
+    Task<HashSet<string>> FindExistingEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken ct);
+
     /// <summary>Domain chuyên môn của các giảng viên, sắp theo mã domain.</summary>
     Task<IReadOnlyList<LecturerDomainRow>> ListDomainsAsync(IReadOnlyCollection<Guid> lecturerIds, CancellationToken ct);
 
@@ -64,6 +67,16 @@ public sealed class LecturerRepository(AcademicDbContext db) : ILecturerReposito
 
     public Task<bool> EmailExistsAsync(string email, Guid? exceptId, CancellationToken ct) =>
         db.Lecturers.AnyAsync(l => l.Email == email && l.Id != exceptId, ct);
+
+    public async Task<HashSet<string>> FindExistingEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken ct)
+    {
+        if (emails.Count == 0) return [];
+        var found = await db.Lecturers.AsNoTracking()
+            .Where(l => emails.Contains(l.Email))
+            .Select(l => l.Email)
+            .ToListAsync(ct);
+        return found.Select(e => e.ToLowerInvariant()).ToHashSet();
+    }
 
     public async Task<IReadOnlyList<LecturerDomainRow>> ListDomainsAsync(IReadOnlyCollection<Guid> lecturerIds, CancellationToken ct) =>
         await (from ld in db.LecturerDomains.AsNoTracking()

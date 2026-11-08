@@ -12,6 +12,7 @@ public class ChangeRequestItem
     public Guid? StudentId { get; set; }
     public string? StudentCode { get; set; }
     public string? FullName { get; set; }
+    public int MajorId { get; set; } = 1;
     public int? SpecializationId { get; set; }
     public string? NewProjectName { get; set; }
     public string? NewProjectDescription { get; set; }

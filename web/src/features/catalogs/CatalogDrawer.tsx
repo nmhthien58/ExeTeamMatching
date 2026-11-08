@@ -3,7 +3,7 @@ import { toApiError } from '@/shared/api/apiClient'
 import { Banner, Button } from '@/shared/components/ui'
 import { Drawer } from '@/features/workspace/components'
 import { Field, inputClass } from '@/features/semesters/Field'
-import { catalogKinds, useSaveCatalogItem, validateCatalog, type CatalogItem, type CatalogKind, type CatalogValues } from './api'
+import { catalogKinds, useCatalog, useSaveCatalogItem, validateCatalog, type CatalogItem, type CatalogKind, type CatalogValues } from './api'
 
 /** Thêm / sửa một mục danh mục (W12–W14). Ngừng dùng thay cho xóa: mục cũ vẫn gắn với dữ liệu đã có. */
 export function CatalogDrawer({ kind, item, onClose, onSaved }: {
@@ -13,11 +13,13 @@ export function CatalogDrawer({ kind, item, onClose, onSaved }: {
   onSaved: (message: string) => void
 }) {
   const rules = catalogKinds[kind]
+  const majors = useCatalog('majors')
   const [values, setValues] = useState<CatalogValues>({
     code: item?.code ?? '',
     name: item?.name ?? '',
     description: item?.description ?? '',
     isActive: item?.isActive ?? true,
+    majorId: item?.majorId ?? null,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const save = useSaveCatalogItem(kind)
@@ -37,6 +39,7 @@ export function CatalogDrawer({ kind, item, onClose, onSaved }: {
           code,
           name: rules.hasName ? values.name.trim() : code,
           ...(rules.hasDescription ? { description: values.description.trim() || null } : {}),
+          ...(kind === 'specializations' ? { majorId: values.majorId } : {}),
           ...(item ? { isActive: values.isActive } : {}),
         },
       },
@@ -64,6 +67,22 @@ export function CatalogDrawer({ kind, item, onClose, onSaved }: {
         {rules.hasName && (
           <Field label="Tên" error={fieldError('name')}>
             <input value={values.name} maxLength={rules.maxName} onChange={(e) => set('name', e.target.value)} className={inputClass} />
+          </Field>
+        )}
+        {kind === 'specializations' && (
+          <Field label="Ngành" error={fieldError('majorId')}>
+            <select
+              value={values.majorId ?? ''}
+              onChange={(e) => set('majorId', e.target.value ? Number(e.target.value) : null)}
+              className={inputClass}
+            >
+              <option value="">-- Chọn ngành --</option>
+              {majors.data?.filter((m) => m.isActive || m.id === values.majorId).map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.code})
+                </option>
+              ))}
+            </select>
           </Field>
         )}
         {rules.hasDescription && (

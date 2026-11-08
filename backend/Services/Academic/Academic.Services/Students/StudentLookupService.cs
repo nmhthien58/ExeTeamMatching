@@ -35,7 +35,7 @@ public sealed class StudentLookupService(IStudentRepository students) : IStudent
         ToSnapshots(await students.ListEnrolledAsync(query.SemesterId!.Value, query.CourseCode, ct));
 
     private static List<StudentSnapshot> ToSnapshots(IEnumerable<StudentSnapshotRow> rows) =>
-        rows.Select(r => new StudentSnapshot(r.Id, r.StudentCode, r.FullName, r.SpecializationId, r.ClassCode, r.CourseCode, r.CourseCode is not null)).ToList();
+        rows.Select(r => new StudentSnapshot(r.Id, r.StudentCode, r.FullName, r.SpecializationId, r.ClassCode, r.CourseCode, r.CourseCode is not null, r.MajorId)).ToList();
 }
 
 public static class StudentsModule

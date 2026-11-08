@@ -209,7 +209,7 @@ public sealed class TeamsApiTests : IAsyncLifetime
         db.Add(new TeamMember
         {
             TeamId = teamId, SemesterId = Academic.Semester.Id, StudentId = s.Id, StudentCode = s.StudentCode, FullName = s.FullName,
-            SpecializationId = s.SpecializationId, JoinSource = "INVITATION",
+            SpecializationId = s.SpecializationId ?? 0, JoinSource = "INVITATION",
         });
         return await db.SaveChangesAsync();
     });

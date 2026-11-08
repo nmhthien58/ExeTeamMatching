@@ -11,15 +11,19 @@ public sealed record CatalogRef(int Id, string Code, string Name);
 /// <summary>Schema <c>Lecturer</c>. <see cref="Phone"/> chỉ trả cho Admin, chính giảng viên đó và Team (rule 11); người khác nhận null.</summary>
 public sealed record LecturerResponse(
     Guid Id, string FullName, string Email, string? Phone, IReadOnlyList<CatalogRef> Domains,
-    int? MaxTeamsExe101, int? MaxTeamsExe201, bool IsActive);
+    int? MaxTeamsExe101, int? MaxTeamsExe201, int? DesiredTeamsExe101, int? DesiredTeamsExe201,
+    bool IsProfileCompleted, DateTimeOffset? ProfileCompletedAt, bool IsActive);
 
 /// <summary>Schema <c>LecturerInput</c>. <see cref="IsActive"/> bỏ trống: thêm mới thì true, sửa thì giữ nguyên.</summary>
 public sealed record LecturerInput(
     string? FullName, string? Email, string? Phone, IReadOnlyList<int>? DomainIds,
-    int? MaxTeamsExe101, int? MaxTeamsExe201, bool? IsActive);
+    int? MaxTeamsExe101, int? MaxTeamsExe201, int? DesiredTeamsExe101 = null, int? DesiredTeamsExe201 = null, bool? IsActive = null);
 
-/// <summary>Body của <c>PUT /api/lecturers/me</c>: giảng viên chỉ sửa domain chuyên môn (số nhóm tối đa do Admin đặt).</summary>
-public sealed record LecturerProfileInput(IReadOnlyList<int>? DomainIds);
+/// <summary>Body của <c>PUT /api/lecturers/me</c>: giảng viên sửa domain chuyên môn và số nhóm mong muốn (BE-93, L06).</summary>
+public sealed record LecturerProfileInput(
+    IReadOnlyList<int>? DomainIds,
+    int? DesiredTeamsExe101 = null,
+    int? DesiredTeamsExe201 = null);
 
 /// <summary>Query của <c>GET /api/lecturers</c>. Người không phải Admin chỉ thấy giảng viên đang hoạt động.</summary>
 public sealed record LecturerQuery(string? Search, int Page = 1, int PageSize = 20);
@@ -35,6 +39,8 @@ public sealed partial class LecturerInputValidator : AbstractValidator<LecturerI
             .WithMessage("SĐT phải gồm 9–14 chữ số, có thể bắt đầu bằng +.");
         RuleFor(x => x.MaxTeamsExe101).InclusiveBetween(0, 200).WithMessage("Số nhóm tối đa EXE101 từ 0 đến 200, để trống là không giới hạn.");
         RuleFor(x => x.MaxTeamsExe201).InclusiveBetween(0, 200).WithMessage("Số nhóm tối đa EXE201 từ 0 đến 200, để trống là không giới hạn.");
+        RuleFor(x => x.DesiredTeamsExe101).InclusiveBetween(0, 200).When(x => x.DesiredTeamsExe101 is not null).WithMessage("Số nhóm mong muốn EXE101 từ 0 đến 200.");
+        RuleFor(x => x.DesiredTeamsExe201).InclusiveBetween(0, 200).When(x => x.DesiredTeamsExe201 is not null).WithMessage("Số nhóm mong muốn EXE201 từ 0 đến 200.");
         RuleFor(x => x.DomainIds).Must(ids => ids!.Count <= LecturerRules.MaxDomains).When(x => x.DomainIds is not null)
             .WithMessage($"Tối đa {LecturerRules.MaxDomains} domain.");
     }
@@ -53,6 +59,8 @@ public sealed class LecturerProfileInputValidator : AbstractValidator<LecturerPr
         RuleFor(x => x.DomainIds).NotNull().WithMessage("Thiếu domainIds.")
             .Must(ids => ids!.Count <= LecturerRules.MaxDomains).When(x => x.DomainIds is not null, ApplyConditionTo.CurrentValidator)
             .WithMessage($"Tối đa {LecturerRules.MaxDomains} domain.");
+        RuleFor(x => x.DesiredTeamsExe101).InclusiveBetween(0, 200).When(x => x.DesiredTeamsExe101 is not null).WithMessage("Số nhóm mong muốn EXE101 từ 0 đến 200.");
+        RuleFor(x => x.DesiredTeamsExe201).InclusiveBetween(0, 200).When(x => x.DesiredTeamsExe201 is not null).WithMessage("Số nhóm mong muốn EXE201 từ 0 đến 200.");
     }
 }
 

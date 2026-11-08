@@ -30,6 +30,7 @@ const me = {
   studentCode: 'SE184118',
   fullName: 'Lê Thảo Vy',
   email: 'vy@example.test',
+  major: { id: 1, code: 'SE', name: 'Kỹ thuật phần mềm' },
   specialization: { id: 1, code: 'SE', name: 'Kỹ thuật phần mềm' },
   classCode: 'EXE101SE01',
   courseCode: 'EXE101',
@@ -57,9 +58,13 @@ const notFound = new ApiError({ status: 404, code: 'not-found', title: 'Không t
 
 /** API giả theo đường dẫn; thiếu đường dẫn nào thì lỗi ngay để lộ lời gọi ngoài dự kiến. */
 function respond(routes: Record<string, unknown>) {
+  const merged: Record<string, unknown> = {
+    '/api/specializations': [{ id: 1, code: 'SE', name: 'Kỹ thuật phần mềm', isActive: true, majorId: 1 }],
+    ...routes,
+  }
   get.mockImplementation(async (url: string) => {
-    if (!(url in routes)) throw new Error(`Chưa giả lập ${url}`)
-    const value = routes[url]
+    if (!(url in merged)) throw new Error(`Chưa giả lập ${url}`)
+    const value = merged[url]
     if (value instanceof Error) throw value
     return { data: value }
   })
@@ -267,6 +272,43 @@ describe('profile', () => {
 
     expect(await screen.findByText('Đã lưu chuyên môn')).toBeInTheDocument()
     expect(put).toHaveBeenCalledWith('/api/lecturers/me', { domainIds: [1, 2] })
+  })
+
+  it('L06 warns when profile is incomplete and allows entering desired teams within max limits (FE-57)', async () => {
+    const lecturer = {
+      id: 'l1',
+      fullName: 'Trần Khoa',
+      email: 'khoa@example.test',
+      domains: [],
+      maxTeamsExe101: 4,
+      maxTeamsExe201: 3,
+      desiredTeamsExe101: null,
+      desiredTeamsExe201: null,
+      isProfileCompleted: false,
+    }
+    respond({
+      '/api/lecturers/me': lecturer,
+      '/api/domains': [{ id: 1, code: 'D01', name: 'Giáo dục' }],
+    })
+    put.mockResolvedValue({ data: { ...lecturer, isProfileCompleted: true } })
+    renderAt('/gv/ho-so', lecturerProfileRoutes)
+
+    expect(await screen.findByText('Hồ sơ chưa hoàn thiện')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Sửa chuyên môn' }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Giáo dục' }))
+
+    const spinbuttons = screen.getAllByRole('spinbutton')
+    fireEvent.change(spinbuttons[0], { target: { value: '2' } })
+    fireEvent.change(spinbuttons[1], { target: { value: '1' } })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Lưu' }))
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith('/api/lecturers/me', {
+        domainIds: [1],
+        desiredTeamsExe101: 2,
+        desiredTeamsExe201: 1,
+      }),
+    )
   })
 
   it('A07 toggles email and logs out only after confirming', async () => {

@@ -51,6 +51,8 @@ class _FakeLecturerApi extends LecturerProfileApi {
   final Object? saveError;
   var profile = const LecturerProfile(fullName: 'Trần Thu Hà', email: 'ha@example.com', domains: [_d1, _old], maxTeamsExe101: 3);
   List<int>? saved;
+  int? savedDesired101;
+  int? savedDesired201;
 
   @override
   Future<LecturerProfile> me() async => profile;
@@ -63,6 +65,28 @@ class _FakeLecturerApi extends LecturerProfileApi {
     if (saveError != null) throw saveError!;
     saved = domainIds;
     profile = LecturerProfile(fullName: profile.fullName, email: profile.email, domains: [for (final d in [_d1, _d2, _old]) if (domainIds.contains(d.id)) d], maxTeamsExe101: 3);
+    return profile;
+  }
+
+  @override
+  Future<LecturerProfile> saveProfile({
+    required List<int> domainIds,
+    int? desiredTeamsExe101,
+    int? desiredTeamsExe201,
+  }) async {
+    if (saveError != null) throw saveError!;
+    saved = domainIds;
+    savedDesired101 = desiredTeamsExe101;
+    savedDesired201 = desiredTeamsExe201;
+    profile = LecturerProfile(
+      fullName: profile.fullName,
+      email: profile.email,
+      domains: [for (final d in [_d1, _d2, _old]) if (domainIds.contains(d.id)) d],
+      maxTeamsExe101: 3,
+      desiredTeamsExe101: desiredTeamsExe101,
+      desiredTeamsExe201: desiredTeamsExe201,
+      isProfileCompleted: true,
+    );
     return profile;
   }
 }
@@ -156,5 +180,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Domain không tồn tại.'), findsOneWidget);
     expect(find.text('Đã chọn 3/18'), findsOneWidget);
+  });
+
+  testWidgets('L06: hiện banner cảnh báo khi chưa hoàn thiện và nhập số nhóm mong muốn (MB-66)', (tester) async {
+    final api = _FakeLecturerApi();
+    api.profile = const LecturerProfile(
+      fullName: 'Trần Thu Hà',
+      email: 'ha@example.com',
+      domains: [_d1],
+      maxTeamsExe101: 3,
+      maxTeamsExe201: 2,
+      isProfileCompleted: false,
+    );
+
+    await _pump(tester, const LecturerProfileScreen(), lecturer: api);
+
+    expect(find.text('Hồ sơ chưa hoàn thiện'), findsOneWidget);
+    expect(find.text('EXE101: Chưa khai báo · EXE201: Chưa khai báo'), findsOneWidget);
+
+    await tester.tap(find.text('Sửa'));
+    await tester.pumpAndSettle();
+
+    final textFields = find.byType(TextFormField);
+    await tester.enterText(textFields.at(0), '2');
+    await tester.enterText(textFields.at(1), '1');
+
+    await tester.ensureVisible(find.text('Lưu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lưu'));
+    await tester.pumpAndSettle();
+
+    expect(api.saved, [1]);
+    expect(api.savedDesired101, 2);
+    expect(api.savedDesired201, 1);
+    expect(find.text('Đã lưu chuyên môn'), findsOneWidget);
   });
 }

@@ -14,6 +14,15 @@ RESET ROLE;
 \connect academic_db
 SET ROLE academic_svc;
 
+-- Majors theo mã tiền tố MSSV thật (BE-91)
+INSERT INTO academic.majors (code, name) VALUES
+    ('SE', 'Công nghệ thông tin'),
+    ('SS', 'Quản trị kinh doanh'),
+    ('HS', 'Truyền thông đa phương tiện'),
+    ('IB', 'Kinh doanh quốc tế'),
+    ('SA', 'Ngôn ngữ')
+ON CONFLICT (code) DO NOTHING;
+
 INSERT INTO academic.specializations (code, name) VALUES
     ('SE', 'Kỹ thuật phần mềm'),
     ('AI', 'Trí tuệ nhân tạo'),
@@ -32,6 +41,12 @@ INSERT INTO academic.specializations (code, name) VALUES
     ('KR', 'Ngôn ngữ Hàn'),
     ('CN', 'Ngôn ngữ Trung')
 ON CONFLICT (code) DO NOTHING;
+
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SE') WHERE code IN ('SE', 'AI', 'IA', 'GD', 'IOT');
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SS') WHERE code IN ('DM', 'FIN', 'LOG', 'HM', 'LAW');
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'HS') WHERE code = 'MC';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IB') WHERE code = 'IB';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SA') WHERE code IN ('EN', 'JP', 'KR', 'CN');
 
 INSERT INTO academic.domains (code, name, description) VALUES
     ('D01', 'AI & Data Innovation', 'AI / IT'),

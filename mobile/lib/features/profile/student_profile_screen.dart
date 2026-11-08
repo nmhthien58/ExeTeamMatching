@@ -45,7 +45,7 @@ class _Details extends ConsumerWidget {
     final teammate = team?.members.where((m) => m.id == student.id).firstOrNull;
     // Team trả email của đồng đội; Academic chưa biết quan hệ nhóm nên có thể để trống (quy tắc 11).
     final email = student.email ?? teammate?.email;
-    final subtitle = [student.studentCode, student.specialization, student.classCode].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+    final subtitle = [student.studentCode, student.majorName, student.specialization, student.classCode].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
