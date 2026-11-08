@@ -4,6 +4,7 @@ using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Team.Repositories.BaselineImport;
 using Team.Repositories.Members;
+using Team.Repositories.Projects;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
 using Team.Services.Members;
@@ -51,6 +52,16 @@ public sealed class BaselineImportService(
         catch (Exception ex)
         {
             return new BaselineImportResponse(0, 0, 0, 0, [new BaselineImportRowError(1, "Không thể kết nối tới Academic Service: " + ex.Message)]);
+        }
+
+        IReadOnlyList<CatalogItem> catalogDomains;
+        try
+        {
+            catalogDomains = await academic.GetDomainsAsync(ct);
+        }
+        catch
+        {
+            catalogDomains = [];
         }
 
         var enrolledByCode = enrolled
@@ -125,35 +136,113 @@ public sealed class BaselineImportService(
             }
             usedNames.Add(teamName);
 
+            var rawProjectName = group.Select(r => r.ProjectName).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p))?.Trim();
+            var rawDescription = group.Select(r => r.IdeaDescription).FirstOrDefault(d => !string.IsNullOrWhiteSpace(d))?.Trim();
+            var rawDomainNames = group.FirstOrDefault(r => r.DomainNames.Count > 0)?.DomainNames ?? [];
+
+            var (matchedDomains, unmappedDomainNames) = BaselineDomainMapper.ResolveDomains(rawDomainNames, catalogDomains);
+            foreach (var unmapped in unmappedDomainNames)
+            {
+                warnings.Add(new BaselineImportRowError(group.First().RowNumber, $"Domain '{unmapped}' không khớp danh mục hệ thống (D01–D18), bỏ qua ở nhóm '{group.Key}'."));
+            }
+
             resolvedExe101Teams.TryGetValue(group.Key, out var exe101Team);
-            if (exe101Team?.ProjectId is not null) linkedProjectCount++;
+            var hasExistingExe101Project = exe101Team?.ProjectId is not null;
+            if (hasExistingExe101Project) linkedProjectCount++;
             var status = matched.Count >= TeamRules.MinSize ? TeamStatuses.Active : TeamStatuses.Draft;
             var teamId = dryRun ? (Guid?)null : Guid.NewGuid();
+
+            Guid? assignedProjectId = null;
+            string? newProjectName = null;
+            IReadOnlyList<int>? newProjectDomainIds = null;
+
+            if (hasExistingExe101Project)
+            {
+                assignedProjectId = exe101Team!.ProjectId;
+            }
+            else if (!string.IsNullOrWhiteSpace(rawProjectName))
+            {
+                var projName = rawProjectName.Length > 200 ? rawProjectName[..200] : rawProjectName;
+                var projDesc = string.IsNullOrWhiteSpace(rawDescription) ? null : (rawDescription.Length > 4000 ? rawDescription[..4000] : rawDescription);
+                var newProjectId = Guid.NewGuid();
+                assignedProjectId = newProjectId;
+                newProjectName = projName;
+                newProjectDomainIds = matchedDomains.Select(d => d.Id).ToList();
+
+                if (!dryRun)
+                {
+                    batch.Projects.Add(new Project
+                    {
+                        Id = newProjectId,
+                        Name = projName,
+                        Description = projDesc,
+                        OriginSemesterId = semesterId,
+                        OriginCourseCode = "EXE101",
+                        CurrentVersion = 1,
+                        Status = "ACTIVE",
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    });
+
+                    batch.ProjectVersions.Add(new ProjectVersion
+                    {
+                        ProjectId = newProjectId,
+                        Version = 1,
+                        Name = projName,
+                        Description = projDesc,
+                        ChangeType = "CREATED",
+                        SemesterId = semesterId,
+                        CourseCode = "EXE201",
+                        ChangedByAccountId = null,
+                        CreatedAt = now,
+                    });
+                }
+            }
+
+            if (!dryRun && teamId is { } tid && matchedDomains.Count > 0)
+            {
+                for (var dIdx = 0; dIdx < matchedDomains.Count; dIdx++)
+                {
+                    var d = matchedDomains[dIdx];
+                    batch.TeamDomains.Add(new TeamDomain
+                    {
+                        TeamId = tid,
+                        DomainId = d.Id,
+                        DomainCode = d.Code,
+                        IsPrimary = dIdx == 0,
+                    });
+                }
+            }
+
+            var domainCodes = matchedDomains.Select(d => d.Code).ToList();
 
             summaries.Add(new InheritedTeamSummary(
                 TeamId: teamId,
                 TeamName: teamName,
                 OldTeamId: exe101Team?.Id,
-                ProjectId: exe101Team?.ProjectId,
-                ProjectName: group.Select(r => r.ProjectName).FirstOrDefault(p => !string.IsNullOrWhiteSpace(p)),
+                ProjectId: dryRun && !hasExistingExe101Project ? null : assignedProjectId,
+                ProjectName: rawProjectName,
                 LeaderStudentCode: leader.StudentCode,
                 LeaderName: leader.FullName,
                 MemberCount: matched.Count,
                 Members: matched.Select(m => new InheritedTeamMemberSummary(
                     m.Student.Id, m.Student.StudentCode, m.Student.FullName, m.Student.SpecializationId, m.Student.Id == leader.Id)).ToList(),
                 MissingOldMemberStudentCodes: missing,
-                Status: status));
+                Status: status,
+                DomainCodes: domainCodes));
 
             if (teamId is { } id)
             {
-                AddInheritedTeam(batch, id, semesterId, teamName, status, exe101Team?.ProjectId, exe101Team?.Id,
-                    leader, matched.Select(m => m.Student).ToList(), exe101Team is null ? null : "IMPORT", now);
+                AddInheritedTeam(batch, id, semesterId, teamName, status, assignedProjectId, exe101Team?.Id,
+                    leader, matched.Select(m => m.Student).ToList(), exe101Team is null ? null : "IMPORT", now,
+                    newProjectName, newProjectDomainIds);
             }
         }
 
         if (!dryRun && batch.Teams.Count > 0)
         {
-            await repository.SaveImportedTeamsAsync(batch.Teams, batch.Members, batch.BaselineMembers, batch.Outbox, ct);
+            await repository.SaveImportedTeamsAsync(batch.Teams, batch.Members, batch.BaselineMembers, batch.Outbox,
+                batch.Projects, batch.ProjectVersions, batch.TeamDomains, ct);
         }
 
         return new BaselineImportResponse(
@@ -202,12 +291,16 @@ public sealed class BaselineImportService(
         public List<TeamMember> Members { get; } = [];
         public List<TeamBaselineMember> BaselineMembers { get; } = [];
         public List<OutboxMessage> Outbox { get; } = [];
+        public List<Project> Projects { get; } = [];
+        public List<ProjectVersion> ProjectVersions { get; } = [];
+        public List<TeamDomain> TeamDomains { get; } = [];
     }
 
-    /// <summary>Nhóm kế thừa + thành viên + mốc + sự kiện TeamCreated, MemberJoined, TeamLinkedToProject.</summary>
+    /// <summary>Nhóm kế thừa + thành viên + mốc + sự kiện TeamCreated, ProjectCreated, MemberJoined, TeamLinkedToProject.</summary>
     private static void AddInheritedTeam(
         InheritBatch batch, Guid teamId, Guid semesterId, string teamName, string status, Guid? projectId, Guid? sourceTeamId,
-        StudentSnapshot leader, IReadOnlyList<StudentSnapshot> members, string? linkedBy, DateTimeOffset now)
+        StudentSnapshot leader, IReadOnlyList<StudentSnapshot> members, string? linkedBy, DateTimeOffset now,
+        string? newProjectName = null, IReadOnlyList<int>? newProjectDomainIds = null)
     {
         batch.Teams.Add(new TeamEntity
         {
@@ -252,14 +345,18 @@ public sealed class BaselineImportService(
 
         AddEvent(TeamEventTypes.TeamCreated, new TeamCreated(teamId, semesterId, "EXE201", teamName, leader.Id, leader.FullName,
             projectId, IsAutoAssigned: false, IsInherited: true, SourceTeamId: sourceTeamId));
+        if (newProjectName is not null && projectId is { } pId)
+        {
+            AddEvent(TeamEventTypes.ProjectCreated, new ProjectCreated(pId, teamId, newProjectName, newProjectDomainIds ?? [], semesterId, "EXE201"));
+        }
         var memberCount = 1; // TeamCreated đã đưa trưởng nhóm vào read model của Collaboration và Matching.
         foreach (var s in members.Where(m => m.Id != leader.Id))
         {
             AddEvent(MemberEventTypes.MemberJoined, new MemberJoined(teamId, semesterId, s.Id, s.FullName, s.SpecializationId ?? 0, "INHERITED", ++memberCount));
         }
-        if (projectId is { } pId && sourceTeamId is { } source && linkedBy is not null)
+        if (projectId is { } pId2 && sourceTeamId is { } source && linkedBy is not null)
         {
-            AddEvent(TeamEventTypes.TeamLinkedToProject, new TeamLinkedToProject(teamId, pId, source, linkedBy));
+            AddEvent(TeamEventTypes.TeamLinkedToProject, new TeamLinkedToProject(teamId, pId2, source, linkedBy));
         }
     }
 
@@ -483,7 +580,7 @@ public sealed class BaselineImportService(
 
         if (!request.DryRun && teamsToInsert.Count > 0)
         {
-            await repository.SaveImportedTeamsAsync(teamsToInsert, membersToInsert, baselineMembersToInsert, outboxMessages, ct);
+            await repository.SaveImportedTeamsAsync(teamsToInsert, membersToInsert, baselineMembersToInsert, outboxMessages, ct: ct);
         }
 
         var freeStudentsCount = enrolledByCode.Count - assignedCodes.Count;

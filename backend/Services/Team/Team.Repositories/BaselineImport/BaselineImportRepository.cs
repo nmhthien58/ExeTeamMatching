@@ -2,6 +2,7 @@ using BuildingBlocks.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Team.Repositories.Context;
 using Team.Repositories.Members;
+using Team.Repositories.Projects;
 using Team.Repositories.Teams;
 
 namespace Team.Repositories.BaselineImport;
@@ -121,11 +122,17 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
         IReadOnlyList<TeamMember> members,
         IReadOnlyList<TeamBaselineMember> baselineMembers,
         IReadOnlyList<OutboxMessage> outboxMessages,
-        CancellationToken ct)
+        IReadOnlyList<Project>? projects = null,
+        IReadOnlyList<ProjectVersion>? projectVersions = null,
+        IReadOnlyList<TeamDomain>? teamDomains = null,
+        CancellationToken ct = default)
     {
+        if (projects is { Count: > 0 }) db.Set<Project>().AddRange(projects);
+        if (projectVersions is { Count: > 0 }) db.Set<ProjectVersion>().AddRange(projectVersions);
         db.Set<TeamEntity>().AddRange(teams);
         db.Set<TeamMember>().AddRange(members);
         db.Set<TeamBaselineMember>().AddRange(baselineMembers);
+        if (teamDomains is { Count: > 0 }) db.Set<TeamDomain>().AddRange(teamDomains);
         db.Set<OutboxMessage>().AddRange(outboxMessages);
 
         await db.SaveChangesAsync(ct);

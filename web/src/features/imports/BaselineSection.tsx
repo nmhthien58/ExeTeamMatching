@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, toApiError } from '@/shared/api/apiClient'
 import { ErrorState } from '@/shared/components/States'
 import { Banner, Button, StatusChip } from '@/shared/components/ui'
+import { useDomains } from '@/features/my_team/api'
 import {
   useAutoInherit,
   useBaselineImport,
@@ -26,6 +27,9 @@ function Counts({ result }: { result: BaselineResult }) {
 
 /** Nhóm kế thừa sau khi đối chiếu: đủ sĩ số tối thiểu là ACTIVE, thiếu là DRAFT (còn nhận thêm người). */
 function InheritedTeamsTable({ teams }: { teams: InheritedTeamSummary[] }) {
+  const domainsQuery = useDomains()
+  const domainMap = new Map((domainsQuery.data ?? []).map((d) => [d.code, d.name]))
+
   return (
     <div className="max-h-80 overflow-y-auto rounded border border-border">
       <table className="w-full text-left text-body">
@@ -35,32 +39,64 @@ function InheritedTeamsTable({ teams }: { teams: InheritedTeamSummary[] }) {
             <th className="px-3 py-2">Trưởng nhóm</th>
             <th className="px-3 py-2">Thành viên</th>
             <th className="px-3 py-2">Đề tài cũ</th>
+            <th className="px-3 py-2">Domain</th>
             <th className="px-3 py-2">Trạng thái</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {teams.map((t, idx) => (
-            <tr key={idx} className="hover:bg-surface-variant/50">
-              <td className="px-3 py-2 font-medium">{t.teamName}</td>
-              <td className="px-3 py-2">
-                {t.leaderName} ({t.leaderStudentCode})
-              </td>
-              <td className="px-3 py-2">
-                {t.memberCount} thành viên
-                {t.missingOldMemberStudentCodes.length > 0 && (
-                  <span className="block text-caption text-text-secondary">
-                    Không học EXE201 kỳ này: {t.missingOldMemberStudentCodes.join(', ')}
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-text-secondary">{t.projectName ?? '—'}</td>
-              <td className="px-3 py-2">
-                <StatusChip tone={t.status === 'ACTIVE' ? 'success' : 'warning'}>
-                  {t.status === 'ACTIVE' ? 'Đủ người' : 'Cần bổ sung'}
-                </StatusChip>
-              </td>
-            </tr>
-          ))}
+          {teams.map((t, idx) => {
+            const domainLabels = (t.domainCodes ?? []).map((code) => {
+              const name = domainMap.get(code)
+              return name ? `${code} · ${name}` : code
+            })
+
+            return (
+              <tr key={idx} className="hover:bg-surface-variant/50">
+                <td className="px-3 py-2 font-medium">{t.teamName}</td>
+                <td className="px-3 py-2">
+                  {t.leaderName} ({t.leaderStudentCode})
+                </td>
+                <td className="px-3 py-2">
+                  {t.memberCount} thành viên
+                  {t.missingOldMemberStudentCodes.length > 0 && (
+                    <span className="block text-caption text-text-secondary">
+                      Không học EXE201 kỳ này: {t.missingOldMemberStudentCodes.join(', ')}
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  {t.projectName ? (
+                    <div>
+                      <span className="font-medium text-text-primary">{t.projectName}</span>
+                      <span className="block text-caption text-text-secondary">
+                        {t.oldTeamId ? 'Gắn đề tài EXE101 có sẵn' : 'Tạo mới từ file'}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-text-secondary">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-text-secondary">
+                  {domainLabels.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {domainLabels.map((label, dIdx) => (
+                        <span key={dIdx} className="inline-block rounded bg-surface-variant px-1.5 py-0.5 text-caption font-medium text-text-primary">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="px-3 py-2">
+                  <StatusChip tone={t.status === 'ACTIVE' ? 'success' : 'warning'}>
+                    {t.status === 'ACTIVE' ? 'Đủ người' : 'Cần bổ sung'}
+                  </StatusChip>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

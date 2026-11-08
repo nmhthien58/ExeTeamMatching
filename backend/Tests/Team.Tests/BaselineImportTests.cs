@@ -5,6 +5,7 @@ using BuildingBlocks.Messaging;
 using BuildingBlocks.Outbox;
 using Team.Repositories.BaselineImport;
 using Team.Repositories.Members;
+using Team.Repositories.Projects;
 using Team.Repositories.Teams;
 using Team.Services.Academic;
 using Team.Services.BaselineImport;
@@ -27,6 +28,9 @@ public sealed class BaselineImportTests
         public List<TeamMember> SavedMembers { get; } = [];
         public List<TeamBaselineMember> SavedBaselineMembers { get; } = [];
         public List<OutboxMessage> SavedOutboxMessages { get; } = [];
+        public List<Project> SavedProjects { get; } = [];
+        public List<ProjectVersion> SavedProjectVersions { get; } = [];
+        public List<TeamDomain> SavedTeamDomains { get; } = [];
 
         public Task<HashSet<Guid>> GetStudentsAlreadyInTeamAsync(Guid semesterId, IEnumerable<Guid> studentIds, CancellationToken ct) =>
             Task.FromResult(studentIds.Where(ExistingMemberStudentIds.Contains).ToHashSet());
@@ -63,12 +67,18 @@ public sealed class BaselineImportTests
             IReadOnlyList<TeamMember> members,
             IReadOnlyList<TeamBaselineMember> baselineMembers,
             IReadOnlyList<OutboxMessage> outboxMessages,
-            CancellationToken ct)
+            IReadOnlyList<Project>? projects = null,
+            IReadOnlyList<ProjectVersion>? projectVersions = null,
+            IReadOnlyList<TeamDomain>? teamDomains = null,
+            CancellationToken ct = default)
         {
             SavedTeams.AddRange(teams);
             SavedMembers.AddRange(members);
             SavedBaselineMembers.AddRange(baselineMembers);
             SavedOutboxMessages.AddRange(outboxMessages);
+            if (projects is not null) SavedProjects.AddRange(projects);
+            if (projectVersions is not null) SavedProjectVersions.AddRange(projectVersions);
+            if (teamDomains is not null) SavedTeamDomains.AddRange(teamDomains);
             return Task.CompletedTask;
         }
     }
@@ -267,7 +277,7 @@ public sealed class BaselineImportTests
         Assert.Equal(1, result.UnlinkedTeamCount);
 
         var savedTeam = repo.SavedTeams.Single();
-        Assert.Null(savedTeam.ProjectId);
+        Assert.NotNull(savedTeam.ProjectId); // BE-92: Tạo đề tài mới từ file
         Assert.Null(savedTeam.SourceTeamId);
     }
 
@@ -305,7 +315,7 @@ public sealed class BaselineImportTests
         Assert.Equal(1, result.UnlinkedTeamCount);
 
         var savedTeam = repo.SavedTeams.Single();
-        Assert.Null(savedTeam.ProjectId);
+        Assert.NotNull(savedTeam.ProjectId); // BE-92: Tạo đề tài mới từ file
         Assert.Null(savedTeam.SourceTeamId);
     }
 
@@ -466,10 +476,174 @@ public sealed class BaselineImportTests
         var dailyMate = result.Teams!.Single(t => t.TeamName == "Daily Mate");
         Assert.Equal("SE172145", dailyMate.LeaderStudentCode);
         Assert.Equal(2, dailyMate.MemberCount);
+        Assert.Equal("Daily Mate", dailyMate.ProjectName);
+        Assert.NotNull(dailyMate.DomainCodes);
+        Assert.Contains("D01", dailyMate.DomainCodes);
+        Assert.Contains("D04", dailyMate.DomainCodes);
+
+        var dailyMateTeam = repo.SavedTeams.Single(t => t.Name == "Daily Mate");
+        Assert.NotNull(dailyMateTeam.ProjectId);
+        var dailyMateProject = repo.SavedProjects.Single(p => p.Id == dailyMateTeam.ProjectId);
+        Assert.Equal("Daily Mate", dailyMateProject.Name);
+        Assert.Equal("EXE101", dailyMateProject.OriginCourseCode);
+
+        var dailyMateDomains = repo.SavedTeamDomains.Where(d => d.TeamId == dailyMateTeam.Id).ToList();
+        Assert.Equal(2, dailyMateDomains.Count);
+        Assert.Equal("D01", dailyMateDomains.Single(d => d.IsPrimary).DomainCode);
+        Assert.Equal("D04", dailyMateDomains.Single(d => !d.IsPrimary).DomainCode);
+
         var sleepy = result.Teams!.Single(t => t.TeamName == "Sleepy Heads Studio");
         Assert.Equal("SE193559", sleepy.LeaderStudentCode);
         Assert.Equal(3, sleepy.MemberCount);
         Assert.All(repo.SavedTeams, t => Assert.Equal(TeamStatuses.Draft, t.Status));
+    }
+
+    [Fact]
+    public async Task Baseline_import_without_exe101_creates_project_project_version_team_domain_and_project_created_event()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        var s1 = academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        var s2 = academic.EnrollWithCode("SE160002", "Sinh viên 2");
+        var s3 = academic.EnrollWithCode("SE160003", "Sinh viên 3");
+        var s4 = academic.EnrollWithCode("SE160004", "Sinh viên 4");
+
+        var csv = "Tên nhóm,Tên dự án,Mô tả ý tưởng,Domain,Leader,MSSV thành viên\n" +
+                  "Nhóm Phoenix,Phoenix App,Nền tảng hỗ trợ AI,\"AI & Data Innovation, Software / SaaS / Platform\",SE160001,\"SE160002, SE160003, SE160004\"";
+
+        var service = new BaselineImportService(repo, academic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportAsync(academic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.TeamCount);
+        var summary = result.Teams!.Single();
+        Assert.Equal("Phoenix App", summary.ProjectName);
+        Assert.NotNull(summary.DomainCodes);
+        Assert.Equal(["D01", "D04"], summary.DomainCodes);
+
+        // Kiểm tra Project
+        Assert.Single(repo.SavedProjects);
+        var project = repo.SavedProjects.Single();
+        Assert.Equal("Phoenix App", project.Name);
+        Assert.Equal("Nền tảng hỗ trợ AI", project.Description);
+        Assert.Equal(academic.Semester.Id, project.OriginSemesterId);
+        Assert.Equal("EXE101", project.OriginCourseCode);
+        Assert.Equal((short)1, project.CurrentVersion);
+        Assert.Equal("ACTIVE", project.Status);
+
+        // Kiểm tra ProjectVersion
+        Assert.Single(repo.SavedProjectVersions);
+        var version = repo.SavedProjectVersions.Single();
+        Assert.Equal(project.Id, version.ProjectId);
+        Assert.Equal((short)1, version.Version);
+        Assert.Equal("Phoenix App", version.Name);
+        Assert.Equal("CREATED", version.ChangeType);
+        Assert.Equal("EXE201", version.CourseCode);
+        Assert.Null(version.ChangedByAccountId);
+
+        // Kiểm tra Team và gắn ProjectId
+        Assert.Single(repo.SavedTeams);
+        var team = repo.SavedTeams.Single();
+        Assert.Equal(project.Id, team.ProjectId);
+
+        // Kiểm tra TeamDomains
+        Assert.Equal(2, repo.SavedTeamDomains.Count);
+        var primary = repo.SavedTeamDomains.Single(d => d.IsPrimary);
+        Assert.Equal("D01", primary.DomainCode);
+        Assert.Equal(1, primary.DomainId);
+        var secondary = repo.SavedTeamDomains.Single(d => !d.IsPrimary);
+        Assert.Equal("D04", secondary.DomainCode);
+        Assert.Equal(4, secondary.DomainId);
+
+        // Kiểm tra Outbox events: TeamCreated -> ProjectCreated -> MemberJoined
+        Assert.True(repo.SavedOutboxMessages.Count >= 5);
+        Assert.Equal(TeamEventTypes.TeamCreated, repo.SavedOutboxMessages[0].EventType);
+        Assert.Equal(TeamEventTypes.ProjectCreated, repo.SavedOutboxMessages[1].EventType);
+
+        var projectCreated = JsonSerializer.Deserialize<ProjectCreated>(repo.SavedOutboxMessages[1].Payload, EventEnvelope.JsonOptions);
+        Assert.NotNull(projectCreated);
+        Assert.Equal(project.Id, projectCreated.ProjectId);
+        Assert.Equal(team.Id, projectCreated.TeamId);
+        Assert.Equal("Phoenix App", projectCreated.Name);
+        Assert.Equal([1, 4], projectCreated.DomainIds);
+        Assert.Equal("EXE201", projectCreated.CourseCode);
+
+        for (var i = 2; i < 5; i++)
+        {
+            Assert.Equal(MemberEventTypes.MemberJoined, repo.SavedOutboxMessages[i].EventType);
+        }
+    }
+
+    [Fact]
+    public async Task Baseline_import_unmatched_domain_generates_warning_and_does_not_block()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        academic.EnrollWithCode("SE160002", "Sinh viên 2");
+        academic.EnrollWithCode("SE160003", "Sinh viên 3");
+        academic.EnrollWithCode("SE160004", "Sinh viên 4");
+
+        var csv = "Tên nhóm,Tên dự án,Domain,Leader,MSSV thành viên\n" +
+                  "Nhóm Test,Test App,\"AI & Data Innovation, Không contact được nhóm, Lĩnh vực giả 999\",SE160001,\"SE160002, SE160003, SE160004\"";
+
+        var service = new BaselineImportService(repo, academic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportAsync(academic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.NotNull(result.Warnings);
+        Assert.Contains(result.Warnings, w => w.Message.Contains("Không contact được nhóm"));
+        Assert.Contains(result.Warnings, w => w.Message.Contains("Lĩnh vực giả 999"));
+
+        // Vẫn tạo nhóm, đề tài và domain hợp lệ (D01)
+        Assert.Single(repo.SavedTeams);
+        Assert.Single(repo.SavedProjects);
+        var domains = repo.SavedTeamDomains;
+        Assert.Single(domains);
+        Assert.Equal("D01", domains.Single().DomainCode);
+        Assert.True(domains.Single().IsPrimary);
+    }
+
+    [Fact]
+    public async Task Baseline_import_with_existing_exe101_team_does_not_create_new_project()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        academic.EnrollWithCode("SE160002", "Sinh viên 2");
+        academic.EnrollWithCode("SE160003", "Sinh viên 3");
+        academic.EnrollWithCode("SE160004", "Sinh viên 4");
+
+        var existingProjectId = Guid.NewGuid();
+        var existingTeamId = Guid.NewGuid();
+        repo.Exe101Teams["Nhóm Rồng Vàng"] = new TeamEntity
+        {
+            Id = existingTeamId,
+            Name = "Nhóm Rồng Vàng",
+            CourseCode = "EXE101",
+            ProjectId = existingProjectId
+        };
+
+        var csv = "Tên nhóm,Tên dự án,Domain,Leader,MSSV thành viên\n" +
+                  "Nhóm Rồng Vàng,New Title,AI & Data Innovation,SE160001,\"SE160002, SE160003, SE160004\"";
+
+        var service = new BaselineImportService(repo, academic, TimeProvider.System);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        var result = await service.ImportAsync(academic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+
+        Assert.Empty(result.Errors);
+        Assert.Empty(repo.SavedProjects); // Không tạo project mới
+        Assert.Empty(repo.SavedProjectVersions);
+
+        var team = repo.SavedTeams.Single();
+        Assert.Equal(existingProjectId, team.ProjectId);
+        Assert.Equal(existingTeamId, team.SourceTeamId);
+
+        // Outbox phát TeamLinkedToProject, không phát ProjectCreated
+        Assert.Contains(repo.SavedOutboxMessages, m => m.EventType == TeamEventTypes.TeamLinkedToProject);
+        Assert.DoesNotContain(repo.SavedOutboxMessages, m => m.EventType == TeamEventTypes.ProjectCreated);
     }
 
     private static string? FindDoc(string fileName)
