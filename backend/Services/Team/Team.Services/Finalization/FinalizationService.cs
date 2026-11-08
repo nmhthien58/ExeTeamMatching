@@ -126,7 +126,7 @@ public sealed class FinalizationService(
         var actor = user.ToAuditActor();
         var added = AddMember(team, new TeamMember
         {
-            StudentId = student.Id, StudentCode = student.StudentCode, FullName = student.FullName, SpecializationId = student.SpecializationId,
+            StudentId = student.Id, StudentCode = student.StudentCode, FullName = student.FullName, SpecializationId = student.SpecializationId ?? 0,
             Role = current.Count == 0 ? MemberRoles.Leader : MemberRoles.Member,
         }, current.Count + 1, actor, request.Reason);
         await finalizer.AfterMembersChangedAsync(team, [.. current, added], actor, ct);

@@ -61,7 +61,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         teams.Add(new TeamMember
         {
             TeamId = team.Id, SemesterId = semester.Id, StudentId = studentId, StudentCode = me.StudentCode, FullName = me.FullName,
-            SpecializationId = me.SpecializationId, Role = MemberRoles.Leader, JoinSource = "CREATOR",
+            MajorId = me.MajorId, SpecializationId = me.SpecializationId, Role = MemberRoles.Leader, JoinSource = "CREATOR",
         });
         foreach (var d in domains)
         {
@@ -165,7 +165,7 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
         var stats = await teams.GetHomeStatsAsync(team.Id, now, ct);
         var teamPhase = await rounds.PhaseAsync(team.CourseCode, team.SemesterId, ct);
         var nextAction = TeamRules.NextAction(new NextActionInput(true, isLeader, teamPhase, team.Status, graph.Members.Count,
-            graph.Members.Select(m => m.SpecializationId).Distinct().Count(), stats.HasLecturer, stats.HasLecturerPreferences,
+            TeamDiversityRule.CountDiversity(graph.Members), stats.HasLecturer, stats.HasLecturerPreferences,
             stats.HasUnsubmittedChanges, stats.HasPendingChangeRequest, await academic.GetTeamRulesAsync(ct)));
         return new TeamHomeResponse(TeamMapper.ToCard(graph, await reader.LoadCatalogsAsync(ct)), isLeader, invitations,
             isLeader ? stats.PendingJoinRequests : 0, nextAction, teamPhase, stats.InterestedLecturers, team.IsAutoAssigned);

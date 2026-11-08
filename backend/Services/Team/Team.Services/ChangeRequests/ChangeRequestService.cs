@@ -41,7 +41,7 @@ public sealed class ChangeRequestService(
         var project = graph.Project is { } p ? ToProjectSummary(p) : null;
         return new(baseline.Select(m => ToMember(m.StudentId, m.StudentCode, m.FullName, m.SpecializationId, m.Role, m.ImportedAt, catalogs)).ToList(),
             items.Select(i => ToItem(i, catalogs)).ToList(), project, projected.Count,
-            projected.Select(m => m.SpecializationId).Distinct().Count());
+            TeamDiversityRule.CountDiversity(projected));
     }
 
     public async Task<ChangeItemResponse> SetProjectChangeAsync(Guid teamId, ProjectChangeInput input, ClaimsPrincipal user, CancellationToken ct)
@@ -363,7 +363,7 @@ public sealed class ChangeRequestService(
         var projected = members.Select(m => new TeamMember
         {
             Id = m.Id, TeamId = m.TeamId, SemesterId = m.SemesterId, StudentId = m.StudentId,
-            StudentCode = m.StudentCode, FullName = m.FullName, SpecializationId = m.SpecializationId,
+            StudentCode = m.StudentCode, FullName = m.FullName, MajorId = m.MajorId, SpecializationId = m.SpecializationId,
             Role = m.Role, JoinSource = m.JoinSource, JoinedAt = m.JoinedAt, Version = m.Version,
         }).ToDictionary(m => m.StudentId);
         foreach (var item in items.OrderBy(i => i.CreatedAt))
@@ -374,7 +374,7 @@ public sealed class ChangeRequestService(
                 projected[studentId] = new TeamMember
                 {
                     Id = studentId, TeamId = item.TeamId, StudentId = studentId, StudentCode = item.StudentCode ?? string.Empty,
-                    FullName = item.FullName ?? string.Empty, SpecializationId = item.SpecializationId ?? 0,
+                    FullName = item.FullName ?? string.Empty, MajorId = item.MajorId, SpecializationId = item.SpecializationId,
                     Role = MemberRoles.Member, JoinedAt = item.CreatedAt,
                 };
             }
@@ -412,8 +412,8 @@ public sealed class ChangeRequestService(
         return new(before.Id, change.NewProjectName ?? before.Name, change.NewProjectDescription, version, before.OriginCourseCode, before.OriginSemesterCode);
     }
 
-    private static MemberResponse ToMember(Guid id, string code, string name, int specializationId, string role, DateTimeOffset joinedAt, Catalogs catalogs) =>
-        new(id, code, name, catalogs.Specialization(specializationId), role, null, null, joinedAt, null);
+    private static MemberResponse ToMember(Guid id, string code, string name, int? specializationId, string role, DateTimeOffset joinedAt, Catalogs catalogs) =>
+        new(id, code, name, catalogs.Specialization(specializationId ?? 0), role, null, null, joinedAt, null);
 
     private static ChangeItemResponse ToItem(ChangeRequestItem item, Catalogs catalogs) => new(item.Id, item.Action, item.Source,
         item.StudentId is { } studentId

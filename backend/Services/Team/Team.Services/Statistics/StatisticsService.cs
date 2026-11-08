@@ -61,7 +61,7 @@ public sealed class StatisticsService(
 
         var catalogs = await reader.LoadCatalogsAsync(ct);
         var page = students.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
-            .Select(s => new StudentRef(s.Id, s.StudentCode, s.FullName, catalogs.Specialization(s.SpecializationId)))
+            .Select(s => new StudentRef(s.Id, s.StudentCode, s.FullName, catalogs.Specialization(s.SpecializationId ?? 0)))
             .ToList();
         return new PagedResponse<StudentRef>(page, query.Page, query.PageSize, students.Count, (students.Count + query.PageSize - 1) / query.PageSize);
     }

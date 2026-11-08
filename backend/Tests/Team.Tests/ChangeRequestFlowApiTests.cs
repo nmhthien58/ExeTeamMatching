@@ -45,7 +45,7 @@ public sealed class ChangeRequestFlowApiTests
             db.AddRange(initial.Select(s => new TeamMember
             {
                 TeamId = team.Id, SemesterId = api.Academic.Semester.Id, StudentId = s.Id,
-                StudentCode = s.StudentCode, FullName = s.FullName, SpecializationId = s.SpecializationId,
+                StudentCode = s.StudentCode, FullName = s.FullName, SpecializationId = s.SpecializationId ?? 0,
                 JoinSource = "INHERITED",
             }));
             await db.SaveChangesAsync();

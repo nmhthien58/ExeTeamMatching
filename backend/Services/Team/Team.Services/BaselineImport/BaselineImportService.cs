@@ -16,7 +16,7 @@ public sealed class BaselineImportService(
     IAcademicClient academic,
     TimeProvider clock) : IBaselineImportService
 {
-    private static readonly Regex StudentCodeRegex = new(@"^[A-Z]{2}[0-9]{6}$", RegexOptions.Compiled);
+    private static readonly Regex StudentCodeRegex = new(@"^[A-Z]{2,3}[0-9]{6}$", RegexOptions.Compiled);
 
     public async Task<BaselineImportResponse> ImportAsync(
         Guid semesterId,
@@ -260,6 +260,7 @@ public sealed class BaselineImportService(
                     StudentId = snap.Id,
                     StudentCode = snap.StudentCode,
                     FullName = snap.FullName,
+                    MajorId = snap.MajorId,
                     SpecializationId = snap.SpecializationId,
                     Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
                     JoinSource = "INHERITED",
@@ -272,6 +273,7 @@ public sealed class BaselineImportService(
                     StudentId = snap.Id,
                     StudentCode = snap.StudentCode,
                     FullName = snap.FullName,
+                    MajorId = snap.MajorId,
                     SpecializationId = snap.SpecializationId,
                     Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
                     ImportedAt = now,
@@ -313,7 +315,7 @@ public sealed class BaselineImportService(
                     AggregateId = teamId,
                     Payload = JsonSerializer.Serialize(new MemberJoined(
                         teamId, semesterId, snapshot.Id, snapshot.FullName,
-                        snapshot.SpecializationId, "INHERITED", ++memberCount), EventEnvelope.JsonOptions),
+                        snapshot.SpecializationId ?? 0, "INHERITED", ++memberCount), EventEnvelope.JsonOptions),
                     OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
                 });
             }
@@ -340,5 +342,238 @@ public sealed class BaselineImportService(
         await repository.SaveImportedTeamsAsync(teamsToInsert, membersToInsert, baselineMembersToInsert, outboxMessages, ct);
 
         return new BaselineImportResponse(teamCount, studentCount, linkedProjectCount, unlinkedTeamCount, []);
+    }
+
+    public async Task<AutoInheritResponse> AutoInheritAsync(AutoInheritRequest request, CancellationToken ct)
+    {
+        var semesterId = request.SemesterId;
+
+        // 1. Fetch EXE201 students for this semester
+        IReadOnlyList<StudentSnapshot> enrolledStudents;
+        if (request.StudentCodes is { Count: > 0 } codes)
+        {
+            var distinctCodes = codes.Where(c => StudentCodeRegex.IsMatch(c)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            enrolledStudents = await academic.LookupStudentsByCodeAsync(semesterId, distinctCodes, ct);
+        }
+        else
+        {
+            enrolledStudents = await academic.ListSemesterStudentsAsync(semesterId, "EXE201", ct);
+        }
+
+        var enrolledByCode = enrolledStudents
+            .Where(s => s.IsEnrolled)
+            .ToDictionary(s => s.StudentCode, StringComparer.OrdinalIgnoreCase);
+
+        // Check which students are already in a team in this semester
+        var alreadyInTeamIds = await repository.GetStudentsAlreadyInTeamAsync(semesterId, enrolledByCode.Values.Select(s => s.Id), ct);
+        var availableStudentsByCode = enrolledByCode
+            .Where(kvp => !alreadyInTeamIds.Contains(kvp.Value.Id))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+        // 2. Fetch previous EXE101 teams (xác định kỳ liền trước theo StartDate từ Academic)
+        var semesters = await academic.ListSemestersAsync(ct);
+        var currentSemester = semesters.FirstOrDefault(s => s.Id == semesterId);
+        var previousSemester = semesters
+            .Where(s => s.Id != semesterId && s.StartDate.HasValue && (currentSemester?.StartDate == null || s.StartDate < currentSemester.StartDate))
+            .OrderByDescending(s => s.StartDate)
+            .FirstOrDefault();
+
+        var previousTeams = previousSemester != null
+            ? await repository.GetExe101TeamsBySemesterAsync(previousSemester.Id, ct)
+            : [];
+
+        // 3. Match members
+        var inheritedSummaries = new List<InheritedTeamSummary>();
+        var assignedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var teamsToInsert = new List<TeamEntity>();
+        var membersToInsert = new List<TeamMember>();
+        var baselineMembersToInsert = new List<TeamBaselineMember>();
+        var outboxMessages = new List<OutboxMessage>();
+        var now = clock.GetUtcNow();
+
+        // Get existing team names in current semester to avoid collisions
+        var existingNames = await repository.GetExistingTeamNamesAsync(semesterId, "EXE201", previousTeams.Select(t => t.Name), ct);
+
+        foreach (var oldTeam in previousTeams)
+        {
+            var matchedOldMembers = oldTeam.Members
+                .Where(m => availableStudentsByCode.ContainsKey(m.StudentCode) && !assignedCodes.Contains(m.StudentCode))
+                .ToList();
+
+            if (matchedOldMembers.Count == 0)
+            {
+                continue; // 0 students enrolled in EXE201 -> do not create team
+            }
+
+            var missingOldMembers = oldTeam.Members
+                .Where(m => !availableStudentsByCode.ContainsKey(m.StudentCode) || assignedCodes.Contains(m.StudentCode))
+                .Select(m => m.StudentCode)
+                .ToList();
+
+            var leaderMember = matchedOldMembers.FirstOrDefault(m => m.Role == "LEADER") ?? matchedOldMembers[0];
+
+            foreach (var m in matchedOldMembers)
+            {
+                assignedCodes.Add(m.StudentCode);
+            }
+
+            var teamName = oldTeam.Name;
+            if (existingNames.Contains(teamName.ToLowerInvariant()))
+            {
+                teamName = $"{teamName} (EXE201)";
+            }
+
+            var status = matchedOldMembers.Count < 4 ? "NEEDS_REVIEW" : "DRAFT";
+            var teamId = Guid.NewGuid();
+
+            var teamMembersSummary = new List<InheritedTeamMemberSummary>();
+            foreach (var m in matchedOldMembers)
+            {
+                var snap = availableStudentsByCode[m.StudentCode];
+                var isLeader = m.StudentCode.Equals(leaderMember.StudentCode, StringComparison.OrdinalIgnoreCase);
+                teamMembersSummary.Add(new InheritedTeamMemberSummary(snap.Id, snap.StudentCode, snap.FullName, snap.SpecializationId, isLeader));
+            }
+
+            var summary = new InheritedTeamSummary(
+                TeamId: request.DryRun ? null : teamId,
+                TeamName: teamName,
+                OldTeamId: oldTeam.Id,
+                ProjectId: oldTeam.ProjectId,
+                ProjectName: oldTeam.ProjectName,
+                LeaderStudentCode: leaderMember.StudentCode,
+                LeaderName: leaderMember.FullName,
+                MemberCount: matchedOldMembers.Count,
+                Members: teamMembersSummary,
+                MissingOldMemberStudentCodes: missingOldMembers,
+                Status: status);
+
+            inheritedSummaries.Add(summary);
+
+            if (!request.DryRun)
+            {
+                var teamEntity = new TeamEntity
+                {
+                    Id = teamId,
+                    SemesterId = semesterId,
+                    CourseCode = "EXE201",
+                    Name = teamName,
+                    ProjectId = oldTeam.ProjectId,
+                    Status = status,
+                    IsInherited = true,
+                    SourceTeamId = oldTeam.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                };
+                teamsToInsert.Add(teamEntity);
+
+                var leaderSnap = availableStudentsByCode[leaderMember.StudentCode];
+
+                foreach (var m in matchedOldMembers)
+                {
+                    var snap = availableStudentsByCode[m.StudentCode];
+                    var isLeader = m.StudentCode.Equals(leaderMember.StudentCode, StringComparison.OrdinalIgnoreCase);
+
+                    membersToInsert.Add(new TeamMember
+                    {
+                        Id = Guid.NewGuid(),
+                        TeamId = teamId,
+                        SemesterId = semesterId,
+                        StudentId = snap.Id,
+                        StudentCode = snap.StudentCode,
+                        FullName = snap.FullName,
+                        MajorId = snap.MajorId,
+                        SpecializationId = snap.SpecializationId,
+                        Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
+                        JoinSource = "INHERITED",
+                        JoinedAt = now,
+                    });
+
+                    baselineMembersToInsert.Add(new TeamBaselineMember
+                    {
+                        TeamId = teamId,
+                        StudentId = snap.Id,
+                        StudentCode = snap.StudentCode,
+                        FullName = snap.FullName,
+                        MajorId = snap.MajorId,
+                        SpecializationId = snap.SpecializationId,
+                        Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
+                        ImportedAt = now,
+                    });
+                }
+
+                outboxMessages.Add(new OutboxMessage
+                {
+                    Id = Guid.NewGuid(),
+                    Topic = "exe.team",
+                    EventType = TeamEventTypes.TeamCreated,
+                    AggregateType = "Team",
+                    AggregateId = teamId,
+                    Payload = JsonSerializer.Serialize(new TeamCreated(
+                        teamId,
+                        semesterId,
+                        "EXE201",
+                        teamName,
+                        leaderSnap.Id,
+                        leaderSnap.FullName,
+                        teamEntity.ProjectId,
+                        IsAutoAssigned: false,
+                        IsInherited: true,
+                        SourceTeamId: teamEntity.SourceTeamId), EventEnvelope.JsonOptions),
+                    OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
+                });
+
+                var memberCount = 1;
+                foreach (var m in matchedOldMembers.Where(m => !m.StudentCode.Equals(leaderMember.StudentCode, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var snap = availableStudentsByCode[m.StudentCode];
+                    outboxMessages.Add(new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        Topic = "exe.team",
+                        EventType = MemberEventTypes.MemberJoined,
+                        AggregateType = "Team",
+                        AggregateId = teamId,
+                        Payload = JsonSerializer.Serialize(new MemberJoined(
+                            teamId, semesterId, snap.Id, snap.FullName,
+                            snap.SpecializationId ?? 0, "INHERITED", ++memberCount), EventEnvelope.JsonOptions),
+                        OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
+                    });
+                }
+
+                if (teamEntity.ProjectId is { } pId)
+                {
+                    outboxMessages.Add(new OutboxMessage
+                    {
+                        Id = Guid.NewGuid(),
+                        Topic = "exe.team",
+                        EventType = TeamEventTypes.TeamLinkedToProject,
+                        AggregateType = "Team",
+                        AggregateId = teamId,
+                        Payload = JsonSerializer.Serialize(new TeamLinkedToProject(
+                            teamId,
+                            pId,
+                            oldTeam.Id,
+                            "INHERITED"), EventEnvelope.JsonOptions),
+                        OccurredAt = now.AddTicks(outboxMessages.Count * 10L),
+                    });
+                }
+            }
+        }
+
+        if (!request.DryRun && teamsToInsert.Count > 0)
+        {
+            await repository.SaveImportedTeamsAsync(teamsToInsert, membersToInsert, baselineMembersToInsert, outboxMessages, ct);
+        }
+
+        var freeStudentsCount = enrolledByCode.Count - assignedCodes.Count;
+        var needsReviewCount = inheritedSummaries.Count(t => t.Status == "NEEDS_REVIEW");
+
+        return new AutoInheritResponse(
+            InheritedTeamCount: inheritedSummaries.Count,
+            InheritedStudentCount: assignedCodes.Count,
+            FreeStudentCount: Math.Max(0, freeStudentsCount),
+            NeedsReviewTeamCount: needsReviewCount,
+            Teams: inheritedSummaries);
     }
 }

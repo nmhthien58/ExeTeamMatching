@@ -94,9 +94,10 @@ CREATE TABLE team.team_members (
     team_id           uuid         NOT NULL,
     semester_id       uuid         NOT NULL,
     student_id        uuid         NOT NULL,                 -- academic.students.id
-    student_code      varchar(8)   NOT NULL,
+    student_code      varchar(10)  NOT NULL,
     full_name         varchar(150) NOT NULL,
-    specialization_id integer      NOT NULL,
+    major_id          integer      NOT NULL DEFAULT 1,
+    specialization_id integer,
     role              varchar(10)  NOT NULL DEFAULT 'MEMBER',
     join_source       varchar(20)  NOT NULL,
     joined_at         timestamptz  NOT NULL DEFAULT now(),
@@ -107,7 +108,7 @@ CREATE TABLE team.team_members (
     CONSTRAINT ck_team_members_role CHECK (role IN ('LEADER', 'MEMBER')),
     CONSTRAINT ck_team_members_join_source CHECK (join_source IN
         ('CREATOR', 'INVITATION', 'JOIN_REQUEST', 'CHANGE_REQUEST', 'AUTO_ASSIGN', 'INHERITED', 'ADMIN')),
-    CONSTRAINT ck_team_members_student_code CHECK (student_code ~ '^[A-Z]{2}[0-9]{6}$')
+    CONSTRAINT ck_team_members_student_code CHECK (student_code ~ '^[A-Z]{2,3}[0-9]{6}$')
 );
 CREATE INDEX idx_team_members_team_id ON team.team_members (team_id);
 CREATE UNIQUE INDEX uq_team_members_one_leader ON team.team_members (team_id) WHERE role = 'LEADER';
@@ -116,15 +117,16 @@ CREATE UNIQUE INDEX uq_team_members_one_leader ON team.team_members (team_id) WH
 CREATE TABLE team.team_baseline_members (
     team_id           uuid         NOT NULL,
     student_id        uuid         NOT NULL,
-    student_code      varchar(8)   NOT NULL,
+    student_code      varchar(10)  NOT NULL,
     full_name         varchar(150) NOT NULL,
-    specialization_id integer      NOT NULL,
+    major_id          integer      NOT NULL DEFAULT 1,
+    specialization_id integer,
     role              varchar(10)  NOT NULL,
     imported_at       timestamptz  NOT NULL DEFAULT now(),
     CONSTRAINT pk_team_baseline_members PRIMARY KEY (team_id, student_id),
     CONSTRAINT fk_team_baseline_members_team FOREIGN KEY (team_id) REFERENCES team.teams (id) ON DELETE CASCADE,
     CONSTRAINT ck_team_baseline_members_role CHECK (role IN ('LEADER', 'MEMBER')),
-    CONSTRAINT ck_team_baseline_members_code CHECK (student_code ~ '^[A-Z]{2}[0-9]{6}$')
+    CONSTRAINT ck_team_baseline_members_code CHECK (student_code ~ '^[A-Z]{2,3}[0-9]{6}$')
 );
 CREATE UNIQUE INDEX uq_team_baseline_members_leader ON team.team_baseline_members (team_id) WHERE role = 'LEADER';
 
@@ -293,8 +295,9 @@ CREATE TABLE team.change_request_items (
     action            varchar(14)  NOT NULL,
     source            varchar(20)  NOT NULL,
     student_id        uuid,                                   -- NULL khi PROJECT_CHANGE
-    student_code      varchar(8),
+    student_code      varchar(10),
     full_name         varchar(150),
+    major_id          integer      NOT NULL DEFAULT 1,
     specialization_id integer,
     new_project_name  varchar(200),                           -- PROJECT_CHANGE (rule 26)
     new_project_description varchar(4000),
@@ -306,8 +309,7 @@ CREATE TABLE team.change_request_items (
     CONSTRAINT ck_change_request_items_action CHECK (action IN ('ADD', 'REMOVE', 'SET_LEADER', 'PROJECT_CHANGE')),
     CONSTRAINT ck_change_request_items_source CHECK (source IN
         ('INVITATION', 'JOIN_REQUEST', 'LEAVE', 'REMOVE', 'LEADER_TRANSFER', 'PROJECT')),
-    CONSTRAINT ck_change_request_items_spec CHECK (action <> 'ADD' OR specialization_id IS NOT NULL),
-    CONSTRAINT ck_change_request_items_code CHECK (student_code IS NULL OR student_code ~ '^[A-Z]{2}[0-9]{6}$'),
+    CONSTRAINT ck_change_request_items_code CHECK (student_code IS NULL OR student_code ~ '^[A-Z]{2,3}[0-9]{6}$'),
     CONSTRAINT ck_change_request_items_target CHECK (
         (action = 'PROJECT_CHANGE' AND source = 'PROJECT' AND student_id IS NULL AND new_project_name IS NOT NULL)
         OR (action <> 'PROJECT_CHANGE' AND source <> 'PROJECT' AND student_id IS NOT NULL AND student_code IS NOT NULL

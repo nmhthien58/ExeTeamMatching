@@ -59,6 +59,37 @@ export interface BaselineResult {
   errors: { row: number; message: string }[]
 }
 
+/** `POST /api/teams/auto-inherit` (BE-92, FE-56). */
+export interface InheritedTeamMemberSummary {
+  studentId: string
+  studentCode: string
+  fullName: string
+  specializationId: number | null
+  isLeader: boolean
+}
+
+export interface InheritedTeamSummary {
+  teamId: string | null
+  teamName: string
+  oldTeamId: string | null
+  projectId: string | null
+  projectName: string | null
+  leaderStudentCode: string
+  leaderName: string
+  memberCount: number
+  members: InheritedTeamMemberSummary[]
+  missingOldMemberStudentCodes: string[]
+  status: 'DRAFT' | 'NEEDS_REVIEW' | string
+}
+
+export interface AutoInheritResponse {
+  inheritedTeamCount: number
+  inheritedStudentCount: number
+  freeStudentCount: number
+  needsReviewTeamCount: number
+  teams: InheritedTeamSummary[]
+}
+
 /** Giới hạn của server (`ImportPreviewInputValidator`), kiểm tra trước để khỏi tải lên vô ích. */
 export const MAX_FILE_MB = 5
 
@@ -124,6 +155,27 @@ export function useBaselineImport() {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
       ).data
+    },
+  })
+}
+
+/** Tự động đối chiếu kế thừa nhóm EXE201 từ EXE101 kỳ trước (BE-92, FE-56). */
+export function useAutoInherit() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ semesterId, dryRun }: { semesterId: string; dryRun: boolean }) => {
+      return (
+        await api.post<AutoInheritResponse>('/api/teams/auto-inherit', {
+          semesterId,
+          dryRun,
+        })
+      ).data
+    },
+    onSuccess: (_, variables) => {
+      if (!variables.dryRun) {
+        client.invalidateQueries({ queryKey: ['teams'] })
+        client.invalidateQueries({ queryKey: ['admin-teams'] })
+      }
     },
   })
 }

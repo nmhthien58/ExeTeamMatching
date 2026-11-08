@@ -12,6 +12,10 @@ public interface IBaselineImportRepository
 
     Task<IReadOnlyList<Exe101CandidateTeam>> GetExe101CandidateTeamsAsync(IEnumerable<string> teamNames, CancellationToken ct);
 
+    Task<IReadOnlyList<Exe101TeamWithMembers>> GetPreviousExe101TeamsAsync(Guid currentSemesterId, CancellationToken ct);
+
+    Task<IReadOnlyList<Exe101TeamWithMembers>> GetExe101TeamsBySemesterAsync(Guid semesterId, CancellationToken ct);
+
     Task SaveImportedTeamsAsync(
         IReadOnlyList<TeamEntity> teams,
         IReadOnlyList<TeamMember> members,

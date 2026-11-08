@@ -27,7 +27,7 @@ public sealed class FakeMatching : IMatchingClient
     public List<(string Kind, string CourseCode, IReadOnlyCollection<AdvisorMatchingTeam> Teams, IReadOnlyCollection<AdvisorMatchingAdvisor> Advisors)>
         AdvisorRequests { get; } = [];
 
-    public Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int SpecializationId)> members, CancellationToken ct)
+    public Task<CompositionCheck> ValidateCompositionAsync(IReadOnlyCollection<(Guid StudentId, int? SpecializationId)> members, CancellationToken ct)
     {
         var violations = new List<string>();
         if (members.Count < Rules.MinSize)
@@ -38,7 +38,7 @@ public sealed class FakeMatching : IMatchingClient
         {
             violations.Add("TOO_MANY_MEMBERS");
         }
-        if (members.Select(m => m.SpecializationId).Distinct().Count() < Rules.MinSpecializations)
+        if (members.Where(m => m.SpecializationId != null).Select(m => m.SpecializationId!.Value).Distinct().Count() < Rules.MinSpecializations)
         {
             violations.Add("NOT_ENOUGH_SPECIALIZATIONS");
         }

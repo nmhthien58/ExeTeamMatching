@@ -198,4 +198,65 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
     expect((post.mock.calls[2] as [string, FormData])[1].get('dryRun')).toBe('false')
     expect(screen.getByRole('link', { name: 'Gắn đề tài cho nhóm chưa khớp' })).toHaveAttribute('href', '/admin/de-tai')
   })
+
+  it('W06 EXE201: tự động kế thừa nhóm từ EXE101 kỳ trước và xác nhận tạo nhóm (FE-56)', async () => {
+    const user = userEvent.setup()
+    const autoInheritData = {
+      inheritedTeamCount: 3,
+      inheritedStudentCount: 12,
+      freeStudentCount: 5,
+      needsReviewTeamCount: 1,
+      teams: [
+        {
+          teamId: 't1',
+          teamName: 'Nhóm Rồng Vàng',
+          oldTeamId: 'ot1',
+          projectId: 'p1',
+          projectName: 'EduPlatform',
+          leaderStudentCode: 'SE160001',
+          leaderName: 'Nguyễn Văn A',
+          memberCount: 4,
+          members: [
+            { studentId: 's1', studentCode: 'SE160001', fullName: 'Nguyễn Văn A', specializationId: 1, isLeader: true },
+          ],
+          missingOldMemberStudentCodes: [],
+          status: 'DRAFT',
+        },
+        {
+          teamId: 't2',
+          teamName: 'Nhóm Chiến Binh',
+          oldTeamId: 'ot2',
+          projectId: null,
+          projectName: null,
+          leaderStudentCode: 'SE160002',
+          leaderName: 'Trần Thị B',
+          memberCount: 2,
+          members: [
+            { studentId: 's2', studentCode: 'SE160002', fullName: 'Trần Thị B', specializationId: 1, isLeader: true },
+          ],
+          missingOldMemberStudentCodes: ['SE160003', 'SE160004'],
+          status: 'NEEDS_REVIEW',
+        },
+      ],
+    }
+
+    renderPage()
+    await user.selectOptions(await screen.findByLabelText('Môn'), 'EXE201')
+
+    post.mockResolvedValueOnce({ data: autoInheritData })
+    await user.click(screen.getByRole('button', { name: 'Tự động kế thừa từ EXE101' }))
+
+    expect(post).toHaveBeenLastCalledWith('/api/teams/auto-inherit', { semesterId: 'fa', dryRun: true })
+    expect(await screen.findByText('Xem trước kết quả kế thừa nhóm')).toBeInTheDocument()
+    expect(screen.getByText('Nhóm Rồng Vàng')).toBeInTheDocument()
+    expect(screen.getByText('Nhóm Chiến Binh')).toBeInTheDocument()
+    expect(screen.getByText(/Thiếu 2: SE160003, SE160004/)).toBeInTheDocument()
+
+    post.mockResolvedValueOnce({ data: autoInheritData })
+    await user.click(screen.getByRole('button', { name: 'Xác nhận tạo nhóm kế thừa' }))
+
+    expect(post).toHaveBeenLastCalledWith('/api/teams/auto-inherit', { semesterId: 'fa', dryRun: false })
+    expect(await screen.findByText('Đã tạo nhóm kế thừa thành công!')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Chuyển tới Quản lý nhóm (W15)' })).toBeInTheDocument()
+  })
 })

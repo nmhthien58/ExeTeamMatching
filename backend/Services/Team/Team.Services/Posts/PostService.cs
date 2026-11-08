@@ -120,7 +120,7 @@ public sealed class PostService(
             post = new SeekingPost { Id = Guid.NewGuid(), SemesterId = semester.Id, StudentId = studentId, Status = PostStatuses.Open, CreatedAt = clock.GetUtcNow() };
             posts.Add(post);
         }
-        (post.SpecializationId, post.Title, post.Description, post.UpdatedAt) = (me.SpecializationId, input.Title.Trim(), Clean(input.Description), clock.GetUtcNow());
+        (post.SpecializationId, post.Title, post.Description, post.UpdatedAt) = (me.SpecializationId ?? 0, input.Title.Trim(), Clean(input.Description), clock.GetUtcNow());
         await posts.ReplaceDomainsAsync(post.Id, domains, ct);
         await posts.SaveChangesAsync(ct);
         return (await ToResponsesAsync(semester.Id, [post], ct)).Single();
