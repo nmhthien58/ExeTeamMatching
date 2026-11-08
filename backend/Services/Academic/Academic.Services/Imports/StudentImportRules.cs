@@ -120,17 +120,24 @@ public static partial class StudentImportRules
             {
                 Error(ImportFields.ClassCode, "Thiếu mã lớp.");
             }
-            else if (!classCodes.TryGetValue(row.ClassCode, out var classCode))
+            else if (classCodes.TryGetValue(row.ClassCode, out var classCode))
             {
-                Error(ImportFields.ClassCode, $"Mã lớp '{row.ClassCode}' không có trong danh mục.");
+                if (!classCode.IsActive)
+                {
+                    Error(ImportFields.ClassCode, $"Mã lớp '{row.ClassCode}' đã ngừng dùng.");
+                }
+                else
+                {
+                    classCodeId = classCode.Id;
+                }
             }
-            else if (!classCode.IsActive)
+            else if (!ClassCodePattern().IsMatch(row.ClassCode))
             {
-                Error(ImportFields.ClassCode, $"Mã lớp '{row.ClassCode}' đã ngừng dùng.");
+                Error(ImportFields.ClassCode, "Mã lớp không hợp lệ (3–20 ký tự: chữ in hoa hoặc số).");
             }
             else
             {
-                classCodeId = classCode.Id;
+                row = row with { Warning = "Mã lớp mới, sẽ được tạo" };
             }
 
             // SĐT tùy chọn, lưu dạng chuỗi (rule 11); cùng mẫu với CHECK ck_students_phone.
@@ -167,6 +174,9 @@ public static partial class StudentImportRules
 
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailPattern();
+
+    [GeneratedRegex("^[A-Z0-9]{3,20}$")]
+    private static partial Regex ClassCodePattern();
 
     [GeneratedRegex(@"^\+?[0-9]{9,14}$")]
     private static partial Regex PhonePattern();

@@ -20,6 +20,9 @@ public interface IImportRepository
 
     Task<IReadOnlyList<ClassCode>> ListClassCodesAsync(IReadOnlyCollection<string> codes, CancellationToken ct);
 
+    /// <summary>Đảm bảo các mã lớp đã có trong danh mục (tạo mới nếu chưa có); trả về ánh xạ mã -> id.</summary>
+    Task<IReadOnlyDictionary<string, int>> EnsureClassCodesAsync(IReadOnlyCollection<string> codes, CancellationToken ct);
+
     /// <summary>Sinh viên có MSSV hoặc email trong danh sách. Có theo dõi thay đổi, để cập nhật rồi gọi <see cref="SaveAsync"/>.</summary>
     Task<IReadOnlyList<Student>> FindStudentsAsync(IReadOnlyCollection<string> studentCodes, IReadOnlyCollection<string> emails, CancellationToken ct);
 
@@ -56,6 +59,44 @@ public sealed class ImportRepository(AcademicDbContext db) : IImportRepository
 
     public async Task<IReadOnlyList<ClassCode>> ListClassCodesAsync(IReadOnlyCollection<string> codes, CancellationToken ct) =>
         await db.ClassCodes.AsNoTracking().Where(c => codes.Contains(c.Code)).ToListAsync(ct);
+
+    public async Task<IReadOnlyDictionary<string, int>> EnsureClassCodesAsync(IReadOnlyCollection<string> codes, CancellationToken ct)
+    {
+        var upperCodes = codes.Select(c => c.ToUpperInvariant()).Distinct().ToList();
+        var existing = await db.ClassCodes.Where(c => upperCodes.Contains(c.Code)).ToListAsync(ct);
+        var map = existing.ToDictionary(c => c.Code, c => c.Id, StringComparer.OrdinalIgnoreCase);
+        var missing = upperCodes.Where(code => !map.ContainsKey(code)).ToList();
+        if (missing.Count > 0)
+        {
+            var now = DateTimeOffset.UtcNow;
+            var toAdd = missing.Select(code => new ClassCode
+            {
+                Code = code,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            }).ToList();
+            try
+            {
+                db.ClassCodes.AddRange(toAdd);
+                await db.SaveChangesAsync(ct);
+                foreach (var entity in toAdd)
+                {
+                    map[entity.Code] = entity.Id;
+                }
+            }
+            catch (DbUpdateException)
+            {
+                db.ChangeTracker.Clear();
+                var reloaded = await db.ClassCodes.Where(c => upperCodes.Contains(c.Code)).ToListAsync(ct);
+                foreach (var entity in reloaded)
+                {
+                    map[entity.Code] = entity.Id;
+                }
+            }
+        }
+        return map;
+    }
 
     /// <remarks><c>email</c> là citext nên so sánh trong SQL không phân biệt hoa thường.</remarks>
     public async Task<IReadOnlyList<Student>> FindStudentsAsync(IReadOnlyCollection<string> studentCodes, IReadOnlyCollection<string> emails, CancellationToken ct) =>

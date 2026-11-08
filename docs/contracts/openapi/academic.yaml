@@ -421,7 +421,7 @@ components:
                 properties: { errors: { type: array, items: { type: object, properties: { field: { type: string }, message: { type: string } } } } }
     ImportRow:
       type: object
-      properties: { rowNumber: { type: integer }, studentCode: { type: string }, fullName: { type: string }, email: { type: string }, specializationCode: { type: string }, classCode: { type: string }, phone: { type: string, nullable: true, description: Tùy chọn – nguồn liên lạc duy nhất (rule 11) } }
+      properties: { rowNumber: { type: integer }, studentCode: { type: string }, fullName: { type: string }, email: { type: string }, specializationCode: { type: string }, classCode: { type: string }, phone: { type: string, nullable: true, description: Tùy chọn – nguồn liên lạc duy nhất (rule 11) }, warning: { type: string, nullable: true, description: Cảnh báo ở bước xem trước (ví dụ mã lớp mới sẽ được tạo) } }
     ImportBatch:
       type: object
       properties:
