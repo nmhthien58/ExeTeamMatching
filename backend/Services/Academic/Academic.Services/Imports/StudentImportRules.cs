@@ -2,15 +2,16 @@ using System.Text.RegularExpressions;
 
 namespace Academic.Services.Imports;
 
-/// <summary>Dữ liệu trong DB cần để kiểm tra một file: danh mục, sinh viên đã có (theo MSSV hoặc email), danh sách học kỳ.</summary>
+/// <summary>Dữ liệu trong DB cần để kiểm tra một file: danh mục ngành, mã lớp, sinh viên đã có (theo MSSV hoặc email), danh sách học kỳ.</summary>
 /// <param name="Enrollments">Môn của sinh viên đã có trong danh sách học kỳ, theo id sinh viên.</param>
 /// <param name="MentorEmails">Email trong file đã thuộc một mentor.</param>
 public sealed record ImportReference(
-    IReadOnlyList<CatalogEntry> Specializations,
+    IReadOnlyList<CatalogEntry> Majors,
     IReadOnlyList<CatalogEntry> ClassCodes,
     IReadOnlyList<ExistingStudent> Students,
     IReadOnlyDictionary<Guid, string> Enrollments,
-    IReadOnlyCollection<string> MentorEmails);
+    IReadOnlyCollection<string> MentorEmails,
+    IReadOnlyList<CatalogEntry>? Specializations = null);
 
 /// <summary>Mục danh mục; <see cref="Name"/> null với mã lớp.</summary>
 public sealed record CatalogEntry(int Id, string Code, string? Name, bool IsActive);
@@ -19,9 +20,9 @@ public sealed record ExistingStudent(Guid Id, string StudentCode, string Email);
 
 /// <summary>
 /// Kết quả kiểm tra một dòng. <see cref="Row"/> đã chuẩn hóa (MSSV, mã chuyên ngành, mã lớp viết hoa; SĐT bỏ khoảng trắng, dấu chấm, gạch).
-/// Dòng hợp lệ có <see cref="SpecializationId"/>, <see cref="ClassCodeId"/>; <see cref="ExistingStudentId"/> khi MSSV đã có hồ sơ.
+/// Dòng hợp lệ có <see cref="MajorId"/>, <see cref="ClassCodeId"/>; <see cref="ExistingStudentId"/> khi MSSV đã có hồ sơ.
 /// </summary>
-public sealed record ImportRowCheck(ImportRow Row, IReadOnlyList<ImportRowError> Errors, int SpecializationId, int ClassCodeId, Guid? ExistingStudentId)
+public sealed record ImportRowCheck(ImportRow Row, IReadOnlyList<ImportRowError> Errors, int MajorId, int? SpecializationId, int ClassCodeId, Guid? ExistingStudentId)
 {
     public bool IsValid => Errors.Count == 0;
 }
@@ -34,7 +35,7 @@ public static partial class StudentImportRules
 {
     public static IReadOnlyList<ImportRowCheck> Check(IReadOnlyList<ImportRow> rows, string courseCode, ImportReference reference)
     {
-        var specializations = reference.Specializations;
+        var majors = reference.Majors;
         var classCodes = reference.ClassCodes.ToDictionary(c => c.Code, StringComparer.OrdinalIgnoreCase);
         var byCode = reference.Students.ToDictionary(s => s.StudentCode, StringComparer.OrdinalIgnoreCase);
         var byEmail = reference.Students.ToDictionary(s => s.Email, StringComparer.OrdinalIgnoreCase);
@@ -49,18 +50,35 @@ public static partial class StudentImportRules
             var errors = new List<ImportRowError>();
             void Error(string field, string message) => errors.Add(new ImportRowError(field, message));
 
-            // MSSV: 2 chữ + 6 số (rule 11), không trùng trong file.
+            var majorId = 0;
+            // MSSV: 2–3 chữ + 6 số (rule 11, BE-91), không trùng trong file. Tiền tố là mã ngành.
             if (row.StudentCode.Length == 0)
             {
                 Error(ImportFields.StudentCode, "Thiếu MSSV.");
             }
             else if (!StudentCodePattern().IsMatch(row.StudentCode))
             {
-                Error(ImportFields.StudentCode, "MSSV phải gồm 2 chữ cái và 6 chữ số (ví dụ SE184118).");
+                Error(ImportFields.StudentCode, "MSSV phải gồm 2–3 chữ cái và 6 chữ số (ví dụ SE184118, MKT1906).");
             }
             else if (!seenCodes.TryAdd(row.StudentCode, row.RowNumber))
             {
                 Error(ImportFields.StudentCode, $"Trùng MSSV với dòng {seenCodes[row.StudentCode]}.");
+            }
+            else
+            {
+                var prefix = StudentCodePrefix().Match(row.StudentCode).Groups[1].Value;
+                if (majors.FirstOrDefault(m => string.Equals(m.Code, prefix, StringComparison.OrdinalIgnoreCase)) is not { } major)
+                {
+                    Error(ImportFields.StudentCode, $"Tiền tố ngành '{prefix}' không có trong danh mục ngành.");
+                }
+                else if (!major.IsActive)
+                {
+                    Error(ImportFields.StudentCode, $"Ngành '{major.Code}' đã ngừng dùng.");
+                }
+                else
+                {
+                    majorId = major.Id;
+                }
             }
 
             if (row.FullName.Length == 0)
@@ -94,26 +112,8 @@ public static partial class StudentImportRules
                 Error(ImportFields.Email, $"Email đã thuộc sinh viên {owner.StudentCode}.");
             }
 
-            // Chuyên ngành: nhận mã (SE) hoặc tên đầy đủ trong danh mục.
-            var specializationId = 0;
-            if (row.SpecializationCode.Length == 0)
-            {
-                Error(ImportFields.SpecializationCode, "Thiếu chuyên ngành.");
-            }
-            else if (specializations.FirstOrDefault(s => string.Equals(s.Code, row.SpecializationCode, StringComparison.OrdinalIgnoreCase)
-                         || string.Equals(s.Name, raw.SpecializationCode, StringComparison.OrdinalIgnoreCase)) is not { } specialization)
-            {
-                Error(ImportFields.SpecializationCode, $"Chuyên ngành '{raw.SpecializationCode}' không có trong danh mục.");
-            }
-            else if (!specialization.IsActive)
-            {
-                Error(ImportFields.SpecializationCode, $"Chuyên ngành '{specialization.Code}' đã ngừng dùng.");
-            }
-            else
-            {
-                specializationId = specialization.Id;
-                row = row with { SpecializationCode = specialization.Code };
-            }
+            // Chuyên ngành KHÔNG kiểm tra lúc import (rule 16, BE-91). Sinh viên tự chọn chuyên ngành ở onboarding/hồ sơ.
+            int? specializationId = null;
 
             var classCodeId = 0;
             if (row.ClassCode.Length == 0)
@@ -146,7 +146,7 @@ public static partial class StudentImportRules
                 Error(ImportFields.StudentCode, $"Sinh viên đã có trong danh sách học kỳ ở môn {enrolledCourse}.");
             }
 
-            result.Add(new ImportRowCheck(row, errors, specializationId, classCodeId, existingId));
+            result.Add(new ImportRowCheck(row, errors, majorId, specializationId, classCodeId, existingId));
         }
         return result;
     }
@@ -159,8 +159,11 @@ public static partial class StudentImportRules
         Phone = row.Phone is null ? null : PhoneSeparators().Replace(row.Phone, string.Empty),
     };
 
-    [GeneratedRegex("^[A-Z]{2}[0-9]{6}$")]
+    [GeneratedRegex("^[A-Z]{2,3}[0-9]{6}$")]
     private static partial Regex StudentCodePattern();
+
+    [GeneratedRegex("^([A-Z]{2,3})[0-9]{6}$")]
+    private static partial Regex StudentCodePrefix();
 
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailPattern();

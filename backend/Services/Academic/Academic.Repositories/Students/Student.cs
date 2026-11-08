@@ -14,7 +14,9 @@ public class Student
     /// <summary>Chỉ đến từ file import, sinh viên không sửa (rule 11).</summary>
     public string? Phone { get; set; }
 
-    public int SpecializationId { get; set; }
+    public int MajorId { get; set; }
+
+    public int? SpecializationId { get; set; }
 
     /// <summary>Giới thiệu ngắn (rule 16).</summary>
     public string? Description { get; set; }

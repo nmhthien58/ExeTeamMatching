@@ -19,6 +19,8 @@ public interface IStudentProfileRepository
 
     Task<Specialization?> FindSpecializationAsync(int id, CancellationToken ct);
 
+    Task<Major?> FindMajorAsync(int id, CancellationToken ct);
+
     Task<CurrentEnrollmentRow?> FindCurrentEnrollmentAsync(Guid studentId, CancellationToken ct);
 
     /// <summary>Có theo dõi thay đổi.</summary>
@@ -40,6 +42,9 @@ public sealed class StudentProfileRepository(AcademicDbContext db) : IStudentPro
 
     public Task<Specialization?> FindSpecializationAsync(int id, CancellationToken ct) =>
         db.Specializations.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct);
+
+    public Task<Major?> FindMajorAsync(int id, CancellationToken ct) =>
+        db.Majors.AsNoTracking().SingleOrDefaultAsync(m => m.Id == id, ct);
 
     public Task<CurrentEnrollmentRow?> FindCurrentEnrollmentAsync(Guid studentId, CancellationToken ct) =>
         (from e in db.SemesterEnrollments.AsNoTracking()

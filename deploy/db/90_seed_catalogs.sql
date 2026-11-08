@@ -14,6 +14,20 @@ RESET ROLE;
 \connect academic_db
 SET ROLE academic_svc;
 
+-- TODO: Kiểm tra lại tên ngành chuẩn của từng mã ngành
+INSERT INTO academic.majors (code, name) VALUES
+    ('SE', 'Kỹ thuật phần mềm'),
+    ('AI', 'Trí tuệ nhân tạo'),
+    ('IA', 'An toàn thông tin'),
+    ('GD', 'Thiết kế đồ họa'),
+    ('MC', 'Truyền thông đa phương tiện'),
+    ('MKT', 'Marketing'),
+    ('IB', 'Kinh doanh quốc tế'),
+    ('HS', 'Quản trị khách sạn'),
+    ('SS', 'Quản trị kinh doanh'),
+    ('SA', 'Tài chính - Ngân hàng')
+ON CONFLICT (code) DO NOTHING;
+
 INSERT INTO academic.specializations (code, name) VALUES
     ('SE', 'Kỹ thuật phần mềm'),
     ('AI', 'Trí tuệ nhân tạo'),
@@ -32,6 +46,16 @@ INSERT INTO academic.specializations (code, name) VALUES
     ('KR', 'Ngôn ngữ Hàn'),
     ('CN', 'Ngôn ngữ Trung')
 ON CONFLICT (code) DO NOTHING;
+
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SE') WHERE code IN ('SE', 'IOT');
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'AI') WHERE code = 'AI';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IA') WHERE code = 'IA';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'GD') WHERE code = 'GD';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'MC') WHERE code = 'MC';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'MKT') WHERE code = 'DM';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'IB') WHERE code IN ('IB', 'LOG');
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'HS') WHERE code = 'HM';
+UPDATE academic.specializations SET major_id = (SELECT id FROM academic.majors WHERE code = 'SA') WHERE code = 'FIN';
 
 INSERT INTO academic.domains (code, name, description) VALUES
     ('D01', 'AI & Data Innovation', 'AI / IT'),

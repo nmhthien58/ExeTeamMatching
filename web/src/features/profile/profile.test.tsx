@@ -30,6 +30,7 @@ const me = {
   studentCode: 'SE184118',
   fullName: 'Lê Thảo Vy',
   email: 'vy@example.test',
+  major: { id: 1, code: 'SE', name: 'Kỹ thuật phần mềm' },
   specialization: { id: 1, code: 'SE', name: 'Kỹ thuật phần mềm' },
   classCode: 'EXE101SE01',
   courseCode: 'EXE101',
@@ -57,9 +58,13 @@ const notFound = new ApiError({ status: 404, code: 'not-found', title: 'Không t
 
 /** API giả theo đường dẫn; thiếu đường dẫn nào thì lỗi ngay để lộ lời gọi ngoài dự kiến. */
 function respond(routes: Record<string, unknown>) {
+  const merged: Record<string, unknown> = {
+    '/api/specializations': [{ id: 1, code: 'SE', name: 'Kỹ thuật phần mềm', isActive: true }],
+    ...routes,
+  }
   get.mockImplementation(async (url: string) => {
-    if (!(url in routes)) throw new Error(`Chưa giả lập ${url}`)
-    const value = routes[url]
+    if (!(url in merged)) throw new Error(`Chưa giả lập ${url}`)
+    const value = merged[url]
     if (value instanceof Error) throw value
     return { data: value }
   })

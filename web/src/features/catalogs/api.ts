@@ -18,9 +18,9 @@ export interface CatalogInput {
   isActive?: boolean
 }
 
-export type CatalogKind = 'class-codes' | 'domains' | 'specializations'
+export type CatalogKind = 'class-codes' | 'domains' | 'specializations' | 'majors'
 
-/** Khác nhau giữa 3 danh mục, khớp kiểm tra ở Academic (CatalogRules.Validate). */
+/** Khác nhau giữa 4 danh mục, khớp kiểm tra ở Academic (CatalogRules.Validate). */
 export const catalogKinds: Record<CatalogKind, {
   tab: string
   screen: string
@@ -35,6 +35,7 @@ export const catalogKinds: Record<CatalogKind, {
 }> = {
   'class-codes': { tab: 'Mã lớp', screen: 'W12', noun: 'mã lớp', codePattern: /^[A-Z0-9]{3,20}$/, codeHint: '3–20 ký tự: chữ in hoa hoặc số', hasName: false, maxName: 0, hasDescription: false },
   domains: { tab: 'Domain', screen: 'W13', noun: 'domain', codePattern: /^D(0[1-9]|1[0-8])$/, codeHint: 'D01 đến D18', hasName: true, maxName: 150, hasDescription: true },
+  majors: { tab: 'Ngành', screen: 'W27', noun: 'ngành', codePattern: /^[A-Z]{2,10}$/, codeHint: '2–10 ký tự: chữ in hoa', hasName: true, maxName: 100, hasDescription: false },
   specializations: { tab: 'Chuyên ngành', screen: 'W14', noun: 'chuyên ngành', codePattern: /^[A-Z0-9_]{2,20}$/, codeHint: '2–20 ký tự: chữ in hoa, số hoặc _', hasName: true, maxName: 100, hasDescription: false },
 }
 

@@ -5,7 +5,17 @@ import 'package:exe_team_matching/features/profile/profile_form_view_model.dart'
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _profile = StudentProfile(id: 's1', studentCode: 'SE1', fullName: 'An', specialization: 'SE', skills: {'TECHNOLOGY': 3}, description: 'cũ');
+const _profile = StudentProfile(
+  id: 's1',
+  studentCode: 'SE1',
+  fullName: 'An',
+  specialization: 'SE',
+  specializationId: 1,
+  majorCode: 'SE',
+  majorName: 'Kỹ thuật phần mềm',
+  skills: {'TECHNOLOGY': 3},
+  description: 'cũ',
+);
 
 class _FakeApi extends ProfileApi {
   _FakeApi() : super(Dio());
@@ -17,7 +27,12 @@ class _FakeApi extends ProfileApi {
   Future<StudentProfile> me() async => _profile;
 
   @override
-  Future<StudentProfile> saveMe({required Map<String, int> skills, required String description, bool? isSeekingTeam}) async {
+  Future<StudentProfile> saveMe({
+    required Map<String, int> skills,
+    required String description,
+    int? specializationId,
+    bool? isSeekingTeam,
+  }) async {
     if (error != null) throw error!;
     saved.add((skills, description, isSeekingTeam));
     return _profile;

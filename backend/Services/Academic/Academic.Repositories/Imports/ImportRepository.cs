@@ -12,6 +12,9 @@ public interface IImportRepository
 {
     Task<Semester?> FindSemesterAsync(Guid id, CancellationToken ct);
 
+    /// <summary>Mọi ngành / tiền tố ngành (BE-91).</summary>
+    Task<IReadOnlyList<Major>> ListMajorsAsync(CancellationToken ct);
+
     /// <summary>Mọi chuyên ngành (cả ngừng dùng, để báo lỗi rõ hơn "không tồn tại").</summary>
     Task<IReadOnlyList<Specialization>> ListSpecializationsAsync(CancellationToken ct);
 
@@ -44,6 +47,9 @@ public interface IImportRepository
 public sealed class ImportRepository(AcademicDbContext db) : IImportRepository
 {
     public Task<Semester?> FindSemesterAsync(Guid id, CancellationToken ct) => db.Semesters.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id, ct);
+
+    public async Task<IReadOnlyList<Major>> ListMajorsAsync(CancellationToken ct) =>
+        await db.Majors.AsNoTracking().ToListAsync(ct);
 
     public async Task<IReadOnlyList<Specialization>> ListSpecializationsAsync(CancellationToken ct) =>
         await db.Specializations.AsNoTracking().ToListAsync(ct);

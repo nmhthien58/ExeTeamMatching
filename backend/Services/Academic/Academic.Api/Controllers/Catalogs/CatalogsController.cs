@@ -12,6 +12,17 @@ namespace Academic.Api.Controllers.Catalogs;
 [Route("api")]
 public sealed class CatalogsController(ICatalogService catalogs) : ControllerBase
 {
+    [HttpGet("majors")]
+    public Task<IReadOnlyList<CatalogItem>> Majors(CancellationToken ct) => catalogs.ListAsync(CatalogKind.Majors, ct);
+
+    [HttpPost("majors")]
+    [Authorize(Policy = Policies.Admin)]
+    public Task<ActionResult<CatalogItem>> CreateMajor(CatalogInput input, CancellationToken ct) => Create(CatalogKind.Majors, input, ct);
+
+    [HttpPut("majors/{id:int}")]
+    [Authorize(Policy = Policies.Admin)]
+    public Task<CatalogItem> UpdateMajor(int id, CatalogInput input, CancellationToken ct) => catalogs.UpdateAsync(CatalogKind.Majors, id, input, ct);
+
     [HttpGet("specializations")]
     public Task<IReadOnlyList<CatalogItem>> Specializations(CancellationToken ct) => catalogs.ListAsync(CatalogKind.Specializations, ct);
 

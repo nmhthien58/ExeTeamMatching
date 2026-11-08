@@ -9,7 +9,7 @@ export interface ImportRow {
   studentCode: string
   fullName: string
   email: string
-  specializationCode: string
+  specializationCode?: string | null
   classCode: string
   phone: string | null
 }

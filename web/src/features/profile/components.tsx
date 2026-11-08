@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import { Banner, Button } from '@/shared/components/ui'
 import { toApiError } from '@/shared/api/apiClient'
+import { useCatalog } from '@/features/catalogs/api'
 import { skills, type SkillName, type SkillRating, type StudentProfile, type StudentProfileInput } from './api'
 
 export const cardClass = 'rounded-lg bg-surface p-4 shadow-elevation-1'
@@ -96,10 +97,15 @@ export function ProfileForm({
   extra?: (isSeekingTeam: boolean, set: (value: boolean) => void) => ReactNode
   onSubmit: (input: StudentProfileInput) => void
 }) {
+  const [specializationId, setSpecializationId] = useState<number | null>(() => profile.specialization?.id ?? null)
   const [levels, setLevels] = useState<Partial<Record<SkillName, number>>>(() => Object.fromEntries(profile.skills.map((s) => [s.skill, s.level])))
   const [description, setDescription] = useState(profile.description ?? '')
   const [isSeekingTeam, setIsSeekingTeam] = useState(profile.isSeekingTeam)
-  const missing = skills.filter((s) => levels[s.key] === undefined).length
+  const { data: specializations } = useCatalog('specializations')
+  const activeSpecializations = specializations?.filter((s) => s.isActive) ?? []
+
+  const missingSkills = skills.filter((s) => levels[s.key] === undefined).length
+  const missingSpec = specializationId === null
   const apiError = error ? toApiError(error) : null
 
   return (
@@ -107,8 +113,9 @@ export function ProfileForm({
       className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault()
-        if (missing > 0) return
+        if (missingSkills > 0 || missingSpec) return
         onSubmit({
+          specializationId,
           skills: skills.map((s) => ({ skill: s.key, level: levels[s.key]! })),
           description: description.trim(),
           ...(extra ? { isSeekingTeam } : {}),
@@ -116,6 +123,27 @@ export function ProfileForm({
       }}
     >
       {apiError && <Banner tone="error" title="Chưa lưu được hồ sơ">{apiError.detail ?? apiError.title}</Banner>}
+      <Section title="Chuyên ngành">
+        <label className="flex flex-col gap-1">
+          <span className="font-medium text-body">
+            Chuyên ngành <span className="text-error">*</span>
+          </span>
+          <select
+            value={specializationId ?? ''}
+            onChange={(e) => setSpecializationId(e.target.value ? Number(e.target.value) : null)}
+            className="h-10 rounded-sm border border-border-strong bg-surface px-3 text-body"
+            required
+          >
+            <option value="">-- Chọn chuyên ngành --</option>
+            {activeSpecializations.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.code})
+              </option>
+            ))}
+          </select>
+          {missingSpec && <span className="text-caption text-text-secondary">Vui lòng chọn chuyên ngành của bạn.</span>}
+        </label>
+      </Section>
       <Section title="Kỹ năng">
         <div className="flex flex-col gap-3">
           {skills.map((s) => (
@@ -139,8 +167,9 @@ export function ProfileForm({
       </Section>
       {extra?.(isSeekingTeam, setIsSeekingTeam)}
       <div className="flex items-center justify-end gap-3">
-        {missing > 0 && <p className="text-body text-text-secondary">Còn {missing} kỹ năng chưa đánh giá</p>}
-        <Button type="submit" loading={saving} disabled={missing > 0}>
+        {missingSkills > 0 && <p className="text-body text-text-secondary">Còn {missingSkills} kỹ năng chưa đánh giá</p>}
+        {missingSpec && <p className="text-body text-text-secondary">Chưa chọn chuyên ngành</p>}
+        <Button type="submit" loading={saving} disabled={missingSkills > 0 || missingSpec}>
           {submitLabel}
         </Button>
       </div>

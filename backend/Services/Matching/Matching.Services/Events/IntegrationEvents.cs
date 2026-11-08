@@ -3,12 +3,12 @@ namespace Matching.Services.Events;
 // Payload sự kiện (docs/contracts/events.md) – chỉ lấy các trường read model của Matching cần.
 
 // ---------- exe.student ----------
-public sealed record StudentImported(Guid StudentId, string? FullName, int SpecializationId, Guid SemesterId, string CourseCode);
+public sealed record StudentImported(Guid StudentId, string? FullName, int? SpecializationId, Guid SemesterId, string CourseCode);
 
 public sealed record SkillRatingPayload(string Skill, int Level);
 
 public sealed record StudentProfileUpdated(
-    Guid StudentId, string? FullName, int SpecializationId, IReadOnlyList<SkillRatingPayload>? Skills, bool IsSeekingTeam);
+    Guid StudentId, string? FullName, int? SpecializationId, IReadOnlyList<SkillRatingPayload>? Skills, bool IsSeekingTeam);
 
 /// <summary><c>IsActive</c> thiếu trong payload thì coi là đang hoạt động.</summary>
 public sealed record LecturerRegistered(Guid LecturerId, IReadOnlyList<int>? DomainIds, bool? IsActive);

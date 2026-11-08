@@ -76,6 +76,7 @@ public static partial class CatalogRules
 {
     public static string Path(CatalogKind kind) => kind switch
     {
+        CatalogKind.Majors => "majors",
         CatalogKind.Specializations => "specializations",
         CatalogKind.Domains => "domains",
         _ => "class-codes",
@@ -91,6 +92,7 @@ public static partial class CatalogRules
 
         var (codePattern, codeHint) = kind switch
         {
+            CatalogKind.Majors => (MajorCode(), "2–10 ký tự: chữ in hoa"),
             CatalogKind.Specializations => (SpecializationCode(), "2–20 ký tự: chữ in hoa, số hoặc _"),
             CatalogKind.Domains => (DomainCode(), "D01 đến D18"),
             _ => (ClassCode(), "3–20 ký tự: chữ in hoa hoặc số"),
@@ -123,7 +125,7 @@ public static partial class CatalogRules
             }
         }
 
-        if (kind == CatalogKind.Specializations)
+        if (kind is CatalogKind.Specializations or CatalogKind.Majors)
         {
             description = null;
         }
@@ -138,6 +140,9 @@ public static partial class CatalogRules
         }
         return new CatalogRow(id, code, name, description, isActive);
     }
+
+    [GeneratedRegex("^[A-Z]{2,10}$")]
+    private static partial Regex MajorCode();
 
     [GeneratedRegex("^[A-Z0-9_]{2,20}$")]
     private static partial Regex SpecializationCode();
@@ -154,6 +159,7 @@ public static class CatalogErrors
 {
     public static NotFoundException NotFound(CatalogKind kind, int id) => new(kind switch
     {
+        CatalogKind.Majors => "ngành",
         CatalogKind.Specializations => "chuyên ngành",
         CatalogKind.Domains => "domain",
         _ => "mã lớp",

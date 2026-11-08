@@ -36,6 +36,7 @@ const data: Record<string, unknown[]> = {
     { id: 2, code: 'D02', name: 'Robotics', description: null, isActive: false },
   ],
   '/api/specializations': [],
+  '/api/majors': [{ id: 1, code: 'SE', name: 'Kỹ thuật phần mềm', description: null, isActive: true }],
 }
 
 function renderAt(path: string) {

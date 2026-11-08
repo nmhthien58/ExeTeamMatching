@@ -53,12 +53,31 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
                 students.AddSkill(new StudentSkill { StudentId = student.Id, Skill = rating.Skill, Level = (short)rating.Level });
             }
         }
+        if (input.SpecializationId is { } specId)
+        {
+            var spec = await students.FindSpecializationAsync(specId, ct)
+                ?? throw new RequestValidationException(new Dictionary<string, string[]> { ["specializationId"] = ["Chuyên ngành không tồn tại."] });
+            if (!spec.IsActive)
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]> { ["specializationId"] = ["Chuyên ngành đã ngừng dùng."] });
+            }
+            if (spec.MajorId is not null && spec.MajorId != student.MajorId)
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]> { ["specializationId"] = ["Chuyên ngành không thuộc ngành của bạn."] });
+            }
+            student.SpecializationId = specId;
+        }
+
         student.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         student.IsSeekingTeam = input.IsSeekingTeam ?? student.IsSeekingTeam;
-        student.ProfileCompletedAt ??= clock.GetUtcNow();
+        var profileCompleted = student.SpecializationId is not null;
+        if (profileCompleted)
+        {
+            student.ProfileCompletedAt ??= clock.GetUtcNow();
+        }
 
         students.AddEvent(StudentProfileEventTypes.StudentProfileUpdated, student.Id, new StudentProfileUpdatedEvent(
-            student.Id, student.FullName, student.Email, student.SpecializationId, ratings, student.IsSeekingTeam, ProfileCompleted: true));
+            student.Id, student.FullName, student.Email, student.SpecializationId, ratings, student.IsSeekingTeam, ProfileCompleted: profileCompleted));
         await students.SaveAsync(ct);
         return await ToResponseAsync(student, showContact: true, ct, ratings);
     }
@@ -74,12 +93,14 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
 
     private async Task<StudentProfileResponse> ToResponseAsync(Student s, bool showContact, CancellationToken ct, IReadOnlyList<SkillRating>? ratings = null)
     {
-        var specialization = await students.FindSpecializationAsync(s.SpecializationId, ct);
+        var specialization = s.SpecializationId is { } specId ? await students.FindSpecializationAsync(specId, ct) : null;
+        var major = await students.FindMajorAsync(s.MajorId, ct);
         var enrollment = await students.FindCurrentEnrollmentAsync(s.Id, ct);
         ratings ??= StudentProfileRules.Ordered((await students.ListSkillsAsync(s.Id, ct)).Select(k => new SkillRating(k.Skill, k.Level)));
         return new StudentProfileResponse(
             s.Id, s.StudentCode, s.FullName, showContact ? s.Email : string.Empty,
-            new CatalogRef(s.SpecializationId, specialization?.Code ?? string.Empty, specialization?.Name ?? string.Empty),
+            specialization is null ? null : new CatalogRef(specialization.Id, specialization.Code, specialization.Name),
+            new CatalogRef(s.MajorId, major?.Code ?? string.Empty, major?.Name ?? string.Empty),
             enrollment?.ClassCode, enrollment?.CourseCode, HasTeam: false, s.IsSeekingTeam, showContact ? s.Phone : null, ContactEmailVisible: showContact,
             ratings, s.Description, s.ProfileCompletedAt is not null, CurrentTeamId: null);
     }

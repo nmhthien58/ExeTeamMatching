@@ -3,9 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Academic.Repositories.Catalogs;
 
-/// <summary>Ba danh mục của rule 12: chuyên ngành, domain, mã lớp (W12–W14).</summary>
+/// <summary>Bốn danh mục của rule 12: ngành, chuyên ngành, domain, mã lớp (W12–W14, BE-91).</summary>
 public enum CatalogKind
 {
+    Majors,
     Specializations,
     Domains,
     ClassCodes,
@@ -43,6 +44,11 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
     {
         switch (kind)
         {
+            case CatalogKind.Majors:
+                var major = new Major { Code = row.Code, Name = row.Name, IsActive = row.IsActive };
+                db.Majors.Add(major);
+                await db.SaveChangesAsync(ct);
+                return ToRow(major);
             case CatalogKind.Specializations:
                 var specialization = new Specialization { Code = row.Code, Name = row.Name, IsActive = row.IsActive };
                 db.Specializations.Add(specialization);
@@ -65,6 +71,14 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
     {
         switch (kind)
         {
+            case CatalogKind.Majors:
+                if (await db.Majors.FindAsync([row.Id], ct) is not { } major)
+                {
+                    return null;
+                }
+                (major.Code, major.Name, major.IsActive) = (row.Code, row.Name, row.IsActive);
+                await db.SaveChangesAsync(ct);
+                return ToRow(major);
             case CatalogKind.Specializations:
                 if (await db.Specializations.FindAsync([row.Id], ct) is not { } specialization)
                 {
@@ -95,6 +109,8 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
     /// <summary>Chiếu sang <see cref="RowView"/> (property init) để EF còn dịch được Where / OrderBy phía sau sang SQL.</summary>
     private IQueryable<RowView> Rows(CatalogKind kind) => kind switch
     {
+        CatalogKind.Majors => db.Majors.AsNoTracking()
+            .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive }),
         CatalogKind.Specializations => db.Specializations.AsNoTracking()
             .Select(x => new RowView { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive }),
         CatalogKind.Domains => db.Domains.AsNoTracking()
@@ -113,6 +129,8 @@ public sealed class CatalogRepository(AcademicDbContext db) : ICatalogRepository
 
         public CatalogRow ToRow() => new(Id, Code, Name, Description, IsActive);
     }
+
+    private static CatalogRow ToRow(Major x) => new(x.Id, x.Code, x.Name, null, x.IsActive);
 
     private static CatalogRow ToRow(Specialization x) => new(x.Id, x.Code, x.Name, null, x.IsActive);
 
