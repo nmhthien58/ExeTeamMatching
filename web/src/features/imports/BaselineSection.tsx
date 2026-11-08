@@ -8,15 +8,62 @@ import {
   useBaselineImport,
   type AutoInheritResponse,
   type BaselineResult,
+  type InheritedTeamSummary,
 } from './api'
 import { FileDrop } from './FileDrop'
 
 function Counts({ result }: { result: BaselineResult }) {
   return (
     <p>
-      {result.teamCount} nhóm, {result.studentCount} sinh viên; {result.linkedProjectCount} nhóm gắn được đề tài EXE101,{' '}
-      {result.unlinkedTeamCount} nhóm chưa gắn.
+      {result.teamCount} nhóm kế thừa, {result.studentCount} sinh viên
+      {(result.needsReviewTeamCount ?? 0) > 0 && `; ${result.needsReviewTeamCount} nhóm cần bổ sung thành viên`}
+      {(result.skippedTeamCount ?? 0) > 0 && `; ${result.skippedTeamCount} nhóm cũ không còn ai học EXE201 kỳ này`}
+      {(result.freeStudentCount ?? 0) > 0 && `; còn ${result.freeStudentCount} sinh viên tự do`}. {result.linkedProjectCount} nhóm gắn
+      được đề tài EXE101, {result.unlinkedTeamCount} nhóm chưa gắn.
     </p>
+  )
+}
+
+/** Nhóm kế thừa sau khi đối chiếu: đủ sĩ số tối thiểu là ACTIVE, thiếu là DRAFT (còn nhận thêm người). */
+function InheritedTeamsTable({ teams }: { teams: InheritedTeamSummary[] }) {
+  return (
+    <div className="max-h-80 overflow-y-auto rounded border border-border">
+      <table className="w-full text-left text-body">
+        <thead className="bg-surface-variant text-caption uppercase text-text-secondary sticky top-0">
+          <tr>
+            <th className="px-3 py-2">Tên nhóm</th>
+            <th className="px-3 py-2">Trưởng nhóm</th>
+            <th className="px-3 py-2">Thành viên</th>
+            <th className="px-3 py-2">Đề tài cũ</th>
+            <th className="px-3 py-2">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {teams.map((t, idx) => (
+            <tr key={idx} className="hover:bg-surface-variant/50">
+              <td className="px-3 py-2 font-medium">{t.teamName}</td>
+              <td className="px-3 py-2">
+                {t.leaderName} ({t.leaderStudentCode})
+              </td>
+              <td className="px-3 py-2">
+                {t.memberCount} thành viên
+                {t.missingOldMemberStudentCodes.length > 0 && (
+                  <span className="block text-caption text-text-secondary">
+                    Không học EXE201 kỳ này: {t.missingOldMemberStudentCodes.join(', ')}
+                  </span>
+                )}
+              </td>
+              <td className="px-3 py-2 text-text-secondary">{t.projectName ?? '—'}</td>
+              <td className="px-3 py-2">
+                <StatusChip tone={t.status === 'ACTIVE' ? 'success' : 'warning'}>
+                  {t.status === 'ACTIVE' ? 'Đủ người' : 'Cần bổ sung'}
+                </StatusChip>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -137,13 +184,13 @@ export function BaselineSection({ semesterId }: { semesterId: string }) {
             <Banner tone="info" title="Xem trước kết quả kế thừa nhóm">
               <div className="grid gap-2 sm:grid-cols-3 mt-1">
                 <div className="rounded bg-surface p-2 shadow-sm">
-                  <span className="text-caption text-text-secondary">Nhóm đủ điều kiện (DRAFT):</span>
+                  <span className="text-caption text-text-secondary">Nhóm đủ người:</span>
                   <p className="text-subtitle font-bold text-success">
                     {inheritPreview.inheritedTeamCount - inheritPreview.needsReviewTeamCount}
                   </p>
                 </div>
                 <div className="rounded bg-surface p-2 shadow-sm">
-                  <span className="text-caption text-text-secondary">Cần bổ sung (NEEDS_REVIEW):</span>
+                  <span className="text-caption text-text-secondary">Cần bổ sung thành viên:</span>
                   <p className="text-subtitle font-bold text-warning">
                     {inheritPreview.needsReviewTeamCount}
                   </p>
@@ -158,43 +205,7 @@ export function BaselineSection({ semesterId }: { semesterId: string }) {
             </Banner>
 
             {inheritPreview.teams.length > 0 ? (
-              <div className="max-h-80 overflow-y-auto rounded border border-border">
-                <table className="w-full text-left text-body">
-                  <thead className="bg-surface-variant text-caption uppercase text-text-secondary sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2">Tên nhóm</th>
-                      <th className="px-3 py-2">Trưởng nhóm</th>
-                      <th className="px-3 py-2">Thành viên</th>
-                      <th className="px-3 py-2">Đề tài cũ</th>
-                      <th className="px-3 py-2">Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {inheritPreview.teams.map((t, idx) => (
-                      <tr key={idx} className="hover:bg-surface-variant/50">
-                        <td className="px-3 py-2 font-medium">{t.teamName}</td>
-                        <td className="px-3 py-2">
-                          {t.leaderName} ({t.leaderStudentCode})
-                        </td>
-                        <td className="px-3 py-2">
-                          {t.memberCount} thành viên
-                          {t.missingOldMemberStudentCodes.length > 0 && (
-                            <span className="block text-caption text-error">
-                              Thiếu {t.missingOldMemberStudentCodes.length}: {t.missingOldMemberStudentCodes.join(', ')}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-text-secondary">{t.projectName ?? '—'}</td>
-                        <td className="px-3 py-2">
-                          <StatusChip tone={t.status === 'DRAFT' ? 'success' : 'warning'}>
-                            {t.status}
-                          </StatusChip>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <InheritedTeamsTable teams={inheritPreview.teams} />
             ) : (
               <p className="text-body text-text-secondary italic">
                 Không tìm thấy nhóm EXE101 nào có sinh viên theo học kỳ này.
@@ -225,7 +236,8 @@ export function BaselineSection({ semesterId }: { semesterId: string }) {
             File nhóm EXE101 làm mốc
           </h3>
           <p className="text-body text-text-secondary">
-            Phương án dự phòng: Tải file danh sách nhóm mốc thủ công (.xlsx). Hệ thống tạo nhóm kế thừa và gắn với đề tài cũ theo mã nhóm.
+            Dùng khi hệ thống chưa có nhóm kỳ trước (kỳ đầu sử dụng): tải file Group List EXE101 của kỳ trước (.xlsx, .csv). Hệ thống đối
+            chiếu với sinh viên EXE201 kỳ này, mỗi nhóm cũ giữ lại thành viên còn học, tạo nhóm kế thừa và gắn đề tài cũ nếu có.
           </p>
         </div>
 
@@ -234,9 +246,22 @@ export function BaselineSection({ semesterId }: { semesterId: string }) {
         {error && !fileError && <ErrorState error={error instanceof ApiError ? error : baseline.error} />}
 
         {checked && !hasErrors && (
-          <Banner tone="success" title="File hợp lệ, chưa tạo nhóm nào">
+          <Banner tone={checked.teamCount > 0 ? 'success' : 'warning'} title="Kết quả đối chiếu, chưa tạo nhóm nào">
             <Counts result={checked} />
           </Banner>
+        )}
+        {checked && !hasErrors && (checked.teams?.length ?? 0) > 0 && <InheritedTeamsTable teams={checked.teams!} />}
+        {checked && !hasErrors && (checked.warnings?.length ?? 0) > 0 && (
+          <details className="text-body text-text-secondary">
+            <summary className="cursor-pointer">{checked.warnings!.length} dòng bị bỏ qua</summary>
+            <ul className="list-disc pl-5">
+              {checked.warnings!.slice(0, 20).map((w, i) => (
+                <li key={i}>
+                  Dòng {w.row}: {w.message}
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
         {hasErrors && (
           <Banner tone="error" title={`${checked!.errors.length} dòng lỗi, sửa file rồi kiểm tra lại`}>
@@ -266,7 +291,7 @@ export function BaselineSection({ semesterId }: { semesterId: string }) {
             <Button variant="outline" disabled={!file} loading={baseline.isPending && baseline.variables?.dryRun} onClick={() => run(true)}>
               Kiểm tra file
             </Button>
-            <Button variant="outline" disabled={!checked || hasErrors} loading={baseline.isPending && !baseline.variables?.dryRun} onClick={() => run(false)}>
+            <Button variant="outline" disabled={!checked || hasErrors || checked.teamCount === 0} loading={baseline.isPending && !baseline.variables?.dryRun} onClick={() => run(false)}>
               Import mốc
             </Button>
           </div>

@@ -309,156 +309,177 @@ public sealed class BaselineImportTests
         Assert.Null(savedTeam.SourceTeamId);
     }
 
-    [Fact]
-    public async Task Invalid_student_code_reports_row_error()
+    private static async Task<BaselineImportResponse> ImportCsvAsync(InMemoryBaselineRepo repo, FakeAcademic academic, string csv, bool dryRun = false)
     {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm Rồng Vàng,EduPlatform,INVALID_CODE,SE160002";
-
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var service = new BaselineImportService(repo, academic, TimeProvider.System);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: true, CancellationToken.None);
-
-        Assert.NotEmpty(result.Errors);
-        Assert.Contains(result.Errors, e => e.Row == 2 && e.Message.Contains("đúng định dạng"));
+        return await service.ImportAsync(academic.Semester.Id, stream, "test.csv", dryRun, CancellationToken.None);
     }
 
     [Fact]
-    public async Task Student_not_found_or_not_enrolled_reports_error()
-    {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        // SE160001 enrolled, SE160002 not enrolled, SE160003 not in system
-        fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1", enrolled: true);
-        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2", enrolled: false);
-
-        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm 1,DA1,SE160001,\"SE160002, SE160003\"";
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: true, CancellationToken.None);
-
-        Assert.Contains(result.Errors, e => e.Row == 2 && e.Message.Contains("SE160002") && e.Message.Contains("không thuộc danh sách học kỳ"));
-        Assert.Contains(result.Errors, e => e.Row == 2 && e.Message.Contains("SE160003") && e.Message.Contains("Không tìm thấy"));
-    }
-
-    [Fact]
-    public async Task Duplicate_student_in_different_teams_reports_error()
-    {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
-        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
-
-        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002\nNhóm B,DA2,SE160001,SE160002";
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: true, CancellationToken.None);
-
-        Assert.Contains(result.Errors, e => e.Message.Contains("xuất hiện ở nhiều nhóm"));
-    }
-
-    [Fact]
-    public async Task Student_already_in_team_in_semester_reports_error()
-    {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        var s1 = fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
-        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
-        repo.ExistingMemberStudentIds.Add(s1.Id);
-
-        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002";
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: true, CancellationToken.None);
-
-        Assert.Contains(result.Errors, e => e.Message.Contains("đã thuộc nhóm khác"));
-    }
-
-    [Fact]
-    public async Task Team_name_already_exists_reports_error()
-    {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
-        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
-        repo.ExistingTeamNames.Add("nhóm a");
-
-        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002";
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: true, CancellationToken.None);
-
-        Assert.Contains(result.Errors, e => e.Message.Contains("Tên nhóm 'Nhóm A' đã tồn tại"));
-    }
-
-    [Fact]
-    public async Task Team_without_leader_or_with_multiple_leaders_reports_error()
-    {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        fakeAcademic.EnrollWithCode("SE160001", "Sinh viên 1");
-        fakeAcademic.EnrollWithCode("SE160002", "Sinh viên 2");
-
-        // Format: Tên nhóm, Dự án, Vai trò (Leader flag), MSSV
-        // No leader
-        var csvNoLeader = "Tên nhóm,Dự án,Leader,MSSV\nNhóm A,DA1,,SE160001\nNhóm A,DA1,,SE160002";
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
-        using var stream1 = new MemoryStream(Encoding.UTF8.GetBytes(csvNoLeader));
-        var result1 = await service.ImportAsync(fakeAcademic.Semester.Id, stream1, "test.csv", dryRun: true, CancellationToken.None);
-        Assert.Contains(result1.Errors, e => e.Message.Contains("thiếu trưởng nhóm"));
-
-        // Multiple leaders
-        var csvMultiLeader = "Tên nhóm,Dự án,Leader,MSSV\nNhóm A,DA1,Leader,SE160001\nNhóm A,DA1,Leader,SE160002";
-        using var stream2 = new MemoryStream(Encoding.UTF8.GetBytes(csvMultiLeader));
-        var result2 = await service.ImportAsync(fakeAcademic.Semester.Id, stream2, "test.csv", dryRun: true, CancellationToken.None);
-        Assert.Contains(result2.Errors, e => e.Message.Contains("nhiều hơn một trưởng nhóm"));
-    }
-
-    [Fact]
-    public async Task Team_exceeding_6_members_reports_error()
-    {
-        var repo = new InMemoryBaselineRepo();
-        var fakeAcademic = new FakeAcademic();
-        for (var i = 1; i <= 7; i++)
-        {
-            fakeAcademic.EnrollWithCode($"SE16000{i}", $"Sinh viên {i}");
-        }
-
-        var csv = "Tên nhóm,Dự án,Leader,MSSV\n" +
-                  string.Join("\n", Enumerable.Range(1, 7).Select(i => $"Nhóm A,DA1,{(i == 1 ? "Leader" : "")},SE16000{i}"));
-
-        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
-
-        var result = await service.ImportAsync(fakeAcademic.Semester.Id, stream, "test.csv", dryRun: true, CancellationToken.None);
-
-        Assert.Contains(result.Errors, e => e.Message.Contains("vượt quá 6 thành viên"));
-    }
-
-    [Fact]
-    public async Task Team_with_fewer_than_4_members_is_not_imported()
+    public async Task Invalid_student_code_is_warning_and_team_keeps_valid_members()
     {
         var repo = new InMemoryBaselineRepo();
         var academic = new FakeAcademic();
-        for (var i = 1; i <= 3; i++)
-        {
-            academic.EnrollWithCode($"SE16000{i}", $"Sinh viên {i}");
-        }
+        academic.EnrollWithCode("SE160002", "Sinh viên 2");
 
-        var csv = "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002 SE160003";
+        var result = await ImportCsvAsync(repo, academic, "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm Rồng Vàng,EduPlatform,INVALID_CODE,SE160002");
+
+        Assert.Empty(result.Errors);
+        Assert.Contains(result.Warnings!, w => w.Message.Contains("đúng định dạng"));
+        var team = Assert.Single(repo.SavedTeams);
+        Assert.Equal(TeamStatuses.Draft, team.Status);
+        Assert.Equal("SE160002", repo.SavedMembers.Single(m => m.Role == "LEADER").StudentCode);
+    }
+
+    [Fact]
+    public async Task Old_members_not_in_new_semester_are_listed_as_missing_not_errors()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        // SE160001 học EXE201 kỳ này; SE160002 không ghi danh; SE160003 không có trong hệ thống; SE160004 ghi danh EXE101.
+        academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        academic.EnrollWithCode("SE160002", "Sinh viên 2", enrolled: false);
+        academic.EnrollWithCode("SE160004", "Sinh viên 4", course: "EXE101");
+
+        var result = await ImportCsvAsync(repo, academic, "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm 1,DA1,SE160001,\"SE160002, SE160003, SE160004\"");
+
+        Assert.Empty(result.Errors);
+        var summary = Assert.Single(result.Teams!);
+        Assert.Equal(1, summary.MemberCount);
+        Assert.Equal(new[] { "SE160002", "SE160003", "SE160004" }, summary.MissingOldMemberStudentCodes);
+        Assert.Equal(1, result.NeedsReviewTeamCount);
+        Assert.Single(repo.SavedTeams);
+    }
+
+    [Fact]
+    public async Task Team_with_no_member_in_new_semester_is_skipped()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        academic.EnrollWithCode("SE160001", "Sinh viên 1");
+
+        var result = await ImportCsvAsync(repo, academic,
+            "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002\nNhóm B,DA2,SE170001,SE170002 SE170003 SE170004");
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(1, result.TeamCount);
+        Assert.Equal(1, result.SkippedTeamCount);
+        Assert.Equal("Nhóm A", Assert.Single(repo.SavedTeams).Name);
+    }
+
+    [Fact]
+    public async Task Duplicate_student_in_different_teams_stays_in_first_team()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        academic.EnrollWithCode("SE160002", "Sinh viên 2");
+        academic.EnrollWithCode("SE160003", "Sinh viên 3");
+
+        var result = await ImportCsvAsync(repo, academic,
+            "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002\nNhóm B,DA2,SE160003,SE160002");
+
+        Assert.Contains(result.Warnings!, w => w.Message.Contains("đã thuộc nhóm khác trong file"));
+        Assert.Equal(2, repo.SavedTeams.Count);
+        Assert.Equal(3, repo.SavedMembers.Count);
+    }
+
+    [Fact]
+    public async Task Student_already_in_team_in_semester_is_not_inherited_again()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        var s1 = academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        academic.EnrollWithCode("SE160002", "Sinh viên 2");
+        repo.ExistingMemberStudentIds.Add(s1.Id);
+
+        var result = await ImportCsvAsync(repo, academic, "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002");
+
+        var summary = Assert.Single(result.Teams!);
+        Assert.Equal("SE160002", summary.LeaderStudentCode);
+        Assert.Contains("SE160001", summary.MissingOldMemberStudentCodes);
+    }
+
+    [Fact]
+    public async Task Existing_team_name_gets_exe201_suffix()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        academic.EnrollWithCode("SE160001", "Sinh viên 1");
+        repo.ExistingTeamNames.Add("nhóm a");
+
+        await ImportCsvAsync(repo, academic, "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002");
+
+        Assert.Equal("Nhóm A (EXE201)", Assert.Single(repo.SavedTeams).Name);
+    }
+
+    [Fact]
+    public async Task Old_leader_absent_promotes_first_remaining_member()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        var s2 = academic.EnrollWithCode("SE160002", "Sinh viên 2");
+        academic.EnrollWithCode("SE160003", "Sinh viên 3");
+
+        await ImportCsvAsync(repo, academic, "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002 SE160003");
+
+        Assert.Equal(s2.Id, repo.SavedMembers.Single(m => m.Role == "LEADER").StudentId);
+    }
+
+    [Fact]
+    public async Task Team_reaching_min_size_is_active_and_smaller_team_is_draft()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        for (var i = 1; i <= 6; i++) academic.EnrollWithCode($"SE16000{i}", $"Sinh viên {i}");
+
+        await ImportCsvAsync(repo, academic,
+            "Tên nhóm,Dự án,Leader,MSSV thành viên\nNhóm A,DA1,SE160001,SE160002 SE160003 SE160004\nNhóm B,DA2,SE160005,SE160006");
+
+        Assert.Equal(TeamStatuses.Active, repo.SavedTeams.Single(t => t.Name == "Nhóm A").Status);
+        Assert.Equal(TeamStatuses.Draft, repo.SavedTeams.Single(t => t.Name == "Nhóm B").Status);
+    }
+
+    [Fact]
+    public async Task Real_SU26_group_list_reconciles_with_few_FA26_students()
+    {
+        // File thật có SĐT sinh viên nên không commit; máy không có file thì bỏ qua.
+        var docPath = FindDoc("SU26_EXE101 _ Group List.xlsx");
+        if (docPath is null) return;
+        var repo = new InMemoryBaselineRepo();
+        var academic = new FakeAcademic();
+        // Danh sách lớp FA26 EXE201 của nhóm demo: chỉ 6 sinh viên.
+        academic.EnrollWithCode("SE172145", "Nguyễn Mai Hào Thiên");
+        academic.EnrollWithCode("SE190507", "Ngô Chí Nam");
+        academic.EnrollWithCode("SE193559", "Đoàn Nguyễn Trung Nguyên");
+        academic.EnrollWithCode("SE193445", "Ngô Tấn Thành");
+        academic.EnrollWithCode("SE193416", "Nguyễn Ngọc Bảo Cường");
+
         var service = new BaselineImportService(repo, academic, TimeProvider.System);
-        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+        await using var stream = File.OpenRead(docPath);
+        var result = await service.ImportAsync(academic.Semester.Id, stream, Path.GetFileName(docPath), dryRun: false, CancellationToken.None);
 
-        var result = await service.ImportAsync(academic.Semester.Id, stream, "test.csv", dryRun: false, CancellationToken.None);
+        Assert.Empty(result.Errors);
+        Assert.Equal(2, result.TeamCount);
+        Assert.Equal(5, result.StudentCount);
+        var dailyMate = result.Teams!.Single(t => t.TeamName == "Daily Mate");
+        Assert.Equal("SE172145", dailyMate.LeaderStudentCode);
+        Assert.Equal(2, dailyMate.MemberCount);
+        var sleepy = result.Teams!.Single(t => t.TeamName == "Sleepy Heads Studio");
+        Assert.Equal("SE193559", sleepy.LeaderStudentCode);
+        Assert.Equal(3, sleepy.MemberCount);
+        Assert.All(repo.SavedTeams, t => Assert.Equal(TeamStatuses.Draft, t.Status));
+    }
 
-        Assert.Contains(result.Errors, e => e.Message.Contains("ít nhất 4 thành viên"));
-        Assert.Empty(repo.SavedTeams);
+    private static string? FindDoc(string fileName)
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, "docs", fileName);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
     }
 
     [Fact]
@@ -540,7 +561,7 @@ public sealed class BaselineImportTests
     }
 
     [Fact]
-    public async Task AutoInherit_when_all_members_enrolled_creates_draft_team_and_links_project()
+    public async Task AutoInherit_when_all_members_enrolled_creates_active_team_and_links_project()
     {
         var repo = new InMemoryBaselineRepo();
         var fakeAcademic = new FakeAcademic();
@@ -576,7 +597,7 @@ public sealed class BaselineImportTests
         Assert.Single(repo.SavedTeams);
         var team = repo.SavedTeams.Single();
         Assert.Equal("Nhóm Rồng Vàng", team.Name);
-        Assert.Equal("DRAFT", team.Status);
+        Assert.Equal(TeamStatuses.Active, team.Status);
         Assert.Equal(prevProjectId, team.ProjectId);
 
         var leaderMember = repo.SavedMembers.Single(m => m.TeamId == team.Id && m.Role == MemberRoles.Leader);
@@ -586,7 +607,7 @@ public sealed class BaselineImportTests
     }
 
     [Fact]
-    public async Task AutoInherit_when_fewer_than_4_members_enrolled_creates_needs_review_team()
+    public async Task AutoInherit_when_fewer_than_4_members_enrolled_creates_draft_team()
     {
         var repo = new InMemoryBaselineRepo();
         var fakeAcademic = new FakeAcademic();
@@ -618,10 +639,10 @@ public sealed class BaselineImportTests
 
         Assert.Single(repo.SavedTeams);
         var team = repo.SavedTeams.Single();
-        Assert.Equal("NEEDS_REVIEW", team.Status);
+        Assert.Equal(TeamStatuses.Draft, team.Status);
         Assert.Equal(2, repo.SavedMembers.Count);
         Assert.Single(response.Teams);
-        Assert.Equal("NEEDS_REVIEW", response.Teams[0].Status);
+        Assert.Equal(TeamStatuses.Draft, response.Teams[0].Status);
         Assert.Equal(2, response.Teams[0].MissingOldMemberStudentCodes.Count);
     }
 
