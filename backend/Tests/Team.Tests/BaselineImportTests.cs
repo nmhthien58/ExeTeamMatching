@@ -55,6 +55,9 @@ public sealed class BaselineImportTests
         public Task<IReadOnlyList<Exe101TeamWithMembers>> GetPreviousExe101TeamsAsync(Guid currentSemesterId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Exe101TeamWithMembers>>(PreviousExe101Teams);
 
+        public Task<IReadOnlyList<Exe101TeamWithMembers>> GetExe101TeamsBySemesterAsync(Guid semesterId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<Exe101TeamWithMembers>>(PreviousExe101Teams.Where(t => t.SemesterId == semesterId).ToList());
+
         public Task SaveImportedTeamsAsync(
             IReadOnlyList<TeamEntity> teams,
             IReadOnlyList<TeamMember> members,
@@ -551,7 +554,7 @@ public sealed class BaselineImportTests
         repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
             prevTeamId,
             "Nhóm Rồng Vàng",
-            fakeAcademic.Semester.Id,
+            fakeAcademic.PrevSemester.Id,
             prevProjectId,
             "EduPlatform",
             [
@@ -595,7 +598,7 @@ public sealed class BaselineImportTests
         repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
             prevTeamId,
             "Nhóm Rồng Vàng",
-            fakeAcademic.Semester.Id,
+            fakeAcademic.PrevSemester.Id,
             null,
             null,
             [
@@ -637,7 +640,7 @@ public sealed class BaselineImportTests
         repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
             prevTeamId,
             "Nhóm Alpha",
-            fakeAcademic.Semester.Id,
+            fakeAcademic.PrevSemester.Id,
             null,
             null,
             [
@@ -670,7 +673,7 @@ public sealed class BaselineImportTests
 
         var prevTeamId = Guid.NewGuid();
         repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
-            prevTeamId, "Nhóm 1", fakeAcademic.Semester.Id, null, null,
+            prevTeamId, "Nhóm 1", fakeAcademic.PrevSemester.Id, null, null,
             [
                 new OldTeamMemberInfo(prevTeamId, s1.Id, "SE160001", "Leader", 1, "Leader"),
                 new OldTeamMemberInfo(prevTeamId, s2.Id, "SE160002", "M2", 1, "Member"),
@@ -697,7 +700,7 @@ public sealed class BaselineImportTests
 
         var prevTeamId = Guid.NewGuid();
         repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
-            prevTeamId, "Nhóm Cũ", fakeAcademic.Semester.Id, null, null,
+            prevTeamId, "Nhóm Cũ", fakeAcademic.PrevSemester.Id, null, null,
             [
                 new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160001", "M1", 1, "Leader"),
                 new OldTeamMemberInfo(prevTeamId, Guid.NewGuid(), "SE160002", "M2", 1, "Member")
@@ -709,5 +712,54 @@ public sealed class BaselineImportTests
 
         Assert.Equal(0, response.InheritedTeamCount);
         Assert.Empty(repo.SavedTeams);
+    }
+
+    [Fact]
+    public async Task AutoInherit_picks_chronologically_previous_semester_even_if_multiple_semesters_exist_out_of_order()
+    {
+        var repo = new InMemoryBaselineRepo();
+        var fakeAcademic = new FakeAcademic();
+
+        var semOldest = new SemesterDto(Guid.NewGuid(), "SP26", "Spring 2026", new DateOnly(2026, 1, 15));
+        var semImmediatePrev = new SemesterDto(Guid.NewGuid(), "SU26", "Summer 2026", new DateOnly(2026, 5, 10));
+        var semCurrent = new SemesterDto(Guid.NewGuid(), "FA26", "Fall 2026", new DateOnly(2026, 9, 1));
+        var semFuture = new SemesterDto(Guid.NewGuid(), "SP27", "Spring 2027", new DateOnly(2027, 1, 15));
+
+        // Insert in random/reversed order to test sorting
+        fakeAcademic.Semester = semCurrent;
+        fakeAcademic.Semesters.AddRange([semFuture, semOldest, semCurrent, semImmediatePrev]);
+
+        var s1 = fakeAcademic.EnrollWithCode("SE160001", "Leader 1");
+        var s2 = fakeAcademic.EnrollWithCode("SE160002", "Member 2");
+        var s3 = fakeAcademic.EnrollWithCode("SE160003", "Member 3");
+        var s4 = fakeAcademic.EnrollWithCode("SE160004", "Member 4");
+
+        // Team in oldest semester
+        var teamOldId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            teamOldId, "Oldest Team", semOldest.Id, null, null,
+            [
+                new OldTeamMemberInfo(teamOldId, s1.Id, "SE160001", "Leader 1", 1, "Leader")
+            ]
+        ));
+
+        // Team in immediately previous semester (SU26)
+        var teamImmediateId = Guid.NewGuid();
+        repo.PreviousExe101Teams.Add(new Exe101TeamWithMembers(
+            teamImmediateId, "Immediate Prev Team", semImmediatePrev.Id, null, null,
+            [
+                new OldTeamMemberInfo(teamImmediateId, s1.Id, "SE160001", "Leader 1", 1, MemberRoles.Leader),
+                new OldTeamMemberInfo(teamImmediateId, s2.Id, "SE160002", "Member 2", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(teamImmediateId, s3.Id, "SE160003", "Member 3", 1, MemberRoles.Member),
+                new OldTeamMemberInfo(teamImmediateId, s4.Id, "SE160004", "Member 4", 1, MemberRoles.Member)
+            ]
+        ));
+
+        var service = new BaselineImportService(repo, fakeAcademic, TimeProvider.System);
+        var response = await service.AutoInheritAsync(new AutoInheritRequest(semCurrent.Id, DryRun: false), CancellationToken.None);
+
+        Assert.Equal(1, response.InheritedTeamCount);
+        Assert.Single(repo.SavedTeams);
+        Assert.Equal("Immediate Prev Team", repo.SavedTeams.Single().Name);
     }
 }

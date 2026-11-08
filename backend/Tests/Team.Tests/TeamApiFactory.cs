@@ -95,7 +95,10 @@ public sealed class FakeAcademic : IAcademicClient
 {
     private readonly Dictionary<Guid, StudentSnapshot> _students = new();
 
-    public SemesterDto Semester { get; set; } = new(Guid.NewGuid(), "FA26", "Fall 2026");
+    public SemesterDto PrevSemester { get; set; } = new(Guid.NewGuid(), "SU26", "Summer 2026", new DateOnly(2026, 5, 4));
+    public SemesterDto Semester { get; set; } = new(Guid.NewGuid(), "FA26", "Fall 2026", new DateOnly(2026, 9, 7));
+
+    public List<SemesterDto> Semesters { get; } = [];
 
     /// <summary>Quy tắc W05; mặc định hệ số 1 để test không vướng giới hạn số nhóm (BE-89).</summary>
     public TeamRuleSet Rules { get; set; } = TeamRuleSet.Default with { MaxTeamRatio = 1m };
@@ -109,18 +112,18 @@ public sealed class FakeAcademic : IAcademicClient
 
     public Guid? ChangeRequestRoundId { get; set; }
 
-    public StudentSnapshot Enroll(int specializationId = 1, string course = "EXE101", bool enrolled = true)
+    public StudentSnapshot Enroll(int specializationId = 1, string course = "EXE101", bool enrolled = true, int majorId = 1)
     {
         var id = Guid.NewGuid();
-        var student = new StudentSnapshot(id, $"SE{Random.Shared.Next(100000, 999999)}", "Sinh viên " + id.ToString()[..4], specializationId, course, enrolled);
+        var student = new StudentSnapshot(id, $"SE{Random.Shared.Next(100000, 999999)}", "Sinh viên " + id.ToString()[..4], specializationId, course, enrolled, majorId);
         _students[id] = student;
         return student;
     }
 
-    public StudentSnapshot EnrollWithCode(string studentCode, string fullName, int specializationId = 1, string course = "EXE201", bool enrolled = true)
+    public StudentSnapshot EnrollWithCode(string studentCode, string fullName, int specializationId = 1, string course = "EXE201", bool enrolled = true, int majorId = 1)
     {
         var id = Guid.NewGuid();
-        var student = new StudentSnapshot(id, studentCode, fullName, specializationId, course, enrolled);
+        var student = new StudentSnapshot(id, studentCode, fullName, specializationId, course, enrolled, majorId);
         _students[id] = student;
         return student;
     }
@@ -128,7 +131,7 @@ public sealed class FakeAcademic : IAcademicClient
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => Task.FromResult<SemesterDto?>(Semester);
 
     public Task<IReadOnlyList<SemesterDto>> ListSemestersAsync(CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<SemesterDto>>([Semester]);
+        Task.FromResult<IReadOnlyList<SemesterDto>>(Semesters.Count > 0 ? Semesters : [PrevSemester, Semester]);
 
     /// <summary>Giảng viên của Academic (cả đã khóa); <see cref="ListActiveLecturersAsync"/> chỉ trả người đang hoạt động như GET /api/lecturers.</summary>
     public List<LecturerSnapshot> Lecturers { get; } = [];

@@ -41,7 +41,7 @@ public sealed class StatisticsRepository(TeamDbContext db) : IStatisticsReposito
                 .ToDictionaryAsync(g => (int)g.Key, g => g.Count(), ct),
             await db.Set<ChangeRequest>().AsNoTracking().CountAsync(r => r.Status == "PENDING" && teams.Any(t => t.Id == r.TeamId), ct),
             await teams.CountAsync(t => t.Status == "NEEDS_REVIEW", ct),
-            await members.GroupBy(m => m.SpecializationId).ToDictionaryAsync(g => g.Key, g => g.Count(), ct),
+            await members.Where(m => m.SpecializationId != null).GroupBy(m => m.SpecializationId!.Value).ToDictionaryAsync(g => g.Key, g => g.Count(), ct),
             await db.Set<TeamDomain>().AsNoTracking().Where(d => teams.Any(t => t.Id == d.TeamId)).GroupBy(d => d.DomainCode)
                 .ToDictionaryAsync(g => g.Key, g => g.Count(), ct));
     }

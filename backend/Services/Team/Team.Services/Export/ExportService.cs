@@ -82,7 +82,7 @@ public sealed class ExportService(IExportRepository repository, ITeamRepository 
                 sheet.Cell(row, 5).Value = g.Project?.Name ?? "";
                 sheet.Cell(row, 6).Value = member.StudentCode;
                 sheet.Cell(row, 7).Value = member.FullName;
-                sheet.Cell(row, 8).Value = catalogs.Specialization(member.SpecializationId).Name ?? member.SpecializationId.ToString();
+                sheet.Cell(row, 8).Value = member.SpecializationId.HasValue ? (catalogs.Specialization(member.SpecializationId.Value).Name ?? member.SpecializationId.Value.ToString()) : "";
                 sheet.Cell(row, 9).Value = member.Role == MemberRoles.Leader ? "Trưởng nhóm" : "Thành viên";
                 sheet.Cell(row, 10).Value = g.LecturerName ?? "";
                 sheet.Cell(row, 11).Value = g.MentorName ?? "";

@@ -136,7 +136,7 @@ public sealed class AutoAssignService(
         var member = new TeamMember
         {
             TeamId = team.Id, SemesterId = team.SemesterId, StudentId = student.Id, StudentCode = student.StudentCode, FullName = student.FullName,
-            SpecializationId = student.SpecializationId ?? 0, Role = role, JoinSource = JoinSource,
+            MajorId = student.MajorId, SpecializationId = student.SpecializationId, Role = role, JoinSource = JoinSource,
         };
         members.Add(member);
         audit.Add(team.Id, "TeamMember", student.Id, "MEMBER_JOINED", actor,
@@ -144,7 +144,7 @@ public sealed class AutoAssignService(
         if (publish)
         {
             members.AddEvent(MemberEventTypes.MemberJoined, team.Id,
-                new MemberJoined(team.Id, team.SemesterId, student.Id, student.FullName, student.SpecializationId ?? 0, JoinSource, memberCount));
+                new MemberJoined(team.Id, team.SemesterId, student.Id, student.FullName, student.SpecializationId, JoinSource, memberCount, MajorId: student.MajorId));
         }
         return member;
     }

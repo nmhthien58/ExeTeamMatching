@@ -68,18 +68,10 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
         )).ToList();
     }
 
-    public async Task<IReadOnlyList<Exe101TeamWithMembers>> GetPreviousExe101TeamsAsync(Guid currentSemesterId, CancellationToken ct)
+    public async Task<IReadOnlyList<Exe101TeamWithMembers>> GetExe101TeamsBySemesterAsync(Guid semesterId, CancellationToken ct)
     {
-        var previousSemesterId = await db.Set<TeamEntity>().AsNoTracking()
-            .Where(t => t.CourseCode == "EXE101" && t.SemesterId != currentSemesterId && t.Status != "DISBANDED")
-            .OrderByDescending(t => t.CreatedAt)
-            .Select(t => (Guid?)t.SemesterId)
-            .FirstOrDefaultAsync(ct);
-
-        if (previousSemesterId == null) return [];
-
         var teams = await db.Set<TeamEntity>().AsNoTracking()
-            .Where(t => t.CourseCode == "EXE101" && t.SemesterId == previousSemesterId && t.Status != "DISBANDED")
+            .Where(t => t.CourseCode == "EXE101" && t.SemesterId == semesterId && t.Status != "DISBANDED")
             .Select(t => new { t.Id, t.Name, t.SemesterId, t.ProjectId })
             .ToListAsync(ct);
 
@@ -91,7 +83,7 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
             .Where(m => teamIds.Contains(m.TeamId))
             .OrderBy(m => m.Role == "LEADER" ? 0 : 1)
             .ThenBy(m => m.JoinedAt)
-            .Select(m => new OldTeamMemberInfo(m.TeamId, m.StudentId, m.StudentCode, m.FullName, m.SpecializationId, m.Role))
+            .Select(m => new OldTeamMemberInfo(m.TeamId, m.StudentId, m.StudentCode, m.FullName, m.SpecializationId, m.Role, m.MajorId))
             .ToListAsync(ct);
 
         var membersByTeam = members.GroupBy(m => m.TeamId).ToDictionary(g => g.Key, g => (IReadOnlyList<OldTeamMemberInfo>)g.ToList());
@@ -109,6 +101,19 @@ public sealed class BaselineImportRepository(TeamDbContext db) : IBaselineImport
             t.ProjectId != null && projects.TryGetValue(t.ProjectId.Value, out var pName) ? pName : null,
             membersByTeam.TryGetValue(t.Id, out var mList) ? mList : []
         )).ToList();
+    }
+
+    public async Task<IReadOnlyList<Exe101TeamWithMembers>> GetPreviousExe101TeamsAsync(Guid currentSemesterId, CancellationToken ct)
+    {
+        var previousSemesterId = await db.Set<TeamEntity>().AsNoTracking()
+            .Where(t => t.CourseCode == "EXE101" && t.SemesterId != currentSemesterId && t.Status != "DISBANDED")
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(t => (Guid?)t.SemesterId)
+            .FirstOrDefaultAsync(ct);
+
+        if (previousSemesterId == null) return [];
+
+        return await GetExe101TeamsBySemesterAsync(previousSemesterId.Value, ct);
     }
 
     public async Task SaveImportedTeamsAsync(

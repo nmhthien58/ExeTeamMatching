@@ -96,7 +96,8 @@ CREATE TABLE team.team_members (
     student_id        uuid         NOT NULL,                 -- academic.students.id
     student_code      varchar(10)  NOT NULL,
     full_name         varchar(150) NOT NULL,
-    specialization_id integer      NOT NULL,
+    major_id          integer      NOT NULL DEFAULT 1,
+    specialization_id integer,
     role              varchar(10)  NOT NULL DEFAULT 'MEMBER',
     join_source       varchar(20)  NOT NULL,
     joined_at         timestamptz  NOT NULL DEFAULT now(),
@@ -118,7 +119,8 @@ CREATE TABLE team.team_baseline_members (
     student_id        uuid         NOT NULL,
     student_code      varchar(10)  NOT NULL,
     full_name         varchar(150) NOT NULL,
-    specialization_id integer      NOT NULL,
+    major_id          integer      NOT NULL DEFAULT 1,
+    specialization_id integer,
     role              varchar(10)  NOT NULL,
     imported_at       timestamptz  NOT NULL DEFAULT now(),
     CONSTRAINT pk_team_baseline_members PRIMARY KEY (team_id, student_id),
@@ -295,6 +297,7 @@ CREATE TABLE team.change_request_items (
     student_id        uuid,                                   -- NULL khi PROJECT_CHANGE
     student_code      varchar(10),
     full_name         varchar(150),
+    major_id          integer      NOT NULL DEFAULT 1,
     specialization_id integer,
     new_project_name  varchar(200),                           -- PROJECT_CHANGE (rule 26)
     new_project_description varchar(4000),
@@ -306,7 +309,6 @@ CREATE TABLE team.change_request_items (
     CONSTRAINT ck_change_request_items_action CHECK (action IN ('ADD', 'REMOVE', 'SET_LEADER', 'PROJECT_CHANGE')),
     CONSTRAINT ck_change_request_items_source CHECK (source IN
         ('INVITATION', 'JOIN_REQUEST', 'LEAVE', 'REMOVE', 'LEADER_TRANSFER', 'PROJECT')),
-    CONSTRAINT ck_change_request_items_spec CHECK (action <> 'ADD' OR specialization_id IS NOT NULL),
     CONSTRAINT ck_change_request_items_code CHECK (student_code IS NULL OR student_code ~ '^[A-Z]{2,3}[0-9]{6}$'),
     CONSTRAINT ck_change_request_items_target CHECK (
         (action = 'PROJECT_CHANGE' AND source = 'PROJECT' AND student_id IS NULL AND new_project_name IS NOT NULL)

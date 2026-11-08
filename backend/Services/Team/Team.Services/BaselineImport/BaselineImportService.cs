@@ -260,7 +260,8 @@ public sealed class BaselineImportService(
                     StudentId = snap.Id,
                     StudentCode = snap.StudentCode,
                     FullName = snap.FullName,
-                    SpecializationId = snap.SpecializationId ?? 0,
+                    MajorId = snap.MajorId,
+                    SpecializationId = snap.SpecializationId,
                     Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
                     JoinSource = "INHERITED",
                     JoinedAt = now,
@@ -272,7 +273,8 @@ public sealed class BaselineImportService(
                     StudentId = snap.Id,
                     StudentCode = snap.StudentCode,
                     FullName = snap.FullName,
-                    SpecializationId = snap.SpecializationId ?? 0,
+                    MajorId = snap.MajorId,
+                    SpecializationId = snap.SpecializationId,
                     Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
                     ImportedAt = now,
                 });
@@ -368,8 +370,17 @@ public sealed class BaselineImportService(
             .Where(kvp => !alreadyInTeamIds.Contains(kvp.Value.Id))
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
-        // 2. Fetch previous EXE101 teams
-        var previousTeams = await repository.GetPreviousExe101TeamsAsync(semesterId, ct);
+        // 2. Fetch previous EXE101 teams (xác định kỳ liền trước theo StartDate từ Academic)
+        var semesters = await academic.ListSemestersAsync(ct);
+        var currentSemester = semesters.FirstOrDefault(s => s.Id == semesterId);
+        var previousSemester = semesters
+            .Where(s => s.Id != semesterId && s.StartDate.HasValue && (currentSemester?.StartDate == null || s.StartDate < currentSemester.StartDate))
+            .OrderByDescending(s => s.StartDate)
+            .FirstOrDefault();
+
+        var previousTeams = previousSemester != null
+            ? await repository.GetExe101TeamsBySemesterAsync(previousSemester.Id, ct)
+            : [];
 
         // 3. Match members
         var inheritedSummaries = new List<InheritedTeamSummary>();
@@ -471,7 +482,8 @@ public sealed class BaselineImportService(
                         StudentId = snap.Id,
                         StudentCode = snap.StudentCode,
                         FullName = snap.FullName,
-                        SpecializationId = snap.SpecializationId ?? 0,
+                        MajorId = snap.MajorId,
+                        SpecializationId = snap.SpecializationId,
                         Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
                         JoinSource = "INHERITED",
                         JoinedAt = now,
@@ -483,7 +495,8 @@ public sealed class BaselineImportService(
                         StudentId = snap.Id,
                         StudentCode = snap.StudentCode,
                         FullName = snap.FullName,
-                        SpecializationId = snap.SpecializationId ?? 0,
+                        MajorId = snap.MajorId,
+                        SpecializationId = snap.SpecializationId,
                         Role = isLeader ? MemberRoles.Leader : MemberRoles.Member,
                         ImportedAt = now,
                     });

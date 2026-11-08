@@ -26,7 +26,7 @@ public sealed record SemesterDto(
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, string? Name = null);
 
 /// <summary>Schema <c>StudentSnapshot</c>.</summary>
-public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled);
+public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1);
 
 /// <summary>Schema <c>CatalogItem</c> (domain, chuyên ngành).</summary>
 public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive);

@@ -1,3 +1,4 @@
+using BuildingBlocks.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Team.Repositories.Members;
 
@@ -11,6 +12,7 @@ public static class MembersModule
         services.AddScoped<IMemberRepository, MemberRepository>();
         services.AddScoped<MembershipService>();
         services.AddScoped<IMemberService, MemberService>();
+        services.AddEventHandler<StudentProfileUpdatedHandler>(Topics.Student, "StudentProfileUpdated");
         return services;
     }
 }

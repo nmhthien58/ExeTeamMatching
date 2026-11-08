@@ -16,7 +16,7 @@ public static class MemberEventTypes
 }
 
 // Payload exe.team (docs/contracts/events.md), key = teamId.
-public sealed record MemberJoined(Guid TeamId, Guid SemesterId, Guid StudentId, string FullName, int SpecializationId, string JoinSource, int MemberCount);
+public sealed record MemberJoined(Guid TeamId, Guid SemesterId, Guid StudentId, string FullName, int? SpecializationId, string JoinSource, int MemberCount, int MajorId = 0);
 
 /// <summary><c>Reason</c>: LEAVE | REMOVED | CHANGE_REQUEST | ADMIN.</summary>
 public sealed record MemberLeft(Guid TeamId, Guid SemesterId, Guid StudentId, string Reason, int MemberCount);
@@ -52,7 +52,7 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
             members.Add(new ChangeRequestItem
             {
                 TeamId = team.Id, Action = "ADD", Source = source, StudentId = student.Id, StudentCode = student.StudentCode,
-                FullName = student.FullName, SpecializationId = student.SpecializationId,
+                FullName = student.FullName, MajorId = student.MajorId, SpecializationId = student.SpecializationId,
             });
             audit.Add(team.Id, "TeamMember", student.Id, "MEMBER_ADD_PENDING", actor, newValues: new { student.StudentCode, source });
             return false;
@@ -61,14 +61,14 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
         members.Add(new TeamMember
         {
             TeamId = team.Id, SemesterId = team.SemesterId, StudentId = student.Id, StudentCode = student.StudentCode, FullName = student.FullName,
-            SpecializationId = student.SpecializationId ?? 0, Role = MemberRoles.Member, JoinSource = source,
+            MajorId = student.MajorId, SpecializationId = student.SpecializationId, Role = MemberRoles.Member, JoinSource = source,
         });
         var count = current.Count + 1;
         team.Status = TeamRules.StatusAfterMemberChange(team.Status, count, rules);
         await CancelOtherPendingAsync(team.SemesterId, student.Id, keepRequestId, ct);
         audit.Add(team.Id, "TeamMember", student.Id, "MEMBER_JOINED", actor, newValues: new { student.StudentCode, source, memberCount = count });
         members.AddEvent(MemberEventTypes.MemberJoined, team.Id,
-            new MemberJoined(team.Id, team.SemesterId, student.Id, student.FullName, student.SpecializationId ?? 0, source, count));
+            new MemberJoined(team.Id, team.SemesterId, student.Id, student.FullName, student.SpecializationId, source, count, MajorId: student.MajorId));
         return true;
     }
 
@@ -82,7 +82,7 @@ public sealed class MembershipService(IMemberRepository members, ITeamRepository
             members.Add(new ChangeRequestItem
             {
                 TeamId = team.Id, Action = "REMOVE", Source = reason == "LEAVE" ? "LEAVE" : "REMOVE", StudentId = member.StudentId,
-                StudentCode = member.StudentCode, FullName = member.FullName, SpecializationId = member.SpecializationId,
+                StudentCode = member.StudentCode, FullName = member.FullName, MajorId = member.MajorId, SpecializationId = member.SpecializationId,
             });
             audit.Add(team.Id, "TeamMember", member.StudentId, "MEMBER_REMOVE_PENDING", actor, newValues: new { member.StudentCode, reason });
             return false;

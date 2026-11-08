@@ -12,8 +12,9 @@ public sealed record OldTeamMemberInfo(
     Guid StudentId,
     string StudentCode,
     string FullName,
-    int SpecializationId,
-    string Role);
+    int? SpecializationId,
+    string Role,
+    int MajorId = 1);
 
 public sealed record Exe101TeamWithMembers(
     Guid Id,

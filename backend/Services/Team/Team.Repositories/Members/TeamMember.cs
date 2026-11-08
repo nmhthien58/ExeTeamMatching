@@ -10,7 +10,8 @@ public class TeamMember
     public Guid StudentId { get; set; }
     public string StudentCode { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
-    public int SpecializationId { get; set; }
+    public int MajorId { get; set; } = 1;
+    public int? SpecializationId { get; set; }
     public string Role { get; set; } = "MEMBER";
     public string JoinSource { get; set; } = string.Empty;
     public DateTimeOffset JoinedAt { get; set; }
