@@ -17,6 +17,8 @@ void main() {
     expect(shellProfile[Shell.student], '/sv/ho-so');
     expect(shellProfile[Shell.lecturer], '/gv/ho-so');
     expect(shellProfile[Shell.mentor], '/mentor/cai-dat');
+    expect(shellSettings[Shell.student], '/sv/cai-dat');
+    expect(shellSettings[Shell.lecturer], '/gv/cai-dat');
   });
 
   test('chữ cái avatar là chữ đầu của tên gọi', () {

@@ -138,6 +138,11 @@ public sealed class LecturerService(ILecturerRepository lecturers, IMentorServic
             lecturer.DesiredTeamsExe201 = (short)d201;
         }
 
+        if (input.Phone is not null)
+        {
+            lecturer.Phone = LecturerRules.NormalizePhone(input.Phone);
+        }
+
         if (domainIds.Count >= 1 && lecturer.DesiredTeamsExe101 is not null && lecturer.DesiredTeamsExe201 is not null)
         {
             lecturer.ProfileCompletedAt ??= DateTimeOffset.UtcNow;

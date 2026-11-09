@@ -55,7 +55,7 @@ public sealed class MembershipApiTests : IAsyncLifetime
         var accepted = await _api.ClientFor(invitee.Id).PostAsync($"/api/invitations/{invitation.Id}/accept", null);
         Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
         var result = (await accepted.Content.ReadFromJsonAsync<MemberChangeResult>())!;
-        Assert.Equal((true, 2, "MEMBER"), (result.AppliedImmediately, result.Team.MemberCount, result.Team.MyRelation));
+        Assert.Equal((true, 2, "MEMBER"), (result.AppliedImmediately, result.Team!.MemberCount, result.Team.MyRelation));
 
         Assert.Equal("CANCELLED", await _api.QueryDbAsync(db => db.Set<JoinRequest>().Where(r => r.Id == joinOther.Id).Select(r => r.Status).SingleAsync()));
         Assert.Contains(await EventTypesAsync(team.Id), e => e == "MemberJoined");
@@ -88,7 +88,7 @@ public sealed class MembershipApiTests : IAsyncLifetime
 
         var accepted = await _api.ClientFor(leader.Id).PostAsync($"/api/join-requests/{request.Id}/accept", null);
         var result = (await accepted.Content.ReadFromJsonAsync<MemberChangeResult>())!;
-        Assert.Equal((4, "ACTIVE", true), (result.Team.MemberCount, result.Team.Status, result.Team.Requirement.IsValid));
+        Assert.Equal((4, "ACTIVE", true), (result.Team!.MemberCount, result.Team.Status, result.Team.Requirement.IsValid));
         Assert.Equal(["JoinRequestSubmitted", "JoinRequestAccepted"], await EventTypesAsync(request.Id));
     }
 
@@ -133,17 +133,41 @@ public sealed class MembershipApiTests : IAsyncLifetime
 
         var transferred = await _api.ClientFor(leader.Id).PostAsJsonAsync($"/api/teams/{team.Id}/transfer-leader", new TransferLeaderRequest(members[0].Id));
         Assert.True(transferred.IsSuccessStatusCode, await transferred.Content.ReadAsStringAsync());
-        Assert.Equal(members[0].Id, (await transferred.Content.ReadFromJsonAsync<MemberChangeResult>())!.Team.Leader!.Id);
+        Assert.Equal(members[0].Id, (await transferred.Content.ReadFromJsonAsync<MemberChangeResult>())!.Team!.Leader!.Id);
 
         var left = (await (await _api.ClientFor(leader.Id).PostAsync($"/api/teams/{team.Id}/leave", null)).Content.ReadFromJsonAsync<MemberChangeResult>())!;
-        Assert.Equal((3, "DRAFT", "NONE"), (left.Team.MemberCount, left.Team.Status, left.Team.MyRelation));
+        Assert.Equal((3, "DRAFT", "NONE"), (left.Team!.MemberCount, left.Team.Status, left.Team.MyRelation));
 
         var removed = await _api.ClientFor(members[0].Id).DeleteAsync($"/api/teams/{team.Id}/members/{members[1].Id}");
-        Assert.Equal(2, (await removed.Content.ReadFromJsonAsync<MemberChangeResult>())!.Team.MemberCount);
+        Assert.Equal(2, (await removed.Content.ReadFromJsonAsync<MemberChangeResult>())!.Team!.MemberCount);
 
         var events = await _api.EventsAsync(team.Id);
         Assert.Equal(["LeaderChanged"], events.Where(e => e.EventType == "LeaderChanged").Select(e => e.EventType));
         Assert.Equal(["LEAVE", "REMOVED"], events.Where(e => e.EventType == "MemberLeft").Select(e => Payload(e, "reason")));
+    }
+
+    [Fact]
+    public async Task Sole_leader_leaves_and_team_is_disbanded()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var leader = Academic.Enroll();
+        var team = await CreateTeamAsync(leader, "Nhóm Một Người");
+
+        var response = await _api.ClientFor(leader.Id).PostAsync($"/api/teams/{team.Id}/leave", null);
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var left = (await response.Content.ReadFromJsonAsync<MemberChangeResult>())!;
+        Assert.Equal((true, (TeamDetailResponse?)null), (left.AppliedImmediately, left.Team));
+
+        Assert.Equal("DISBANDED", await StatusAsync(team.Id));
+        var events = await _api.EventsAsync(team.Id);
+        var memberLeft = Assert.Single(events, e => e.EventType == "MemberLeft");
+        Assert.Equal("LEAVE", Payload(memberLeft, "reason"));
+        Assert.Equal(0, JsonDocument.Parse(memberLeft.Payload).RootElement.GetProperty("memberCount").GetInt32());
+        Assert.Equal(404, (int)(await _api.ClientFor(leader.Id).PostAsync($"/api/teams/{team.Id}/leave", null)).StatusCode);
     }
 
     [Fact]
@@ -164,7 +188,7 @@ public sealed class MembershipApiTests : IAsyncLifetime
             new SendInvitationRequest(invitee.Id, null))).Content.ReadFromJsonAsync<InvitationResponse>())!;
         var accepted = (await (await _api.ClientFor(invitee.Id).PostAsync($"/api/invitations/{invitation.Id}/accept", null))
             .Content.ReadFromJsonAsync<MemberChangeResult>())!;
-        Assert.Equal((false, 2, true), (accepted.AppliedImmediately, accepted.Team.MemberCount, accepted.Team.HasPendingChanges));
+        Assert.Equal((false, 2, true), (accepted.AppliedImmediately, accepted.Team!.MemberCount, accepted.Team.HasPendingChanges));
 
         var left = (await (await _api.ClientFor(members[0].Id).PostAsync($"/api/teams/{team.Id}/leave", null)).Content.ReadFromJsonAsync<MemberChangeResult>())!;
         Assert.False(left.AppliedImmediately);

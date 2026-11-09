@@ -15,8 +15,11 @@ Shell? shellOf(UserInfo user) {
 
 const shellHome = {Shell.student: '/sv', Shell.lecturer: '/gv', Shell.mentor: '/mentor'};
 
-/// Màn mở khi bấm avatar ở góc phải BrandAppBar (MB-62): S02, L06; mentor chưa có màn hồ sơ nên mở Cài đặt.
+/// Màn hồ sơ mở từ mục "Quản lý hồ sơ" của A07: S02, L06; mentor chưa có màn hồ sơ nên A07 ẩn mục này.
 const shellProfile = {Shell.student: '/sv/ho-so', Shell.lecturer: '/gv/ho-so', Shell.mentor: '/mentor/cai-dat'};
+
+/// Màn mở khi bấm avatar ở góc phải BrandAppBar: A07 Cài đặt và tài khoản của từng khung.
+const shellSettings = {Shell.student: '/sv/cai-dat', Shell.lecturer: '/gv/cai-dat', Shell.mentor: '/mentor/cai-dat'};
 
 /// Một tab của tab bar. `screen` là mã màn hình, `owner` là người làm (AGENTS.md mục 2).
 class NavItem {

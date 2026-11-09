@@ -384,8 +384,13 @@ paths:
   /api/topic-recommendations/me:
     get:
       tags: [TopicInterests]
-      summary: Đề tài cho giảng viên hoặc mentor (L07 tab Gợi ý) – Matching SuggestTopicsForLecturer. Giảng viên – đề tài mình hướng dẫn ở EXE101 đứng đầu
-      parameters: [ { $ref: '#/components/parameters/AdvisorKind' }, { $ref: '#/components/parameters/CourseCode' }, { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/PageSize' } ]
+      summary: Đề tài cho giảng viên hoặc mentor (L07 tab Đề tài) – scope=suggested dùng Matching SuggestTopicsForLecturer (giảng viên – đề tài mình hướng dẫn ở EXE101 đứng đầu); scope=all liệt kê mọi nhóm của môn chưa có cố vấn cùng loại, nhóm được gợi ý đứng trước, nhóm còn lại xếp theo tên với matchedDomains rỗng
+      parameters:
+        - { $ref: '#/components/parameters/AdvisorKind' }
+        - { $ref: '#/components/parameters/CourseCode' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { name: scope, in: query, required: false, schema: { type: string, enum: [suggested, all], default: suggested }, description: "all: không phụ thuộc read model Matching; Matching lỗi thì vẫn trả danh sách (matchedDomains rỗng)" }
       responses:
         '200':
           description: OK
@@ -769,7 +774,7 @@ components:
       type: object
       properties:
         appliedImmediately: { type: boolean, description: "false = nhóm EXE201 kế thừa, đã thành thay đổi chờ duyệt" }
-        team: { $ref: '#/components/schemas/TeamDetail' }
+        team: { allOf: [{ $ref: '#/components/schemas/TeamDetail' }], nullable: true, description: 'null khi trưởng nhóm là thành viên cuối cùng rời và nhóm bị giải tán' }
     Invitation:
       type: object
       properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, invitee: { $ref: '#/components/schemas/StudentRef' }, message: { type: string, nullable: true }, status: { type: string }, createdAt: { type: string, format: date-time }, expiresAt: { type: string, format: date-time } }

@@ -12,10 +12,11 @@ const dateText = (value: string) => new Intl.DateTimeFormat('vi-VN', { dateStyle
 
 export function TopicsPage({ kind }: { kind: AdvisorKind }) {
   const [course, setCourse] = useState<CourseCode>('EXE101')
-  const [tab, setTab] = useState<'suggested' | 'chosen' | 'interested'>('suggested')
+  const [tab, setTab] = useState<'suggested' | 'all' | 'chosen' | 'interested'>('suggested')
   const [undoTeamId, setUndoTeamId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const topics = useTopics(kind, course)
+  const allTopics = useTopics(kind, course, tab === 'all', 'all')
   const interests = useInterests(kind)
   const interestedTeams = useInterestedTeams(interests.data, tab === 'interested')
   const preferences = useLecturerPreferences(kind === 'LECTURER' ? course : undefined, kind === 'LECTURER')
@@ -42,6 +43,7 @@ export function TopicsPage({ kind }: { kind: AdvisorKind }) {
 
   const items = topics.data?.items ?? []
   const displayed = tab === 'suggested' ? items
+    : tab === 'all' ? allTopics.data?.items ?? []
     : tab === 'chosen' ? (preferences.data ?? []).map((entry) => items.find((item) => item.team.id === entry.team.id) ?? {
       team: entry.team, matchedDomains: [], otherInterestedCount: 0, myPreferenceRank: entry.rank,
       myInterest: interests.data?.find((i) => i.teamId === entry.team.id && i.status === 'OPEN') ?? null,
@@ -59,6 +61,7 @@ export function TopicsPage({ kind }: { kind: AdvisorKind }) {
         {(['EXE101', 'EXE201'] as const).map((value) => <Button key={value} variant={course === value ? 'primary' : 'outline'} onClick={() => setCourse(value)}>{value}</Button>)}
       </div>
       {topics.error && <ErrorState error={topics.error} onRetry={() => void topics.refetch()} />}
+      {tab === 'all' && allTopics.error && <ErrorState error={allTopics.error} onRetry={() => void allTopics.refetch()} />}
       {domains.error && <ErrorState error={domains.error} onRetry={() => void domains.refetch()} />}
       {tab === 'chosen' && preferences.error && <ErrorState error={preferences.error} onRetry={() => void preferences.refetch()} />}
       {tab === 'interested' && interests.error && <ErrorState error={interests.error} onRetry={() => void interests.refetch()} />}
@@ -70,13 +73,14 @@ export function TopicsPage({ kind }: { kind: AdvisorKind }) {
       </Banner>}
       <div role="tablist" aria-label="Đề tài" className="flex flex-wrap gap-2">
         <Button role="tab" aria-selected={tab === 'suggested'} variant={tab === 'suggested' ? 'primary' : 'outline'} onClick={() => setTab('suggested')}>Gợi ý</Button>
+        <Button role="tab" aria-selected={tab === 'all'} variant={tab === 'all' ? 'primary' : 'outline'} onClick={() => setTab('all')}>Tất cả nhóm</Button>
         {kind === 'LECTURER' && <Button role="tab" aria-selected={tab === 'chosen'} variant={tab === 'chosen' ? 'primary' : 'outline'} onClick={() => setTab('chosen')}>Nhóm chọn tôi</Button>}
         <Button role="tab" aria-selected={tab === 'interested'} variant={tab === 'interested' ? 'primary' : 'outline'} onClick={() => setTab('interested')}>Đã quan tâm</Button>
       </div>
-      {(topics.isLoading || profileLoading || (tab === 'chosen' && preferences.isLoading) || (tab === 'interested' && (interests.isLoading || interestedTeams.isLoading))) && <TableSkeleton columns={2} rows={3} />}
-      {!topics.isLoading && !profileLoading && !hasDomains && !topics.error && !domains.error && <EmptyState icon="school" title="Chưa khai báo chuyên môn" description="Cập nhật chuyên môn để xem đề tài phù hợp." action={<Link className="text-primary-dark underline" to={kind === 'LECTURER' ? '/gv/ho-so' : '/mentor/ho-so'}>Cập nhật chuyên môn</Link>} />}
-      {!topics.isLoading && !profileLoading && hasDomains && !topics.error && !(tab === 'interested' && interestedTeams.isLoading) && displayed.length === 0 && <EmptyState icon="lightbulb" title={tab === 'chosen' ? 'Chưa có nhóm chọn bạn' : tab === 'interested' ? 'Bạn chưa quan tâm đề tài nào' : 'Chưa có đề tài phù hợp'} />}
-      {!topics.isLoading && !profileLoading && hasDomains && <div className="grid gap-3 md:grid-cols-2">
+      {(topics.isLoading || profileLoading || (tab === 'all' && allTopics.isLoading) || (tab === 'chosen' && preferences.isLoading) || (tab === 'interested' && (interests.isLoading || interestedTeams.isLoading))) && <TableSkeleton columns={2} rows={3} />}
+      {!topics.isLoading && !profileLoading && !hasDomains && tab !== 'all' && !topics.error && !domains.error && <EmptyState icon="school" title="Chưa khai báo chuyên môn" description="Cập nhật chuyên môn để xem đề tài phù hợp." action={<Link className="text-primary-dark underline" to={kind === 'LECTURER' ? '/gv/ho-so' : '/mentor/ho-so'}>Cập nhật chuyên môn</Link>} />}
+      {!topics.isLoading && !profileLoading && (hasDomains || tab === 'all') && !topics.error && !(tab === 'interested' && interestedTeams.isLoading) && !(tab === 'all' && (allTopics.isLoading || allTopics.error)) && displayed.length === 0 && <EmptyState icon="lightbulb" title={tab === 'chosen' ? 'Chưa có nhóm chọn bạn' : tab === 'interested' ? 'Bạn chưa quan tâm đề tài nào' : tab === 'all' ? 'Chưa có nhóm nào cần cố vấn' : 'Chưa có đề tài phù hợp'} />}
+      {!topics.isLoading && !profileLoading && (hasDomains || tab === 'all') && <div className="grid gap-3 md:grid-cols-2">
         {displayed.map((item) => {
           const interest = interests.data?.find((i) => i.teamId === item.team.id && i.status === 'OPEN') ?? (item.myInterest?.status === 'OPEN' ? item.myInterest : null)
           const full = (topics.data?.openInterestCount ?? 0) >= (topics.data?.interestLimit ?? 0)

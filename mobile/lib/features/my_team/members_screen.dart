@@ -74,6 +74,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
   Widget _list(MyTeam team) {
     final error = ref.watch(membersViewModelProvider);
     final canChange = team.isOpen || team.isInherited;
+    final soleLeader = team.isLeader && team.isOpen && !team.isInherited && team.members.length == 1;
     final canPropose = !team.isLeader && team.isOpen && !team.isInherited && team.courseCode != 'EXE201' && team.memberCount >= 2;
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s4),
@@ -128,7 +129,17 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
             label: const Text('Rời nhóm'),
           ),
         ],
-        if (team.isLeader)
+        // Trưởng nhóm là người duy nhất: rời nhóm thì nhóm giải tán (nhóm kế thừa vẫn phải qua Bộ môn).
+        if (soleLeader) ...[
+          const SizedBox(height: AppSpacing.s4),
+          OutlinedButton.icon(
+            onPressed: () => _run('Rời và giải tán nhóm?', 'Bạn là thành viên duy nhất. Rời nhóm thì ${team.name} sẽ bị giải tán.',
+                'Giải tán', () => _vm.leave(team.id)),
+            icon: const Icon(Icons.logout),
+            label: const Text('Rời và giải tán nhóm'),
+          ),
+        ],
+        if (team.isLeader && !soleLeader)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.s3),
             child: Text('Muốn rời nhóm, hãy chuyển quyền trưởng nhóm trước.', style: Theme.of(context).textTheme.bodyMedium),

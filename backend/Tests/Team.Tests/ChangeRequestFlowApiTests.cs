@@ -76,14 +76,14 @@ public sealed class ChangeRequestFlowApiTests
             accepted = await Read<MemberChangeResult>(await newcomerClient.PostAsync($"/api/invitations/{invitation.Id}/accept", null));
         }
         Assert.False(accepted.AppliedImmediately);
-        Assert.True(accepted.Team.HasPendingChanges);
+        Assert.True(accepted.Team!.HasPendingChanges);
 
         using var leavingClient = api.ClientFor(initial[0].Id);
         var left = await Read<MemberChangeResult>(useJoinRequest
             ? await leaderClient.DeleteAsync($"/api/teams/{team.Id}/members/{initial[0].Id}")
             : await leavingClient.PostAsync($"/api/teams/{team.Id}/leave", null));
         Assert.False(left.AppliedImmediately);
-        Assert.True(left.Team.HasPendingChanges);
+        Assert.True(left.Team!.HasPendingChanges);
 
         // Khi còn pending trước khi gửi yêu cầu, TeamMember chưa đổi.
         var pendingMembers = await MemberIds(api, team.Id);

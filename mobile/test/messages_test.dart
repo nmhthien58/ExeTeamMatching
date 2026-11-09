@@ -4,6 +4,7 @@ import 'package:exe_team_matching/core/theme/app_theme.dart';
 import 'package:exe_team_matching/features/messages/channel_screen.dart';
 import 'package:exe_team_matching/features/messages/conversations_screen.dart';
 import 'package:exe_team_matching/features/messages/messages_api.dart';
+import 'package:exe_team_matching/features/my_team/my_team_api.dart' show refreshMyTeam;
 import 'package:exe_team_matching/features/files/file_services.dart';
 import 'package:exe_team_matching/features/realtime/collab_hub.dart';
 import 'package:exe_team_matching/features/workspace/workspace_api.dart';
@@ -280,5 +281,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nhóm B · Cố vấn'), findsNothing);
     expect(find.text('Cần trả lời'), findsOneWidget);
+  });
+
+  testWidgets('C02 sinh viên: vừa có nhóm thì kéo làm mới hoặc refreshMyTeam tải lại workspace, hết "Bạn chưa có nhóm"', (tester) async {
+    var mine = <WorkspaceOverview>[];
+    var calls = 0;
+    const ws = WorkspaceOverview(id: 'w1', teamName: 'Nhóm A', courseCode: 'EXE201', myRole: WorkspaceRole.leader);
+    final api = _FakeApi(channelsOf: {'w1': const [_channel]});
+    final screen = Column(children: [
+      Consumer(builder: (context, ref, _) => TextButton(onPressed: () => refreshMyTeam(ref), child: const Text('đổi nhóm'))),
+      const Expanded(child: ConversationsScreen(basePath: '/sv')),
+    ]);
+    await _pump(tester, screen, api, overrides: [
+      myWorkspacesProvider.overrideWith((ref) async {
+        calls++;
+        return mine;
+      }),
+      workspaceProvider.overrideWith((ref, id) async => ws),
+    ]);
+    expect(find.text('Bạn chưa có nhóm'), findsOneWidget);
+
+    // Kéo làm mới: workspace vừa được tạo sau TeamCreated.
+    mine = [ws];
+    await tester.fling(find.text('Bạn chưa có nhóm'), const Offset(0, 400), 1000);
+    await tester.pumpAndSettle();
+    expect(find.text('Bạn chưa có nhóm'), findsNothing);
+    expect(find.text('Cố vấn'), findsOneWidget);
+
+    // Rời nhóm / đổi nhóm ở nơi khác: refreshMyTeam cũng tải lại workspace của tab Tin nhắn.
+    mine = [];
+    final before = calls;
+    await tester.tap(find.text('đổi nhóm'));
+    await tester.pumpAndSettle();
+    expect(calls, before + 1);
+    expect(find.text('Bạn chưa có nhóm'), findsOneWidget);
   });
 }

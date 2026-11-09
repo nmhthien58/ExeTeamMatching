@@ -41,9 +41,13 @@ describe('FE-41 advisor web', () => {
       ? { data: { id: 'm1', fullName: 'Mentor A', maxTeams: 4, preferredTeams: 3, currentTeamCount: 1 } }
       : { data: { workspaceId: 'w1', doneCount: 1, items: [1, 2, 3, 4].map((checkpointNo) => ({ checkpointNo, presented: checkpointNo === 1, overdue: false, canUndo: checkpointNo === 1 })) } })
     del.mockReset().mockResolvedValue({ data: null })
-    get.mockImplementation(async (url: string) => {
+    get.mockImplementation(async (url: string, config?: { params?: { scope?: string } }) => {
       if (url === '/api/lecturers/me') return { data: { domains: [{ id: 1, name: 'Giáo dục' }] } }
       if (url === '/api/mentors/me') return { data: { id: 'm1', fullName: 'Mentor A', maxTeams: 4, preferredTeams: 2, currentTeamCount: 1, domains: [{ id: 1, name: 'Giáo dục' }] } }
+      if (url === '/api/topic-recommendations/me' && config?.params?.scope === 'all') return { data: { openInterestCount: 1, interestLimit: 3, interestOpen: true, items: [
+        { team, matchedDomains: [{ id: 1, name: 'Giáo dục' }], otherInterestedCount: 2, myPreferenceRank: 1, myInterest: null, wasMyEXE101Team: false, hasAdvisor: false },
+        { team: { ...team, id: 't2', name: 'Nhóm Kế Thừa', projectName: 'Đề tài kế thừa' }, matchedDomains: [], otherInterestedCount: 0, myPreferenceRank: null, myInterest: { id: 'i9', teamId: 't2', status: 'OPEN' }, wasMyEXE101Team: false, hasAdvisor: false },
+      ] } }
       if (url === '/api/topic-recommendations/me') return { data: { openInterestCount: 0, interestLimit: 3, interestOpen: true, items: [{ team, matchedDomains: [{ id: 1, name: 'Giáo dục' }], otherInterestedCount: 2, myPreferenceRank: 1, myInterest: null, wasMyEXE101Team: false, hasAdvisor: false }] } }
       if (url === '/api/topic-interests/me') return { data: [] }
       if (url === '/api/lecturer-preferences/me') return { data: [] }
@@ -64,6 +68,19 @@ describe('FE-41 advisor web', () => {
     expect(screen.getByText('Nguyện vọng 1')).toBeInTheDocument()
     await userEvent.setup().click(screen.getByRole('button', { name: 'Quan tâm' }))
     expect(post).toHaveBeenCalledWith('/api/teams/t1/topic-interests', { advisorKind: 'LECTURER' })
+  })
+
+  it('lists every team of the course in the "Tất cả nhóm" tab and lets the lecturer withdraw interest there', async () => {
+    setup(<TopicsPage kind="LECTURER" />)
+    expect(await screen.findByText('Ứng dụng học tập')).toBeInTheDocument()
+    expect(screen.queryByText('Đề tài kế thừa')).not.toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('tab', { name: 'Tất cả nhóm' }))
+    expect(await screen.findByText('Đề tài kế thừa')).toBeInTheDocument()
+    expect(get).toHaveBeenCalledWith('/api/topic-recommendations/me', { params: { advisorKind: 'LECTURER', courseCode: 'EXE101', page: 1, pageSize: 100, scope: 'all' } })
+    expect(screen.getByText('Chưa có chuyên môn trùng')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Đã quan tâm · Rút lại' }))
+    expect(del).toHaveBeenCalled()
   })
 
   it('lets mentor change preferred team count without calling lecturer APIs', async () => {

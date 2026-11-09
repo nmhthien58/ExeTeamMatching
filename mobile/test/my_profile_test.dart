@@ -54,9 +54,10 @@ class _FakeProfileApi extends ProfileApi {
     required String description,
     int? specializationId,
     bool? isSeekingTeam,
+    String? phone,
   }) async {
     if (saveError != null) throw saveError!;
-    saved = {'skills': skills, 'description': description, 'specializationId': specializationId, 'isSeekingTeam': isSeekingTeam};
+    saved = {'skills': skills, 'description': description, 'specializationId': specializationId, 'isSeekingTeam': isSeekingTeam, 'phone': phone};
     profile = StudentProfile(
       id: profile.id,
       studentCode: profile.studentCode,
@@ -74,8 +75,8 @@ class _FakeProfileApi extends ProfileApi {
 }
 
 Future<void> _pump(WidgetTester tester, _FakeProfileApi api, {required String location, TeamDetail? myTeam, bool isTeamFormation = true}) async {
-  // Cao 1100 dp để cả form A05 / S03 (5 thanh kỹ năng có nhãn hai đầu) dựng hết, test không phải cuộn.
-  tester.view.physicalSize = const Size(1080, 3300);
+  // Cao 1300 dp để cả form A05 / S03 (5 thanh kỹ năng có nhãn hai đầu) dựng hết, test không phải cuộn.
+  tester.view.physicalSize = const Size(1080, 3900);
   addTearDown(tester.view.resetPhysicalSize);
   final router = GoRouter(initialLocation: location, routes: [
     GoRoute(path: '/sv', builder: (_, _) => const ProfileGate(child: Scaffold(body: Text('S01 Trang chủ')))),
@@ -128,7 +129,7 @@ void main() {
     expect(find.text('S01 Trang chủ'), findsNothing);
     expect(find.text('Chưa đánh giá'), findsNWidgets(5));
     expect(find.text('Còn 5 kỹ năng chưa đánh giá'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget, reason: 'không có ô SĐT, Zalo (quy tắc 16)');
+    expect(find.byType(TextField), findsNWidgets(2), reason: 'SĐT (tùy chọn) và giới thiệu; không có ô Zalo');
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Hoàn tất')).onPressed, isNull);
 
     await tester.tap(find.text('Thông tin từ bộ môn'));
@@ -139,7 +140,7 @@ void main() {
 
     await _rateAll(tester);
     expect(find.text('Còn 0 kỹ năng chưa đánh giá'), findsNothing);
-    await tester.enterText(find.byType(TextField), '  Thích làm backend  ');
+    await tester.enterText(find.byType(TextField).last, '  Thích làm backend  ');
     await tester.ensureVisible(find.text('Hoàn tất'));
     await tester.tap(find.text('Hoàn tất'));
     await tester.pumpAndSettle();
@@ -154,7 +155,7 @@ void main() {
     final api = _FakeProfileApi(_new)..saveError = const ApiException(status: 500, code: 'x', title: 'Lỗi máy chủ');
     await _pump(tester, api, location: '/sv');
     await _rateAll(tester);
-    await tester.enterText(find.byType(TextField), 'Giữ lại');
+    await tester.enterText(find.byType(TextField).last, 'Giữ lại');
     await tester.ensureVisible(find.text('Hoàn tất'));
     await tester.tap(find.text('Hoàn tất'));
     await tester.pumpAndSettle();

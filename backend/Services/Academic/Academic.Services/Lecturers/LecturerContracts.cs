@@ -23,7 +23,8 @@ public sealed record LecturerInput(
 public sealed record LecturerProfileInput(
     IReadOnlyList<int>? DomainIds,
     int? DesiredTeamsExe101 = null,
-    int? DesiredTeamsExe201 = null);
+    int? DesiredTeamsExe201 = null,
+    string? Phone = null);
 
 /// <summary>Query của <c>GET /api/lecturers</c>. Người không phải Admin chỉ thấy giảng viên đang hoạt động.</summary>
 public sealed record LecturerQuery(string? Search, int Page = 1, int PageSize = 20);
@@ -61,6 +62,7 @@ public sealed class LecturerProfileInputValidator : AbstractValidator<LecturerPr
             .WithMessage($"Tối đa {LecturerRules.MaxDomains} domain.");
         RuleFor(x => x.DesiredTeamsExe101).InclusiveBetween(0, 200).When(x => x.DesiredTeamsExe101 is not null).WithMessage("Số nhóm mong muốn EXE101 từ 0 đến 200.");
         RuleFor(x => x.DesiredTeamsExe201).InclusiveBetween(0, 200).When(x => x.DesiredTeamsExe201 is not null).WithMessage("Số nhóm mong muốn EXE201 từ 0 đến 200.");
+        RuleFor(x => x.Phone).Must(LecturerRules.IsValidPhone).When(x => !string.IsNullOrWhiteSpace(x.Phone)).WithMessage(LecturerRules.PhoneMessage);
     }
 }
 
@@ -88,8 +90,15 @@ public static partial class LecturerRules
         return PhoneSeparators().Replace(phone, string.Empty);
     }
 
+    public const string PhoneMessage = "SĐT phải gồm 9–14 chữ số, có thể bắt đầu bằng +.";
+
+    public static bool IsValidPhone(string? phone) => NormalizePhone(phone) is { } p && PhoneFormat().IsMatch(p);
+
     [GeneratedRegex(@"[\s.\-()]")]
     private static partial Regex PhoneSeparators();
+
+    [GeneratedRegex(@"^\+?[0-9]{9,14}$")]
+    private static partial Regex PhoneFormat();
 }
 
 // Payload sự kiện exe.student (docs/contracts/events.md), key = lecturerId.

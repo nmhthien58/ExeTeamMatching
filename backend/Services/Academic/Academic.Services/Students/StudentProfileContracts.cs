@@ -35,8 +35,11 @@ public sealed record StudentQuery(
     Guid? SemesterId, string? CourseCode, string? Search, string? ClassCode, int? SpecializationId, bool? HasTeam,
     string? Sort, int Page = 1, int PageSize = 20);
 
-/// <summary>Body của <c>PUT /api/students/me</c>: 5 kỹ năng, mô tả, công tắc tìm nhóm, và chuyên ngành (rule 16, BE-91). <see cref="IsSeekingTeam"/> bỏ trống thì giữ nguyên.</summary>
-public sealed record StudentProfileInput(IReadOnlyList<SkillRating>? Skills, string? Description, bool? IsSeekingTeam, int? SpecializationId = null);
+/// <summary>
+/// Body của <c>PUT /api/students/me</c>: 5 kỹ năng, mô tả, công tắc tìm nhóm, chuyên ngành (rule 16, BE-91) và SĐT.
+/// <see cref="IsSeekingTeam"/>, <see cref="Phone"/> bỏ trống (null) thì giữ nguyên; <see cref="Phone"/> chuỗi rỗng thì xóa SĐT.
+/// </summary>
+public sealed record StudentProfileInput(IReadOnlyList<SkillRating>? Skills, string? Description, bool? IsSeekingTeam, int? SpecializationId = null, string? Phone = null);
 
 /// <summary>5 kỹ năng cố định (CHECK <c>ck_student_skills_skill</c>), theo thứ tự hiển thị.</summary>
 public static class SkillNames
@@ -68,6 +71,7 @@ public sealed class StudentProfileInputValidator : AbstractValidator<StudentProf
             skill.RuleFor(s => s.Level).InclusiveBetween(1, 5).WithMessage("Mức kỹ năng từ 1 đến 5.");
         });
         RuleFor(x => x.Description).MaximumLength(500).WithMessage("Mô tả tối đa 500 ký tự.");
+        RuleFor(x => x.Phone).Must(LecturerRules.IsValidPhone).When(x => !string.IsNullOrWhiteSpace(x.Phone)).WithMessage(LecturerRules.PhoneMessage);
     }
 }
 

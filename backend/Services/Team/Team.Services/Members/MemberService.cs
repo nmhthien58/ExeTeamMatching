@@ -6,11 +6,15 @@ using Team.Repositories.Teams;
 using Team.Services.Academic;
 using Team.Services.LeaderVotes;
 using Team.Services.Teams;
+using Team.Services.TopicInterests;
 
 namespace Team.Services.Members;
 
-/// <summary>Schema <c>MemberChangeResult</c>: <c>appliedImmediately = false</c> khi nhóm EXE201 kế thừa ghi thay đổi chờ duyệt.</summary>
-public sealed record MemberChangeResult(bool AppliedImmediately, TeamDetailResponse Team);
+/// <summary>
+/// Schema <c>MemberChangeResult</c>: <c>appliedImmediately = false</c> khi nhóm EXE201 kế thừa ghi thay đổi chờ duyệt;
+/// <c>team = null</c> khi người cuối cùng rời và nhóm bị giải tán.
+/// </summary>
+public sealed record MemberChangeResult(bool AppliedImmediately, TeamDetailResponse? Team);
 
 public sealed record TransferLeaderRequest(Guid StudentId);
 
@@ -29,7 +33,7 @@ public interface IMemberService
 /// <summary>Module Members của Team Service (BE-30, rule 1, 6, 7, 10, 15).</summary>
 public sealed class MemberService(
     ITeamRepository teams, IMemberRepository members, MembershipService membership, RoundGuard rounds, AuditLogWriter audit,
-    ITeamService teamService, LeaderVoteCloser leaderVotes) : IMemberService
+    ITeamService teamService, LeaderVoteCloser leaderVotes, ITopicInterestService topicInterests) : IMemberService
 {
     public async Task<MemberChangeResult> RemoveAsync(Guid teamId, Guid studentId, ClaimsPrincipal user, CancellationToken ct)
     {
@@ -49,14 +53,26 @@ public sealed class MemberService(
 
     public async Task<MemberChangeResult> LeaveAsync(Guid teamId, ClaimsPrincipal user, CancellationToken ct)
     {
-        var (team, _, me) = await LoadAsync(teamId, user, ct);
-        if (me.Role == MemberRoles.Leader)
+        var (team, current, me) = await LoadAsync(teamId, user, ct);
+        // Trưởng nhóm chỉ rời được khi là thành viên duy nhất (nhóm giải tán); còn người khác thì phải chuyển quyền trước.
+        var lastMember = current.Count == 1;
+        if (me.Role == MemberRoles.Leader && (!lastMember || team.IsInherited))
         {
             throw TeamErrors.LeaderMustTransfer();
         }
         await rounds.RequireMembershipRoundAsync(team, ct);
 
-        var applied = await membership.RemoveAsync(team, me, "LEAVE", user.ToAuditActor(), ct);
+        var actor = user.ToAuditActor();
+        var applied = await membership.RemoveAsync(team, me, "LEAVE", actor, ct);
+        if (applied && lastMember)
+        {
+            audit.Add(team.Id, "Team", team.Id, "TEAM_DISBANDED", actor, new { status = team.Status }, new { status = TeamStatuses.Disbanded },
+                "Thành viên cuối cùng rời nhóm.");
+            (team.Status, team.FinalizedAt) = (TeamStatuses.Disbanded, null);
+            await topicInterests.CloseInterestsOnTeamDisbandedAsync(team.Id, ct);
+            await members.SaveChangesAsync(ct);
+            return new(true, null);
+        }
         await members.SaveChangesAsync(ct);
         return new(applied, await teamService.GetAsync(teamId, user, ct));
     }

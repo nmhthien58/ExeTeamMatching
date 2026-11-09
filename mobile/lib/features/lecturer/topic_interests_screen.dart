@@ -27,6 +27,7 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
 
   bool get _lecturer => widget.advisorKind == 'LECTURER';
   int get _interestTab => _lecturer ? 2 : 1;
+  static const _allTab = 3;
 
   TopicInterestsViewModel get _vm =>
       ref.read(topicInterestsViewModelProvider(widget.advisorKind).notifier);
@@ -130,24 +131,8 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
   ) {
     final theme = Theme.of(context);
 
-    // Check if lecturer hasn't declared expertise domains (L06)
-    if (_lecturer) {
-      if (profile != null && profile.domains.isEmpty) {
-        return EmptyState(
-          icon: Icons.school_outlined,
-          title: 'Chưa khai báo chuyên môn',
-          description: 'Cập nhật chuyên môn để xem đề tài phù hợp.',
-          action: FilledButton(
-            onPressed: () async {
-              await context.push(lecturerProfilePath);
-              _refresh();
-            },
-            child: const Text('Cập nhật chuyên môn'),
-          ),
-        );
-      }
-    }
-
+    // Giảng viên chưa khai báo chuyên môn (L06): tab Gợi ý hiện EmptyState kèm nút cập nhật,
+    // tab Tất cả nhóm vẫn xem và quan tâm được.
     final matchingText = _lecturer
         ? (response.matchingAt != null
             ? ' · Ghép lúc ${_date(response.matchingAt!)}'
@@ -204,8 +189,10 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
 
         // Tabs
         SegmentedButton<int>(
+          showSelectedIcon: false,
           segments: [
             const ButtonSegment(value: 0, label: Text('Gợi ý')),
+            const ButtonSegment(value: _allTab, label: Text('Tất cả nhóm')),
             if (_lecturer)
               const ButtonSegment(
                 value: 1,
@@ -250,7 +237,9 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
                   : null,
             ),
           for (final item in items) _recommendation(item, response),
-        ] else if (_tab == 1 && _lecturer)
+        ] else if (_tab == _allTab)
+          _allTeams(response)
+        else if (_tab == 1 && _lecturer)
           _preferences(response)
         else
           _interests(response),
@@ -381,6 +370,38 @@ class _TopicInterestsScreenState extends ConsumerState<TopicInterestsScreen> {
       ),
     );
   }
+
+  /// Mọi nhóm của môn chưa có cố vấn; giới hạn quan tâm vẫn lấy từ [response] của tab Gợi ý.
+  Widget _allTeams(TopicRecommendationsResponse response) => ref
+      .watch(advisorAllTopicsProvider(widget.advisorKind))
+      .when(
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.s4),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+        error: (error, _) => ErrorState(error: error, onRetry: _refresh),
+        data: (all) {
+          final items = _vm.byCourse(all.items, (i) => i.courseCode);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Mọi nhóm chưa có cố vấn, kể cả nhóm không trùng chuyên môn của bạn.',
+              ),
+              const SizedBox(height: AppSpacing.s3),
+              if (items.isEmpty)
+                const EmptyState(
+                  icon: Icons.groups_outlined,
+                  title: 'Chưa có nhóm nào cần cố vấn',
+                  description: 'Mọi nhóm của môn này đã có cố vấn hoặc chưa có nhóm.',
+                ),
+              for (final item in items) _recommendation(item, response),
+            ],
+          );
+        },
+      );
 
   Widget _preferences(TopicRecommendationsResponse response) => ref
       .watch(lecturerPreferencesMeProvider)

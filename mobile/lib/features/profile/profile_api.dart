@@ -33,6 +33,7 @@ class StudentProfile {
     this.courseCode,
     this.skills = const {},
     this.description,
+    this.phone,
   });
 
   final String id;
@@ -58,6 +59,9 @@ class StudentProfile {
   final Map<String, int> skills;
   final String? description;
 
+  /// Chỉ trả cho chính sinh viên, người cùng nhóm và Bộ môn (quy tắc 11).
+  final String? phone;
+
   factory StudentProfile.fromJson(Map<String, dynamic> j) {
     final email = j['email'] as String?;
     final specialization = j['specialization'] == null ? null : Map<String, dynamic>.from(j['specialization'] as Map);
@@ -79,6 +83,7 @@ class StudentProfile {
       courseCode: j['courseCode'] as String?,
       skills: {for (final s in (j['skills'] as List? ?? const [])) (s as Map)['skill'] as String: s['level'] as int},
       description: j['description'] as String?,
+      phone: j['phone'] as String?,
     );
   }
 }
@@ -108,12 +113,13 @@ class ProfileApi {
     }
   }
 
-  /// Chỉ 5 kỹ năng, giới thiệu, chuyên ngành, công tắc tìm nhóm (quy tắc 16). [isSeekingTeam] null thì giữ nguyên.
+  /// 5 kỹ năng, giới thiệu, chuyên ngành, công tắc tìm nhóm (quy tắc 16) và SĐT. [isSeekingTeam], [phone] null thì giữ nguyên; [phone] rỗng thì xóa.
   Future<StudentProfile> saveMe({
     required Map<String, int> skills,
     required String description,
     int? specializationId,
     bool? isSeekingTeam,
+    String? phone,
   }) async {
     try {
       final response = await _dio.put<Map<String, dynamic>>('/api/students/me', data: {
@@ -121,6 +127,7 @@ class ProfileApi {
         'description': description,
         'specializationId': ?specializationId,
         'isSeekingTeam': ?isSeekingTeam,
+        'phone': ?phone,
       });
       return StudentProfile.fromJson(response.data!);
     } on DioException catch (e) {

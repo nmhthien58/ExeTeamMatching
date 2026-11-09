@@ -83,7 +83,7 @@ export interface AdvisorTeamDetail extends TeamDetail {
 }
 
 const keys = {
-  topics: (kind: AdvisorKind, course?: CourseCode) => ['advisor', 'topics', kind, course] as const,
+  topics: (kind: AdvisorKind, course?: CourseCode, scope?: TopicScope) => scope ? ['advisor', 'topics', kind, course, scope] as const : ['advisor', 'topics', kind, course] as const,
   interests: (kind: AdvisorKind) => ['advisor', 'interests', kind] as const,
   preferences: (course?: CourseCode) => ['advisor', 'preferences', course] as const,
   lecturerTeams: (course?: CourseCode) => ['advisor', 'lecturer-teams', course] as const,
@@ -93,9 +93,12 @@ const keys = {
   mentorProfile: ['advisor', 'mentor-profile'] as const,
 }
 
-export function useTopics(kind: AdvisorKind, course?: CourseCode, enabled = true) {
-  return useQuery({ queryKey: keys.topics(kind, course), queryFn: async () =>
-    (await api.get<TopicRecommendations>('/api/topic-recommendations/me', { params: { advisorKind: kind, courseCode: course, page: 1, pageSize: 100 } })).data, enabled })
+/** suggested: nhóm Matching gợi ý (trùng chuyên môn); all: mọi nhóm của môn chưa có cố vấn. */
+export type TopicScope = 'suggested' | 'all'
+
+export function useTopics(kind: AdvisorKind, course?: CourseCode, enabled = true, scope: TopicScope = 'suggested') {
+  return useQuery({ queryKey: keys.topics(kind, course, scope), queryFn: async () =>
+    (await api.get<TopicRecommendations>('/api/topic-recommendations/me', { params: { advisorKind: kind, courseCode: course, page: 1, pageSize: 100, scope } })).data, enabled })
 }
 
 export function useInterests(kind: AdvisorKind) {
