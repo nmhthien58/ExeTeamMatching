@@ -81,6 +81,10 @@ public sealed class StudentProfileService(
                 "Bạn đã có nhóm trong học kỳ này nên không thể bật \"Tôi đang tìm nhóm\".");
         }
         student.IsSeekingTeam = !hasTeam && (input.IsSeekingTeam ?? student.IsSeekingTeam);
+        if (input.Phone is not null)
+        {
+            student.Phone = LecturerRules.NormalizePhone(input.Phone);
+        }
         var profileCompleted = student.SpecializationId is not null;
         if (profileCompleted)
         {

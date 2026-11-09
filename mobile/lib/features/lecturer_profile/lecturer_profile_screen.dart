@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
+import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
@@ -27,6 +28,7 @@ class LecturerProfile {
     this.desiredTeamsExe201,
     this.isProfileCompleted = true,
     this.profileCompletedAt,
+    this.phone,
   });
 
   final String fullName;
@@ -42,6 +44,7 @@ class LecturerProfile {
   final int? desiredTeamsExe201;
   final bool isProfileCompleted;
   final String? profileCompletedAt;
+  final String? phone;
 
   factory LecturerProfile.fromJson(Map<String, dynamic> j) => LecturerProfile(
         fullName: j['fullName'] as String? ?? '',
@@ -53,6 +56,7 @@ class LecturerProfile {
         desiredTeamsExe201: j['desiredTeamsExe201'] as int?,
         isProfileCompleted: j['isProfileCompleted'] as bool? ?? false,
         profileCompletedAt: j['profileCompletedAt'] as String?,
+        phone: j['phone'] as String?,
       );
 }
 
@@ -88,6 +92,16 @@ class LecturerProfileApi {
   }
 
   Future<LecturerProfile> saveDomains(List<int> domainIds) => saveProfile(domainIds: domainIds);
+
+  /// Chỉ đổi SĐT; gửi kèm domain hiện có vì API bắt buộc `domainIds`. Chuỗi rỗng thì xóa SĐT.
+  Future<LecturerProfile> savePhone(LecturerProfile profile, String phone) async {
+    try {
+      final data = {'domainIds': [for (final d in profile.domains) d.id], 'phone': phone.trim()};
+      return LecturerProfile.fromJson((await _dio.put<Map<String, dynamic>>('/api/lecturers/me', data: data)).data!);
+    } on DioException catch (e) {
+      throw e.apiError;
+    }
+  }
 
   /// Chỉ domain đang dùng.
   Future<List<CatalogRef>> domains() async {
@@ -245,6 +259,15 @@ class _LecturerProfileView extends ConsumerWidget {
         const SizedBox(height: AppSpacing.s4),
         Row(
           children: [
+            Expanded(child: Text('Số điện thoại', style: theme.textTheme.titleMedium)),
+            TextButton(onPressed: () => _editPhone(context, ref, p), child: const Text('Sửa')),
+          ],
+        ),
+        Text(p.phone?.isNotEmpty == true ? p.phone! : 'Chưa khai báo', style: theme.textTheme.bodyMedium),
+        Text('Chỉ nhóm bạn hướng dẫn và Bộ môn thấy.', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: AppSpacing.s4),
+        Row(
+          children: [
             Expanded(child: Text('Số nhóm mong muốn hướng dẫn', style: theme.textTheme.titleMedium)),
             if (editing == null) TextButton(onPressed: () => vm.startEditing(p), child: const Text('Sửa')),
           ],
@@ -399,4 +422,70 @@ class _DomainEditor extends ConsumerWidget {
           },
         );
   }
+}
+
+/// Hộp sửa SĐT giảng viên; lỗi định dạng từ API hiện ngay dưới ô nhập.
+Future<void> _editPhone(BuildContext context, WidgetRef ref, LecturerProfile profile) async {
+  final saved = await showDialog<bool>(context: context, builder: (_) => _PhoneDialog(profile: profile));
+  if (saved == true && context.mounted) {
+    ref.invalidate(lecturerProfileProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Đã lưu số điện thoại')));
+  }
+}
+
+class _PhoneDialog extends ConsumerStatefulWidget {
+  const _PhoneDialog({required this.profile});
+
+  final LecturerProfile profile;
+
+  @override
+  ConsumerState<_PhoneDialog> createState() => _PhoneDialogState();
+}
+
+class _PhoneDialogState extends ConsumerState<_PhoneDialog> {
+  late final _phone = TextEditingController(text: widget.profile.phone ?? '');
+  String? _error;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(lecturerProfileApiProvider).savePhone(widget.profile, _phone.text);
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = e.fieldErrors['phone']?.first ?? e.detail ?? e.title;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Số điện thoại'),
+        content: TextField(
+          controller: _phone,
+          autofocus: true,
+          keyboardType: TextInputType.phone,
+          autofillHints: const [AutofillHints.telephoneNumber],
+          decoration: InputDecoration(hintText: 'VD: 0901234567', helperText: 'Để trống để xóa số.', errorText: _error),
+        ),
+        actions: [
+          TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Hủy')),
+          TextButton(onPressed: _saving ? null : _save, child: const Text('Lưu')),
+        ],
+      );
 }

@@ -5,8 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../app/navigation.dart';
 import '../../core/providers.dart';
 
-/// Avatar chữ cái ở góc phải BrandAppBar của các tab (MB-62, 06/11/2026): thay tab Hồ sơ của sinh viên,
-/// mở S02 (sinh viên), L06 (giảng viên) hoặc Cài đặt (mentor). Chưa đăng nhập thì không hiện gì.
+/// Avatar chữ cái ở góc phải BrandAppBar của các tab (MB-62, 06/11/2026): mở A07 Cài đặt và tài khoản,
+/// trong đó có mục "Quản lý hồ sơ" (S02 / L06). Chưa đăng nhập thì không hiện gì.
 class ProfileAvatarButton extends ConsumerWidget {
   const ProfileAvatarButton({super.key});
 
@@ -18,11 +18,11 @@ class ProfileAvatarButton extends ConsumerWidget {
     final theme = Theme.of(context);
     return Semantics(
       button: true,
-      label: 'Hồ sơ của tôi',
+      label: 'Cài đặt và tài khoản',
       excludeSemantics: true,
       child: IconButton(
-        tooltip: 'Hồ sơ của tôi',
-        onPressed: () => context.push(shellProfile[shell]!),
+        tooltip: 'Cài đặt và tài khoản',
+        onPressed: () => context.push(shellSettings[shell]!),
         icon: CircleAvatar(
           radius: 18,
           backgroundColor: theme.colorScheme.primaryContainer,
