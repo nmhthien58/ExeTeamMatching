@@ -42,6 +42,34 @@ class _Api extends LecturerHomeApi {
     ],
   );
 
+  final allCalls = <String?>[];
+
+  @override
+  Future<TopicRecommendationsResponse> getAllTopics({
+    String advisorKind = 'LECTURER',
+    String? courseCode,
+    int page = 1,
+    int pageSize = 100,
+  }) async {
+    allCalls.add(courseCode);
+    return TopicRecommendationsResponse(
+      openInterestCount: interestCount,
+      interestLimit: 2,
+      interestOpen: interestOpen,
+      items: [
+        if (courseCode == 'EXE201')
+          const TopicRecommendationItem(
+            teamId: 'team-inherited',
+            teamName: 'Nhóm Kế Thừa',
+            courseCode: 'EXE201',
+            projectName: 'Đề tài kế thừa',
+            memberCount: 5,
+            maxMemberCount: 6,
+          ),
+      ],
+    );
+  }
+
   @override
   Future<List<TopicInterestItem>> getMyTopicInterests({
     String advisorKind = 'LECTURER',
@@ -147,6 +175,37 @@ void main() {
         findsOneWidget,
       );
       expect(api.openedTeam, isNull);
+    },
+  );
+
+  testWidgets(
+    'lecturer sees teams outside suggestions in "Tất cả nhóm" and can open interest there',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 1700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      final api = _Api();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [lecturerHomeApiProvider.overrideWithValue(api)],
+          child: const MaterialApp(
+            home: TopicInterestsScreen(advisorKind: 'LECTURER'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Nhóm Kế Thừa'), findsNothing);
+      expect(api.allCalls, isEmpty); // chỉ tải khi mở tab
+      await tester.tap(find.text('Tất cả nhóm'));
+      await tester.pumpAndSettle();
+
+      expect(api.allCalls, containsAll(['EXE101', 'EXE201']));
+      expect(find.text('Nhóm Kế Thừa'), findsOneWidget);
+      await tester.tap(find.text('Quan tâm'));
+      await tester.pumpAndSettle();
+      expect(api.openedTeam, 'team-inherited');
+      expect(api.openedKind, 'LECTURER');
     },
   );
 
