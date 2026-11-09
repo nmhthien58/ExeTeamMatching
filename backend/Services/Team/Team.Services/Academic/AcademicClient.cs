@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Team.Services.JoinRequests;
 using Team.Services.Teams;
 
 namespace Team.Services.Academic;
@@ -25,8 +26,10 @@ public sealed record SemesterDto(
 /// <summary>Schema <c>Round</c>.</summary>
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, string? Name = null);
 
-/// <summary>Schema <c>StudentSnapshot</c>.</summary>
-public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1);
+/// <summary>Schema <c>StudentSnapshot</c>. <c>skills</c>, <c>description</c> chỉ có ở <c>POST /internal/students/lookup</c>.</summary>
+public sealed record StudentSnapshot(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1,
+    IReadOnlyList<SkillRating>? Skills = null, string? Description = null);
 
 /// <summary>Schema <c>CatalogItem</c> (domain, chuyên ngành).</summary>
 public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive);

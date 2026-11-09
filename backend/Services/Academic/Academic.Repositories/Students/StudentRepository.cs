@@ -44,6 +44,10 @@ public interface IStudentRepository
 
     /// <summary>Mọi sinh viên trong danh sách học kỳ, lọc theo môn nếu có; sắp theo MSSV.</summary>
     Task<IReadOnlyList<StudentSnapshotRow>> ListEnrolledAsync(Guid semesterId, string? courseCode, CancellationToken ct);
+
+    /// <summary>Kỹ năng tự đánh giá và mô tả bản thân của các sinh viên (S06, S13, S20 của Team).</summary>
+    Task<(IReadOnlyList<StudentSkill> Skills, IReadOnlyDictionary<Guid, string?> Descriptions)> ListProfilesAsync(IReadOnlyCollection<Guid> studentIds, CancellationToken ct) =>
+        Task.FromResult<(IReadOnlyList<StudentSkill>, IReadOnlyDictionary<Guid, string?>)>(([], new Dictionary<Guid, string?>()));
 }
 
 public sealed class StudentRepository(AcademicDbContext db) : IStudentRepository
@@ -105,6 +109,15 @@ public sealed class StudentRepository(AcademicDbContext db) : IStudentRepository
     public Task<IReadOnlyList<StudentSnapshotRow>> ListEnrolledAsync(Guid semesterId, string? courseCode, CancellationToken ct) =>
         SnapshotsAsync(db.Students.Where(s => db.SemesterEnrollments.Any(e => e.StudentId == s.Id && e.SemesterId == semesterId
             && (courseCode == null || e.CourseCode == courseCode))), semesterId, ct);
+
+    public async Task<(IReadOnlyList<StudentSkill> Skills, IReadOnlyDictionary<Guid, string?> Descriptions)> ListProfilesAsync(
+        IReadOnlyCollection<Guid> studentIds, CancellationToken ct)
+    {
+        var skills = await db.StudentSkills.AsNoTracking().Where(k => studentIds.Contains(k.StudentId)).ToListAsync(ct);
+        var descriptions = await db.Students.AsNoTracking().Where(s => studentIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.Description }).ToDictionaryAsync(s => s.Id, s => s.Description, ct);
+        return (skills, descriptions);
+    }
 
     /// <summary>
     /// Một câu SQL: sinh viên kèm môn và mã lớp trong học kỳ (left join trên <c>uq_semester_enrollments_semester_student</c>,

@@ -135,7 +135,10 @@ public sealed class TeamService(ITeamRepository teams, AuditLogWriter audit, IAc
 
         var viewer = user.GetStudentId();
         var extras = await teams.GetDetailExtrasAsync(teamId, viewer, clock.GetUtcNow(), ct);
-        return TeamMapper.ToDetail(graph, await reader.LoadCatalogsAsync(ct), extras, TeamMapper.Relation(graph, viewer, extras));
+        var catalogs = await reader.LoadCatalogsAsync(ct);
+        var detail = TeamMapper.ToDetail(graph, catalogs, extras, TeamMapper.Relation(graph, viewer, extras));
+        await reader.StudentsAsync(graph.Team.SemesterId, graph.Members.Select(m => m.StudentId), catalogs, ct);
+        return detail with { Members = detail.Members.Select(m => m with { Skills = reader.SkillsOf(m.Id) }).ToList() };
     }
 
     public async Task<TeamDetailResponse> GetMineAsync(ClaimsPrincipal user, CancellationToken ct)

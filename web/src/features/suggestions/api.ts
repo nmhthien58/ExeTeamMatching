@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/shared/api/apiClient'
+import type { SkillRating } from '@/features/profile/api'
 
 // Kiểu theo docs/contracts/openapi/team.yaml và academic.yaml – chỉ các trường màn hình gợi ý dùng.
 
@@ -47,6 +48,8 @@ export interface TeamMember extends StudentRef {
   role: 'LEADER' | 'MEMBER'
   phone?: string | null
   email?: string | null
+  /** 5 kỹ năng tự đánh giá từ hồ sơ Academic (S06, S13); rỗng khi chưa khai báo. */
+  skills?: SkillRating[]
 }
 
 export interface TeamDetail extends TeamCard {
