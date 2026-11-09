@@ -9,7 +9,7 @@ import '../../shared/widgets/brand_app_bar.dart';
 import '../../shared/widgets/states.dart';
 import '../realtime/collab_hub.dart';
 import '../workspace/format.dart';
-import '../workspace/workspace_api.dart' show currentWorkspaceProvider;
+import '../workspace/workspace_api.dart' show currentWorkspaceProvider, myWorkspacesProvider;
 import 'conversations_view_model.dart';
 import 'messages_api.dart';
 
@@ -33,7 +33,14 @@ class ConversationsScreen extends ConsumerWidget {
         loading: () => const SkeletonList(count: 2),
         error: (e, _) => ErrorState(error: e, onRetry: () => ref.invalidate(currentWorkspaceProvider(workspaceId))),
         data: (ws) => ws == null
-            ? _NoTeamState(inTab: inTab)
+            ? _NoTeamState(
+                inTab: inTab,
+                onRefresh: () {
+                  // Phải làm mới cả danh sách workspace của mình; chỉ refresh provider ngoài thì nó vẫn đọc bản cũ.
+                  ref.invalidate(myWorkspacesProvider);
+                  return ref.refresh(currentWorkspaceProvider(workspaceId).future);
+                },
+              )
             : _ChannelList(
                 channels: ref.watch(channelsProvider(ws.id)),
                 onRefresh: () async => ref.invalidate(channelsProvider(ws.id)),
@@ -62,46 +69,64 @@ class AdvisorConversationsScreen extends ConsumerWidget {
       ViewLoading() || ViewEmpty() => const SkeletonList(),
       ViewError(:final error) => ErrorState(error: error, onRetry: vm.retry),
       ViewData(value: final inbox) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s3, AppSpacing.s4, 0),
-              child: SegmentedButton<bool>(
-                segments: [
-                  const ButtonSegment(value: false, label: Text('Tất cả')),
-                  ButtonSegment(value: true, label: Text(waiting.isEmpty ? 'Cần trả lời' : 'Cần trả lời (${waiting.length})')),
-                ],
-                selected: {state.needsReplyOnly},
-                onSelectionChanged: (s) => vm.setNeedsReplyOnly(s.first),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.s4, AppSpacing.s3, AppSpacing.s4, 0),
+            child: SegmentedButton<bool>(
+              segments: [
+                const ButtonSegment(value: false, label: Text('Tất cả')),
+                ButtonSegment(value: true, label: Text(waiting.isEmpty ? 'Cần trả lời' : 'Cần trả lời (${waiting.length})')),
+              ],
+              selected: {state.needsReplyOnly},
+              onSelectionChanged: (s) => vm.setNeedsReplyOnly(s.first),
+            ),
+          ),
+          Expanded(
+            child: switch (inbox.channels) {
+              ViewError(:final error) => ErrorState(error: error, onRetry: vm.retry),
+              ViewLoading() => const SkeletonList(),
+              ViewEmpty() || ViewData() => _ChannelList(
+                channels: AsyncData(inbox.channels.valueOrNull ?? const []),
+                emptyTitle: state.emptyTitle,
+                waiting: waiting,
+                onRefresh: vm.refresh,
+                titleOf: inbox.titleOf,
+                onOpen: (c) => context.push('$basePath/${c.id}?ws=${c.workspaceId}'),
               ),
-            ),
-            Expanded(
-              child: switch (inbox.channels) {
-                ViewError(:final error) => ErrorState(error: error, onRetry: vm.retry),
-                ViewLoading() => const SkeletonList(),
-                ViewEmpty() || ViewData() => _ChannelList(
-                    channels: AsyncData(inbox.channels.valueOrNull ?? const []),
-                    emptyTitle: state.emptyTitle,
-                    waiting: waiting,
-                    onRefresh: vm.refresh,
-                    titleOf: inbox.titleOf,
-                    onOpen: (c) => context.push('$basePath/${c.id}?ws=${c.workspaceId}'),
-                  ),
-              },
-            ),
-          ],
-        ),
+            },
+          ),
+        ],
+      ),
     };
   }
 }
 
 /// Sinh viên chưa có nhóm: không có kênh nào để nhắn. Ở tab thì chỉ đường đi tìm nhóm (đợt lập nhóm đóng → S31).
 class _NoTeamState extends ConsumerWidget {
-  const _NoTeamState({required this.inTab});
+  const _NoTeamState({required this.inTab, required this.onRefresh});
 
   final bool inTab;
 
+  /// Kéo để tải lại: workspace do Collaboration tạo sau sự kiện TeamCreated nên có thể chưa có ngay lúc vừa lập nhóm.
+  final Future<void> Function() onRefresh;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: _content(context, ref),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, WidgetRef ref) {
     if (!inTab) return const EmptyState(icon: Icons.group_off_outlined, title: 'Bạn chưa có nhóm');
     final formation = ref.watch(shellPhaseProvider).isTeamFormation;
     return EmptyState(
@@ -148,7 +173,9 @@ class _ChannelList extends StatelessWidget {
               loading: () => const SkeletonList(count: 2),
               error: (e, _) => ErrorState(error: e, onRetry: onRefresh),
               data: (list) => list.isEmpty
-                  ? ListView(children: [EmptyState(icon: Icons.forum_outlined, title: emptyTitle)])
+                  ? ListView(
+                      children: [EmptyState(icon: Icons.forum_outlined, title: emptyTitle)],
+                    )
                   : ListView(
                       children: [
                         for (final c in list)
@@ -161,7 +188,11 @@ class _ChannelList extends StatelessWidget {
                               children: [
                                 Text(titleOf(c), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 if (waiting.contains(c.id))
-                                  Chip(visualDensity: VisualDensity.compact, label: const Text('Cần trả lời'), backgroundColor: context.appColors.warningContainer),
+                                  Chip(
+                                    visualDensity: VisualDensity.compact,
+                                    label: const Text('Cần trả lời'),
+                                    backgroundColor: context.appColors.warningContainer,
+                                  ),
                               ],
                             ),
                             subtitle: Text(
@@ -177,7 +208,10 @@ class _ChannelList extends StatelessWidget {
                               children: [
                                 if (c.lastMessage != null) Text(formatRelative(c.lastMessage!.createdAt), style: theme.textTheme.bodySmall),
                                 if (c.unreadCount > 0)
-                                  Semantics(label: '${c.unreadCount} tin chưa đọc', child: Badge.count(count: c.unreadCount)),
+                                  Semantics(
+                                    label: '${c.unreadCount} tin chưa đọc',
+                                    child: Badge.count(count: c.unreadCount),
+                                  ),
                               ],
                             ),
                             onTap: () => onOpen(c),
