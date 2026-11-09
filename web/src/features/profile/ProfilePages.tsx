@@ -165,8 +165,23 @@ export function EditProfilePage() {
             isTeamFormation
               ? (seeking, set) => (
                   <label className={`${cardClass} flex min-h-10 items-center justify-between gap-3 font-medium`}>
-                    Tôi đang tìm nhóm
-                    <input type="checkbox" role="switch" className="size-5 accent-primary" checked={seeking} onChange={(e) => set(e.target.checked)} />
+                    <span>
+                      Tôi đang tìm nhóm
+                      <span className="block text-caption font-normal text-text-secondary">
+                        {profile.data!.hasTeam
+                          ? 'Bạn đã có nhóm trong học kỳ này nên không thể bật.'
+                          : 'Trưởng nhóm thấy bạn ở mục "Sinh viên tìm nhóm" và có thể mời bạn.'}
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      aria-label="Tôi đang tìm nhóm"
+                      className="size-5 accent-primary"
+                      checked={seeking && !profile.data!.hasTeam}
+                      disabled={profile.data!.hasTeam}
+                      onChange={(e) => set(e.target.checked)}
+                    />
                   </label>
                 )
               : undefined

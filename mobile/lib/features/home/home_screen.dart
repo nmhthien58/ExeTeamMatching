@@ -95,8 +95,8 @@ class _Home extends ConsumerWidget {
       'INVITE_MEMBERS' => ('Nhóm cần thêm thành viên', 'Nhóm cần ${h.team?.minSize ?? 4}–${h.team?.maxSize ?? 6} người.', h.isLeader ? 'Mời thành viên' : null, '/sv/nhom/goi-y'),
       'ADD_SPECIALIZATION' => ('Nhóm cần thêm chuyên ngành', 'Nhóm cần ít nhất ${h.team?.minSpecializations ?? 2} chuyên ngành.', h.isLeader ? 'Gợi ý thành viên' : null, '/sv/nhom/goi-y'),
       'CHOOSE_LECTURER' => ('Chọn giảng viên', 'Thêm nguyện vọng giảng viên trước hạn.', 'Xem nhóm', '/sv/nhom'),
-      'SUBMIT_CHANGE_REQUEST' => ('Gửi yêu cầu đổi nhóm', 'Nhóm có thay đổi chưa gửi Bộ môn.', 'Xem nhóm', '/sv/nhom'),
-      'WAIT_REVIEW' => ('Đang chờ Bộ môn duyệt', 'Yêu cầu đổi nhóm đang được xem xét.', null, null),
+      'SUBMIT_CHANGE_REQUEST' => ('Gửi yêu cầu thay đổi', 'Nhóm có thay đổi chưa gửi Bộ môn.', 'Xem nhóm', '/sv/nhom'),
+      'WAIT_REVIEW' => ('Đang chờ Bộ môn duyệt', 'Yêu cầu thay đổi đang được xem xét.', null, null),
       'OPEN_WORKSPACE' => ('Nhóm đã chốt', 'Làm việc cùng nhóm trong Dự án.', 'Mở dự án', '/sv/du-an'),
       _ => ('', null, null, null),
     };

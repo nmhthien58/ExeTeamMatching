@@ -1,11 +1,20 @@
 using Team.Repositories.Teams;
 using Team.Services.Academic;
+using Team.Services.JoinRequests;
 
 namespace Team.Services.Teams;
 
 /// <summary>Dựng TeamCard / StudentRef cho các module (lời mời, yêu cầu tham gia…). Academic lỗi chỉ làm mất tên danh mục / sinh viên.</summary>
 public sealed class TeamReader(ITeamRepository teams, IAcademicClient academic)
 {
+    /// <summary>Snapshot Academic của các sinh viên đã tra trong request này (kỹ năng, mô tả cho S06, S13, S20).</summary>
+    private readonly Dictionary<Guid, StudentSnapshot> snapshots = [];
+
+    /// <summary>Kỹ năng đã tự đánh giá của sinh viên đã tra qua <see cref="StudentsAsync"/>; rỗng nếu chưa khai báo hoặc Academic lỗi.</summary>
+    public IReadOnlyList<SkillRating> SkillsOf(Guid studentId) => snapshots.GetValueOrDefault(studentId)?.Skills ?? [];
+
+    public string? DescriptionOf(Guid studentId) => snapshots.GetValueOrDefault(studentId)?.Description;
+
     public async Task<Catalogs> LoadCatalogsAsync(CancellationToken ct)
     {
         var rules = await academic.GetTeamRulesAsync(ct);
@@ -55,6 +64,10 @@ public sealed class TeamReader(ITeamRepository teams, IAcademicClient academic)
             found = [];
         }
         var byId = found.ToDictionary(s => s.Id);
+        foreach (var s in found)
+        {
+            snapshots[s.Id] = s;
+        }
         return ids.ToDictionary(id => id, id => byId.TryGetValue(id, out var s)
             ? new StudentRef(id, s.StudentCode, s.FullName, catalogs.Specialization(s.SpecializationId ?? 0))
             : new StudentRef(id, "", "", new CatalogRef(0, null, null)));

@@ -1,7 +1,6 @@
 import type { RouteObject } from 'react-router-dom'
 import { TeamFormationOnly } from '@/shared/phase/PhaseGuard'
 import { DiscoverPage } from '@/features/discover/DiscoverPage'
-import { SeekingPostFormPage } from '@/features/discover/SeekingPosts'
 import { TeamDetailPage } from '@/features/discover/TeamDetailPage'
 import { HomePage } from '@/features/home/HomePage'
 import { InvitationsPage } from '@/features/invitations/InvitationsPage'
@@ -26,7 +25,6 @@ export const studentTeamRoutes: RouteObject[] = [
   { path: 'nhom/sua', element: <EditTeamPage /> },
   { path: 'nhom/thanh-vien', element: <MembersPage /> },
   { path: 'nhom/yeu-cau', element: <RequestsPage /> },
-  { path: 'kham-pha/tim-nhom', element: <TeamFormationOnly><SeekingPostFormPage /></TeamFormationOnly> },
   { path: 'nhom/bai-tuyen', element: <TeamFormationOnly><RecruitmentPostPage /></TeamFormationOnly> },
   { path: 'nhom/lich-su', element: <TeamHistoryPage /> },
 ]

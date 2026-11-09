@@ -91,6 +91,17 @@ public sealed class FakeTeamClient : ITeamClient
 
     public List<(IReadOnlyCollection<Guid> MentorIds, Guid SemesterId)> Calls { get; } = [];
 
+    /// <summary>Sinh viên đã có nhóm ở học kỳ hiện hành.</summary>
+    public HashSet<Guid> StudentsInTeam { get; } = [];
+
+    public Task<bool> HasTeamAsync(Guid studentId, CancellationToken ct)
+    {
+        lock (_lock)
+        {
+            return Unavailable ? throw new TeamUnavailableException("Team giả đang tắt.") : Task.FromResult(StudentsInTeam.Contains(studentId));
+        }
+    }
+
     public Task<IReadOnlyDictionary<Guid, int>> GetMentorTeamCountsAsync(IReadOnlyCollection<Guid> mentorIds, Guid semesterId, CancellationToken ct)
     {
         lock (_lock)

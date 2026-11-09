@@ -6,6 +6,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/workspace_widgets.dart';
 import 'leader_vote.dart';
+import 'member_skills_sheet.dart';
 import 'members_view_model.dart';
 import 'my_team_api.dart';
 
@@ -41,7 +42,13 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
     if (ok != true || !mounted) return;
     final outcome = await call();
     if (outcome is! MemberChanged || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(outcome.message)));
+    final router = GoRouter.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(outcome.message),
+      action: outcome.applied || outcome.leaving
+          ? null
+          : SnackBarAction(label: 'Mở', onPressed: () => router.push('/sv/yeu-cau-doi-nhom')),
+    ));
     if (outcome.leaving && outcome.applied) context.go('/sv/nhom');
   }
 
@@ -81,6 +88,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
             children: [
               for (final m in team.members)
                 ListTile(
+                  onTap: () => showMemberSkills(context, m),
                   leading: Avatar(name: m.fullName),
                   title: Text(m.fullName),
                   subtitle: Text([m.studentCode, if (m.specialization?.name.isNotEmpty ?? false) m.specialization!.name].join(' · ')),

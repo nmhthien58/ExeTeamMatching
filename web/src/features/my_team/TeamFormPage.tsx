@@ -70,7 +70,7 @@ export function TeamFormPage({ team }: { team?: FullTeam }) {
           maxLength={200}
           disabled={team?.isInherited}
           error={fieldError('projectName')}
-          hint={team?.isInherited ? 'Đổi đề tài qua yêu cầu đổi nhóm.' : 'Có thể bổ sung sau.'}
+          hint={team?.isInherited ? 'Đổi đề tài qua yêu cầu thay đổi.' : 'Có thể bổ sung sau.'}
         />
         <Field label="Mô tả ý tưởng" value={idea} onChange={setIdea} maxLength={4000} rows={4} />
         <div className="flex flex-col gap-2">

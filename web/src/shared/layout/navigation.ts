@@ -24,7 +24,7 @@ export const adminNav: NavItem[] = [
   { to: '/admin/giang-vien', label: 'Giảng viên', icon: 'co_present', screen: 'W11', owner: 'Nam', group: 'Học vụ' },
   { to: '/admin/mentor', label: 'Mentor', icon: 'support_agent', screen: 'W27', owner: 'Nam', group: 'Học vụ' },
   { to: '/admin/nhom', label: 'Nhóm', icon: 'groups', screen: 'W15–W16', owner: 'Cường', group: 'Nhóm và ghép' },
-  { to: '/admin/doi-nhom', label: 'Yêu cầu đổi nhóm', icon: 'swap_horiz', screen: 'W17–W18', owner: 'Thành', group: 'Nhóm và ghép' },
+  { to: '/admin/doi-nhom', label: 'Yêu cầu chờ duyệt', icon: 'swap_horiz', screen: 'W17–W18', owner: 'Thành', group: 'Nhóm và ghép' },
   { to: '/admin/ghep-giang-vien', label: 'Ghép giảng viên', icon: 'how_to_reg', screen: 'W19', owner: 'Thiên', group: 'Nhóm và ghép' },
   { to: '/admin/ghep-mentor', label: 'Ghép mentor', icon: 'handshake', screen: 'W28', owner: 'Thiên', group: 'Nhóm và ghép' },
   { to: '/admin/chua-co-nhom', label: 'Chưa có nhóm', icon: 'person_search', screen: 'W20–W22', owner: 'Nguyên', group: 'Nhóm và ghép' },

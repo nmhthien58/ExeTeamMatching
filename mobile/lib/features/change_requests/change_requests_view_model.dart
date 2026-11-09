@@ -13,7 +13,7 @@ class ChangeRequestFilter {
   final String? round;
 }
 
-/// ViewModel của S26 – Yêu cầu đổi nhóm (MB-49): lọc theo trạng thái / đợt, làm mới.
+/// ViewModel của S26 – Yêu cầu thay đổi (MB-49): lọc theo trạng thái / đợt, làm mới.
 /// Danh sách đọc qua `changeRequestsProvider(teamId)`.
 class ChangeRequestListViewModel extends Notifier<ChangeRequestFilter> {
   ChangeRequestListViewModel(this.teamId);
@@ -83,7 +83,7 @@ final class ChangeRequestNotCreated extends CreateChangeRequestOutcome {
   const ChangeRequestNotCreated();
 }
 
-/// ViewModel của S27/S28 – Tạo yêu cầu đổi nhóm (MB-49): chọn thay đổi, tính nhóm sau thay đổi, kiểm tra lý do, gửi.
+/// ViewModel của S27/S28 – Tạo yêu cầu thay đổi (MB-49): chọn thay đổi, tính nhóm sau thay đổi, kiểm tra lý do, gửi.
 /// Chữ đang nhập (tên / mô tả đề tài, lý do) nằm ở `TextEditingController` của View và truyền vào lệnh.
 class CreateChangeRequestViewModel extends Notifier<CreateChangeRequestState> {
   CreateChangeRequestViewModel(this.teamId);

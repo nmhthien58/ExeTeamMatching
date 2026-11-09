@@ -38,8 +38,8 @@ export function ChangeRequestDetailPage() {
   const [validation, setValidation] = useState('')
   const request = useQuery({ queryKey: changeRequestKeys.detail(id), queryFn: () => fetchChangeRequest(id), enabled: !!id })
 
-  if (request.isPending) return <><PageHeader title="Chi tiết yêu cầu đổi nhóm" /><div role="status" aria-label="Đang tải" className="space-y-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-12 animate-pulse rounded bg-neutral-container" />)}</div></>
-  if (request.isError) return <><PageHeader title="Chi tiết yêu cầu đổi nhóm" /><ErrorState error={request.error} onRetry={() => void request.refetch()} /></>
+  if (request.isPending) return <><PageHeader title="Chi tiết yêu cầu thay đổi" /><div role="status" aria-label="Đang tải" className="space-y-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-12 animate-pulse rounded bg-neutral-container" />)}</div></>
+  if (request.isError) return <><PageHeader title="Chi tiết yêu cầu thay đổi" /><ErrorState error={request.error} onRetry={() => void request.refetch()} /></>
   const item = request.data
   if (!item) return <EmptyState title="Không tìm thấy yêu cầu" />
   const pending = item.status === 'PENDING'
@@ -53,7 +53,7 @@ export function ChangeRequestDetailPage() {
     if (!dialog) return
     decision.mutate({ id, decision: dialog, note: note.trim() || undefined }, {
       onSuccess: () => {
-        snackbar.show(dialog === 'approve' ? 'Đã duyệt yêu cầu đổi nhóm' : 'Đã từ chối yêu cầu đổi nhóm')
+        snackbar.show(dialog === 'approve' ? 'Đã duyệt yêu cầu thay đổi' : 'Đã từ chối yêu cầu thay đổi')
         setDialog(null)
         navigate(`/admin/yeu-cau-doi-nhom?trang-thai=${dialog === 'approve' ? 'APPROVED' : 'REJECTED'}`)
       },
@@ -62,11 +62,11 @@ export function ChangeRequestDetailPage() {
 
   return (
     <>
-      <PageHeader title={`Yêu cầu đổi nhóm · ${item.team.name}`} action={<Button variant="outline" onClick={() => navigate(-1)}>Quay lại</Button>} />
+      <PageHeader title={`Yêu cầu thay đổi · ${item.team.name}`} action={<Button variant="outline" onClick={() => navigate(-1)}>Quay lại</Button>} />
       <div className="space-y-5">
         <section className="rounded-md border border-border bg-surface p-4">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-caption text-text-secondary">Đợt {item.roundName} · EXE201</p><p className="mt-1 text-body">Gửi ngày {new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(new Date(item.createdAt))}</p></div><StatusChip tone={item.status === 'PENDING' ? 'warning' : item.status === 'APPROVED' ? 'success' : 'error'}>{item.status === 'PENDING' ? 'Chờ duyệt' : item.status === 'APPROVED' ? 'Đã duyệt' : 'Đã từ chối'}</StatusChip></div>
-          <h2 className="mt-4 font-semibold">Lý do đổi nhóm</h2><p className="mt-1 whitespace-pre-wrap">{item.reason}</p>
+          <h2 className="mt-4 font-semibold">Lý do thay đổi</h2><p className="mt-1 whitespace-pre-wrap">{item.reason}</p>
           <div className="mt-4 flex flex-wrap gap-4 text-body"><span><strong>{item.changedMemberCount}</strong> thay đổi thành viên</span><span><strong>{item.changedPercent}%</strong> so với mốc EXE101</span></div>
           {item.reviewNote && <p className="mt-3 rounded bg-background p-3 text-body"><strong>Ghi chú duyệt:</strong> {item.reviewNote}</p>}
         </section>
@@ -81,7 +81,7 @@ export function ChangeRequestDetailPage() {
         {pending && <div className="sticky bottom-0 flex justify-end gap-3 border-t border-border bg-background/95 py-3"><Button variant="outline" onClick={() => { setDialog('reject'); setNote(''); setValidation('') }}>Từ chối</Button><Button onClick={() => { setDialog('approve'); setNote(''); setValidation('') }}>Duyệt</Button></div>}
       </div>
 
-      <Dialog open={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'approve' ? 'Duyệt yêu cầu đổi nhóm?' : 'Từ chối yêu cầu đổi nhóm?'} actions={<><Button variant="text" onClick={() => setDialog(null)}>Hủy</Button><Button variant={dialog === 'reject' ? 'danger' : 'primary'} loading={decision.isPending} onClick={submit}>{dialog === 'approve' ? 'Duyệt' : 'Từ chối'}</Button></>}>
+      <Dialog open={dialog !== null} onClose={() => setDialog(null)} title={dialog === 'approve' ? 'Duyệt yêu cầu thay đổi?' : 'Từ chối yêu cầu thay đổi?'} actions={<><Button variant="text" onClick={() => setDialog(null)}>Hủy</Button><Button variant={dialog === 'reject' ? 'danger' : 'primary'} loading={decision.isPending} onClick={submit}>{dialog === 'approve' ? 'Duyệt' : 'Từ chối'}</Button></>}>
         {dialog === 'approve' ? 'Thay đổi thành viên và đề tài sẽ được áp dụng cho nhóm.' : <label className="block">Ghi chú bắt buộc<textarea aria-label="Ghi chú từ chối" maxLength={1000} value={note} onChange={(e) => { setNote(e.target.value); setValidation('') }} className="mt-2 min-h-28 w-full rounded-sm border border-border-strong bg-surface p-3 text-body" /></label>}
         {validation && <p role="alert" className="mt-2 text-error">{validation}</p>}
         {error && <p role="alert" className="mt-2 text-error">{error.detail ?? error.title}</p>}

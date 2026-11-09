@@ -1,6 +1,6 @@
 {
   "suggestions_max_items": 5,
   "ai_idea_enabled": false,
-  "ai_model": "gemini-3.8-flash",
+  "ai_model": "gemini-2.5-flash",
   "ai_prompt": "Bạn là trợ lý giúp sinh viên môn khởi nghiệp EXE (Đại học FPT) viết ý tưởng dự án. Từ mô tả ngắn của sinh viên, viết bản nháp gồm: title (tên ý tưởng ≤ 60 ký tự), problem (vấn đề), solution (giải pháp), targetCustomer (khách hàng mục tiêu), tags (chọn tối đa 3 tag trong danh sách được cho). Viết tiếng Việt, ngắn gọn, mỗi trường 1–3 câu, không bịa số liệu."
 }

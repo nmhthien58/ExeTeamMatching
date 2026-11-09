@@ -103,7 +103,7 @@ void main() {
 
     for (final (code, text) in const [
       ('disabled', 'đang tắt'),
-      ('quota', 'quá tải'),
+      ('quota', 'hết lượt'),
       ('network', 'Mất kết nối'),
       ('bad_json', 'không đọc được'),
       ('blocked', 'không xử lý được'),
@@ -224,7 +224,7 @@ void main() {
         await tester.tap(find.text('Tạo gợi ý'));
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('quá tải'), findsOneWidget);
+        expect(find.textContaining('hết lượt'), findsOneWidget);
 
         await tester.tap(find.text('Tự nhập'));
         await tester.pumpAndSettle();

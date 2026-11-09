@@ -8,7 +8,7 @@ import { Avatar, Card } from '@/features/workspace/components'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { useMyTeam, type TeamMember } from '@/features/suggestions/api'
 import { useMemberAction, type FullTeam } from './api'
-import { ListSkeleton } from './components'
+import { ListSkeleton, MemberSkillsToggle } from './components'
 import { ProposeLeaderDialog } from './LeaderVote'
 
 type Pending = { kind: 'remove' | 'transfer'; member: TeamMember } | { kind: 'leave' }
@@ -53,7 +53,7 @@ function Members({ team }: { team: FullTeam }) {
     action.mutate(pending.kind === 'leave' ? { kind: 'leave' } : { kind: pending.kind, studentId: pending.member.id }, {
       onSuccess: (result) => {
         setPending(null)
-        snackbar.show(result.appliedImmediately ? 'Đã cập nhật' : 'Đã ghi nhận, chờ Bộ môn duyệt')
+        snackbar.show(result.appliedImmediately ? 'Đã cập nhật' : leaving ? 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Trưởng nhóm cần gửi Bộ môn duyệt.' : 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Vào Yêu cầu thay đổi để gửi Bộ môn duyệt.')
         if (leaving && result.appliedImmediately) navigate('/sv/nhom')
       },
       onError: () => setPending(null),
@@ -87,6 +87,7 @@ function Members({ team }: { team: FullTeam }) {
                 <span className="text-text-secondary">{[m.studentCode, m.specialization?.name].filter(Boolean).join(' · ')}</span>
               </span>
               {m.role === 'LEADER' && <StatusChip tone="info">Trưởng nhóm</StatusChip>}
+              <MemberSkillsToggle member={m} />
               {canPropose && m.role !== 'LEADER' && (
                 <Button variant="text" onClick={() => setNominee(m)}>
                   Đề nghị làm nhóm trưởng

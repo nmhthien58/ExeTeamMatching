@@ -10,7 +10,14 @@ import 'leader_vote.dart' show LeaderVote;
 // Model theo docs/contracts/openapi/team.yaml (tag Teams, Members, Invitations, JoinRequests) – các trường S13–S17, S20 dùng.
 
 class Member {
-  const Member({required this.id, required this.studentCode, required this.fullName, required this.isLeader, this.specialization});
+  const Member({
+    required this.id,
+    required this.studentCode,
+    required this.fullName,
+    required this.isLeader,
+    this.specialization,
+    this.skills = const {},
+  });
 
   final String id;
   final String studentCode;
@@ -18,12 +25,16 @@ class Member {
   final bool isLeader;
   final CatalogRef? specialization;
 
+  /// 5 kỹ năng tự đánh giá (S08, S13); rỗng khi chưa khai báo.
+  final Map<String, int> skills;
+
   factory Member.fromJson(Map<String, dynamic> j) => Member(
         id: j['id'] as String,
         studentCode: j['studentCode'] as String? ?? '',
         fullName: j['fullName'] as String? ?? '',
         isLeader: j['role'] == 'LEADER',
         specialization: j['specialization'] == null ? null : CatalogRef.fromJson(_map(j['specialization'])),
+        skills: {for (final s in (j['skills'] as List? ?? const [])) _map(s)['skill'] as String: _map(s)['level'] as int},
       );
 }
 

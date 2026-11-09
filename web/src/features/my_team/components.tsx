@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import clsx from 'clsx'
-import { Skeleton } from '@/shared/components/ui'
+import { Button, Skeleton } from '@/shared/components/ui'
+import { SkillBars } from '@/features/profile/components'
+import type { TeamMember } from '@/features/suggestions/api'
 
 export const linkClass = 'inline-flex min-h-10 items-center rounded-md px-4 font-medium'
 
@@ -59,5 +62,22 @@ export function Field({
         )}
       </span>
     </div>
+  )
+}
+
+/** Nút "Kỹ năng" trên dòng thành viên (S06, S13): mở rộng dòng, hiện 5 kỹ năng tự đánh giá. Dòng cha cần flex-wrap. */
+export function MemberSkillsToggle({ member }: { member: TeamMember }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button variant="text" icon={open ? 'expand_less' : 'expand_more'} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        Kỹ năng
+      </Button>
+      {open && (
+        <div className="basis-full pb-2 pl-12">
+          <SkillBars ratings={member.skills ?? []} />
+        </div>
+      )}
+    </>
   )
 }

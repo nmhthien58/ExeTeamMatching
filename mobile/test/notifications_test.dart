@@ -332,13 +332,13 @@ void main() {
     expect(find.text('Dự án của tôi'), findsOneWidget);
   });
 
-  testWidgets('A06 mở yêu cầu đổi nhóm từ thông báo kết quả', (tester) async {
+  testWidgets('A06 mở yêu cầu thay đổi từ thông báo kết quả', (tester) async {
     final api = FakeNotificationsApi([
       AppNotification(
         id: 'n-1',
         type: 'ChangeRequestApproved',
         title: 'Đổi nhóm đã được duyệt',
-        content: 'Bộ môn đã duyệt yêu cầu đổi nhóm.',
+        content: 'Bộ môn đã duyệt yêu cầu thay đổi.',
         linkUrl: 'app://change-requests',
         isRead: false,
         createdAt: DateTime.now(),
@@ -353,7 +353,7 @@ void main() {
         ),
         GoRoute(
           path: '/sv/yeu-cau-doi-nhom',
-          builder: (_, _) => const Scaffold(body: Text('Yêu cầu đổi nhóm')),
+          builder: (_, _) => const Scaffold(body: Text('Yêu cầu thay đổi')),
         ),
       ],
     );
@@ -370,7 +370,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.readCalls, 1);
-    expect(find.text('Yêu cầu đổi nhóm'), findsOneWidget);
+    expect(find.text('Yêu cầu thay đổi'), findsOneWidget);
   });
 
   testWidgets('A06 mở đúng màn lời mời từ thông báo', (tester) async {

@@ -7,8 +7,15 @@ namespace Academic.Services.Students;
 
 /// <summary>
 /// Schema <c>StudentSnapshot</c>. Sinh viên không có trong danh sách học kỳ: <c>isEnrolled = false</c>, <c>courseCode</c> và <c>classCode</c> = null.
+/// <c>skills</c>, <c>description</c> chỉ có ở <c>POST /internal/students/lookup</c> (null ở các endpoint khác).
 /// </summary>
-public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string? ClassCode, string? CourseCode, bool IsEnrolled, int MajorId = 0);
+public sealed record StudentSnapshot(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, string? ClassCode, string? CourseCode, bool IsEnrolled, int MajorId = 0,
+    IReadOnlyList<SkillRating>? Skills = null, string? Description = null);
+
+/// <summary>Schema <c>SeekingStudent</c> của <c>GET /internal/students/seeking</c>.</summary>
+public sealed record SeekingStudent(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, int MajorId, string? Description, IReadOnlyList<SkillRating> Skills);
 
 /// <summary>Body của <c>POST /internal/students/lookup</c>.</summary>
 public sealed record StudentLookupRequest(Guid? SemesterId, IReadOnlyList<Guid>? StudentIds);

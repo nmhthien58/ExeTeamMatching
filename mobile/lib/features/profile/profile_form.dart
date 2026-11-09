@@ -75,7 +75,8 @@ class _SkillSliderState extends State<SkillSlider> {
   }
 }
 
-/// Phần chung của A05 và S03: 5 thanh kỹ năng, giới thiệu (≤ 500), công tắc "Tôi đang tìm nhóm" khi [showSeekingSwitch].
+/// Phần chung của A05 và S03: 5 thanh kỹ năng, giới thiệu (≤ 500), công tắc "Tôi đang tìm nhóm" khi [showSeekingSwitch]
+/// (đã có nhóm thì công tắc bị khóa kèm giải thích).
 /// View của [ProfileFormViewModel]; lưu xong gọi [onSaved] để màn cha điều hướng.
 class ProfileForm extends ConsumerStatefulWidget {
   const ProfileForm({
@@ -111,7 +112,7 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
   }
 
   Future<void> _submit() async {
-    final saved = await _vm.save(description: _description.text, withSeeking: widget.showSeekingSwitch);
+    final saved = await _vm.save(description: _description.text, withSeeking: widget.showSeekingSwitch && !widget.profile.hasTeam);
     if (saved && mounted) widget.onSaved?.call();
   }
 
@@ -163,9 +164,11 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Tôi đang tìm nhóm'),
-            subtitle: const Text('Nhóm khác thấy bạn trong danh sách tìm thành viên.'),
-            value: state.seeking,
-            onChanged: _vm.setSeeking,
+            subtitle: Text(widget.profile.hasTeam
+                ? 'Bạn đã có nhóm trong học kỳ này nên không thể bật.'
+                : 'Trưởng nhóm thấy bạn ở mục "Sinh viên tìm nhóm" và có thể mời bạn.'),
+            value: state.seeking && !widget.profile.hasTeam,
+            onChanged: widget.profile.hasTeam ? null : _vm.setSeeking,
           ),
         const SizedBox(height: AppSpacing.s4),
         if (missing > 0) ...[
