@@ -99,7 +99,7 @@ class _FakeChangeRequests extends ChangeRequestsApi {
 
 const _message = PushMessage(
   title: 'Đã duyệt',
-  body: 'Yêu cầu đổi nhóm đã được duyệt.',
+  body: 'Yêu cầu thay đổi đã được duyệt.',
   type: 'ChangeRequestApproved',
   id: 'notification-id',
   linkUrl: 'app://change-requests',

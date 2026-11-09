@@ -143,7 +143,7 @@ class _TeamOverview extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.hourglass_top_outlined),
               title: const Text('Thay đổi chờ duyệt'),
-              subtitle: const Text('Có hiệu lực khi Bộ môn duyệt yêu cầu đổi nhóm.'),
+              subtitle: const Text('Có hiệu lực khi Bộ môn duyệt yêu cầu thay đổi.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/sv/yeu-cau-doi-nhom'),
             ),
@@ -167,7 +167,7 @@ class _TeamOverview extends StatelessWidget {
               if (team.isInherited && team.isLeader)
                 const _Shortcut(
                   icon: Icons.published_with_changes_outlined,
-                  label: 'Yêu cầu đổi nhóm',
+                  label: 'Yêu cầu thay đổi',
                   path: '/sv/yeu-cau-doi-nhom',
                 ),
               const _OpenProject(),

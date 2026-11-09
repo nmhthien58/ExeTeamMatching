@@ -53,7 +53,7 @@ function Members({ team }: { team: FullTeam }) {
     action.mutate(pending.kind === 'leave' ? { kind: 'leave' } : { kind: pending.kind, studentId: pending.member.id }, {
       onSuccess: (result) => {
         setPending(null)
-        snackbar.show(result.appliedImmediately ? 'Đã cập nhật' : 'Đã ghi nhận, chờ Bộ môn duyệt')
+        snackbar.show(result.appliedImmediately ? 'Đã cập nhật' : leaving ? 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Trưởng nhóm cần gửi Bộ môn duyệt.' : 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Vào Yêu cầu thay đổi để gửi Bộ môn duyệt.')
         if (leaving && result.appliedImmediately) navigate('/sv/nhom')
       },
       onError: () => setPending(null),

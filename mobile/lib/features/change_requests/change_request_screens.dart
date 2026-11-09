@@ -23,7 +23,7 @@ class ChangeRequestListScreen extends ConsumerWidget {
     final team = ref.watch(myTeamProvider);
     final round = ref.watch(openChangeRoundProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Yêu cầu đổi nhóm')),
+      appBar: AppBar(title: const Text('Yêu cầu thay đổi')),
       body: course.when(
         loading: () => const SkeletonList(),
         error: (e, _) => ErrorState(
@@ -35,7 +35,7 @@ class ChangeRequestListScreen extends ConsumerWidget {
                 icon: Icons.lock_outline,
                 title: 'Chỉ áp dụng cho EXE201',
                 description:
-                    'Yêu cầu đổi nhóm chỉ mở với nhóm kế thừa ở EXE201.',
+                    'Yêu cầu thay đổi chỉ mở với nhóm kế thừa ở EXE201.',
               )
             : team.when(
                 loading: () => const SkeletonList(),
@@ -48,7 +48,7 @@ class ChangeRequestListScreen extends ConsumerWidget {
                         icon: Icons.groups_outlined,
                         title: 'Bạn chưa có nhóm',
                         description:
-                            'Yêu cầu đổi nhóm sẽ hiện khi bạn là thành viên của nhóm EXE201.',
+                            'Yêu cầu thay đổi sẽ hiện khi bạn là thành viên của nhóm EXE201.',
                       )
                     : _RequestList(
                         teamId: mine.card.id,
@@ -109,7 +109,7 @@ class _RequestListState extends State<_RequestList> {
                           onPressed: () =>
                               context.push(changeRequestCreatePath),
                           icon: const Icon(Icons.edit_note),
-                          label: const Text('Tạo yêu cầu đổi nhóm'),
+                          label: const Text('Tạo yêu cầu thay đổi'),
                         ),
                       )
                     : const SizedBox.shrink(),
@@ -161,7 +161,7 @@ class _RequestListState extends State<_RequestList> {
               if (items.isEmpty)
                 const EmptyState(
                   icon: Icons.inbox_outlined,
-                  title: 'Chưa có yêu cầu đổi nhóm',
+                  title: 'Chưa có yêu cầu thay đổi',
                   description: 'Yêu cầu của nhóm bạn sẽ xuất hiện tại đây.',
                 )
               else if (visible.isEmpty)
@@ -238,7 +238,7 @@ class _CreateChangeRequestScreenState
                 icon: Icons.lock_outline,
                 title: 'Chỉ áp dụng cho EXE201',
                 description:
-                    'Yêu cầu đổi nhóm chỉ mở với nhóm kế thừa ở EXE201.',
+                    'Yêu cầu thay đổi chỉ mở với nhóm kế thừa ở EXE201.',
               )
             : team.when(
                 loading: () => const SkeletonList(),
@@ -258,7 +258,7 @@ class _CreateChangeRequestScreenState
                         icon: Icons.lock_outline,
                         title: 'Chỉ trưởng nhóm tạo được yêu cầu',
                         description:
-                            'Bạn vẫn có thể theo dõi yêu cầu đổi nhóm của nhóm mình.',
+                            'Bạn vẫn có thể theo dõi yêu cầu thay đổi của nhóm mình.',
                       )
                     : _content(mine),
               ),
@@ -441,7 +441,7 @@ class _CreateChangeRequestScreenState
         if (form.error != null) ErrorBanner(message: form.error!),
         FilledButton(
           onPressed: form.busy ? null : () => _submit(team, data),
-          child: Text(form.busy ? 'Đang gửi…' : 'Gửi yêu cầu đổi nhóm'),
+          child: Text(form.busy ? 'Đang gửi…' : 'Gửi yêu cầu thay đổi'),
         ),
         TextButton(
           onPressed: form.busy ? null : () => vm.goToStep(0),
@@ -457,7 +457,7 @@ class _CreateChangeRequestScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Gửi yêu cầu đổi nhóm?'),
+        title: const Text('Gửi yêu cầu thay đổi?'),
         content: const Text(
           'Bộ môn sẽ xem xét các thay đổi trước khi áp dụng.',
         ),

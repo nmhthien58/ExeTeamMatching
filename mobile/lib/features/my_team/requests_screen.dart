@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../profile/skill_bars.dart';
 import '../workspace/workspace_widgets.dart';
 import 'my_team_api.dart';
+import 'members_view_model.dart' show pendingChangeMessage;
 import 'requests_view_model.dart';
 
 /// S20 – Yêu cầu tham gia và lời mời đã gửi (MB-24, trưởng nhóm). Tab 1: yêu cầu kèm ý tưởng hoặc "Chưa có ý tưởng" (quy tắc 17),
@@ -50,7 +52,13 @@ class _JoinRequests extends ConsumerWidget {
     Future<void> decide(JoinRequestItem request, bool accept) async {
       final outcome = await vm.decide(request, accept: accept);
       if (outcome case DecisionDone(:final message) when context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        final router = GoRouter.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(message),
+          action: message == pendingChangeMessage
+              ? SnackBarAction(label: 'Mở', onPressed: () => router.push('/sv/yeu-cau-doi-nhom'))
+              : null,
+        ));
       }
     }
 
