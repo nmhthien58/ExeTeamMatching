@@ -203,8 +203,30 @@ public sealed class FakeAcademic : IAcademicClient
             _students.Values.Where(s => codeSet.Contains(s.StudentCode)).ToList());
     }
 
+    public List<CatalogItem> Domains { get; set; } =
+    [
+        new(1, "D01", "AI & Data Innovation", true),
+        new(2, "D02", "Robotics & Automation", true),
+        new(3, "D03", "IoT & Smart Systems", true),
+        new(4, "D04", "Software / SaaS / Platform", true),
+        new(5, "D05", "Computer Foundation & Digital Literacy", true),
+        new(6, "D06", "Semiconductor & Embedded Deep Tech", true),
+        new(7, "D07", "Digital Automotive & Mobility", true),
+        new(8, "D08", "Cybersecurity & Trust", true),
+        new(9, "D09", "Media & Communication Innovation", true),
+        new(10, "D10", "Graphic Design / UX / Brand", true),
+        new(11, "D11", "Language & Global Market", true),
+        new(12, "D12", "Marketing & Consumer Growth", true),
+        new(13, "D13", "Logistics & Supply Chain Tech", true),
+        new(14, "D14", "Law / LegalTech / Compliance", true),
+        new(15, "D15", "Finance / Fintech / Funding", true),
+        new(16, "D16", "Human Development & Soft Skills", true),
+        new(17, "D17", "Culture & Vietnamese Identity", true),
+        new(18, "D18", "Vovinam / Wellness / Discipline", true),
+    ];
+
     public Task<IReadOnlyList<CatalogItem>> GetDomainsAsync(CancellationToken ct) =>
-        Task.FromResult<IReadOnlyList<CatalogItem>>(Enumerable.Range(1, 18).Select(i => new CatalogItem(i, $"D{i:00}", $"Domain {i}", true)).ToList());
+        Task.FromResult<IReadOnlyList<CatalogItem>>(Domains);
 
     public Task<IReadOnlyList<CatalogItem>> GetSpecializationsAsync(CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<CatalogItem>>(Enumerable.Range(1, 6).Select(i => new CatalogItem(i, $"S{i}", $"Chuyên ngành {i}", true)).ToList());

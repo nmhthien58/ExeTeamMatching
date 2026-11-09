@@ -35,7 +35,7 @@ public static class BaselineImportFileParser
             lineIndex++;
             if (string.IsNullOrWhiteSpace(line)) continue;
             var delimiter = line.Contains('\t') ? '\t' : (line.Contains(';') ? ';' : ',');
-            var cells = line.Split(delimiter).Select(c => c.Trim().Trim('"').Trim()).ToList();
+            var cells = SplitCsvLine(line, delimiter);
             if (cells.Any(c => !string.IsNullOrEmpty(c)))
             {
                 rawRows.Add((lineIndex, cells));
@@ -43,6 +43,41 @@ public static class BaselineImportFileParser
         }
 
         return ProcessRawGrid(rawRows, errors);
+    }
+
+    private static List<string> SplitCsvLine(string line, char delimiter)
+    {
+        var result = new List<string>();
+        var current = new StringBuilder();
+        var inQuotes = false;
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = !inQuotes;
+                }
+            }
+            else if (c == delimiter && !inQuotes)
+            {
+                result.Add(current.ToString().Trim().Trim('"').Trim());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+        result.Add(current.ToString().Trim().Trim('"').Trim());
+        return result;
     }
 
     private static List<ParsedBaselineRecord> ParseXlsx(Stream stream, List<BaselineImportRowError> errors)
@@ -258,15 +293,17 @@ public static class BaselineImportFileParser
 
         var sttCol = FindColumnIndex(headers, ["stt", "no", "so thu tu"]);
         var teamCol = FindColumnIndex(headers, ["ten nhom", "ten team", "ma nhom", "nhom", "team", "group"]);
-        var projectCol = FindColumnIndex(headers, ["ten du an", "ten de tai", "idea", "du an", "de tai", "project"]);
+        var projectCol = FindColumnIndex(headers, ["ten du an", "ten de tai", "du an", "de tai", "project"]);
+        var descriptionCol = FindColumnIndex(headers, ["mo ta y tuong", "idea description", "mo ta", "description"]);
+        var domainCol = FindColumnIndex(headers, ["domain nghien cuu", "linh vuc", "domain"]);
         var leaderCol = FindColumnIndex(headers, ["ho & ten leader", "ho ten leader", "leader", "truong nhom"]);
         var memberCol = FindColumnIndex(headers, ["mssv", "student", "thanh vien", "sinh vien"]);
         var memberNameCol = FindColumnIndex(headers, ["ho & ten", "ho ten", "full name"]);
         if (memberNameCol == leaderCol) memberNameCol = -1;
 
         if (teamCol < 0 && headers.Count > 0) teamCol = 0;
-        if (projectCol < 0 && headers.Count > 1 && teamCol != 1) projectCol = 1;
-        if (leaderCol < 0 && headers.Count > 2 && teamCol != 2 && projectCol != 2) leaderCol = 2;
+        if (projectCol < 0 && headers.Count > 1 && teamCol != 1 && descriptionCol != 1 && domainCol != 1) projectCol = 1;
+        if (leaderCol < 0 && headers.Count > 2 && teamCol != 2 && projectCol != 2 && descriptionCol != 2 && domainCol != 2) leaderCol = 2;
         if (memberCol < 0 && headers.Count > 3) memberCol = 3;
 
         var leaderHeader = leaderCol >= 0 && leaderCol < headers.Count ? headers[leaderCol] : "";
@@ -275,6 +312,8 @@ public static class BaselineImportFileParser
         var results = new List<ParsedBaselineRecord>();
         var currentTeamName = "";
         string? currentProjectName = null;
+        string? currentDescription = null;
+        List<string> currentDomainNames = [];
         var currentLeaderIdentifier = "";
 
         for (var i = headerIndex + 1; i < rawRows.Count; i++)
@@ -283,6 +322,8 @@ public static class BaselineImportFileParser
             var sttVal = sttCol >= 0 ? GetCell(cells, sttCol) : "";
             var teamVal = teamCol >= 0 ? GetCell(cells, teamCol) : "";
             var projVal = projectCol >= 0 ? GetCell(cells, projectCol) : "";
+            var descVal = descriptionCol >= 0 ? GetCell(cells, descriptionCol) : "";
+            var domVal = domainCol >= 0 ? GetCell(cells, domainCol) : "";
             var leaderVal = leaderCol >= 0 ? GetCell(cells, leaderCol) : "";
             var memberVal = memberCol >= 0 ? GetCell(cells, memberCol) : "";
             var memberNameVal = memberNameCol >= 0 ? GetCell(cells, memberNameCol) : "";
@@ -314,6 +355,8 @@ public static class BaselineImportFileParser
                     ? teamVal
                     : (!string.IsNullOrWhiteSpace(projVal) ? projVal : $"Nhóm {sttVal}");
                 currentProjectName = !string.IsNullOrWhiteSpace(projVal) ? projVal : null;
+                currentDescription = !string.IsNullOrWhiteSpace(descVal) ? descVal : null;
+                currentDomainNames = SplitDomainNames(domVal);
                 currentLeaderIdentifier = leaderVal;
             }
             else if (!string.IsNullOrWhiteSpace(leaderVal) && string.IsNullOrWhiteSpace(currentLeaderIdentifier))
@@ -353,13 +396,13 @@ public static class BaselineImportFileParser
             if (!leaderIsNameColumn && !leaderIsFlag && !string.IsNullOrWhiteSpace(leaderVal))
             {
                 var leaderCode = leaderVal.Trim().ToUpperInvariant();
-                results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, leaderCode, true));
+                results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, currentDescription, currentDomainNames, leaderCode, true));
 
                 foreach (var mCode in membersInRow)
                 {
                     if (!mCode.Equals(leaderCode, StringComparison.OrdinalIgnoreCase))
                     {
-                        results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, mCode, false));
+                        results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, currentDescription, currentDomainNames, mCode, false));
                     }
                 }
             }
@@ -370,7 +413,7 @@ public static class BaselineImportFileParser
                 {
                     if (!string.IsNullOrWhiteSpace(memberVal))
                     {
-                        results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, memberVal.Trim().ToUpperInvariant(), leaderIsFlag));
+                        results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, currentDescription, currentDomainNames, memberVal.Trim().ToUpperInvariant(), leaderIsFlag));
                     }
                     else
                     {
@@ -402,7 +445,7 @@ public static class BaselineImportFileParser
                             }
                         }
 
-                        results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, mCode, isLeader));
+                        results.Add(new ParsedBaselineRecord(rowNum, currentTeamName, currentProjectName, currentDescription, currentDomainNames, mCode, isLeader));
                     }
                 }
             }
@@ -431,6 +474,15 @@ public static class BaselineImportFileParser
         }
 
         return results;
+    }
+
+    private static List<string> SplitDomainNames(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return [];
+        return input.Split([',', ';', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToList();
     }
 
     private static List<string> ExtractStudentCodes(string input)

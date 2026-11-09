@@ -18,6 +18,8 @@ public sealed record ParsedBaselineRecord(
     int RowNumber,
     string TeamName,
     string? ProjectName,
+    string? IdeaDescription,
+    IReadOnlyList<string> DomainNames,
     string StudentCode,
     bool IsLeader);
 
@@ -44,7 +46,8 @@ public sealed record InheritedTeamSummary(
     int MemberCount,
     IReadOnlyList<InheritedTeamMemberSummary> Members,
     IReadOnlyList<string> MissingOldMemberStudentCodes,
-    string Status);
+    string Status,
+    IReadOnlyList<string>? DomainCodes = null);
 
 public sealed record AutoInheritResponse(
     int InheritedTeamCount,
