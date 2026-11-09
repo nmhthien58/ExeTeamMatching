@@ -6,6 +6,7 @@ import '../../core/firebase/remote_config_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../../shared/widgets/team_requirement_bar.dart';
+import '../my_team/member_skills_sheet.dart';
 import '../my_team/my_team_api.dart';
 import '../my_team/my_team_screen.dart' show teamStatusChip;
 import '../suggestions/suggestion_widgets.dart' show DomainChips;
@@ -88,6 +89,7 @@ class _Detail extends ConsumerWidget {
                   title: Text(m.fullName),
                   subtitle: Text(m.specialization?.name ?? ''),
                   trailing: m.isLeader ? const StatusChip(label: 'Trưởng nhóm', tone: StatusTone.info) : null,
+                  onTap: () => showMemberSkills(context, m),
                 ),
               if (team.recruitment != null) ...[
                 const SizedBox(height: AppSpacing.s3),
