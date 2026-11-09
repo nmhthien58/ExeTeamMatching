@@ -63,10 +63,14 @@ public sealed class FakeAcademic : IAcademicClient
 
     public Task<SemesterDto?> GetCurrentSemesterAsync(CancellationToken ct) => Task.FromResult(CurrentSemester);
 
+    public DateTimeOffset? ClosedAt { get; init; }
+
+    public DateTimeOffset? DeadlineAt { get; init; }
+
     public Task<RoundDto> CloseRoundAsync(Guid roundId, CancellationToken ct)
     {
         Closed.Add(roundId);
-        return Task.FromResult(new RoundDto(roundId, Guid.NewGuid(), "EXE101", RoundTypes.TeamFormation, DateTimeOffset.UtcNow, "CLOSED"));
+        return Task.FromResult(new RoundDto(roundId, Guid.NewGuid(), "EXE101", RoundTypes.TeamFormation, DeadlineAt ?? DateTimeOffset.UtcNow, "CLOSED", ClosedAt));
     }
 }
 
