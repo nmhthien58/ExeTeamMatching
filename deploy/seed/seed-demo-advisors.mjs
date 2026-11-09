@@ -123,11 +123,12 @@ async function main() {
       const options = specs.filter((sp) => sp.majorId == null || sp.majorId === detail.major?.id)
       const body = { description: detail.description, isSeekingTeam: detail.isSeekingTeam }
       if (needSpec && options.length) body.specializationId = options[h % options.length].id
-      if (needSkills) body.skills = SKILLS.map((skill, i) => ({ skill, level: ((h >> (i * 3)) % 5) + 1 }))
+      // API bắt buộc gửi skills mỗi lần: giữ điểm đang có, thiếu thì tạo.
+      body.skills = needSkills ? SKILLS.map((skill, i) => ({ skill, level: ((h >> (i * 3)) % 5) + 1 })) : detail.skills
       const token = await devToken({ role: 'Student', email: detail.email, studentId: s.id })
       await call('PUT', '/api/students/me', { token, body })
       if (body.specializationId) fixedSpec++
-      if (body.skills) fixedSkills++
+      if (needSkills) fixedSkills++
     } catch (error) {
       failed++
       log(`  bỏ qua ${s.studentCode}: ${error.message}`)
@@ -144,7 +145,7 @@ async function main() {
     estimate[course] = teams[course].length + Math.ceil(free / AVG_TEAM_SIZE)
     log(`${course}: ${teams[course].length} nhóm, ${free} sinh viên chưa có nhóm → ước ${estimate[course]} nhóm sau ghép`)
   }
-  const lecturerCount = Math.min(LECTURER_NAMES.length, Math.ceil(Math.max(estimate.EXE101, estimate.EXE201) / LECTURER_MAX_PER_COURSE) + 2)
+  const lecturerCount = Math.min(LECTURER_NAMES.length, Math.max(6, Math.ceil(Math.max(estimate.EXE101, estimate.EXE201) / LECTURER_MAX_PER_COURSE) + 2))
   const mentorCount = Math.min(MENTOR_NAMES.length, Math.ceil((estimate.EXE101 + estimate.EXE201) / MENTOR_MAX) + 2)
 
   const domainsFor = (i) => [domains[i % domains.length].id, domains[(i + 5) % domains.length].id, domains[(i + 11) % domains.length].id]
@@ -162,11 +163,17 @@ async function main() {
       ? await call('PUT', `/api/lecturers/${lecturer.id}`, { token: admin, body })
       : await call('POST', '/api/lecturers', { token: admin, body })
     // Khảo sát lần đầu (L06): domain chuyên môn và số nhóm mong muốn.
-    lecturer.token = await devToken({ role: 'Lecturer', email, lecturerId: lecturer.id })
-    await call('PUT', '/api/lecturers/me', {
-      token: lecturer.token,
-      body: { domainIds: domainsFor(i), desiredTeamsExe101: LECTURER_MAX_PER_COURSE - 2, desiredTeamsExe201: LECTURER_MAX_PER_COURSE - 2 },
-    })
+    // Giảng viên đã gắn tài khoản thật (email khác) thì không lấy được dev token: admin đã đặt domain, số nhóm; bỏ qua khảo sát và quan tâm.
+    try {
+      lecturer.token = await devToken({ role: 'Lecturer', email, lecturerId: lecturer.id })
+      await call('PUT', '/api/lecturers/me', {
+        token: lecturer.token,
+        body: { domainIds: domainsFor(i), desiredTeamsExe101: LECTURER_MAX_PER_COURSE - 2, desiredTeamsExe201: LECTURER_MAX_PER_COURSE - 2 },
+      })
+    } catch (error) {
+      if (error.status !== 409) throw error
+      log(`  ${email}: đã gắn tài khoản khác, bỏ qua khảo sát`)
+    }
     lecturers.push(lecturer)
   }
   log(`Giảng viên: ${lecturers.length} người, tối đa ${LECTURER_MAX_PER_COURSE} nhóm mỗi môn`)
@@ -183,11 +190,16 @@ async function main() {
     mentor = mentor
       ? await call('PUT', `/api/mentors/${mentor.id}`, { token: admin, body })
       : await call('POST', '/api/mentors', { token: admin, body })
-    const token = await devToken({ role: 'Mentor', email, mentorId: mentor.id })
-    await call('PUT', '/api/mentors/me', {
-      token,
-      body: { preferredTeams: MENTOR_MAX - 3, description: `Mentor ${body.organization}, đồng hành cùng nhóm khởi nghiệp sinh viên.`, domainIds: body.domainIds },
-    })
+    try {
+      const token = await devToken({ role: 'Mentor', email, mentorId: mentor.id })
+      await call('PUT', '/api/mentors/me', {
+        token,
+        body: { preferredTeams: MENTOR_MAX - 3, description: `Mentor ${body.organization}, đồng hành cùng nhóm khởi nghiệp sinh viên.`, domainIds: body.domainIds },
+      })
+    } catch (error) {
+      if (error.status !== 409) throw error
+      log(`  ${email}: đã gắn tài khoản khác, bỏ qua hồ sơ mentor`)
+    }
     mentorsReady++
   }
   log(`Mentor: ${mentorsReady} người seed (+ mentor có sẵn), tối đa ${MENTOR_MAX} nhóm, mong muốn ${MENTOR_MAX - 3}`)
@@ -200,11 +212,11 @@ async function main() {
     const list = teams[course].filter((t) => !t.lecturerName)
     for (const [index, team] of list.entries()) {
       const first = lecturers[index % lecturers.length]
-      const second = lecturers[(index + 3) % lecturers.length]
-      const third = lecturers[(index + 7) % lecturers.length]
+      const second = lecturers[(index + 1) % lecturers.length]
+      const third = lecturers[(index + 2) % lecturers.length]
       // Cứ 4 nhóm: nhóm 0 hai bên cùng chọn, nhóm 1 chỉ nguyện vọng, nhóm 2 chỉ giảng viên quan tâm, nhóm 3 để ghép theo chuyên môn.
       const kind = index % 4
-      if (kind === 0 || kind === 2) {
+      if ((kind === 0 || kind === 2) && first.token) {
         try {
           await call('POST', `/api/teams/${team.id}/topic-interests`, { token: first.token, body: { advisorKind: 'LECTURER' } })
           interests++
