@@ -106,7 +106,7 @@ function JoinRequests({ team }: { team: FullTeam }) {
                 onClick={() =>
                   decide.mutate(
                     { kind: 'accept', id: r.id },
-                    { onSuccess: (result) => snackbar.show(result?.appliedImmediately === false ? 'Đã ghi nhận, chờ Bộ môn duyệt' : `Đã nhận ${r.student.fullName}`) },
+                    { onSuccess: (result) => snackbar.show(result?.appliedImmediately === false ? 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Vào Yêu cầu thay đổi để gửi Bộ môn duyệt.' : `Đã nhận ${r.student.fullName}`) },
                   )
                 }
               >

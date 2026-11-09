@@ -158,7 +158,7 @@ void main() {
       final applied = await vm().transferLeader('t1', 's2') as MemberChanged;
       expect((applied.message, applied.leaving), ('Đã cập nhật', false));
       api.applied = false;
-      expect((await vm().remove('t1', 's2') as MemberChanged).message, 'Đã ghi nhận, chờ Bộ môn duyệt');
+      expect((await vm().remove('t1', 's2') as MemberChanged).message, 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Vào Yêu cầu thay đổi để gửi Bộ môn duyệt.');
       expect(api.calls, ['leader s2', 'remove s2']);
     });
 
@@ -184,7 +184,7 @@ void main() {
       final vm = c.read(joinRequestsViewModelProvider('t1').notifier);
       expect((await vm.decide(request, accept: true) as DecisionDone).message, 'Đã nhận Bình');
       api.applied = false;
-      expect((await vm.decide(request, accept: true) as DecisionDone).message, 'Đã ghi nhận, chờ Bộ môn duyệt');
+      expect((await vm.decide(request, accept: true) as DecisionDone).message, 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Vào Yêu cầu thay đổi để gửi Bộ môn duyệt.');
       expect((await vm.decide(request, accept: false) as DecisionDone).message, 'Đã từ chối');
       expect(c.read(joinRequestsViewModelProvider('t1')).busyId, isNull);
     });

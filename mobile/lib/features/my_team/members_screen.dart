@@ -41,7 +41,13 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
     if (ok != true || !mounted) return;
     final outcome = await call();
     if (outcome is! MemberChanged || !mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(outcome.message)));
+    final router = GoRouter.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(outcome.message),
+      action: outcome.applied || outcome.leaving
+          ? null
+          : SnackBarAction(label: 'Mở', onPressed: () => router.push('/sv/yeu-cau-doi-nhom')),
+    ));
     if (outcome.leaving && outcome.applied) context.go('/sv/nhom');
   }
 

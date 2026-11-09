@@ -27,7 +27,7 @@ export function StudentChangeRequestCreatePage() {
   if (team.isLoading) return <p role="status">Đang tải nhóm…</p>
   if (team.error) return <ErrorState error={team.error} onRetry={() => void team.refetch()} />
   if (!team.data) return <EmptyState title="Bạn chưa có nhóm" />
-  if (team.data.courseCode !== 'EXE201') return <EmptyState title="Chỉ nhóm EXE201 được gửi yêu cầu đổi nhóm" />
+  if (team.data.courseCode !== 'EXE201') return <EmptyState title="Chỉ nhóm EXE201 được gửi yêu cầu thay đổi" />
   if (team.data.myRelation !== 'LEADER') return <EmptyState title="Chỉ trưởng nhóm được gửi yêu cầu" description="Bạn vẫn có thể xem yêu cầu hiện có của nhóm." />
   if (phases.isLoading) return <p role="status">Đang kiểm tra đợt đổi nhóm…</p>
   if (phases.error) return <ErrorState error={phases.error} onRetry={() => void phases.refetch()} />
@@ -67,7 +67,7 @@ export function StudentChangeRequestCreatePage() {
   }
 
   return <>
-    <PageHeader title="Gửi yêu cầu đổi nhóm" />
+    <PageHeader title="Gửi yêu cầu thay đổi" />
     <section className="max-w-3xl space-y-4 rounded-xl border border-border bg-surface p-4">
       <p className="font-semibold">Bước {step}/2 · {step === 1 ? 'Chọn thay đổi' : 'Lý do và xác nhận'}</p>
       {step === 1 ? <>
@@ -83,9 +83,9 @@ export function StudentChangeRequestCreatePage() {
         <label className="block" htmlFor="change-request-reason"><span className="font-semibold">Lý do thay đổi</span><textarea id="change-request-reason" aria-label="Lý do thay đổi" className="mt-2 min-h-28 w-full rounded-lg border border-border-strong p-3" maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Nêu lý do (10–1000 ký tự)" /><span className="block text-caption text-text-secondary">{reason.trim().length}/1000</span></label>
         {reason.length > 0 && reason.trim().length < 10 && <p role="alert" className="text-error">Lý do cần ít nhất 10 ký tự.</p>}
         {submit.error && <p role="alert" className="text-error">Không gửi được yêu cầu. Nội dung bạn nhập vẫn được giữ để thử lại.</p>}
-        <div className="flex gap-2"><Button variant="outline" onClick={() => setStep(1)}>Quay lại</Button><Button disabled={reason.trim().length < 10 || !chosen.length || invalidSize || submit.isPending} onClick={() => setConfirming(true)}>Gửi yêu cầu đổi nhóm</Button></div>
+        <div className="flex gap-2"><Button variant="outline" onClick={() => setStep(1)}>Quay lại</Button><Button disabled={reason.trim().length < 10 || !chosen.length || invalidSize || submit.isPending} onClick={() => setConfirming(true)}>Gửi yêu cầu thay đổi</Button></div>
       </>}
     </section>
-    {confirming && <div role="presentation" className="fixed inset-0 z-50 grid place-items-center bg-scrim/40 p-6"><div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-md rounded-xl bg-surface p-6"><h2 id="confirm-title" className="text-title font-semibold">Gửi yêu cầu đổi nhóm?</h2><p className="mt-2">Bộ môn sẽ xem xét {chosen.length} thay đổi. Sau khi gửi, bạn không thể sửa yêu cầu này.</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setConfirming(false)}>Hủy</Button><Button onClick={() => void send()}>Xác nhận gửi</Button></div></div></div>}
+    {confirming && <div role="presentation" className="fixed inset-0 z-50 grid place-items-center bg-scrim/40 p-6"><div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" className="w-full max-w-md rounded-xl bg-surface p-6"><h2 id="confirm-title" className="text-title font-semibold">Gửi yêu cầu thay đổi?</h2><p className="mt-2">Bộ môn sẽ xem xét {chosen.length} thay đổi. Sau khi gửi, bạn không thể sửa yêu cầu này.</p><div className="mt-5 flex justify-end gap-2"><Button variant="outline" onClick={() => setConfirming(false)}>Hủy</Button><Button onClick={() => void send()}>Xác nhận gửi</Button></div></div></div>}
   </>
 }

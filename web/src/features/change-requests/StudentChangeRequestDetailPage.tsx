@@ -16,7 +16,7 @@ export function StudentChangeRequestDetailPage() {
   const request = detail.data
   const approved = request.status === 'APPROVED'
   return <>
-    <PageHeader title="Chi tiết yêu cầu đổi nhóm" />
+    <PageHeader title="Chi tiết yêu cầu thay đổi" />
     <div className="mb-4"><Button variant="outline" icon="refresh" onClick={() => void detail.refetch()}>Làm mới trạng thái</Button></div>
     <section className="max-w-3xl space-y-4 rounded-xl border border-border bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-title font-semibold">{request.team.name}</h2><StatusChip tone={request.status === 'PENDING' ? 'warning' : approved ? 'success' : 'error'}>{request.status === 'PENDING' ? 'Chờ duyệt' : approved ? 'Đã duyệt' : 'Đã từ chối'}</StatusChip></div>

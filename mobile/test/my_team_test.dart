@@ -129,7 +129,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(api.calls, ['leave t1']);
-    expect(find.text('Đã ghi nhận, chờ Bộ môn duyệt'), findsOneWidget);
+    expect(find.text('Đã thêm vào yêu cầu thay đổi (chưa gửi). Trưởng nhóm cần gửi Bộ môn duyệt.'), findsOneWidget);
   });
 
   testWidgets('S20: yêu cầu hiện ý tưởng hoặc "Chưa có ý tưởng", trưởng nhóm nhận', (tester) async {
