@@ -92,6 +92,10 @@ class _FakeLecturerApi extends LecturerProfileApi {
 }
 
 Future<_FakeAuth> _pump(WidgetTester tester, Widget screen, {SettingsApi? settings, LecturerProfileApi? lecturer}) async {
+  // Cao để cả L06 (có thêm dòng SĐT) dựng hết, test không phải cuộn.
+  tester.view.physicalSize = const Size(1080, 3300);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
   final auth = _FakeAuth();
   await tester.pumpWidget(ProviderScope(
     overrides: [
@@ -113,7 +117,7 @@ void main() {
     await _pump(tester, const SettingsScreen(), settings: api);
 
     expect(find.text('ha@example.com'), findsOneWidget);
-    expect(find.text('Phiên bản $appVersion'), findsOneWidget);
+    expect(find.text(appVersion), findsOneWidget);
     expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value, isTrue);
     await tester.tap(find.text('Nhận email thông báo'));
     await tester.pumpAndSettle();
@@ -165,7 +169,7 @@ void main() {
     expect(api.saved, [1, 2]);
     expect(find.text('Đã lưu chuyên môn'), findsOneWidget);
     expect(find.text('D02 · Robotics'), findsOneWidget);
-    expect(find.text('Sửa'), findsNWidgets(2));
+    expect(find.text('Sửa'), findsNWidgets(3));
   });
 
   testWidgets('L06: lỗi lưu hiện tại chỗ, giữ lựa chọn', (tester) async {

@@ -101,17 +101,19 @@ class ProfileForm extends ConsumerStatefulWidget {
 
 class _ProfileFormState extends ConsumerState<ProfileForm> {
   late final _description = TextEditingController(text: widget.profile.description ?? '');
+  late final _phone = TextEditingController(text: widget.profile.phone ?? '');
 
   ProfileFormViewModel get _vm => ref.read(profileFormViewModelProvider(widget.profile).notifier);
 
   @override
   void dispose() {
     _description.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    final saved = await _vm.save(description: _description.text, withSeeking: widget.showSeekingSwitch);
+    final saved = await _vm.save(description: _description.text, phone: _phone.text, withSeeking: widget.showSeekingSwitch);
     if (saved && mounted) widget.onSaved?.call();
   }
 
@@ -152,6 +154,17 @@ class _ProfileFormState extends ConsumerState<ProfileForm> {
         const SizedBox(height: AppSpacing.s2),
         for (final MapEntry(key: skill, value: label) in skillLabels.entries)
           SkillSlider(label: label, value: state.levels[skill], onChanged: (v) => _vm.setLevel(skill, v)),
+        const SizedBox(height: AppSpacing.s4),
+        TextField(
+          controller: _phone,
+          keyboardType: TextInputType.phone,
+          autofillHints: const [AutofillHints.telephoneNumber],
+          decoration: const InputDecoration(
+            labelText: 'Số điện thoại (không bắt buộc)',
+            hintText: 'VD: 0901234567',
+            helperText: 'Chỉ bạn, thành viên cùng nhóm và Bộ môn thấy.',
+          ),
+        ),
         const SizedBox(height: AppSpacing.s4),
         TextField(
           controller: _description,

@@ -70,6 +70,10 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
 
         student.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         student.IsSeekingTeam = input.IsSeekingTeam ?? student.IsSeekingTeam;
+        if (input.Phone is not null)
+        {
+            student.Phone = LecturerRules.NormalizePhone(input.Phone);
+        }
         var profileCompleted = student.SpecializationId is not null;
         if (profileCompleted)
         {

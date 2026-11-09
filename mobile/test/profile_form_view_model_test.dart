@@ -32,6 +32,7 @@ class _FakeApi extends ProfileApi {
     required String description,
     int? specializationId,
     bool? isSeekingTeam,
+    String? phone,
   }) async {
     if (error != null) throw error!;
     saved.add((skills, description, isSeekingTeam));
@@ -65,8 +66,8 @@ void main() {
 
   test('lưu: gửi kỹ năng, giới thiệu đã trim; chỉ gửi isSeekingTeam khi có công tắc', () async {
     vm().setSeeking(true);
-    expect(await vm().save(description: ' Xin chào ', withSeeking: false), isTrue);
-    expect(await vm().save(description: '', withSeeking: true), isTrue);
+    expect(await vm().save(description: ' Xin chào ', phone: '', withSeeking: false), isTrue);
+    expect(await vm().save(description: '', phone: '', withSeeking: true), isTrue);
     expect(api.saved.map((s) => (s.$2, s.$3)), [('Xin chào', null), ('', true)]);
     expect(state().saving, isFalse);
   });
@@ -74,7 +75,7 @@ void main() {
   test('lỗi: giữ dữ liệu, có câu lỗi', () async {
     api.error = const ApiException(status: 400, code: 'x', title: 'Sai', detail: 'Thiếu kỹ năng');
     vm().setLevel('TECHNOLOGY', 5);
-    expect(await vm().save(description: '', withSeeking: false), isFalse);
+    expect(await vm().save(description: '', phone: '', withSeeking: false), isFalse);
     expect((state().error, state().saving, state().levels['TECHNOLOGY']), ('Thiếu kỹ năng', false, 5));
   });
 }

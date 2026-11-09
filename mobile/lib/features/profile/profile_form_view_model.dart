@@ -56,7 +56,7 @@ class ProfileFormViewModel extends Notifier<ProfileFormState> {
   void setSeeking(bool value) => state = state.copyWith(seeking: value);
 
   /// [withSeeking]: màn có công tắc "Tôi đang tìm nhóm" (S03 trong giai đoạn lập nhóm). Trả true khi đã lưu.
-  Future<bool> save({required String description, required bool withSeeking}) async {
+  Future<bool> save({required String description, required String phone, required bool withSeeking}) async {
     state = state.copyWith(saving: true, error: () => null);
     try {
       await ref
@@ -66,6 +66,7 @@ class ProfileFormViewModel extends Notifier<ProfileFormState> {
             description: description.trim(),
             specializationId: state.specializationId,
             isSeekingTeam: withSeeking ? state.seeking : null,
+            phone: phone.trim(),
           );
       if (!ref.mounted) return false;
       state = state.copyWith(saving: false);

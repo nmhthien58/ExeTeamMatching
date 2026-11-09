@@ -769,7 +769,7 @@ components:
       type: object
       properties:
         appliedImmediately: { type: boolean, description: "false = nhóm EXE201 kế thừa, đã thành thay đổi chờ duyệt" }
-        team: { $ref: '#/components/schemas/TeamDetail' }
+        team: { allOf: [{ $ref: '#/components/schemas/TeamDetail' }], nullable: true, description: 'null khi trưởng nhóm là thành viên cuối cùng rời và nhóm bị giải tán' }
     Invitation:
       type: object
       properties: { id: { type: string, format: uuid }, team: { $ref: '#/components/schemas/TeamCard' }, invitee: { $ref: '#/components/schemas/StudentRef' }, message: { type: string, nullable: true }, status: { type: string }, createdAt: { type: string, format: date-time }, expiresAt: { type: string, format: date-time } }
