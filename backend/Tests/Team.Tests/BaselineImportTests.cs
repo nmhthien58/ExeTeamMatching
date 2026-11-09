@@ -473,7 +473,7 @@ public sealed class BaselineImportTests
         Assert.Empty(result.Errors);
         Assert.Equal(2, result.TeamCount);
         Assert.Equal(5, result.StudentCount);
-        var dailyMate = result.Teams!.Single(t => t.TeamName == "Daily Mate");
+        var dailyMate = result.Teams!.Single(t => t.TeamName == "DailyMate");
         Assert.Equal("SE172145", dailyMate.LeaderStudentCode);
         Assert.Equal(2, dailyMate.MemberCount);
         Assert.Equal("Daily Mate", dailyMate.ProjectName);
@@ -481,7 +481,7 @@ public sealed class BaselineImportTests
         Assert.Contains("D01", dailyMate.DomainCodes);
         Assert.Contains("D04", dailyMate.DomainCodes);
 
-        var dailyMateTeam = repo.SavedTeams.Single(t => t.Name == "Daily Mate");
+        var dailyMateTeam = repo.SavedTeams.Single(t => t.Name == "DailyMate");
         Assert.NotNull(dailyMateTeam.ProjectId);
         var dailyMateProject = repo.SavedProjects.Single(p => p.Id == dailyMateTeam.ProjectId);
         Assert.Equal("Daily Mate", dailyMateProject.Name);
