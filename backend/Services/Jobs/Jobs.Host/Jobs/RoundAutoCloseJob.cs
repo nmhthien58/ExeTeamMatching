@@ -8,6 +8,7 @@ namespace Jobs.Host.Jobs;
 /// Mỗi bước là một job riêng để Hangfire thử lại từng bước: khóa đợt (Academic phát RoundClosed) → chốt nhóm
 /// (Team finalize-round) → ghép sinh viên còn lại (<see cref="AutoAssignUnmatchedJob"/>) → ghép giảng viên hướng dẫn
 /// (<see cref="LecturerMatchingJob"/>, continuation chỉ chạy khi ghép sinh viên thành công – rule 9). Đợt đổi nhóm chỉ khóa.
+/// Bộ môn kết thúc đợt sớm thì <see cref="RoundClosedHandler"/> chạy chuỗi từ bước chốt nhóm ngay lúc đó.
 /// </summary>
 public sealed class RoundAutoCloseJob(
     IAcademicClient academic,
@@ -19,11 +20,15 @@ public sealed class RoundAutoCloseJob(
     {
         var round = await academic.CloseRoundAsync(roundId, ct);
         logger.LogInformation("Đã khóa đợt {RoundId} ({Course}, {RoundType}), trạng thái {Status}", roundId, courseCode, roundType, round.Status);
-        if (roundType == RoundTypes.TeamFormation)
+        // Bộ môn đã kết thúc sớm: RoundClosedHandler đã chạy chuỗi chốt nhóm lúc đó, tới hạn chót không chạy lại.
+        if (roundType == RoundTypes.TeamFormation && !ClosedEarly(round.ClosedAt, round.DeadlineAt))
         {
             jobs.Enqueue<RoundAutoCloseJob>(j => j.FinalizeAsync(roundId, semesterId, courseCode, CancellationToken.None));
         }
     }
+
+    /// <summary>Khóa trước hạn chót = kết thúc sớm. Cùng một quy tắc ở đây và ở <see cref="RoundClosedHandler"/> để chuỗi chạy đúng một lần.</summary>
+    public static bool ClosedEarly(DateTimeOffset? closedAt, DateTimeOffset deadlineAt) => closedAt is { } at && at < deadlineAt;
 
     public async Task FinalizeAsync(Guid roundId, Guid semesterId, string courseCode, CancellationToken ct)
     {

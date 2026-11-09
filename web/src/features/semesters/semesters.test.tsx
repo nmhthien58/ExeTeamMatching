@@ -121,7 +121,7 @@ describe('W03, W04 – học kỳ và đợt đăng ký (FE-09, FE-10)', () => {
     expect(get).toHaveBeenCalledWith('/api/registration-rounds', { params: { semesterId: 'fa', courseCode: undefined } })
 
     expect(screen.getByRole('button', { name: 'Mở Lập nhóm EXE101' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Khóa Đợt đang mở' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Kết thúc sớm Đợt đang mở' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sửa Đợt đã khóa' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Mở Đợt đã khóa' })).not.toBeInTheDocument()
 
@@ -142,9 +142,9 @@ describe('W03, W04 – học kỳ và đợt đăng ký (FE-09, FE-10)', () => {
     await user.click(screen.getByRole('button', { name: 'Hủy' }))
 
     post.mockResolvedValueOnce({ data: closed })
-    await user.click(screen.getByRole('button', { name: 'Khóa Đợt đang mở' }))
+    await user.click(screen.getByRole('button', { name: 'Kết thúc sớm Đợt đang mở' }))
     expect(screen.getByText(/không mở lại được/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Khóa đợt' }))
+    await user.click(screen.getByRole('button', { name: 'Kết thúc đợt' }))
     expect(post).toHaveBeenLastCalledWith('/api/registration-rounds/r2/close')
   })
 

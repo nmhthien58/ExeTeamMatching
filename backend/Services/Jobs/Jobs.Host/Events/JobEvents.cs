@@ -7,6 +7,9 @@ namespace Jobs.Host.Events;
 /// <summary>exe.registration – Academic phát khi mở đợt; Job lên lịch đóng đợt.</summary>
 public sealed record RoundOpened(Guid RoundId, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt);
 
+/// <summary>exe.registration – Academic phát khi khóa đợt (Bộ môn bấm Kết thúc sớm, hoặc Job tới hạn chót).</summary>
+public sealed record RoundClosed(Guid RoundId, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt);
+
 /// <summary>exe.registration, key = roundId.</summary>
 public sealed record DeadlineApproaching(
     Guid RoundId,
@@ -31,6 +34,7 @@ public sealed record DeliverableOverdue(
 public static class JobEventTypes
 {
     public const string RoundOpened = nameof(Events.RoundOpened);
+    public const string RoundClosed = nameof(Events.RoundClosed);
     public const string DeadlineApproaching = nameof(Events.DeadlineApproaching);
     public const string MeetingReminder = nameof(Events.MeetingReminder);
     public const string TaskDueSoon = nameof(Events.TaskDueSoon);
