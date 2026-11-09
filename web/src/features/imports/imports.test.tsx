@@ -35,6 +35,7 @@ function renderPage(list: unknown[] = semesters) {
   get.mockImplementation(async (url: string) => {
     if (url === '/api/semesters') return { data: list }
     if (url === '/api/imports') return { data: { items: [], page: 1, pageSize: 10, totalCount: 0, totalPages: 0 } }
+    if (url === '/api/domains') return { data: [{ id: 1, code: 'D01', name: 'AI & Data Innovation' }, { id: 4, code: 'D04', name: 'Software / SaaS / Platform' }] }
     throw new Error(`GET ${url} chưa giả lập`)
   })
   const router = createMemoryRouter([{ path: '/admin', children: adminImportRoutes }], { initialEntries: ['/admin/import'] })
@@ -225,6 +226,7 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
           oldTeamId: 'ot1',
           projectId: 'p1',
           projectName: 'EduPlatform',
+          domainCodes: ['D01', 'D04'],
           leaderStudentCode: 'SE160001',
           leaderName: 'Nguyễn Văn A',
           memberCount: 4,
@@ -249,6 +251,22 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
           missingOldMemberStudentCodes: ['SE160003', 'SE160004'],
           status: 'NEEDS_REVIEW',
         },
+        {
+          teamId: 't3',
+          teamName: 'Nhóm Phượng Hoàng',
+          oldTeamId: null,
+          projectId: 'p3',
+          projectName: 'Phoenix App',
+          domainCodes: ['D01'],
+          leaderStudentCode: 'SE160005',
+          leaderName: 'Lê Văn C',
+          memberCount: 4,
+          members: [
+            { studentId: 's5', studentCode: 'SE160005', fullName: 'Lê Văn C', specializationId: 1, isLeader: true },
+          ],
+          missingOldMemberStudentCodes: [],
+          status: 'ACTIVE',
+        },
       ],
     }
 
@@ -262,6 +280,11 @@ describe('W06, W07 – import sinh viên (FE-12, FE-13)', () => {
     expect(await screen.findByText('Xem trước kết quả kế thừa nhóm')).toBeInTheDocument()
     expect(screen.getByText('Nhóm Rồng Vàng')).toBeInTheDocument()
     expect(screen.getByText('Nhóm Chiến Binh')).toBeInTheDocument()
+    expect(screen.getByText('Nhóm Phượng Hoàng')).toBeInTheDocument()
+    expect(screen.getByText('Gắn đề tài EXE101 có sẵn')).toBeInTheDocument()
+    expect(screen.getByText('Tạo mới từ file')).toBeInTheDocument()
+    expect(screen.getAllByText('D01 · AI & Data Innovation').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('D04 · Software / SaaS / Platform')).toBeInTheDocument()
     expect(screen.getByText(/Không học EXE201 kỳ này: SE160003, SE160004/)).toBeInTheDocument()
 
     post.mockResolvedValueOnce({ data: autoInheritData })

@@ -1,6 +1,7 @@
-using Team.Repositories.Members;
-using Team.Repositories.Teams;
 using BuildingBlocks.Outbox;
+using Team.Repositories.Members;
+using Team.Repositories.Projects;
+using Team.Repositories.Teams;
 
 namespace Team.Repositories.BaselineImport;
 
@@ -21,5 +22,8 @@ public interface IBaselineImportRepository
         IReadOnlyList<TeamMember> members,
         IReadOnlyList<TeamBaselineMember> baselineMembers,
         IReadOnlyList<OutboxMessage> outboxMessages,
-        CancellationToken ct);
+        IReadOnlyList<Project>? projects = null,
+        IReadOnlyList<ProjectVersion>? projectVersions = null,
+        IReadOnlyList<TeamDomain>? teamDomains = null,
+        CancellationToken ct = default);
 }

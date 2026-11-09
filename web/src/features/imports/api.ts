@@ -81,6 +81,7 @@ export interface InheritedTeamSummary {
   oldTeamId: string | null
   projectId: string | null
   projectName: string | null
+  domainCodes?: string[] | null
   leaderStudentCode: string
   leaderName: string
   memberCount: number
