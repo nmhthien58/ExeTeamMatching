@@ -11,7 +11,7 @@ import { useMyTeam } from '@/features/suggestions/api'
 import { DomainChips, TeamRequirementBar } from '@/features/suggestions/components'
 import { refreshTeams, teamStatusLabel, type FullTeam, type JoinRequest } from '@/features/my_team/api'
 import { CancelJoinRequestDialog } from '@/features/invitations/InvitationsPage'
-import { linkClass, ListSkeleton } from '@/features/my_team/components'
+import { linkClass, ListSkeleton, MemberSkillsToggle } from '@/features/my_team/components'
 import { useJoinRequest, useTeam } from './api'
 
 /**
@@ -54,13 +54,14 @@ function Detail({ team }: { team: FullTeam }) {
           <h3 className="mb-2 font-semibold">Thành viên</h3>
           <ul className="flex flex-col gap-2">
             {team.members.map((m) => (
-              <li key={m.id} className="flex items-center gap-3">
+              <li key={m.id} className="flex flex-wrap items-center gap-3">
                 <Avatar name={m.fullName} size={32} />
                 <span className="flex-1">
                   {m.fullName}
                   {m.specialization?.name && <span className="text-text-secondary"> · {m.specialization.name}</span>}
                 </span>
                 {m.role === 'LEADER' && <StatusChip tone="info">Trưởng nhóm</StatusChip>}
+                <MemberSkillsToggle member={m} />
               </li>
             ))}
           </ul>

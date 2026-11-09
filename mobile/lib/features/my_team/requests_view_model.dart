@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_exception.dart';
+import 'members_view_model.dart' show pendingChangeMessage;
 import 'my_team_api.dart';
 
 /// Trạng thái tab "Yêu cầu" của S20: yêu cầu đang xử lý (nút Nhận quay) và câu lỗi gần nhất.
@@ -45,7 +46,7 @@ class JoinRequestsViewModel extends Notifier<JoinRequestsState> {
       String message;
       if (accept) {
         final applied = (await api.acceptJoinRequest(request.id)).applied;
-        message = applied ? 'Đã nhận ${request.student.fullName}' : 'Đã ghi nhận, chờ Bộ môn duyệt';
+        message = applied ? 'Đã nhận ${request.student.fullName}' : pendingChangeMessage;
       } else {
         await api.declineJoinRequest(request.id);
         message = 'Đã từ chối';

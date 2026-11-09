@@ -26,7 +26,18 @@ public sealed class StudentLookupService(IStudentRepository students) : IStudent
     public async Task<IReadOnlyList<StudentSnapshot>> LookupAsync(StudentLookupRequest request, CancellationToken ct)
     {
         var ids = request.StudentIds!.Distinct().ToList();
-        return ids.Count == 0 ? [] : ToSnapshots(await students.LookupAsync(request.SemesterId!.Value, ids, ct));
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+        var snapshots = ToSnapshots(await students.LookupAsync(request.SemesterId!.Value, ids, ct));
+        var (skills, descriptions) = await students.ListProfilesAsync(ids, ct);
+        var byStudent = skills.ToLookup(k => k.StudentId);
+        return snapshots.Select(s => s with
+        {
+            Skills = StudentProfileRules.Ordered(byStudent[s.Id].Select(k => new SkillRating(k.Skill, k.Level))),
+            Description = descriptions.GetValueOrDefault(s.Id),
+        }).ToList();
     }
 
     public async Task<IReadOnlyList<StudentSnapshot>> LookupByCodeAsync(StudentByCodeRequest request, CancellationToken ct)

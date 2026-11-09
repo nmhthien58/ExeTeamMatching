@@ -30,8 +30,8 @@ const actions: Record<string, { title: string; text: string; button?: string; to
   INVITE_MEMBERS: { title: 'Nhóm cần thêm thành viên', text: 'Nhóm cần {minSize}–{maxSize} người.', button: 'Mời thành viên', to: '/sv/nhom/goi-y', leaderOnly: true },
   ADD_SPECIALIZATION: { title: 'Nhóm cần thêm chuyên ngành', text: 'Nhóm cần ít nhất {minSpecializations} chuyên ngành.', button: 'Gợi ý thành viên', to: '/sv/nhom/goi-y', leaderOnly: true },
   CHOOSE_LECTURER: { title: 'Chọn giảng viên', text: 'Thêm nguyện vọng giảng viên trước hạn.', button: 'Xem nhóm', to: '/sv/nhom' },
-  SUBMIT_CHANGE_REQUEST: { title: 'Gửi yêu cầu đổi nhóm', text: 'Nhóm có thay đổi chưa gửi Bộ môn.', button: 'Xem nhóm', to: '/sv/nhom' },
-  WAIT_REVIEW: { title: 'Đang chờ Bộ môn duyệt', text: 'Yêu cầu đổi nhóm đang được xem xét.' },
+  SUBMIT_CHANGE_REQUEST: { title: 'Gửi yêu cầu thay đổi', text: 'Nhóm có thay đổi chưa gửi Bộ môn.', button: 'Xem nhóm', to: '/sv/nhom' },
+  WAIT_REVIEW: { title: 'Đang chờ Bộ môn duyệt', text: 'Yêu cầu thay đổi đang được xem xét.' },
   OPEN_WORKSPACE: { title: 'Nhóm đã chốt', text: 'Làm việc cùng nhóm trong Dự án.', button: 'Mở dự án', to: '/sv/du-an' },
 }
 

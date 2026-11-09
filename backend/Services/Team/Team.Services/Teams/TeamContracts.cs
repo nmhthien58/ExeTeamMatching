@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using FluentValidation;
+using Team.Services.JoinRequests;
 
 namespace Team.Services.Teams;
 
@@ -12,7 +13,11 @@ public record StudentRef(Guid Id, string StudentCode, string FullName, CatalogRe
 /// <summary>Schema <c>Member</c>. Phone / email chưa có nguồn trong Team (snapshot của Academic không có) nên luôn null.</summary>
 public sealed record MemberResponse(
     Guid Id, string StudentCode, string FullName, CatalogRef Specialization, string Role, string? Phone, string? Email,
-    DateTimeOffset JoinedAt, string? PendingChange) : StudentRef(Id, StudentCode, FullName, Specialization);
+    DateTimeOffset JoinedAt, string? PendingChange) : StudentRef(Id, StudentCode, FullName, Specialization)
+{
+    /// <summary>5 kỹ năng tự đánh giá từ hồ sơ Academic (S06, S13); rỗng khi chưa khai báo hoặc Academic lỗi.</summary>
+    public IReadOnlyList<SkillRating> Skills { get; init; } = [];
+}
 
 public sealed record TeamRequirement(
     int MemberCount, int MinSize, int MaxSize, int SpecializationCount, int MinSpecializations, bool IsValid,

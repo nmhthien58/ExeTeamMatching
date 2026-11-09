@@ -349,8 +349,8 @@ void main() {
       find.widgetWithText(TextField, 'Lý do thay đổi'),
       'Quá ngắn',
     );
-    await tester.ensureVisible(find.text('Gửi yêu cầu đổi nhóm'));
-    await tester.tap(find.text('Gửi yêu cầu đổi nhóm'));
+    await tester.ensureVisible(find.text('Gửi yêu cầu thay đổi'));
+    await tester.tap(find.text('Gửi yêu cầu thay đổi'));
     await tester.pumpAndSettle();
 
     expect(find.text('Lý do cần ít nhất 10 ký tự.'), findsWidgets);
@@ -379,8 +379,8 @@ void main() {
       find.widgetWithText(TextField, 'Lý do thay đổi'),
       'Đề tài phù hợp hơn với mục tiêu nhóm',
     );
-    await tester.ensureVisible(find.text('Gửi yêu cầu đổi nhóm'));
-    await tester.tap(find.text('Gửi yêu cầu đổi nhóm'));
+    await tester.ensureVisible(find.text('Gửi yêu cầu thay đổi'));
+    await tester.tap(find.text('Gửi yêu cầu thay đổi'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Gửi yêu cầu'));
     await tester.pumpAndSettle();
@@ -404,8 +404,8 @@ void main() {
       find.widgetWithText(TextField, 'Lý do thay đổi'),
       'Đổi thành viên do lịch học',
     );
-    await tester.ensureVisible(find.text('Gửi yêu cầu đổi nhóm'));
-    await tester.tap(find.text('Gửi yêu cầu đổi nhóm'));
+    await tester.ensureVisible(find.text('Gửi yêu cầu thay đổi'));
+    await tester.tap(find.text('Gửi yêu cầu thay đổi'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Gửi yêu cầu'));
     await tester.pumpAndSettle();
@@ -474,8 +474,8 @@ void main() {
       find.widgetWithText(TextField, 'Lý do thay đổi'),
       'Đổi thành viên do lịch học',
     );
-    await tester.ensureVisible(find.text('Gửi yêu cầu đổi nhóm'));
-    await tester.tap(find.text('Gửi yêu cầu đổi nhóm'));
+    await tester.ensureVisible(find.text('Gửi yêu cầu thay đổi'));
+    await tester.tap(find.text('Gửi yêu cầu thay đổi'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Gửi yêu cầu'));
     await tester.pumpAndSettle();

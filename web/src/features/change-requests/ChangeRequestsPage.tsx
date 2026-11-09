@@ -61,7 +61,7 @@ export function ChangeRequestsPage() {
 
   return (
     <>
-      <PageHeader title="Yêu cầu đổi nhóm" />
+      <PageHeader title="Yêu cầu thay đổi" />
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <div role="tablist" aria-label="Trạng thái yêu cầu" className="flex gap-2 border-b border-border">
           {tabs.map((tab) => <Button key={tab.value} role="tab" aria-selected={selected === tab.value} variant={selected === tab.value ? 'outline' : 'text'} onClick={() => setStatus(tab.value)}>{tab.label}</Button>)}
@@ -74,7 +74,7 @@ export function ChangeRequestsPage() {
         columns={columns}
         filters={[{ key: 'roundId', label: 'Đợt', options: (rounds.data ?? []).map((round) => ({ value: round.id, label: round.name })) }]}
         searchPlaceholder="Tên nhóm"
-        empty={<EmptyState icon="inbox" title={selected === 'PENDING' ? 'Chưa có yêu cầu chờ duyệt' : 'Chưa có yêu cầu trong trạng thái này'} description="Yêu cầu đổi nhóm EXE201 sẽ xuất hiện tại đây." />}
+        empty={<EmptyState icon="inbox" title={selected === 'PENDING' ? 'Chưa có yêu cầu chờ duyệt' : 'Chưa có yêu cầu trong trạng thái này'} description="Yêu cầu thay đổi EXE201 sẽ xuất hiện tại đây." />}
       />
     </>
   )

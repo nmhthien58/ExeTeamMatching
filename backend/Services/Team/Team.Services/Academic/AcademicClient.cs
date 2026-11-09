@@ -26,8 +26,10 @@ public sealed record SemesterDto(
 /// <summary>Schema <c>Round</c>.</summary>
 public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, string? Name = null);
 
-/// <summary>Schema <c>StudentSnapshot</c>.</summary>
-public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1);
+/// <summary>Schema <c>StudentSnapshot</c>. <c>skills</c>, <c>description</c> chỉ có ở <c>POST /internal/students/lookup</c>.</summary>
+public sealed record StudentSnapshot(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1,
+    IReadOnlyList<SkillRating>? Skills = null, string? Description = null);
 
 /// <summary>Schema <c>SeekingStudent</c>: sinh viên đang bật "Tôi đang tìm nhóm" (<c>GET /internal/students/seeking</c>).</summary>
 public sealed record SeekingStudentSnapshot(

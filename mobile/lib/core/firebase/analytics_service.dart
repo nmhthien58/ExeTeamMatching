@@ -58,7 +58,7 @@ abstract interface class AnalyticsService {
   /// S18 / S19: trưởng nhóm gửi lời mời thành công.
   Future<void> logSendInvitation(String teamId, {required InviteSource source});
 
-  /// S28: gửi yêu cầu đổi nhóm. [elapsed] tính từ lúc mở S27 (chỉ số thành công #1: ≤ 2 phút).
+  /// S28: gửi yêu cầu thay đổi. [elapsed] tính từ lúc mở S27 (chỉ số thành công #1: ≤ 2 phút).
   Future<void> logSubmitChangeRequest({required int changeCount, Duration? elapsed});
 
   /// Xuất / tải file (C05, C06…). [reportType] ví dụ `workspace_file`, [format] là đuôi file (`pdf`, `xlsx`).

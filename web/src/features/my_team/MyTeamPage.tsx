@@ -107,7 +107,7 @@ function Overview({ team }: { team: FullTeam }) {
               <Icon name="hourglass_top" />
               <span className="flex-1">
                 <span className="block font-semibold">Thay đổi chờ duyệt</span>
-                <span className="text-text-secondary">Có hiệu lực khi Bộ môn duyệt yêu cầu đổi nhóm.</span>
+                <span className="text-text-secondary">Có hiệu lực khi Bộ môn duyệt yêu cầu thay đổi.</span>
               </span>
               <Icon name="chevron_right" />
             </Link>

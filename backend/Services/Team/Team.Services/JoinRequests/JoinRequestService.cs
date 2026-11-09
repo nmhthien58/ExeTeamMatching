@@ -178,7 +178,8 @@ public sealed class JoinRequestService(
         var (cards, students) = await reader.CardsAndStudentsAsync(rows.Select(r => (r.TeamId, r.StudentId)).ToList(), ct);
         var ideas = await requests.ListIdeasAsync(rows.Select(r => r.Id).ToList(), ct);
         var now = clock.GetUtcNow();
-        return rows.Select(r => new JoinRequestResponse(r.Id, cards.GetValueOrDefault(r.TeamId), students.GetValueOrDefault(r.StudentId)!, [], null,
+        return rows.Select(r => new JoinRequestResponse(r.Id, cards.GetValueOrDefault(r.TeamId), students.GetValueOrDefault(r.StudentId)!,
+            reader.SkillsOf(r.StudentId), reader.DescriptionOf(r.StudentId),
             r.Message, ideas[r.Id].Select(i => new IdeaDto(i.Title, i.Description)).ToList(), r.HasNoIdea,
             RequestStatuses.Display(r.Status, r.ExpiresAt, now), r.CreatedAt, r.ExpiresAt)).ToList();
     }

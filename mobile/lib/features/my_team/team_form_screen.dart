@@ -85,7 +85,7 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
             enabled: !(widget.team?.isInherited ?? false),
             decoration: InputDecoration(
               labelText: 'Tên đề tài',
-              helperText: widget.team?.isInherited ?? false ? 'Đổi đề tài qua yêu cầu đổi nhóm.' : 'Có thể bổ sung sau.',
+              helperText: widget.team?.isInherited ?? false ? 'Đổi đề tài qua yêu cầu thay đổi.' : 'Có thể bổ sung sau.',
               errorText: state.projectNameError,
             ),
           ),
@@ -96,7 +96,7 @@ class _TeamFormScreenState extends ConsumerState<TeamFormScreen> {
               child: TextButton.icon(
                 onPressed: () => context.push('/sv/yeu-cau-doi-nhom'),
                 icon: const Icon(Icons.published_with_changes_outlined, size: 18),
-                label: const Text('Mở yêu cầu đổi nhóm'),
+                label: const Text('Mở yêu cầu thay đổi'),
               ),
             ),
           TextField(

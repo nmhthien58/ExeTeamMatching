@@ -11,12 +11,19 @@ sealed class MemberOutcome {
 final class MemberChanged extends MemberOutcome {
   const MemberChanged({required this.applied, required this.leaving});
 
-  /// false: nhóm EXE201 kế thừa, thay đổi chờ Bộ môn duyệt (quy tắc 7).
+  /// false: nhóm EXE201 kế thừa, thay đổi chỉ được thêm vào yêu cầu thay đổi (chưa gửi); trưởng nhóm phải gửi thì Bộ môn mới duyệt (quy tắc 7).
   final bool applied;
   final bool leaving;
 
-  String get message => applied ? 'Đã cập nhật' : 'Đã ghi nhận, chờ Bộ môn duyệt';
+  String get message => applied
+      ? 'Đã cập nhật'
+      : leaving
+          ? 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Trưởng nhóm cần gửi Bộ môn duyệt.'
+          : pendingChangeMessage;
 }
+
+/// Thông báo khi thay đổi của nhóm EXE201 kế thừa mới vào danh sách chờ, chưa gửi Bộ môn.
+const pendingChangeMessage = 'Đã thêm vào yêu cầu thay đổi (chưa gửi). Vào Yêu cầu thay đổi để gửi Bộ môn duyệt.';
 
 final class MemberFailed extends MemberOutcome {
   const MemberFailed();

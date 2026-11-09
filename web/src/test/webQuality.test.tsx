@@ -129,9 +129,9 @@ describe('FE-31: Kiểm thử chất lượng và đóng gói web', () => {
   })
 
   // =========================================================================
-  // 1. Luồng duyệt/từ chối yêu cầu đổi nhóm (W17, W18)
+  // 1. Luồng duyệt/từ chối yêu cầu thay đổi (W17, W18)
   // =========================================================================
-  describe('1. Yêu cầu đổi nhóm (W17, W18)', () => {
+  describe('1. Yêu cầu thay đổi (W17, W18)', () => {
     const mockRequestDetail = {
       id: 'cr-101',
       team: { id: 'team-1', name: 'Nhóm Tiên Phong', courseCode: 'EXE201', memberCount: 5 },
@@ -182,7 +182,7 @@ describe('FE-31: Kiểm thử chất lượng và đóng gói web', () => {
         </QueryClientProvider>,
       )
 
-      expect(await screen.findByText('Yêu cầu đổi nhóm · Nhóm Tiên Phong')).toBeInTheDocument()
+      expect(await screen.findByText('Yêu cầu thay đổi · Nhóm Tiên Phong')).toBeInTheDocument()
       expect(screen.getByText('Mốc EXE101')).toBeInTheDocument()
       expect(screen.getByText('Thành viên sau thay đổi')).toBeInTheDocument()
       expect(screen.getByText('Trần Thị B')).toBeInTheDocument()
@@ -219,7 +219,7 @@ describe('FE-31: Kiểm thử chất lượng và đóng gói web', () => {
         </QueryClientProvider>,
       )
 
-      await screen.findByText('Yêu cầu đổi nhóm · Nhóm Tiên Phong')
+      await screen.findByText('Yêu cầu thay đổi · Nhóm Tiên Phong')
       const rejectBtn = screen.getByRole('button', { name: 'Từ chối' })
       await userEvent.click(rejectBtn)
 
