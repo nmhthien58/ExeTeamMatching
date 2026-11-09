@@ -9,8 +9,8 @@ public sealed record IdeaDto(string Title, string? Description);
 public sealed record SkillRating(string Skill, int Level);
 
 /// <summary>
-/// Schema <c>JoinRequest</c> (S09, S12, S20). <c>studentSkills</c>, <c>studentDescription</c> lấy từ hồ sơ của Academic –
-/// lookup nội bộ chưa trả các trường này nên hiện rỗng.
+/// Schema <c>JoinRequest</c> (S09, S12, S20). <c>studentSkills</c>, <c>studentDescription</c> lấy từ hồ sơ của Academic
+/// (<c>POST /internal/students/lookup</c>); rỗng khi sinh viên chưa khai báo hoặc Academic lỗi.
 /// </summary>
 public sealed record JoinRequestResponse(
     Guid Id, TeamCardResponse? Team, StudentRef Student, IReadOnlyList<SkillRating> StudentSkills, string? StudentDescription,

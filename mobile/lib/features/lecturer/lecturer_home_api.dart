@@ -54,7 +54,23 @@ class LecturerHomeApi {
     String? courseCode,
     int page = 1,
     int pageSize = 20,
-  }) => _call(() async {
+  }) => _topics(advisorKind, courseCode, page, pageSize, 'suggested');
+
+  /// Mọi nhóm của môn chưa có cố vấn cùng loại (L07 "Tất cả nhóm"); nhóm không trùng chuyên môn có matchedDomains rỗng.
+  Future<TopicRecommendationsResponse> getAllTopics({
+    String advisorKind = 'LECTURER',
+    String? courseCode,
+    int page = 1,
+    int pageSize = 100,
+  }) => _topics(advisorKind, courseCode, page, pageSize, 'all');
+
+  Future<TopicRecommendationsResponse> _topics(
+    String advisorKind,
+    String? courseCode,
+    int page,
+    int pageSize,
+    String scope,
+  ) => _call(() async {
     final response = await _dio.get<Map<String, dynamic>>(
       '/api/topic-recommendations/me',
       queryParameters: {
@@ -63,6 +79,7 @@ class LecturerHomeApi {
           'courseCode': courseCode,
         'page': page,
         'pageSize': pageSize,
+        'scope': scope,
       },
     );
     return TopicRecommendationsResponse.fromJson(response.data!);
@@ -377,24 +394,44 @@ final advisorTeamActivityProvider = FutureProvider.autoDispose
 /// L07: giảng viên xem đề tài của cả EXE101 và EXE201 (lọc môn ở client). API trả một môn mỗi lần và
 /// thiếu `courseCode` thì mặc định EXE101, nên giảng viên gọi từng môn rồi gộp; mentor giữ như cũ.
 final advisorTopicRecommendationsProvider = FutureProvider.autoDispose
-    .family<TopicRecommendationsResponse, String>((ref, advisorKind) async {
-      final api = ref.watch(lecturerHomeApiProvider);
-      if (advisorKind != 'LECTURER') {
-        return api.getRecommendations(advisorKind: advisorKind);
-      }
-      final parts = await Future.wait([
-        for (final course in const ['EXE101', 'EXE201'])
-          api.getRecommendations(
-            advisorKind: advisorKind,
-            courseCode: course,
-            pageSize: 100,
-          ),
-      ]);
-      return TopicRecommendationsResponse.merge({
-        'EXE101': parts[0].onlyCourse('EXE101'),
-        'EXE201': parts[1].onlyCourse('EXE201'),
-      });
-    });
+    .family<TopicRecommendationsResponse, String>(
+      (ref, advisorKind) => _loadTopics(
+        advisorKind,
+        ref.watch(lecturerHomeApiProvider).getRecommendations,
+      ),
+    );
+
+/// L07 "Tất cả nhóm": mọi nhóm chưa có cố vấn, kể cả nhóm Matching không gợi ý.
+final advisorAllTopicsProvider = FutureProvider.autoDispose
+    .family<TopicRecommendationsResponse, String>(
+      (ref, advisorKind) => _loadTopics(
+        advisorKind,
+        ref.watch(lecturerHomeApiProvider).getAllTopics,
+      ),
+    );
+
+/// Giảng viên: gọi riêng từng môn rồi gộp; mentor: một lần (môn mặc định của API).
+Future<TopicRecommendationsResponse> _loadTopics(
+  String advisorKind,
+  Future<TopicRecommendationsResponse> Function({
+    String advisorKind,
+    String? courseCode,
+    int page,
+    int pageSize,
+  }) load,
+) async {
+  if (advisorKind != 'LECTURER') {
+    return load(advisorKind: advisorKind);
+  }
+  final parts = await Future.wait([
+    for (final course in const ['EXE101', 'EXE201'])
+      load(advisorKind: advisorKind, courseCode: course, pageSize: 100),
+  ]);
+  return TopicRecommendationsResponse.merge({
+    'EXE101': parts[0].onlyCourse('EXE101'),
+    'EXE201': parts[1].onlyCourse('EXE201'),
+  });
+}
 
 final advisorMyInterestsProvider = FutureProvider.autoDispose
     .family<List<TopicInterestItem>, String>(

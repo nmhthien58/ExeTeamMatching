@@ -8,7 +8,7 @@ import { Avatar, Card } from '@/features/workspace/components'
 import { useSnackbar } from '@/features/workspace/useSnackbar'
 import { useMyTeam, type TeamMember } from '@/features/suggestions/api'
 import { useMemberAction, type FullTeam } from './api'
-import { ListSkeleton } from './components'
+import { ListSkeleton, MemberSkillsToggle } from './components'
 import { ProposeLeaderDialog } from './LeaderVote'
 
 type Pending = { kind: 'remove' | 'transfer'; member: TeamMember } | { kind: 'leave' }
@@ -87,6 +87,7 @@ function Members({ team }: { team: FullTeam }) {
                 <span className="text-text-secondary">{[m.studentCode, m.specialization?.name].filter(Boolean).join(' · ')}</span>
               </span>
               {m.role === 'LEADER' && <StatusChip tone="info">Trưởng nhóm</StatusChip>}
+              <MemberSkillsToggle member={m} />
               {canPropose && m.role !== 'LEADER' && (
                 <Button variant="text" onClick={() => setNominee(m)}>
                   Đề nghị làm nhóm trưởng

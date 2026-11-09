@@ -185,7 +185,7 @@ class EditProfileScreen extends ConsumerWidget {
             data: (profile) => ProfileForm(
               profile: profile,
               submitLabel: 'Lưu',
-              showSeekingSwitch: isTeamFormation && !profile.hasTeam,
+              showSeekingSwitch: isTeamFormation,
               onSaved: () {
                 ScaffoldMessenger.of(context)
                   ..hideCurrentSnackBar()

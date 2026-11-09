@@ -201,22 +201,6 @@ describe('student team screens (FE-37)', () => {
     expect(screen.getByRole('link', { name: /Xem hồ sơ Nguyễn An/ })).toHaveAttribute('href', '/sv/sinh-vien/s7')
   })
 
-  it('S11 needs a role before posting, then saves domains and returns to Discover', async () => {
-    routes = { '/api/seeking-posts/me': notFound, '/api/domains': [{ id: 5, code: 'D05', name: 'Giáo dục' }] }
-    post.mockResolvedValue({ data: {} })
-    const router = renderAt('/sv/kham-pha/tim-nhom')
-    const user = userEvent.setup()
-
-    await user.click(await screen.findByRole('button', { name: 'Đăng bài' }))
-    expect(screen.getByText('Nhập vai trò mong muốn.')).toBeInTheDocument()
-    await user.type(screen.getByLabelText('Vai trò mong muốn'), 'Backend')
-    await user.click(await screen.findByRole('button', { name: 'Giáo dục' }))
-    await user.click(screen.getByRole('button', { name: 'Đăng bài' }))
-
-    expect(post).toHaveBeenCalledWith('/api/seeking-posts/me', { title: 'Backend', description: undefined, domainIds: [5] })
-    expect(router.state.location.pathname).toBe('/sv/kham-pha')
-  })
-
   it('S21 shows seats left and saves the needed specializations of the open post', async () => {
     routes = {
       '/api/teams/me': { ...team('LEADER'), recruitmentPost: { id: 'r1', title: 'Cần BA', specializationIds: [] } },

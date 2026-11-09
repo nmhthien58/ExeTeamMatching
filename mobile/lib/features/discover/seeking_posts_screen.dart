@@ -8,11 +8,14 @@ import '../../shared/widgets/states.dart';
 import '../my_team/my_team_api.dart' show domainsProvider, myTeamDetailProvider;
 import '../suggestions/suggestion_widgets.dart' show showInviteSheet;
 import '../suggestions/suggestions_api.dart' show CatalogRef, specializationsProvider;
+import '../profile/my_profile_screens.dart' show editProfilePath;
+import '../profile/profile_api.dart' show myProfileProvider;
 import 'post_form_view_model.dart';
 import 'posts_api.dart';
 import 'seeking_posts_view_model.dart';
 
-/// S10 – tab "Sinh viên tìm nhóm" của Khám phá (MB-17): bài của mình (→ S11), lọc chuyên ngành, danh sách bài phân trang.
+/// S10 – tab "Sinh viên tìm nhóm" của Khám phá (MB-17): sinh viên cùng kỳ, cùng môn, chưa có nhóm và đang bật
+/// "Tôi đang tìm nhóm" trong hồ sơ (không cần đăng bài); lọc chuyên ngành, phân trang.
 /// Trưởng nhóm còn chỗ thấy nút "Mời vào nhóm" (design-decisions B2). Chạm thẻ mở S04.
 class SeekingPostsTab extends ConsumerWidget {
   const SeekingPostsTab({super.key});
@@ -94,21 +97,23 @@ class SeekingPostsTab extends ConsumerWidget {
   }
 }
 
-/// Lối vào S11 cho sinh viên chưa có nhóm: chưa đăng → nút Đăng bài; đã đăng → tóm tắt + Sửa.
+/// Sinh viên chưa có nhóm: không cần đăng bài, chỉ cần bật "Tôi đang tìm nhóm" trong hồ sơ (S03) là có mặt trong danh sách.
 class _MyPostCard extends ConsumerWidget {
   const _MyPostCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mine = ref.watch(mySeekingPostProvider).value;
+    final seeking = ref.watch(myProfileProvider).value?.isSeekingTeam ?? false;
     return Card.outlined(
       margin: EdgeInsets.zero,
       child: ListTile(
-        leading: Icon(mine == null ? Icons.campaign_outlined : Icons.check_circle_outline),
-        title: Text(mine == null ? 'Đăng bài "Tôi đang tìm nhóm"' : 'Bạn đang tìm nhóm'),
-        subtitle: Text(mine?.title ?? 'Trưởng nhóm thấy vai trò bạn muốn và có thể mời bạn.'),
-        trailing: Text(mine == null ? 'Đăng bài' : 'Sửa'),
-        onTap: () => context.push('/sv/kham-pha/tim-nhom'),
+        leading: Icon(seeking ? Icons.check_circle_outline : Icons.person_search_outlined),
+        title: Text(seeking ? 'Bạn đang tìm nhóm' : 'Bật "Tôi đang tìm nhóm"'),
+        subtitle: Text(seeking
+            ? 'Trưởng nhóm thấy hồ sơ của bạn ở danh sách này và có thể mời bạn.'
+            : 'Bật trong hồ sơ để trưởng nhóm thấy bạn ở danh sách này.'),
+        trailing: const Text('Hồ sơ'),
+        onTap: () => context.push(editProfilePath),
       ),
     );
   }
@@ -139,7 +144,7 @@ class SeekingPostCard extends StatelessWidget {
               Text(student.fullName, style: theme.textTheme.titleMedium),
               Text([student.studentCode, ?student.specialization?.name].join(' · '), style: theme.textTheme.bodyMedium),
               const SizedBox(height: AppSpacing.s2),
-              Text('Vai trò: ${post.title}', style: theme.textTheme.bodyLarge),
+              if (post.title.isNotEmpty) Text('Vai trò: ${post.title}', style: theme.textTheme.bodyLarge),
               if (post.description != null) ...[
                 const SizedBox(height: AppSpacing.s1),
                 Text(post.description!, style: theme.textTheme.bodyMedium, maxLines: 3, overflow: TextOverflow.ellipsis),

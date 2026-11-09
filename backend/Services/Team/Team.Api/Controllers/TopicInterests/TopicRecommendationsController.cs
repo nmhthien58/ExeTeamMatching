@@ -11,13 +11,14 @@ namespace Team.Api.Controllers.TopicInterests;
 [Route("api")]
 public sealed class TopicRecommendationsController(ITopicInterestService service) : ControllerBase
 {
-    /// <summary>Đề tài cho giảng viên hoặc mentor (L07 tab Gợi ý).</summary>
+    /// <summary>Đề tài cho giảng viên hoặc mentor (L07). scope=suggested (mặc định): nhóm Matching gợi ý; scope=all: mọi nhóm của môn chưa có cố vấn.</summary>
     [HttpGet("topic-recommendations/me")]
     public async Task<ActionResult<TopicRecommendationsResponse>> GetRecommendations(
         [FromQuery] string advisorKind,
         [FromQuery] string? courseCode,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] string? scope = null,
         CancellationToken ct = default) =>
-        Ok(await service.GetRecommendationsAsync(advisorKind, courseCode, page, pageSize, User, ct));
+        Ok(await service.GetRecommendationsAsync(advisorKind, courseCode, page, pageSize, User, ct, scope));
 }

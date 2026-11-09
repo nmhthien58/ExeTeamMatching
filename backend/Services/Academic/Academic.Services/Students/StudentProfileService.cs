@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using Academic.Repositories.Students;
 using Academic.Services.Lecturers;
+using Academic.Services.Teams;
 using BuildingBlocks.Auth;
 using BuildingBlocks.Errors;
+using Microsoft.Extensions.Logging;
 
 namespace Academic.Services.Students;
 
@@ -21,7 +23,10 @@ public interface IStudentProfileService
 /// dữ liệu import chỉ đọc. Lưu đủ 5 kỹ năng lần đầu thì hoàn tất onboarding (<c>profile_completed_at</c>).
 /// Mỗi lần sửa phát <c>StudentProfileUpdated</c> qua outbox (Matching cập nhật read model).
 /// </summary>
-public sealed class StudentProfileService(IStudentProfileRepository students, TimeProvider clock) : IStudentProfileService
+/// Sinh viên đã có nhóm ở học kỳ hiện hành không được bật cờ tìm nhóm (hỏi Team qua REST nội bộ); khi vào nhóm,
+/// <see cref="TeamMembershipSeekingHandler"/> tự tắt cờ.
+public sealed class StudentProfileService(
+    IStudentProfileRepository students, TimeProvider clock, ITeamClient teams, ILogger<StudentProfileService> logger) : IStudentProfileService
 {
     public async Task<StudentProfileResponse> GetMeAsync(ClaimsPrincipal user, CancellationToken ct) =>
         await ToResponseAsync(await FindMeAsync(user, ct), showContact: true, ct);
@@ -69,7 +74,13 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
         }
 
         student.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
-        student.IsSeekingTeam = input.IsSeekingTeam ?? student.IsSeekingTeam;
+        var hasTeam = await HasTeamAsync(student.Id, ct);
+        if (input.IsSeekingTeam == true && hasTeam)
+        {
+            throw new HttpStatusException(409, "already-in-team", "Bạn đã có nhóm",
+                "Bạn đã có nhóm trong học kỳ này nên không thể bật \"Tôi đang tìm nhóm\".");
+        }
+        student.IsSeekingTeam = !hasTeam && (input.IsSeekingTeam ?? student.IsSeekingTeam);
         if (input.Phone is not null)
         {
             student.Phone = LecturerRules.NormalizePhone(input.Phone);
@@ -83,7 +94,21 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
         students.AddEvent(StudentProfileEventTypes.StudentProfileUpdated, student.Id, new StudentProfileUpdatedEvent(
             student.Id, student.FullName, student.Email, student.SpecializationId, ratings, student.IsSeekingTeam, ProfileCompleted: profileCompleted, MajorId: student.MajorId));
         await students.SaveAsync(ct);
-        return await ToResponseAsync(student, showContact: true, ct, ratings);
+        return await ToResponseAsync(student, showContact: true, ct, ratings, hasTeam);
+    }
+
+    /// <summary>Team không trả lời thì coi như chưa có nhóm, để không chặn sửa hồ sơ (cờ vẫn được tắt khi nhận sự kiện vào nhóm).</summary>
+    private async Task<bool> HasTeamAsync(Guid studentId, CancellationToken ct)
+    {
+        try
+        {
+            return await teams.HasTeamAsync(studentId, ct);
+        }
+        catch (TeamUnavailableException ex)
+        {
+            logger.LogWarning(ex, "Không kiểm tra được nhóm của sinh viên {StudentId}.", studentId);
+            return false;
+        }
     }
 
     /// <summary>Theo claim <c>student_id</c>; token chưa có claim thì theo email. Không có hồ sơ → 404.</summary>
@@ -95,8 +120,10 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
         return student ?? throw new NotFoundException("hồ sơ sinh viên của tài khoản này");
     }
 
-    private async Task<StudentProfileResponse> ToResponseAsync(Student s, bool showContact, CancellationToken ct, IReadOnlyList<SkillRating>? ratings = null)
+    private async Task<StudentProfileResponse> ToResponseAsync(
+        Student s, bool showContact, CancellationToken ct, IReadOnlyList<SkillRating>? ratings = null, bool? hasTeam = null)
     {
+        var inTeam = hasTeam ?? await HasTeamAsync(s.Id, ct);
         var specialization = s.SpecializationId is { } specId ? await students.FindSpecializationAsync(specId, ct) : null;
         var major = await students.FindMajorAsync(s.MajorId, ct);
         var enrollment = await students.FindCurrentEnrollmentAsync(s.Id, ct);
@@ -105,7 +132,7 @@ public sealed class StudentProfileService(IStudentProfileRepository students, Ti
             s.Id, s.StudentCode, s.FullName, showContact ? s.Email : string.Empty,
             specialization is null ? null : new CatalogRef(specialization.Id, specialization.Code, specialization.Name),
             new CatalogRef(s.MajorId, major?.Code ?? string.Empty, major?.Name ?? string.Empty),
-            enrollment?.ClassCode, enrollment?.CourseCode, HasTeam: false, s.IsSeekingTeam, showContact ? s.Phone : null, ContactEmailVisible: showContact,
+            enrollment?.ClassCode, enrollment?.CourseCode, HasTeam: inTeam, s.IsSeekingTeam && !inTeam, showContact ? s.Phone : null, ContactEmailVisible: showContact,
             ratings, s.Description, s.ProfileCompletedAt is not null, CurrentTeamId: null);
     }
 }

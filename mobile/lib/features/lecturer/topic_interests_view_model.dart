@@ -49,6 +49,7 @@ mixin _InterestCommands {
 
   void invalidateInterests() {
     ref.invalidate(advisorTopicRecommendationsProvider(advisorKind));
+    ref.invalidate(advisorAllTopicsProvider(advisorKind));
     ref.invalidate(advisorMyInterestsProvider(advisorKind));
     if (isLecturer) ref.invalidate(lecturerPreferencesMeProvider);
   }
@@ -84,6 +85,7 @@ class TopicInterestsViewModel extends Notifier<TopicInterestsState> with _Intere
 
   Future<void> refresh() async {
     ref.invalidate(advisorTopicRecommendationsProvider(advisorKind));
+    ref.invalidate(advisorAllTopicsProvider(advisorKind));
     ref.invalidate(advisorMyInterestsProvider(advisorKind));
     if (isLecturer) {
       ref.invalidate(lecturerPreferencesMeProvider);

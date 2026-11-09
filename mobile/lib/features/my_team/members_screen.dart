@@ -6,6 +6,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../shared/widgets/states.dart';
 import '../workspace/workspace_widgets.dart';
 import 'leader_vote.dart';
+import 'member_skills_sheet.dart';
 import 'members_view_model.dart';
 import 'my_team_api.dart';
 
@@ -88,6 +89,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
             children: [
               for (final m in team.members)
                 ListTile(
+                  onTap: () => showMemberSkills(context, m),
                   leading: Avatar(name: m.fullName),
                   title: Text(m.fullName),
                   subtitle: Text([m.studentCode, if (m.specialization?.name.isNotEmpty ?? false) m.specialization!.name].join(' · ')),

@@ -12,10 +12,12 @@ import { StudentCard } from '@/features/suggestions/components'
 import { InviteDialog } from '@/features/suggestions/InviteDialog'
 import { useDomains } from '@/features/my_team/api'
 import { Field, ListSkeleton } from '@/features/my_team/components'
+import { useMyProfile } from '@/features/profile/api'
 import { postErrors, useMySeekingPost, useSaveMySeeking, useSeekingPosts, type SeekingPost } from './postsApi'
 
 /**
- * S10 – tab "Sinh viên tìm nhóm" của Khám phá (FE-37, cùng spec MB-17): bài của mình (→ S11), lọc chuyên ngành, phân trang.
+ * S10 – tab "Sinh viên tìm nhóm" của Khám phá (FE-37, cùng spec MB-17): sinh viên cùng kỳ, cùng môn, chưa có nhóm và đang bật
+ * "Tôi đang tìm nhóm" trong hồ sơ (không cần đăng bài); lọc chuyên ngành, phân trang.
  * Trưởng nhóm còn chỗ có nút "Mời vào nhóm" (design-decisions B2); "Xem hồ sơ" mở S04.
  */
 export function SeekingPostsPanel() {
@@ -129,23 +131,26 @@ export function SeekingPostsPanel() {
   )
 }
 
+/** Không cần đăng bài: bật "Tôi đang tìm nhóm" trong hồ sơ (S03) là có mặt trong danh sách. */
 function MyPostCard() {
-  const mine = useMySeekingPost()
+  const seeking = useMyProfile().data?.isSeekingTeam ?? false
   return (
     <Link
-      to="/sv/kham-pha/tim-nhom"
+      to="/sv/ho-so/sua"
       className="card-hover group relative flex items-center gap-4 overflow-hidden rounded-lg bg-ink p-5 text-white shadow-elevation-2"
     >
       <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-brand-orange/30 blur-3xl" />
       <span aria-hidden className="relative grid size-12 shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-brand-orange to-primary shadow-glow">
-        <Icon name={mine.data ? 'check_circle' : 'campaign'} filled className="text-white" />
+        <Icon name={seeking ? 'check_circle' : 'person_search'} filled className="text-white" />
       </span>
       <span className="relative min-w-0 flex-1">
-        <span className="block text-subtitle font-semibold">{mine.data ? 'Bạn đang tìm nhóm' : 'Đăng bài "Tôi đang tìm nhóm"'}</span>
-        <span className="block truncate text-caption text-ink-text">{mine.data?.title ?? 'Trưởng nhóm thấy vai trò bạn muốn và có thể mời bạn.'}</span>
+        <span className="block text-subtitle font-semibold">{seeking ? 'Bạn đang tìm nhóm' : 'Bật "Tôi đang tìm nhóm"'}</span>
+        <span className="block truncate text-caption text-ink-text">
+          {seeking ? 'Trưởng nhóm thấy hồ sơ của bạn ở danh sách này và có thể mời bạn.' : 'Bật trong hồ sơ để trưởng nhóm thấy bạn ở danh sách này.'}
+        </span>
       </span>
       <span className="relative inline-flex min-h-10 items-center gap-1 rounded-md bg-white/10 px-4 font-semibold transition-colors group-hover:bg-white/20">
-        {mine.data ? 'Sửa' : 'Đăng bài'}
+        Hồ sơ
         <Icon name="arrow_forward" size={20} />
       </span>
     </Link>
@@ -156,9 +161,11 @@ function MyPostCard() {
 export function SeekingPostCard({ post, domains, action }: { post: SeekingPost; domains: CatalogRef[]; action?: ReactNode }) {
   return (
     <StudentCard student={post.student} skills={post.skills.map((s) => `${s.skill} ${s.level}/5`)} action={action}>
-      <p>
-        <span className="font-medium">Vai trò:</span> {post.title}
-      </p>
+      {post.title && (
+        <p>
+          <span className="font-medium">Vai trò:</span> {post.title}
+        </p>
+      )}
       {post.description && <p className="line-clamp-3 text-text-secondary">{post.description}</p>}
       {domains.length > 0 && (
         <span className="flex flex-wrap gap-2">

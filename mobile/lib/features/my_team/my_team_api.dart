@@ -5,12 +5,20 @@ import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../discover/posts_api.dart' show RecruitmentPost;
 import '../suggestions/suggestions_api.dart' show CatalogRef, myTeamProvider;
+import '../workspace/workspace_api.dart' show myWorkspacesProvider;
 import 'leader_vote.dart' show LeaderVote;
 
 // Model theo docs/contracts/openapi/team.yaml (tag Teams, Members, Invitations, JoinRequests) – các trường S13–S17, S20 dùng.
 
 class Member {
-  const Member({required this.id, required this.studentCode, required this.fullName, required this.isLeader, this.specialization});
+  const Member({
+    required this.id,
+    required this.studentCode,
+    required this.fullName,
+    required this.isLeader,
+    this.specialization,
+    this.skills = const {},
+  });
 
   final String id;
   final String studentCode;
@@ -18,12 +26,16 @@ class Member {
   final bool isLeader;
   final CatalogRef? specialization;
 
+  /// 5 kỹ năng tự đánh giá (S08, S13); rỗng khi chưa khai báo.
+  final Map<String, int> skills;
+
   factory Member.fromJson(Map<String, dynamic> j) => Member(
         id: j['id'] as String,
         studentCode: j['studentCode'] as String? ?? '',
         fullName: j['fullName'] as String? ?? '',
         isLeader: j['role'] == 'LEADER',
         specialization: j['specialization'] == null ? null : CatalogRef.fromJson(_map(j['specialization'])),
+        skills: {for (final s in (j['skills'] as List? ?? const [])) _map(s)['skill'] as String: _map(s)['level'] as int},
       );
 }
 
@@ -297,14 +309,17 @@ final joinRequestsProvider = FutureProvider.autoDispose.family<List<JoinRequestI
 final sentInvitationsProvider =
     FutureProvider.autoDispose.family<List<SentInvitation>, String>((ref, teamId) => ref.watch(myTeamApiProvider).sentInvitations(teamId));
 
-/// Sau khi nhóm thay đổi: tải lại cả bản của S15 và bản gợi ý (S18) của Nguyên.
+/// Sau khi nhóm thay đổi: tải lại cả bản của S15, bản gợi ý (S18) của Nguyên và workspace của nhóm (tab Tin nhắn C02,
+/// không thì tab vẫn giữ "Bạn chưa có nhóm" vì tab sống suốt phiên).
 void refreshMyTeam(WidgetRef ref) {
   ref.invalidate(myTeamDetailProvider);
   ref.invalidate(myTeamProvider);
+  ref.invalidate(myWorkspacesProvider);
 }
 
 /// Như [refreshMyTeam], gọi từ ViewModel (MB-49).
 void refreshMyTeamFrom(Ref ref) {
   ref.invalidate(myTeamDetailProvider);
   ref.invalidate(myTeamProvider);
+  ref.invalidate(myWorkspacesProvider);
 }

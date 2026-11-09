@@ -12,6 +12,7 @@ using Team.Repositories.Projects;
 using Team.Repositories.Teams;
 using Team.Repositories.TopicInterests;
 using Team.Services.Academic;
+using Team.Services.Matching;
 using Team.Services.Teams;
 using Team.Services.TopicInterests;
 
@@ -221,9 +222,11 @@ public sealed class TopicInterestsTests
     {
         public List<TopicSuggestionItem> Items { get; } = [];
         public (Guid SemesterId, string? Course, string Kind, Guid AdvisorId, int Page, int PageSize)? Request { get; private set; }
+        public Exception? Failure { get; set; }
         public Task<IReadOnlyList<TopicSuggestionItem>> SuggestAsync(Guid semesterId, string? courseCode, string advisorKind, Guid advisorId, int page, int pageSize, CancellationToken ct)
         {
             Request = (semesterId, courseCode, advisorKind, advisorId, page, pageSize);
+            if (Failure is not null) throw Failure;
             return Task.FromResult<IReadOnlyList<TopicSuggestionItem>>(Items);
         }
     }
@@ -663,6 +666,88 @@ public sealed class TopicInterestsTests
         Assert.Equal(2, response.Items[1].MatchedDomains.Count);
 
         Assert.DoesNotContain(response.Items, x => x.Team.Id == team3.Id);
+    }
+
+    private static (TeamEntity Suggested, TeamEntity Other, TeamEntity Assigned, TeamEntity Disbanded) SeedAllScopeTeams(
+        InMemoryTopicInterestRepo interestRepo, InMemoryTeamRepo teamRepo, FakeAcademic academic, Guid lecturerId)
+    {
+        TeamEntity Add(string name, string status, int domainId)
+        {
+            var team = new TeamEntity { Id = Guid.NewGuid(), SemesterId = academic.Semester.Id, CourseCode = "EXE201", Name = name, Status = status };
+            teamRepo.Teams.Add(team);
+            teamRepo.Domains.Add(new TeamDomain { TeamId = team.Id, DomainId = domainId, DomainCode = $"D0{domainId}", IsPrimary = true });
+            interestRepo.TeamIdsInSemester.Add(team.Id);
+            return team;
+        }
+
+        // "Nhóm B" trùng domain nên được gợi ý; "Nhóm A" (kế thừa từ import mốc, Matching chưa có domain) thì không.
+        var other = Add("Nhóm A", "ACTIVE", 3);
+        var suggested = Add("Nhóm B", "ACTIVE", 1);
+        var assigned = Add("Nhóm C", "ACTIVE", 3);
+        var disbanded = Add("Nhóm D", "DISBANDED", 3);
+        interestRepo.AssignedLecturerTeamIds.Add(assigned.Id);
+        interestRepo.Interests.Add(new TopicInterest
+        {
+            Id = Guid.NewGuid(), TeamId = other.Id, AdvisorKind = "LECTURER", AdvisorId = Guid.NewGuid(), Status = "OPEN",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+        interestRepo.Interests.Add(new TopicInterest
+        {
+            Id = Guid.NewGuid(), TeamId = other.Id, AdvisorKind = "LECTURER", AdvisorId = lecturerId, Status = "OPEN",
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+        return (suggested, other, assigned, disbanded);
+    }
+
+    [Fact]
+    public async Task GetRecommendations_ScopeAll_ListsEveryTeamWithoutAdvisor_SuggestedFirst()
+    {
+        var matching = new FakeTopicSuggestions();
+        var (service, interestRepo, teamRepo, academic) = CreateService(matching);
+        var lecturerId = Guid.NewGuid();
+        var (suggested, other, assigned, disbanded) = SeedAllScopeTeams(interestRepo, teamRepo, academic, lecturerId);
+        matching.Items.Add(new TopicSuggestionItem(suggested.Id, [1], 0, false));
+
+        var response = await service.GetRecommendationsAsync("LECTURER", "EXE201", 1, 20,
+            UserWith(lecturerId: lecturerId, roles: Roles.Lecturer), CancellationToken.None, "all");
+
+        Assert.Equal([suggested.Id, other.Id], response.Items.Select(i => i.Team.Id));
+        Assert.Single(response.Items[0].MatchedDomains);
+        Assert.Empty(response.Items[1].MatchedDomains);
+        Assert.Equal(1, response.Items[1].OtherInterestedCount); // không tính quan tâm của chính mình
+        Assert.NotNull(response.Items[1].MyInterest);             // hoàn tác được ngay trên thẻ
+        Assert.DoesNotContain(response.Items, i => i.Team.Id == assigned.Id || i.Team.Id == disbanded.Id);
+        Assert.Equal(100, matching.Request!.Value.PageSize);
+    }
+
+    [Fact]
+    public async Task GetRecommendations_ScopeAll_Paginates_AndSurvivesMatchingOutage()
+    {
+        var matching = new FakeTopicSuggestions { Failure = MatchingErrors.Unavailable() };
+        var (service, interestRepo, teamRepo, academic) = CreateService(matching);
+        var lecturerId = Guid.NewGuid();
+        var (suggested, other, _, _) = SeedAllScopeTeams(interestRepo, teamRepo, academic, lecturerId);
+        var user = UserWith(lecturerId: lecturerId, roles: Roles.Lecturer);
+
+        var first = await service.GetRecommendationsAsync("LECTURER", "EXE201", 1, 1, user, CancellationToken.None, "ALL");
+        var second = await service.GetRecommendationsAsync("LECTURER", "EXE201", 2, 1, user, CancellationToken.None, "all");
+
+        Assert.Equal(other.Id, Assert.Single(first.Items).Team.Id); // Matching lỗi: xếp theo tên
+        Assert.Equal(suggested.Id, Assert.Single(second.Items).Team.Id);
+        Assert.All(first.Items.Concat(second.Items), i => Assert.Empty(i.MatchedDomains));
+    }
+
+    [Fact]
+    public async Task GetRecommendations_SuggestedScope_StillFailsWhenMatchingIsDown_AndRejectsUnknownScope()
+    {
+        var matching = new FakeTopicSuggestions { Failure = MatchingErrors.Unavailable() };
+        var (service, _, _, _) = CreateService(matching);
+        var user = UserWith(lecturerId: Guid.NewGuid(), roles: Roles.Lecturer);
+
+        await Assert.ThrowsAsync<HttpStatusException>(() =>
+            service.GetRecommendationsAsync("LECTURER", "EXE201", 1, 20, user, CancellationToken.None, "suggested"));
+        await Assert.ThrowsAsync<RequestValidationException>(() =>
+            service.GetRecommendationsAsync("LECTURER", "EXE201", 1, 20, user, CancellationToken.None, "everything"));
     }
 
     [Fact]
