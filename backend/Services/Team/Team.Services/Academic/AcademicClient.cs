@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Team.Services.JoinRequests;
 using Team.Services.Teams;
 
 namespace Team.Services.Academic;
@@ -27,6 +28,10 @@ public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, strin
 
 /// <summary>Schema <c>StudentSnapshot</c>.</summary>
 public sealed record StudentSnapshot(Guid Id, string StudentCode, string FullName, int? SpecializationId, string CourseCode, bool IsEnrolled, int MajorId = 1);
+
+/// <summary>Schema <c>SeekingStudent</c>: sinh viên đang bật "Tôi đang tìm nhóm" (<c>GET /internal/students/seeking</c>).</summary>
+public sealed record SeekingStudentSnapshot(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, int MajorId, string? Description, IReadOnlyList<SkillRating>? Skills);
 
 /// <summary>Schema <c>CatalogItem</c> (domain, chuyên ngành).</summary>
 public sealed record CatalogItem(int Id, string Code, string Name, bool IsActive);
@@ -70,6 +75,10 @@ public interface IAcademicClient
     /// <summary>Toàn bộ sinh viên của môn trong học kỳ (<c>GET /internal/students</c>, BE-22).</summary>
     Task<IReadOnlyList<StudentSnapshot>> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
         Task.FromResult<IReadOnlyList<StudentSnapshot>>([]);
+
+    /// <summary>Sinh viên của môn trong học kỳ đang bật cờ tìm nhóm (<c>GET /internal/students/seeking</c>).</summary>
+    Task<IReadOnlyList<SeekingStudentSnapshot>> ListSeekingStudentsAsync(Guid semesterId, string? courseCode, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<SeekingStudentSnapshot>>([]);
 
     /// <summary>Snapshot MSSV, tên, chuyên ngành; sinh viên không thuộc học kỳ không có trong kết quả hoặc <c>IsEnrolled = false</c>.</summary>
     Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
@@ -161,6 +170,10 @@ public sealed class AcademicClient(HttpClient http, IMemoryCache cache) : IAcade
 
     public async Task<IReadOnlyList<StudentSnapshot>> ListSemesterStudentsAsync(Guid semesterId, string courseCode, CancellationToken ct) =>
         await http.GetFromJsonAsync<List<StudentSnapshot>>($"/internal/students?semesterId={semesterId}&courseCode={courseCode}", ct) ?? [];
+
+    public async Task<IReadOnlyList<SeekingStudentSnapshot>> ListSeekingStudentsAsync(Guid semesterId, string? courseCode, CancellationToken ct) =>
+        await http.GetFromJsonAsync<List<SeekingStudentSnapshot>>(
+            $"/internal/students/seeking?semesterId={semesterId}{(courseCode is null ? "" : $"&courseCode={courseCode}")}", ct) ?? [];
 
     public async Task<IReadOnlyList<StudentSnapshot>> LookupStudentsAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct)
     {

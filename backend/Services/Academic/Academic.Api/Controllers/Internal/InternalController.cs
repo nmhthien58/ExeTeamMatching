@@ -49,6 +49,11 @@ public sealed class InternalController(IRoundService rounds, IStudentLookupServi
     public Task<IReadOnlyList<StudentSnapshot>> SemesterStudents([FromQuery] SemesterStudentsQuery query, CancellationToken ct) =>
         students.ListSemesterAsync(query, ct);
 
+    /// <summary>Sinh viên của học kỳ (lọc theo môn nếu có) đang bật "Tôi đang tìm nhóm", kèm giới thiệu và kỹ năng.</summary>
+    [HttpGet("students/seeking")]
+    public Task<IReadOnlyList<SeekingStudent>> SeekingStudents([FromQuery] SemesterStudentsQuery query, CancellationToken ct) =>
+        students.ListSeekingAsync(query, ct);
+
     /// <summary>Giảng viên kèm trạng thái, số nhóm tối đa (Team kiểm tra khi gửi nguyện vọng / phân công); có cả giảng viên đã khóa.</summary>
     [HttpGet("lecturers/{id:guid}")]
     public Task<LecturerResponse> Lecturer(Guid id, CancellationToken ct) => lecturers.GetInternalAsync(id, ct);

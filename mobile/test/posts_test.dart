@@ -6,6 +6,7 @@ import 'package:exe_team_matching/features/discover/seeking_posts_screen.dart';
 import 'package:exe_team_matching/features/my_team/my_team_api.dart';
 import 'package:exe_team_matching/features/my_team/my_team_screen.dart';
 import 'package:exe_team_matching/features/my_team/recruitment_post_screen.dart';
+import 'package:exe_team_matching/features/profile/profile_api.dart' show myProfileProvider;
 import 'package:exe_team_matching/features/suggestions/suggestions_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -84,6 +85,7 @@ Future<void> _pump(WidgetTester tester, Widget screen, {required _FakePosts api,
     myTeamDetailProvider.overrideWith((ref) async => myTeam),
     specializationsProvider.overrideWith((ref) async => const [_marketing]),
     domainsProvider.overrideWith((ref) async => const [_d05]),
+    myProfileProvider.overrideWith((ref) => Future.error('chưa có hồ sơ')),
   ];
   await tester.pumpWidget(ProviderScope(overrides: overrides, child: MaterialApp.router(theme: AppTheme.light(), routerConfig: router)));
   await tester.pumpAndSettle();
@@ -92,9 +94,9 @@ Future<void> _pump(WidgetTester tester, Widget screen, {required _FakePosts api,
 void main() {
   setUpAll(() => AppTheme.useGoogleFonts = false);
 
-  testWidgets('S10: chưa có nhóm thấy lối đăng bài, thẻ có chuyên ngành, vai trò, domain; không có nút mời', (tester) async {
+  testWidgets('S10: chưa có nhóm thấy lối bật cờ trong hồ sơ, thẻ có chuyên ngành, vai trò, domain; không có nút mời', (tester) async {
     await _pump(tester, const Scaffold(body: SeekingPostsTab()), api: _FakePosts(items: [_post]));
-    expect(find.text('Đăng bài "Tôi đang tìm nhóm"'), findsOneWidget);
+    expect(find.text('Bật "Tôi đang tìm nhóm"'), findsOneWidget);
     expect(find.text('Nguyễn An'), findsOneWidget);
     expect(find.text('SE180009 · Marketing'), findsOneWidget);
     expect(find.text('Vai trò: Frontend'), findsOneWidget);
@@ -109,7 +111,7 @@ void main() {
   testWidgets('S10: trưởng nhóm còn chỗ thấy nút Mời vào nhóm; lọc chuyên ngành không khớp → trống', (tester) async {
     await _pump(tester, const Scaffold(body: SeekingPostsTab()), api: _FakePosts(items: [_post.copyWithSpecialization(null)]), myTeam: _team());
     expect(find.text('Mời vào nhóm'), findsOneWidget);
-    expect(find.text('Đăng bài "Tôi đang tìm nhóm"'), findsNothing);
+    expect(find.text('Bật "Tôi đang tìm nhóm"'), findsNothing);
     await tester.tap(find.widgetWithText(ChoiceChip, 'Marketing'));
     await tester.pumpAndSettle();
     expect(find.text('Chưa có sinh viên đang tìm nhóm'), findsOneWidget);

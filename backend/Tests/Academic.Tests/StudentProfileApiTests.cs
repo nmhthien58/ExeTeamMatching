@@ -66,6 +66,26 @@ public sealed class StudentProfileApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Student_in_team_cannot_turn_on_seeking_flag()
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        var student = await CreateStudentAsync();
+        var me = Me(student.Id);
+        _api.Team.StudentsInTeam.Add(student.Id);
+
+        var rejected = await me.PutAsJsonAsync("/api/students/me", new { skills = Skills(3), isSeekingTeam = true });
+        Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
+        Assert.Contains("already-in-team", await rejected.Content.ReadAsStringAsync());
+
+        var saved = (await (await me.PutAsJsonAsync("/api/students/me", new { skills = Skills(3) })).Content.ReadFromJsonAsync<StudentProfileResponse>())!;
+        Assert.Equal((true, false), (saved.HasTeam, saved.IsSeekingTeam));
+    }
+
+    [Fact]
     public async Task Profile_is_found_by_email_when_token_has_no_student_id()
     {
         if (!Enabled)
