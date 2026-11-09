@@ -43,6 +43,20 @@ class FakeAiModelClient implements AiModelClient {
   }
 }
 
+class _QuotaThenOk extends FakeAiModelClient {
+  @override
+  Future<String?> generateJson({
+    required String model,
+    required String systemInstruction,
+    required String prompt,
+    required Schema responseSchema,
+  }) async {
+    final reply = await super.generateJson(model: model, systemInstruction: systemInstruction, prompt: prompt, responseSchema: responseSchema);
+    if (calls.length == 1) throw ServerException('429 RESOURCE_EXHAUSTED');
+    return reply;
+  }
+}
+
 const _enabled = AppRemoteConfig(aiIdeaEnabled: true, aiModel: 'gemini-test', aiPrompt: 'PROMPT');
 
 void main() {
@@ -60,6 +74,7 @@ void main() {
     analytics: analytics,
     crash: crash,
     timeout: const Duration(milliseconds: 50),
+    retryDelay: Duration.zero,
   );
 
   Future<IdeaDraft> suggest(FirebaseAiService s, [String description = 'App tìm phòng trọ cho sinh viên']) =>
@@ -127,13 +142,32 @@ void main() {
       await expectLater(suggest(service(client)), aiError(code));
       expect(analytics.names, [AnalyticsEvents.aiRequest, AnalyticsEvents.aiError]);
       expect(analytics.events.last.parameters, {'feature': 'idea_suggest', 'error_code': code});
-      // Chỉ lỗi không rõ mới ghi non-fatal lên Crashlytics.
-      expect(crash.errors, hasLength(code == AiException.unknown ? 1 : 0));
+      // Mọi lỗi đều ghi non-fatal lên Crashlytics để chẩn đoán.
+      expect(crash.errors, hasLength(1));
     });
   }
 
-  test('timeout mặc định 20 giây', () {
-    expect(FirebaseAiService.defaultTimeout, const Duration(seconds: 20));
+  test('timeout mặc định 30 giây', () {
+    expect(FirebaseAiService.defaultTimeout, const Duration(seconds: 30));
+  });
+
+  test('hết quota → thử model dự phòng', () async {
+    final client = _QuotaThenOk();
+    final draft = await suggest(service(client));
+    expect(draft.title, 'Tìm trọ gần trường');
+    expect(client.calls.map((c) => c.model), ['gemini-test', FirebaseAiService.fallbackModel]);
+  });
+
+  test('lỗi mạng → thử lại cùng model một lần', () async {
+    final client = FakeAiModelClient(error: const SocketException('x'));
+    await expectLater(suggest(service(client)), aiError(AiException.network));
+    expect(client.calls.map((c) => c.model), ['gemini-test', 'gemini-test']);
+  });
+
+  test('lỗi JSON → không thử lại', () async {
+    final client = FakeAiModelClient(reply: '{');
+    await expectLater(suggest(service(client)), aiError(AiException.badJson));
+    expect(client.calls, hasLength(1));
   });
 
   group('provider', () {

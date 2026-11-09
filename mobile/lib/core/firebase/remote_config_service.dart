@@ -18,7 +18,7 @@ class AppRemoteConfig {
   });
 
   static const defaultSuggestionsMaxItems = 5;
-  static const defaultAiModel = 'gemini-3.8-flash';
+  static const defaultAiModel = 'gemini-2.5-flash';
   static const defaultAiPrompt =
       'Bạn là trợ lý giúp sinh viên môn khởi nghiệp EXE (Đại học FPT) viết ý tưởng dự án. Từ mô tả ngắn của '
       'sinh viên, viết bản nháp gồm: title (tên ý tưởng ≤ 60 ký tự), problem (vấn đề), solution (giải pháp), '
