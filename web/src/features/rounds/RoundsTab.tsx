@@ -120,8 +120,8 @@ export function RoundsTab({ onCreate, onEdit }: { onCreate: (target: RoundFormTa
                       </Button>
                     )}
                     {r.status === 'OPEN' && (
-                      <Button variant="text" aria-label={`Khóa ${r.name}`} onClick={() => setConfirm({ round: r, action: 'close' })}>
-                        Khóa
+                      <Button variant="text" aria-label={`Kết thúc sớm ${r.name}`} onClick={() => setConfirm({ round: r, action: 'close' })}>
+                        Kết thúc sớm
                       </Button>
                     )}
                   </td>
@@ -136,14 +136,14 @@ export function RoundsTab({ onCreate, onEdit }: { onCreate: (target: RoundFormTa
         <Dialog
           open
           onClose={closeDialog}
-          title={confirm.action === 'open' ? 'Mở đợt đăng ký?' : 'Khóa đợt đăng ký?'}
+          title={confirm.action === 'open' ? 'Mở đợt đăng ký?' : 'Kết thúc đợt sớm?'}
           actions={
             <>
               <Button variant="outline" disabled={change.isPending} onClick={closeDialog}>
                 Hủy
               </Button>
               <Button variant={confirm.action === 'close' ? 'danger' : 'primary'} loading={change.isPending} onClick={run}>
-                {confirm.action === 'open' ? 'Mở đợt' : 'Khóa đợt'}
+                {confirm.action === 'open' ? 'Mở đợt' : 'Kết thúc đợt'}
               </Button>
             </>
           }
@@ -151,7 +151,9 @@ export function RoundsTab({ onCreate, onEdit }: { onCreate: (target: RoundFormTa
           <p>
             {confirm.action === 'open'
               ? `Sinh viên ${confirm.round.courseCode} thao tác được ngay. Đợt tự khóa lúc ${formatTime(confirm.round.deadlineAt)}.`
-              : `Sinh viên ${confirm.round.courseCode} không thao tác được nữa. Đợt đã khóa không mở lại được.`}
+              : confirm.round.roundType === 'TEAM_FORMATION'
+                ? `Đợt khóa ngay, không chờ tới ${formatTime(confirm.round.deadlineAt)}. Hệ thống chốt nhóm, ghép sinh viên chưa có nhóm rồi ghép giảng viên hướng dẫn (chạy nền, vài phút). Đợt đã khóa không mở lại được.`
+                : `Sinh viên ${confirm.round.courseCode} không gửi yêu cầu đổi nhóm được nữa. Đợt đã khóa không mở lại được.`}
           </p>
           {changeError && (
             <p role="alert" className="mt-2 text-error">

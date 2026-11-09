@@ -15,7 +15,8 @@ public static class RoundTypes
 public sealed record SemesterDto(Guid Id, string Code, DateOnly StartDate, DateOnly EndDate, int? MentoringStartWeek);
 
 /// <summary>Schema <c>Round</c> (academic.yaml).</summary>
-public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status);
+/// <summary><see cref="ClosedAt"/> trước <see cref="DeadlineAt"/> = Bộ môn kết thúc đợt sớm.</summary>
+public sealed record RoundDto(Guid Id, Guid SemesterId, string CourseCode, string RoundType, DateTimeOffset DeadlineAt, string Status, DateTimeOffset? ClosedAt = null);
 
 /// <summary>Schema <c>RuleSettings</c> (phần quy tắc lập nhóm).</summary>
 public sealed record TeamRuleSettings(int MinTeamSize, int MaxTeamSize, int MinSpecializations);

@@ -110,6 +110,41 @@ public sealed class JobTests
         Assert.Equal([roundId, roundId], academic.Closed);
     }
 
+    [Fact]
+    public async Task Round_closed_early_runs_finalize_now_and_deadline_job_does_not_repeat()
+    {
+        var jobs = new FakeJobClient();
+        var handler = new RoundClosedHandler(jobs, NullLogger<RoundClosedHandler>.Instance);
+        var early = new RoundClosed(Guid.NewGuid(), Guid.NewGuid(), "EXE101", RoundTypes.TeamFormation, DateTimeOffset.UtcNow.AddDays(2));
+
+        await handler.HandleAsync(EventEnvelope.Create(JobEventTypes.RoundClosed, early, "academic", null), Ct);
+
+        var (job, state) = Assert.Single(jobs.Created);
+        Assert.Equal(nameof(RoundAutoCloseJob.FinalizeAsync), job.Method.Name);
+        Assert.Equal(early.RoundId, job.Args[0]);
+        Assert.IsType<EnqueuedState>(state);
+
+        // Tới hạn chót, job hẹn giờ khóa lại đợt đã khóa sớm: không chạy chuỗi lần hai.
+        var academic = new FakeAcademic { ClosedAt = DateTimeOffset.UtcNow, DeadlineAt = early.DeadlineAt };
+        await new RoundAutoCloseJob(academic, new FakeTeam(), jobs, NullLogger<RoundAutoCloseJob>.Instance)
+            .CloseAsync(early.RoundId, early.SemesterId, "EXE101", RoundTypes.TeamFormation, Ct);
+        Assert.Single(jobs.Created);
+    }
+
+    [Fact]
+    public async Task Round_closed_at_deadline_or_change_round_is_ignored_by_handler()
+    {
+        var jobs = new FakeJobClient();
+        var handler = new RoundClosedHandler(jobs, NullLogger<RoundClosedHandler>.Instance);
+        var onTime = new RoundClosed(Guid.NewGuid(), Guid.NewGuid(), "EXE101", RoundTypes.TeamFormation, DateTimeOffset.UtcNow.AddMinutes(-1));
+        var change = new RoundClosed(Guid.NewGuid(), Guid.NewGuid(), "EXE201", RoundTypes.ChangeRequest, DateTimeOffset.UtcNow.AddDays(2));
+
+        await handler.HandleAsync(EventEnvelope.Create(JobEventTypes.RoundClosed, onTime, "academic", null), Ct);
+        await handler.HandleAsync(EventEnvelope.Create(JobEventTypes.RoundClosed, change, "academic", null), Ct);
+
+        Assert.Empty(jobs.Created);
+    }
+
     // ---------- AutoAssignUnmatchedJob (BE-54) ----------
 
     [Fact]

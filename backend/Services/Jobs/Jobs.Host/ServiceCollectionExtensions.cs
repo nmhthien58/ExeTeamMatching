@@ -63,6 +63,7 @@ public static class ServiceCollectionExtensions
         if (configuration.GetValue("Kafka:ConsumersEnabled", true))
         {
             services.AddEventHandler<RoundOpenedHandler>(Topics.Registration, JobEventTypes.RoundOpened);
+            services.AddEventHandler<RoundClosedHandler>(Topics.Registration, JobEventTypes.RoundClosed);
         }
         return services;
     }
