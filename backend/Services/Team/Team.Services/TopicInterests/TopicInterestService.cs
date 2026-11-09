@@ -22,15 +22,20 @@ public sealed class TopicInterestService(
     TimeProvider clock) : ITopicInterestService
 {
 
+    public const string ScopeSuggested = "suggested";
+    public const string ScopeAll = "all";
+
     public async Task<TopicRecommendationsResponse> GetRecommendationsAsync(
         string advisorKind,
         string? courseCode,
         int page,
         int pageSize,
         ClaimsPrincipal user,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? scope = null)
     {
         advisorKind = NormalizeAdvisorKind(advisorKind);
+        var showAll = NormalizeScope(scope) == ScopeAll;
         var (advisorId, _) = ResolveAdvisorIdentity(advisorKind, user);
 
         var semester = await academic.GetCurrentSemesterAsync(ct) ?? throw TeamErrors.RoundClosed();
@@ -40,29 +45,10 @@ public sealed class TopicInterestService(
         var (limit, remainingCapacity) = await CalculateLimitAsync(advisorKind, advisorId, semester.Id, targetCourse, ct);
         var openCount = await repo.CountOpenByAdvisorAsync(advisorKind, advisorId, semester.Id, targetCourse, ct);
 
-        var suggested = await suggestions.SuggestAsync(semester.Id, targetCourse, advisorKind, advisorId, page, pageSize, ct);
-        var catalogs = await reader.LoadCatalogsAsync(ct);
-        var graphs = (await teams.ListGraphsAsync(suggested.Select(s => s.TeamId).ToList(), ct)).ToDictionary(g => g.Team.Id);
-        var items = new List<TopicRecommendationResponse>();
-        foreach (var suggestion in suggested)
-        {
-            if (!graphs.TryGetValue(suggestion.TeamId, out var graph)) continue;
-            if (graph.Team.Status == TeamStatuses.Disbanded) continue;
-            var hasAdvisor = await repo.HasActiveAssignmentAsync(graph.Team.Id, advisorKind, ct);
-            if (hasAdvisor) continue;
-            var matchedDomains = graph.Domains
-                .Where(d => suggestion.MatchedDomainIds.Contains(d.DomainId))
-                .Select(d => new CatalogRef(d.DomainId, d.DomainCode, catalogs.Domains.GetValueOrDefault(d.DomainId)?.Name))
-                .ToList();
-            var prefRank = advisorKind == AdvisorKinds.Lecturer
-                ? await repo.GetLecturerPreferenceRankAsync(graph.Team.Id, advisorId, ct)
-                : null;
-            var myInterest = await repo.GetLatestInterestAsync(graph.Team.Id, advisorKind, advisorId, ct);
-            items.Add(new TopicRecommendationResponse(
-                TeamMapper.ToCard(graph, catalogs), matchedDomains, suggestion.OtherInterestedCount, prefRank,
-                myInterest is not null ? ToResponse(myInterest, suggestion.WasPreviousInstructor) : null,
-                suggestion.WasPreviousInstructor, false));
-        }
+        var items = showAll
+            ? await ListAllTeamsAsync(advisorKind, advisorId, semester.Id, targetCourse, page, pageSize, ct)
+            : await ListSuggestedAsync(advisorKind, advisorId,
+                await suggestions.SuggestAsync(semester.Id, targetCourse, advisorKind, advisorId, page, pageSize, ct), ct);
 
         return new TopicRecommendationsResponse(
             openCount,
@@ -72,6 +58,105 @@ public sealed class TopicInterestService(
             matchingAt,
             items);
     }
+
+    private async Task<List<TopicRecommendationResponse>> ListSuggestedAsync(
+        string advisorKind, Guid advisorId, IReadOnlyList<TopicSuggestionItem> suggested, CancellationToken ct)
+    {
+        var catalogs = await reader.LoadCatalogsAsync(ct);
+        var graphs = (await teams.ListGraphsAsync(suggested.Select(s => s.TeamId).ToList(), ct)).ToDictionary(g => g.Team.Id);
+        var items = new List<TopicRecommendationResponse>();
+        foreach (var suggestion in suggested)
+        {
+            if (!graphs.TryGetValue(suggestion.TeamId, out var graph)) continue;
+            if (graph.Team.Status == TeamStatuses.Disbanded) continue;
+            if (await repo.HasActiveAssignmentAsync(graph.Team.Id, advisorKind, ct)) continue;
+            items.Add(await ToRecommendationAsync(graph, catalogs, advisorKind, advisorId,
+                suggestion.MatchedDomainIds, suggestion.OtherInterestedCount, suggestion.WasPreviousInstructor, ct));
+        }
+
+        return items;
+    }
+
+    /// <summary>
+    /// Lựa chọn "Tất cả nhóm" (L07): mọi nhóm của môn trong kỳ chưa có cố vấn cùng loại, đọc thẳng từ team_db
+    /// nên không phụ thuộc read model của Matching. Nhóm được gợi ý đứng trước (giữ thứ tự và matchedDomains),
+    /// nhóm còn lại xếp theo tên với matchedDomains rỗng. Matching lỗi thì vẫn trả danh sách, chỉ mất phần gợi ý.
+    /// </summary>
+    private async Task<List<TopicRecommendationResponse>> ListAllTeamsAsync(
+        string advisorKind, Guid advisorId, Guid semesterId, string courseCode, int page, int pageSize, CancellationToken ct)
+    {
+        IReadOnlyList<TopicSuggestionItem> suggested;
+        try
+        {
+            suggested = await suggestions.SuggestAsync(semesterId, courseCode, advisorKind, advisorId, 1, 100, ct);
+        }
+        catch (HttpStatusException)
+        {
+            suggested = [];
+        }
+        var rank = suggested.Select((s, i) => (Item: s, Index: i)).ToDictionary(x => x.Item.TeamId);
+
+        var catalogs = await reader.LoadCatalogsAsync(ct);
+        var candidates = new List<TeamGraph>();
+        foreach (var graph in await teams.ListGraphsAsync(await repo.ListTeamIdsInSemesterAsync(semesterId, courseCode, ct), ct))
+        {
+            if (graph.Team.Status == TeamStatuses.Disbanded) continue;
+            if (await repo.HasActiveAssignmentAsync(graph.Team.Id, advisorKind, ct)) continue;
+            candidates.Add(graph);
+        }
+
+        var size = Math.Clamp(pageSize, 1, 100);
+        var pageItems = candidates
+            .OrderBy(g => rank.TryGetValue(g.Team.Id, out var r) ? r.Index : int.MaxValue)
+            .ThenBy(g => g.Team.Name, StringComparer.CurrentCulture)
+            .ThenBy(g => g.Team.Id)
+            .Skip((int)Math.Min((long)(Math.Max(page, 1) - 1) * size, int.MaxValue))
+            .Take(size)
+            .ToList();
+
+        var items = new List<TopicRecommendationResponse>();
+        foreach (var graph in pageItems)
+        {
+            if (rank.TryGetValue(graph.Team.Id, out var hit))
+            {
+                items.Add(await ToRecommendationAsync(graph, catalogs, advisorKind, advisorId,
+                    hit.Item.MatchedDomainIds, hit.Item.OtherInterestedCount, hit.Item.WasPreviousInstructor, ct));
+                continue;
+            }
+
+            var others = await repo.CountOpenByTeamAsync(graph.Team.Id, advisorKind, advisorId, ct);
+            var wasPrevious = advisorKind == AdvisorKinds.Lecturer
+                && await repo.WasLecturerEXE101InstructorAsync(graph.Team.Id, advisorId, ct);
+            items.Add(await ToRecommendationAsync(graph, catalogs, advisorKind, advisorId, [], others, wasPrevious, ct));
+        }
+
+        return items;
+    }
+
+    private async Task<TopicRecommendationResponse> ToRecommendationAsync(
+        TeamGraph graph, Catalogs catalogs, string advisorKind, Guid advisorId,
+        IReadOnlyList<int> matchedDomainIds, int otherInterestedCount, bool wasPrevious, CancellationToken ct)
+    {
+        var matchedDomains = graph.Domains
+            .Where(d => matchedDomainIds.Contains(d.DomainId))
+            .Select(d => new CatalogRef(d.DomainId, d.DomainCode, catalogs.Domains.GetValueOrDefault(d.DomainId)?.Name))
+            .ToList();
+        var prefRank = advisorKind == AdvisorKinds.Lecturer
+            ? await repo.GetLecturerPreferenceRankAsync(graph.Team.Id, advisorId, ct)
+            : null;
+        var myInterest = await repo.GetLatestInterestAsync(graph.Team.Id, advisorKind, advisorId, ct);
+        return new TopicRecommendationResponse(
+            TeamMapper.ToCard(graph, catalogs), matchedDomains, otherInterestedCount, prefRank,
+            myInterest is not null ? ToResponse(myInterest, wasPrevious) : null,
+            wasPrevious, false);
+    }
+
+    private static string NormalizeScope(string? scope) => scope?.Trim().ToLowerInvariant() switch
+    {
+        null or "" or ScopeSuggested => ScopeSuggested,
+        ScopeAll => ScopeAll,
+        _ => throw TeamErrors.Invalid("scope", "scope chỉ nhận 'suggested' hoặc 'all'."),
+    };
 
     public async Task<IReadOnlyList<TopicInterestResponse>> GetMyInterestsAsync(
         string advisorKind,

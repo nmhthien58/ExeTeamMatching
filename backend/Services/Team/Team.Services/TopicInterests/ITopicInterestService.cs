@@ -10,7 +10,8 @@ public interface ITopicInterestService
         int page,
         int pageSize,
         ClaimsPrincipal user,
-        CancellationToken ct);
+        CancellationToken ct,
+        string? scope = null);
 
     Task<IReadOnlyList<TopicInterestResponse>> GetMyInterestsAsync(
         string advisorKind,

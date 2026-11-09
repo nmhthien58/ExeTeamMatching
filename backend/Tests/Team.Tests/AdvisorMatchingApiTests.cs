@@ -613,8 +613,8 @@ public sealed class AdvisorMatchingApiTests : IAsyncLifetime
             teamId == failTeamId ? throw new InvalidOperationException("lỗi giả") : inner.CloseInterestsOnAssignmentAsync(teamId, advisorKind, matchedAdvisorId, ct);
 
         public Task CloseInterestsOnTeamDisbandedAsync(Guid teamId, CancellationToken ct) => inner.CloseInterestsOnTeamDisbandedAsync(teamId, ct);
-        public Task<TopicRecommendationsResponse> GetRecommendationsAsync(string advisorKind, string? courseCode, int page, int pageSize, ClaimsPrincipal user, CancellationToken ct) =>
-            inner.GetRecommendationsAsync(advisorKind, courseCode, page, pageSize, user, ct);
+        public Task<TopicRecommendationsResponse> GetRecommendationsAsync(string advisorKind, string? courseCode, int page, int pageSize, ClaimsPrincipal user, CancellationToken ct, string? scope = null) =>
+            inner.GetRecommendationsAsync(advisorKind, courseCode, page, pageSize, user, ct, scope);
         public Task<IReadOnlyList<TopicInterestResponse>> GetMyInterestsAsync(string advisorKind, ClaimsPrincipal user, CancellationToken ct) => inner.GetMyInterestsAsync(advisorKind, user, ct);
         public Task<IReadOnlyList<TopicInterestResponse>> GetTeamInterestsAsync(Guid teamId, string? advisorKind, ClaimsPrincipal user, CancellationToken ct) =>
             inner.GetTeamInterestsAsync(teamId, advisorKind, user, ct);
