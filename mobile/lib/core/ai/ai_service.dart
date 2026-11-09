@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../firebase/analytics_service.dart';
@@ -88,6 +89,7 @@ class FirebaseAiService implements AiService {
     required this._analytics,
     required this._crash,
     this.timeout = defaultTimeout,
+    this.retryDelay = defaultRetryDelay,
   });
 
   final AiModelClient _client;
@@ -95,8 +97,13 @@ class FirebaseAiService implements AiService {
   final AnalyticsService _analytics;
   final CrashReporter _crash;
   final Duration timeout;
+  final Duration retryDelay;
 
-  static const defaultTimeout = Duration(seconds: 20);
+  static const defaultTimeout = Duration(seconds: 30);
+  static const defaultRetryDelay = Duration(milliseconds: 1500);
+
+  /// Model dự phòng khi model chính hết quota / quá tải / không tồn tại (free tier riêng, rộng hơn).
+  static const fallbackModel = 'gemini-2.5-flash-lite';
 
   /// Mô tả dài hơn thì cắt bớt trước khi gửi (giới hạn chi phí token).
   static const maxDescriptionLength = 1000;
@@ -106,23 +113,42 @@ class FirebaseAiService implements AiService {
     if (!_config.aiIdeaEnabled) throw const AiException(AiException.disabled);
     final model = _config.aiModel;
     await _analytics.logAiRequest(feature: aiFeatureIdeaSuggest, model: model);
-    try {
-      final text = await _client
-          .generateJson(
-            model: model,
-            systemInstruction: _config.aiPrompt,
-            prompt: buildIdeaPrompt(description, allowedTags),
-            responseSchema: ideaDraftSchema(allowedTags),
-          )
-          .timeout(timeout);
-      if (text == null || text.trim().isEmpty) throw const AiException(AiException.blocked);
-      return IdeaDraft.fromJson(jsonDecode(text), allowedTags: allowedTags);
-    } catch (e, s) {
-      final code = aiErrorCode(e);
-      await _analytics.logAiError(feature: aiFeatureIdeaSuggest, errorCode: code);
-      if (code == AiException.unknown || code == AiException.denied) await _crash.recordNonFatal(e, s, reason: 'ai_$aiFeatureIdeaSuggest');
-      throw AiException(code);
+    final prompt = buildIdeaPrompt(description, allowedTags);
+    final schema = ideaDraftSchema(allowedTags);
+    // Thử tối đa 2 lần: lỗi mạng → thử lại cùng model; hết quota / quá tải / model không có → model dự phòng.
+    Object? lastError;
+    StackTrace? lastStack;
+    var current = model;
+    for (var attempt = 1; attempt <= 2; attempt++) {
+      try {
+        final text = await _client
+            .generateJson(model: current, systemInstruction: _config.aiPrompt, prompt: prompt, responseSchema: schema)
+            .timeout(timeout);
+        if (text == null || text.trim().isEmpty) throw const AiException(AiException.blocked);
+        return IdeaDraft.fromJson(jsonDecode(text), allowedTags: allowedTags);
+      } catch (e, s) {
+        lastError = e;
+        lastStack = s;
+        final code = aiErrorCode(e);
+        debugPrint('[AI] $aiFeatureIdeaSuggest model=$current attempt=$attempt code=$code error=$e');
+        final modelProblem = code == AiException.quota || isModelNotFound(e);
+        if (attempt == 2 || !(modelProblem || code == AiException.network)) break;
+        if (modelProblem && current != fallbackModel) current = fallbackModel;
+        await Future<void>.delayed(retryDelay);
+      }
     }
+    final code = aiErrorCode(lastError!);
+    await _analytics.logAiError(feature: aiFeatureIdeaSuggest, errorCode: code);
+    // Ghi mọi lỗi lên Crashlytics (non-fatal) kèm mã và model để chẩn đoán trên APK release.
+    await _crash.recordNonFatal(lastError, lastStack, reason: 'ai_${aiFeatureIdeaSuggest}_${code}_$current');
+    throw AiException(code);
+  }
+
+  /// Model không tồn tại / không hỗ trợ (HTTP 404) – ví dụ `ai_model` trên Console gõ sai tên.
+  static bool isModelNotFound(Object error) {
+    if (error is! FirebaseAIException) return false;
+    final lower = error.toString().toLowerCase();
+    return lower.contains('404') || lower.contains('not_found') || lower.contains('is not found') || lower.contains('not supported');
   }
 
   /// Nội dung gửi lên mô hình: chỉ mô tả sinh viên gõ và danh sách tag.

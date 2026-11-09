@@ -43,8 +43,8 @@ final class IdeaSuggestFailed extends IdeaSuggestState {
 /// Câu lỗi cho sinh viên theo `AiException.code`.
 String aiErrorMessage(String code) => switch (code) {
   'disabled' => 'Gợi ý bằng AI đang tắt. Bạn vẫn có thể tự nhập ý tưởng.',
-  'quota' => 'AI đang quá tải. Thử lại sau ít phút, hoặc tự nhập ý tưởng.',
-  'network' => 'Mất kết nối. Kiểm tra mạng rồi thử lại.',
+  'quota' => 'Đã hết lượt dùng AI. Thử lại sau ít phút, hoặc tự nhập ý tưởng.',
+  'network' => 'Mất kết nối tới dịch vụ AI. Kiểm tra mạng rồi thử lại.',
   'bad_json' => 'AI trả kết quả không đọc được. Bấm thử lại nhé.',
   'blocked' => 'AI không xử lý được mô tả này. Hãy viết lại mô tả khác.',
   'denied' => 'Dịch vụ AI tạm thời từ chối bản app này. Thử lại sau ít phút, hoặc tự nhập ý tưởng.',
