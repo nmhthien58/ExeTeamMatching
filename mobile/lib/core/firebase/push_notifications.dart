@@ -278,6 +278,8 @@ class PushNotificationsController extends Notifier<PushNotificationsState> {
     _emit(PushUiEventKind.opened, message);
   }
 
+  static const _teamChangingTypes = {'InvitationAccepted', 'JoinRequestAccepted', 'TeamFinalized'};
+
   void _refreshInbox([PushMessage? message]) {
     ref.invalidate(notificationsViewModelProvider);
     unawaited(ref.read(unreadCountViewModelProvider.notifier).load());
@@ -291,6 +293,9 @@ class PushNotificationsController extends Notifier<PushNotificationsState> {
         ref.invalidate(changeRequestsProvider);
         ref.invalidate(changeRequestDetailProvider);
         ref.invalidate(pendingChangesProvider);
+        refreshMyTeamFrom(ref);
+      } else if (_teamChangingTypes.contains(type)) {
+        // Được nhận vào nhóm / có người vào nhóm: tải lại nhóm và workspace để tab Tin nhắn hết "Bạn chưa có nhóm".
         refreshMyTeamFrom(ref);
       }
     }
