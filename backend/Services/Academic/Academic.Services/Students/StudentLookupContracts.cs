@@ -13,6 +13,10 @@ public sealed record StudentSnapshot(
     Guid Id, string StudentCode, string FullName, int? SpecializationId, string? ClassCode, string? CourseCode, bool IsEnrolled, int MajorId = 0,
     IReadOnlyList<SkillRating>? Skills = null, string? Description = null);
 
+/// <summary>Schema <c>SeekingStudent</c> của <c>GET /internal/students/seeking</c>.</summary>
+public sealed record SeekingStudent(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, int MajorId, string? Description, IReadOnlyList<SkillRating> Skills);
+
 /// <summary>Body của <c>POST /internal/students/lookup</c>.</summary>
 public sealed record StudentLookupRequest(Guid? SemesterId, IReadOnlyList<Guid>? StudentIds);
 

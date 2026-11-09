@@ -1,3 +1,4 @@
+using BuildingBlocks.Messaging;
 using Academic.Repositories.Students;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +12,9 @@ public interface IStudentLookupService
 
     /// <summary>Toàn bộ sinh viên của học kỳ (Team tính sinh viên chưa có nhóm cho W20, W21).</summary>
     Task<IReadOnlyList<StudentSnapshot>> ListSemesterAsync(SemesterStudentsQuery query, CancellationToken ct);
+
+    /// <summary>Sinh viên đang bật cờ tìm nhóm (Team lọc tiếp người đã có nhóm cho mục "SV tìm nhóm").</summary>
+    Task<IReadOnlyList<SeekingStudent>> ListSeekingAsync(SemesterStudentsQuery query, CancellationToken ct);
 }
 
 /// <summary>
@@ -45,6 +49,12 @@ public sealed class StudentLookupService(IStudentRepository students) : IStudent
     public async Task<IReadOnlyList<StudentSnapshot>> ListSemesterAsync(SemesterStudentsQuery query, CancellationToken ct) =>
         ToSnapshots(await students.ListEnrolledAsync(query.SemesterId!.Value, query.CourseCode, ct));
 
+    public async Task<IReadOnlyList<SeekingStudent>> ListSeekingAsync(SemesterStudentsQuery query, CancellationToken ct) =>
+        (await students.ListSeekingAsync(query.SemesterId!.Value, query.CourseCode, ct))
+            .Select(r => new SeekingStudent(r.Id, r.StudentCode, r.FullName, r.SpecializationId, r.MajorId, r.Description,
+                StudentProfileRules.Ordered(r.Skills.Select(k => new SkillRating(k.Skill, k.Level)))))
+            .ToList();
+
     private static List<StudentSnapshot> ToSnapshots(IEnumerable<StudentSnapshotRow> rows) =>
         rows.Select(r => new StudentSnapshot(r.Id, r.StudentCode, r.FullName, r.SpecializationId, r.ClassCode, r.CourseCode, r.CourseCode is not null, r.MajorId)).ToList();
 }
@@ -59,6 +69,8 @@ public static class StudentsModule
         services.AddScoped<IStudentProfileRepository, StudentProfileRepository>();
         services.AddScoped<IStudentProfileService, StudentProfileService>();
         services.AddScoped<IStudentDirectoryService, StudentDirectoryService>();
+        services.AddEventHandler<TeamMembershipSeekingHandler>(Topics.Team, "TeamCreated");
+        services.AddEventHandler<TeamMembershipSeekingHandler>(Topics.Team, "MemberJoined");
         return services;
     }
 }

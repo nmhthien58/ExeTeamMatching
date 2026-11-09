@@ -71,24 +71,41 @@ public sealed class PostService(
         await posts.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// Mục "SV tìm nhóm": sinh viên cùng học kỳ (và cùng môn khi người xem là sinh viên) đang bật "Tôi đang tìm nhóm"
+    /// trong hồ sơ và chưa có nhóm. Không cần đăng bài; <c>id</c> = id sinh viên, <c>title</c> rỗng, mô tả = giới thiệu trong hồ sơ.
+    /// </summary>
     public async Task<PagedResponse<SeekingPostResponse>> ListSeekingAsync(SeekingPostQuery query, ClaimsPrincipal user, CancellationToken ct)
     {
         Guid semesterId;
-        if (user.GetStudentId() is { } studentId)
+        string? courseCode = null;
+        Guid? viewerId = user.GetStudentId();
+        if (viewerId is { } studentId)
         {
             var (semester, me) = await rounds.ResolveStudentAsync(studentId, ct);
             await rounds.RequireTeamFormationAsync(me.CourseCode, semester.Id, ct);
-            semesterId = semester.Id;
+            (semesterId, courseCode) = (semester.Id, me.CourseCode);
         }
         else
         {
             semesterId = (await academic.GetCurrentSemesterAsync(ct))?.Id ?? throw new NotFoundException("học kỳ hiện hành");
         }
 
-        // shortcut: bài tìm nhóm không lưu môn (EXE101/EXE201) nên danh sách gồm cả hai môn; thêm cột course_code nếu cần lọc.
-        var (items, total) = await posts.SearchSeekingAsync(semesterId, query.SpecializationId, query.Domain, query.Page, query.PageSize, ct);
-        return new PagedResponse<SeekingPostResponse>(await ToResponsesAsync(semesterId, items, ct), query.Page, query.PageSize, total,
-            (total + query.PageSize - 1) / query.PageSize);
+        var seeking = (await academic.ListSeekingStudentsAsync(semesterId, courseCode, ct))
+            .Where(s => s.Id != viewerId && (query.SpecializationId is null || s.SpecializationId == query.SpecializationId))
+            .ToList();
+        var inTeam = await posts.StudentsInTeamAsync(semesterId, seeking.Select(s => s.Id).ToList(), ct);
+        seeking = seeking.Where(s => !inTeam.Contains(s.Id)).ToList();
+
+        var catalogs = await reader.LoadCatalogsAsync(ct);
+        var now = clock.GetUtcNow();
+        var items = seeking.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
+            .Select(s => new SeekingPostResponse(s.Id, string.Empty, s.Description, [],
+                new StudentRef(s.Id, s.StudentCode, s.FullName, catalogs.Specialization(s.SpecializationId ?? 0)),
+                s.Skills ?? [], PostStatuses.Open, now))
+            .ToList();
+        var total = seeking.Count;
+        return new PagedResponse<SeekingPostResponse>(items, query.Page, query.PageSize, total, (total + query.PageSize - 1) / query.PageSize);
     }
 
     public async Task<SeekingPostResponse> GetMySeekingAsync(ClaimsPrincipal user, CancellationToken ct)

@@ -11,6 +11,7 @@ public static class MembersModule
     {
         services.AddScoped<IMemberRepository, MemberRepository>();
         services.AddScoped<MembershipService>();
+        services.AddScoped<StudentTeamStatusService>();
         services.AddScoped<IMemberService, MemberService>();
         services.AddEventHandler<StudentProfileUpdatedHandler>(Topics.Student, "StudentProfileUpdated");
         return services;

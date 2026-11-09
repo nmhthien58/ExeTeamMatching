@@ -14,6 +14,11 @@ public sealed record StudentDirectoryFilter(
     Guid SemesterId, string? CourseCode, string? Search, string? ClassCode, int? SpecializationId, string? Sort, int Page, int PageSize);
 
 /// <summary>Dòng danh sách sinh viên: class có <c>init</c> để EF dịch được Where/OrderBy sau khi chiếu.</summary>
+/// <summary>Sinh viên đang bật "Tôi đang tìm nhóm" kèm giới thiệu và kỹ năng (mục "SV tìm nhóm").</summary>
+public sealed record SeekingStudentRow(
+    Guid Id, string StudentCode, string FullName, int? SpecializationId, int MajorId, string? Description,
+    IReadOnlyList<(string Skill, short Level)> Skills);
+
 public sealed class StudentDirectoryRow
 {
     public Guid Id { get; init; }
@@ -45,6 +50,8 @@ public interface IStudentRepository
     /// <summary>Mọi sinh viên trong danh sách học kỳ, lọc theo môn nếu có; sắp theo MSSV.</summary>
     Task<IReadOnlyList<StudentSnapshotRow>> ListEnrolledAsync(Guid semesterId, string? courseCode, CancellationToken ct);
 
+    /// <summary>Sinh viên trong danh sách học kỳ (lọc theo môn nếu có) đang bật cờ tìm nhóm; sắp theo MSSV.</summary>
+    Task<IReadOnlyList<SeekingStudentRow>> ListSeekingAsync(Guid semesterId, string? courseCode, CancellationToken ct);
     /// <summary>Kỹ năng tự đánh giá và mô tả bản thân của các sinh viên (S06, S13, S20 của Team).</summary>
     Task<(IReadOnlyList<StudentSkill> Skills, IReadOnlyDictionary<Guid, string?> Descriptions)> ListProfilesAsync(IReadOnlyCollection<Guid> studentIds, CancellationToken ct) =>
         Task.FromResult<(IReadOnlyList<StudentSkill>, IReadOnlyDictionary<Guid, string?>)>(([], new Dictionary<Guid, string?>()));
@@ -109,6 +116,21 @@ public sealed class StudentRepository(AcademicDbContext db) : IStudentRepository
     public Task<IReadOnlyList<StudentSnapshotRow>> ListEnrolledAsync(Guid semesterId, string? courseCode, CancellationToken ct) =>
         SnapshotsAsync(db.Students.Where(s => db.SemesterEnrollments.Any(e => e.StudentId == s.Id && e.SemesterId == semesterId
             && (courseCode == null || e.CourseCode == courseCode))), semesterId, ct);
+
+    public async Task<IReadOnlyList<SeekingStudentRow>> ListSeekingAsync(Guid semesterId, string? courseCode, CancellationToken ct)
+    {
+        var students = await db.Students.AsNoTracking()
+            .Where(s => s.IsSeekingTeam && db.SemesterEnrollments.Any(e => e.StudentId == s.Id && e.SemesterId == semesterId
+                && (courseCode == null || e.CourseCode == courseCode)))
+            .OrderBy(s => s.StudentCode)
+            .Select(s => new { s.Id, s.StudentCode, s.FullName, s.SpecializationId, s.MajorId, s.Description })
+            .ToListAsync(ct);
+        var ids = students.Select(s => s.Id).ToList();
+        var skills = (await db.StudentSkills.AsNoTracking().Where(k => ids.Contains(k.StudentId)).ToListAsync(ct))
+            .ToLookup(k => k.StudentId);
+        return students.Select(s => new SeekingStudentRow(s.Id, s.StudentCode, s.FullName, s.SpecializationId, s.MajorId, s.Description,
+            skills[s.Id].Select(k => (k.Skill, k.Level)).ToList())).ToList();
+    }
 
     public async Task<(IReadOnlyList<StudentSkill> Skills, IReadOnlyDictionary<Guid, string?> Descriptions)> ListProfilesAsync(
         IReadOnlyCollection<Guid> studentIds, CancellationToken ct)

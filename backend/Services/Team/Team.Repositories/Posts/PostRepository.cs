@@ -12,6 +12,9 @@ public static class PostStatuses
 
 public interface IPostRepository
 {
+    /// <summary>Những sinh viên trong <paramref name="studentIds"/> đã có nhóm ở học kỳ.</summary>
+    Task<HashSet<Guid>> StudentsInTeamAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct);
+
     /// <summary>Bài tuyển đang mở của nhóm (được theo dõi).</summary>
     Task<RecruitmentPost?> GetOpenRecruitmentAsync(Guid teamId, CancellationToken ct);
 
@@ -39,6 +42,12 @@ public interface IPostRepository
 
 public sealed class PostRepository(TeamDbContext db) : IPostRepository
 {
+    public async Task<HashSet<Guid>> StudentsInTeamAsync(Guid semesterId, IReadOnlyCollection<Guid> studentIds, CancellationToken ct) =>
+        (await db.Set<TeamMember>().AsNoTracking()
+            .Where(m => m.SemesterId == semesterId && studentIds.Contains(m.StudentId))
+            .Select(m => m.StudentId)
+            .ToListAsync(ct)).ToHashSet();
+
     public Task<RecruitmentPost?> GetOpenRecruitmentAsync(Guid teamId, CancellationToken ct) =>
         db.Set<RecruitmentPost>().FirstOrDefaultAsync(p => p.TeamId == teamId && p.Status == PostStatuses.Open, ct);
 

@@ -10,7 +10,6 @@ import '../features/lecturer/advised_teams_screen.dart';
 import '../features/mentor/mentor_home_screen.dart';
 
 import '../features/discover/discover_screen.dart';
-import '../features/discover/seeking_posts_screen.dart';
 import '../features/discover/team_detail_screen.dart';
 import '../features/files/files_screen.dart';
 import '../features/home/home_screen.dart';
@@ -151,8 +150,7 @@ final _studentTeamRoutes = [
     builder: (_, s) => TeamFormationOnly(child: TeamDetailScreen(teamId: s.pathParameters['teamId']!)),
   ),
   GoRoute(path: '/sv/loi-moi', builder: (_, s) => InvitationsScreen(initialTab: s.uri.queryParameters['tab'] == 'yeu-cau' ? 1 : 0)),
-  // S11, S21 – MB-17, MB-25 (Cường); chỉ trong đợt lập nhóm (quy tắc 18).
-  GoRoute(path: '/sv/kham-pha/tim-nhom', builder: (_, _) => const TeamFormationOnly(child: SeekingPostFormScreen())),
+  // S21 – MB-25 (Cường); chỉ trong đợt lập nhóm (quy tắc 18). S11 (đăng bài tìm nhóm) đã bỏ: dùng cờ "Tôi đang tìm nhóm" trong hồ sơ.
   GoRoute(path: '/sv/nhom/bai-tuyen', builder: (_, _) => const TeamFormationOnly(child: RecruitmentPostScreen())),
   // S22 – MB-26 (Cường).
   GoRoute(path: '/sv/nhom/lich-su', builder: (_, _) => const TeamHistoryScreen()),
